@@ -3,320 +3,256 @@ import SwiftUI
 struct LoginScreen: View {
     let authManager: AuthManager
 
-    enum AuthMode { case signIn, signUp, forgotPassword }
+    @State private var imageOpacity: Double = 0
+    @State private var showGoogle = false
+    @State private var showApple = false
+    @State private var showEmail = false
+    @State private var showFooter = false
+    @State private var loadingProvider: LoadingProvider = .none
+    @State private var glowStarted = false
 
-    @State private var mode: AuthMode = .signIn
-    @State private var email = ""
-    @State private var password = ""
-    @State private var name = ""
-    @State private var showPassword = false
-    @State private var isSubmitting = false
-    @State private var successMessage: String?
-    @FocusState private var focusedField: Field?
-
-    private enum Field { case name, email, password }
+    private enum LoadingProvider {
+        case google, apple, email, none
+    }
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
-            // Subtle ambient top glow
-            RadialGradient(
-                colors: [VitaColors.accent.opacity(0.07), .clear],
-                center: UnitPoint(x: 0.5, y: 0),
-                startRadius: 0,
-                endRadius: 350
-            )
+            // Background logo image — top 75% of screen
+            VStack {
+                ZStack {
+                    Image("login_bg")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: UIScreen.main.bounds.height * 0.75)
+                        .clipped()
+                        .opacity(imageOpacity)
+
+                    // Organic glow overlay
+                    if glowStarted {
+                        OrganicGlowCanvas()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: UIScreen.main.bounds.height * 0.75)
+
+                Spacer()
+            }
+
+            // Bottom gradient fade
+            VStack {
+                Spacer()
+                LinearGradient(
+                    colors: [.clear, Color.black.opacity(0.85), .black],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: UIScreen.main.bounds.height * 0.55)
+            }
             .ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    Spacer().frame(height: 60)
+            // Buttons + footer
+            VStack(spacing: 0) {
+                Spacer()
 
-                    // "V" badge
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(VitaColors.accent)
-                            .frame(width: 48, height: 48)
-                        Text("V")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(Color(hex: 0x040809))
+                if authManager.isLoading {
+                    ProgressView()
+                        .tint(VitaColors.accent)
+                        .scaleEffect(1.2)
+                    Spacer().frame(height: 40)
+                } else {
+                    // Google
+                    if showGoogle {
+                        GlassAuthButton(
+                            label: "Continuar com Google",
+                            icon: AnyView(GoogleIcon()),
+                            isPrimary: true,
+                            isLoading: loadingProvider == .google
+                        ) {
+                            loadingProvider = .google
+                            authManager.signInWithGoogle()
+                        }
+                        .padding(.horizontal, 36)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    .padding(.bottom, 20)
 
-                    // Title
-                    Text(titleText)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(VitaColors.textPrimary)
-                        .padding(.bottom, 6)
+                    Spacer().frame(height: 12)
 
-                    // Subtitle
-                    Text(subtitleText)
-                        .font(.system(size: 14))
-                        .foregroundStyle(VitaColors.textSecondary)
-                        .padding(.bottom, 32)
-
-                    // Card
-                    VStack(spacing: 14) {
-
-                        // Google (sign in / sign up only)
-                        if mode != .forgotPassword {
-                            Button(action: { authManager.signInWithGoogle() }) {
-                                HStack(spacing: 10) {
-                                    GoogleIcon()
-                                    Text("Continuar com Google")
-                                        .font(.system(size: 15, weight: .medium))
-                                        .foregroundStyle(VitaColors.textPrimary)
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 16)
-                                .frame(height: 48)
-                                .background(VitaColors.surfaceElevated)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.surfaceBorder, lineWidth: 1))
-                                .cornerRadius(10)
-                            }
-                            .buttonStyle(.plain)
-
-                            // OR separator
-                            HStack(spacing: 12) {
-                                Rectangle().fill(VitaColors.surfaceBorder).frame(height: 1)
-                                Text("ou").font(.system(size: 12)).foregroundStyle(VitaColors.textTertiary)
-                                Rectangle().fill(VitaColors.surfaceBorder).frame(height: 1)
-                            }
+                    // Apple
+                    if showApple {
+                        GlassAuthButton(
+                            label: "Continuar com Apple",
+                            icon: AnyView(
+                                Image(systemName: "apple.logo")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(VitaColors.white)
+                            ),
+                            isLoading: loadingProvider == .apple
+                        ) {
+                            loadingProvider = .apple
+                            authManager.signInWithApple()
                         }
-
-                        // Name (sign up only)
-                        if mode == .signUp {
-                            authTextField("Nome completo", text: $name, field: .name)
-                                .autocapitalization(.words)
-                        }
-
-                        // Email
-                        authTextField("Email", text: $email, field: .email)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .autocorrectionDisabled()
-
-                        // Password
-                        if mode != .forgotPassword {
-                            HStack(spacing: 10) {
-                                Group {
-                                    if showPassword {
-                                        TextField("Senha", text: $password)
-                                            .focused($focusedField, equals: .password)
-                                    } else {
-                                        SecureField("Senha", text: $password)
-                                            .focused($focusedField, equals: .password)
-                                    }
-                                }
-                                .font(.system(size: 15))
-                                .foregroundStyle(VitaColors.textPrimary)
-                                .autocapitalization(.none)
-                                .autocorrectionDisabled()
-                                .submitLabel(.go)
-                                .onSubmit { submit() }
-
-                                Button(action: { showPassword.toggle() }) {
-                                    Image(systemName: showPassword ? "eye.slash" : "eye")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(VitaColors.textTertiary)
-                                }
-                            }
-                            .padding(.horizontal, 14)
-                            .frame(height: 48)
-                            .background(VitaColors.surfaceElevated)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.surfaceBorder, lineWidth: 1))
-                            .cornerRadius(10)
-                        }
-
-                        // Error
-                        if let error = authManager.error {
-                            Text(error)
-                                .font(.system(size: 13))
-                                .foregroundStyle(.red.opacity(0.85))
-                                .multilineTextAlignment(.center)
-                        }
-
-                        // Success
-                        if let msg = successMessage {
-                            Text(msg)
-                                .font(.system(size: 13))
-                                .foregroundStyle(VitaColors.accent)
-                                .multilineTextAlignment(.center)
-                        }
-
-                        // Submit button
-                        Button(action: submit) {
-                            Group {
-                                if isSubmitting {
-                                    ProgressView().tint(Color(hex: 0x040809))
-                                } else {
-                                    Text(submitLabel)
-                                        .font(.system(size: 15, weight: .semibold))
-                                        .foregroundStyle(Color(hex: 0x040809))
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(VitaColors.accent)
-                            .cornerRadius(10)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isSubmitting)
-
-                        // Forgot password link (sign in only)
-                        if mode == .signIn {
-                            Button("Esqueci a senha") {
-                                withAnimation(.easeInOut(duration: 0.2)) { mode = .forgotPassword }
-                            }
-                            .font(.system(size: 13))
-                            .foregroundStyle(VitaColors.textSecondary)
-                        }
+                        .padding(.horizontal, 36)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    .padding(20)
-                    .background(VitaColors.surfaceCard)
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(VitaColors.surfaceBorder, lineWidth: 1))
-                    .cornerRadius(16)
-                    .padding(.horizontal, 24)
 
-                    Spacer().frame(height: 24)
+                    Spacer().frame(height: 12)
 
-                    // Toggle sign in / sign up
-                    HStack(spacing: 4) {
-                        Text(toggleLabel)
-                            .foregroundStyle(VitaColors.textSecondary)
-                        Button(toggleAction) {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                mode = (mode == .signIn) ? .signUp : .signIn
-                                clearFields()
-                            }
+                    // Email
+                    if showEmail {
+                        GlassAuthButton(
+                            label: "Continuar com Email",
+                            icon: AnyView(
+                                Image(systemName: "envelope")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(VitaColors.textSecondary)
+                            ),
+                            isLoading: loadingProvider == .email
+                        ) {
+                            loadingProvider = .email
+                            // TODO: open email form sheet
                         }
-                        .foregroundStyle(VitaColors.accent)
+                        .padding(.horizontal, 36)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    .font(.system(size: 14))
-
-                    // Apple sign in
-                    Spacer().frame(height: 16)
-                    Button(action: { authManager.signInWithApple() }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "apple.logo")
-                                .font(.system(size: 13))
-                            Text("Continuar com Apple")
-                                .font(.system(size: 13))
-                        }
-                        .foregroundStyle(VitaColors.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer().frame(height: 48)
                 }
+
+                // Error
+                if let error = authManager.error {
+                    Text(error)
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle(.red.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 12)
+                        .padding(.horizontal, 36)
+                }
+
+                Spacer().frame(height: 16)
+
+                // Legal footer
+                if showFooter {
+                    (Text("Ao continuar voce concorda com os ")
+                        .foregroundStyle(VitaColors.textTertiary) +
+                    Text("Termos de Uso")
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .underline() +
+                    Text(" e ")
+                        .foregroundStyle(VitaColors.textTertiary) +
+                    Text("Politica de Privacidade")
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .underline())
+                    .font(VitaTypography.labelSmall)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 36)
+                    .transition(.opacity)
+                }
+
+                Spacer().frame(height: 28)
             }
-            .scrollDismissesKeyboard(.immediately)
         }
-        .onAppear { authManager.error = nil }
-    }
-
-    // MARK: - Helpers
-
-    private var titleText: String {
-        switch mode {
-        case .signIn: return "Entrar no VitaAI"
-        case .signUp: return "Criar conta"
-        case .forgotPassword: return "Recuperar senha"
-        }
-    }
-
-    private var subtitleText: String {
-        switch mode {
-        case .signIn: return "Seu estudo inteligente"
-        case .signUp: return "Comece seu estudo inteligente"
-        case .forgotPassword: return "Enviaremos um link para seu email"
-        }
-    }
-
-    private var submitLabel: String {
-        switch mode {
-        case .signIn: return "Entrar"
-        case .signUp: return "Criar conta"
-        case .forgotPassword: return "Enviar link"
-        }
-    }
-
-    private var toggleLabel: String {
-        switch mode {
-        case .signIn: return "Não tem conta?"
-        case .signUp: return "Já tem conta?"
-        case .forgotPassword: return "Lembrou a senha?"
-        }
-    }
-
-    private var toggleAction: String {
-        switch mode {
-        case .signIn: return "Criar conta"
-        case .signUp, .forgotPassword: return "Entrar"
-        }
-    }
-
-    private func submit() {
-        successMessage = nil
-        authManager.error = nil
-        focusedField = nil
-
-        switch mode {
-        case .signIn:
-            guard !email.isEmpty, !password.isEmpty else { return }
-            isSubmitting = true
+        .onAppear {
+            withAnimation(.easeOut(duration: 1.5)) { imageOpacity = 1 }
             Task {
-                await authManager.signInWithEmail(email: email, password: password)
-                isSubmitting = false
-            }
-        case .signUp:
-            guard !email.isEmpty, !password.isEmpty, !name.isEmpty else { return }
-            isSubmitting = true
-            Task {
-                await authManager.signUpWithEmail(email: email, password: password, name: name)
-                isSubmitting = false
-            }
-        case .forgotPassword:
-            guard !email.isEmpty else { return }
-            isSubmitting = true
-            Task {
-                await authManager.forgotPassword(email: email)
-                isSubmitting = false
-                successMessage = "Link enviado para \(email)"
+                try? await Task.sleep(for: .seconds(1.2))
+                withAnimation(.easeOut(duration: 0.8)) { showGoogle = true }
+                try? await Task.sleep(for: .seconds(0.1))
+                withAnimation(.easeOut(duration: 0.8)) { showApple = true }
+                try? await Task.sleep(for: .seconds(0.1))
+                withAnimation(.easeOut(duration: 0.8)) { showEmail = true }
+                try? await Task.sleep(for: .seconds(0.2))
+                withAnimation(.easeOut(duration: 0.6)) { showFooter = true }
+                glowStarted = true
             }
         }
-    }
-
-    private func clearFields() {
-        email = ""; password = ""; name = ""; successMessage = nil; authManager.error = nil
-    }
-
-    @ViewBuilder
-    private func authTextField(_ placeholder: String, text: Binding<String>, field: Field) -> some View {
-        TextField(placeholder, text: text)
-            .focused($focusedField, equals: field)
-            .font(.system(size: 15))
-            .foregroundStyle(VitaColors.textPrimary)
-            .padding(.horizontal, 14)
-            .frame(height: 48)
-            .background(VitaColors.surfaceElevated)
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.surfaceBorder, lineWidth: 1))
-            .cornerRadius(10)
     }
 }
 
-// MARK: - Google icon (mimics web SVG)
+// MARK: - Organic glow (matches Android BrandConfig glow system)
+
+private struct OrganicGlowCanvas: View {
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            Canvas { context, size in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+
+                // Co-prime durations = no visible loop
+                let glowA = (sin(t * 0.886) + 1) / 2  // ~7.1s period
+                let glowB = (sin(t * 1.461) + 1) / 2  // ~4.3s period
+                let glowC = (sin(t * 2.166) + 1) / 2  // ~2.9s period
+                let composite = glowA * 0.45 + glowB * 0.35 + glowC * 0.2
+
+                let cx = size.width * 0.5
+                let glowTop = size.height * 0.15
+                let glowBottom = size.height * 0.65
+
+                // 1. Core radial glow — organic breathing
+                let baseAlpha = composite * 0.18
+                let radius = size.width * (0.35 + composite * 0.08)
+                let centerDriftX = cx + sin(glowA * .pi) * size.width * 0.02
+                let centerDriftY = size.height * 0.38 + sin(glowB * .pi) * size.height * 0.01
+                context.fill(
+                    Path(ellipseIn: CGRect(x: centerDriftX - radius, y: centerDriftY - radius,
+                                          width: radius * 2, height: radius * 2)),
+                    with: .radialGradient(
+                        Gradient(colors: [
+                            VitaColors.accent.opacity(baseAlpha),
+                            VitaColors.accent.opacity(baseAlpha * 0.25),
+                            .clear
+                        ]),
+                        center: CGPoint(x: centerDriftX, y: centerDriftY),
+                        startRadius: 0, endRadius: radius
+                    )
+                )
+
+                // 2. Light sweep A — slow diagonal
+                let sweepA = fmod(t / 8.3, 1.0)
+                if sweepA > 0 && sweepA < 1 {
+                    let sxA = size.width * sweepA
+                    let intensity = 0.08 * (1 - 2 * abs(sweepA - 0.5))
+                    context.fill(
+                        Path(CGRect(x: 0, y: 0, width: size.width, height: size.height)),
+                        with: .linearGradient(
+                            Gradient(colors: [
+                                .clear,
+                                VitaColors.accent.opacity(intensity * 0.4),
+                                Color.white.opacity(intensity),
+                                VitaColors.accent.opacity(intensity * 0.4),
+                                .clear
+                            ]),
+                            startPoint: CGPoint(x: sxA - size.width * 0.12, y: glowTop),
+                            endPoint: CGPoint(x: sxA + size.width * 0.12, y: glowBottom)
+                        )
+                    )
+                }
+
+                // 3. Head highlight
+                let headAlpha = (glowB * 0.6 + glowC * 0.4) * 0.10
+                let headRadius = size.width * 0.13
+                let headCenter = CGPoint(x: cx, y: glowTop + size.height * 0.04)
+                context.fill(
+                    Path(ellipseIn: CGRect(x: headCenter.x - headRadius, y: headCenter.y - headRadius,
+                                          width: headRadius * 2, height: headRadius * 2)),
+                    with: .radialGradient(
+                        Gradient(colors: [VitaColors.accent.opacity(headAlpha), .clear]),
+                        center: headCenter, startRadius: 0, endRadius: headRadius
+                    )
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Google icon
 
 private struct GoogleIcon: View {
     var body: some View {
+        // Real Google G SVG paths rendered as SwiftUI shapes
         ZStack {
-            Circle()
-                .fill(Color.white)
-                .frame(width: 22, height: 22)
-            Text("G")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(Color(red: 0.259, green: 0.522, blue: 0.957))
+            Image(systemName: "g.circle.fill")
+                .font(.system(size: 20))
+                .foregroundStyle(Color.white)
         }
     }
 }
