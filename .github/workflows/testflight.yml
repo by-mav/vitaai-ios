@@ -46,6 +46,7 @@ jobs:
             -project VitaAI.xcodeproj \
             -scheme VitaAI \
             -configuration Release \
+            -destination 'generic/platform=iOS' \
             -archivePath ${{ github.workspace }}/build/VitaAI.xcarchive \
             -allowProvisioningUpdates \
             -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
