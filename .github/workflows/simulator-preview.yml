@@ -76,7 +76,7 @@ jobs:
           xcrun simctl launch "$DEVICE_ID" com.bymav.vitaai
 
           mkdir -p screenshots
-          sleep 10  # wait for splash + login animation (image fade 1.5s + button stagger ~2s)
+          sleep 15  # wait for splash + login animation (image fade 1.5s + button stagger ~2s)
           xcrun simctl io "$DEVICE_ID" screenshot screenshots/01-launch.png
 
           xcrun simctl shutdown "$DEVICE_ID" || true
