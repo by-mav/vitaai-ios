@@ -24,9 +24,9 @@ struct LoginScreen: View {
                 ZStack {
                     Image("login_bg")
                         .resizable()
-                        .scaledToFill()
-                        .scaleEffect(0.80)  // -20% zoom total vs fill
-                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height * 0.82)
+                        .scaledToFit()  // FillWidth: fills width, height proportional (no crop = less zoom)
+                        .frame(width: UIScreen.main.bounds.width)
+                        .frame(maxHeight: .infinity, alignment: .top)
                         .opacity(imageOpacity)
 
                     // Organic glow overlay
@@ -55,7 +55,7 @@ struct LoginScreen: View {
 
             // Buttons + footer — pinned to bottom third of screen
             VStack(spacing: 0) {
-                Spacer(minLength: UIScreen.main.bounds.height * 0.68)  // buttons ~bottom 32%
+                Spacer(minLength: UIScreen.main.bounds.height * 0.72)  // buttons ~bottom 28%
 
 
                 if authManager.isLoading {
@@ -151,10 +151,11 @@ struct LoginScreen: View {
                     .transition(.opacity)
                 }
 
-                Spacer().frame(height: 36)
+                Spacer().frame(height: 16)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)  // fills ZStack so Spacer() pushes buttons to bottom
         }
+        .ignoresSafeArea()  // full bleed — no black bars at top/bottom from safe area
         .onAppear {
             withAnimation(.easeOut(duration: 1.5)) { imageOpacity = 1 }
             Task {
