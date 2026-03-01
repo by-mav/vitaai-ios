@@ -6,7 +6,7 @@ struct VitaAIApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppRouter()
+            AppRouter(authManager: container.authManager)
                 .environment(\.appContainer, container)
                 .preferredColorScheme(.dark)
         }

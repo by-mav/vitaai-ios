@@ -1,33 +1,33 @@
 import SwiftUI
 
 struct AppRouter: View {
+    @ObservedObject var authManager: AuthManager
     @Environment(\.appContainer) private var container
     @State private var router = Router()
 
     var body: some View {
         Group {
-            if container.authManager.isLoading {
+            if authManager.isLoading {
                 // Splash
                 ZStack {
                     VitaColors.surface.ignoresSafeArea()
                     ProgressView()
                         .tint(VitaColors.accent)
                 }
-            } else if !container.authManager.isLoggedIn {
-                LoginScreen(authManager: container.authManager)
+            } else if !authManager.isLoggedIn {
+                LoginScreen(authManager: authManager)
             } else if !isOnboarded {
                 OnboardingScreen {
                     // Force re-check
                 }
             } else {
-                MainTabView(router: router, authManager: container.authManager)
+                MainTabView(router: router, authManager: authManager)
             }
         }
         .preferredColorScheme(.dark)
     }
 
     private var isOnboarded: Bool {
-        // Check synchronously from UserDefaults
         UserDefaults.standard.bool(forKey: "vita_is_onboarded")
     }
 }
