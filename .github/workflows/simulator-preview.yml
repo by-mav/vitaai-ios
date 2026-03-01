@@ -1,0 +1,97 @@
+name: Simulator Preview
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: simulator
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    name: Screenshots & App Bundle
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -switch /Applications/Xcode_16.2.app || \
+          sudo xcode-select -switch $(ls -d /Applications/Xcode*.app | tail -1)
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec project.yml
+
+      - name: Generate app icon
+        run: |
+          python3 - <<'EOF'
+          import struct, zlib, os
+          def png(w, h, r, g, b):
+              def chunk(t, d):
+                  c = zlib.crc32(t + d) & 0xffffffff
+                  return struct.pack('>I', len(d)) + t + d + struct.pack('>I', c)
+              ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
+              raw = b''.join(b'\x00' + bytes([r,g,b]*w) for _ in range(h))
+              return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR',ihdr) + chunk(b'IDAT',zlib.compress(raw)) + chunk(b'IEND',b'')
+          os.makedirs('VitaAI/Assets.xcassets/AppIcon.appiconset', exist_ok=True)
+          open('VitaAI/Assets.xcassets/AppIcon.appiconset/icon-1024.png','wb').write(png(1024,1024,22,163,74))
+          EOF
+
+      - name: Build for Simulator
+        run: |
+          xcodebuild build \
+            -project VitaAI.xcodeproj \
+            -scheme VitaAI \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -derivedDataPath build/sim \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            TARGETED_DEVICE_FAMILY=1 \
+            | cat
+
+      - name: Boot simulator & take screenshots
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 15" | grep -v "Plus\|Pro" | head -1 | grep -o '[A-F0-9-]\{36\}')
+          echo "Device: $DEVICE_ID"
+          xcrun simctl boot "$DEVICE_ID" || true
+          sleep 5
+
+          APP_PATH=$(find build/sim -name "VitaAI.app" -not -path "*/Index.noindex/*" | head -1)
+          echo "App: $APP_PATH"
+          xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+          xcrun simctl launch "$DEVICE_ID" com.bymav.vitaai
+
+          mkdir -p screenshots
+          sleep 4
+          xcrun simctl io "$DEVICE_ID" screenshot screenshots/01-launch.png
+
+          xcrun simctl shutdown "$DEVICE_ID" || true
+
+      - name: Zip app for Appetize
+        run: |
+          APP_PATH=$(find build/sim -name "VitaAI.app" -not -path "*/Index.noindex/*" | head -1)
+          zip -r VitaAI-simulator.zip "$APP_PATH"
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+          retention-days: 7
+
+      - name: Upload app bundle (for Appetize.io)
+        uses: actions/upload-artifact@v4
+        with:
+          name: VitaAI-simulator
+          path: VitaAI-simulator.zip
+          retention-days: 7
