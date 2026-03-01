@@ -60,7 +60,7 @@ final class ChatViewModel {
         isStreaming = true
 
         do {
-            for try await event in chatClient.streamChat(
+            for try await event in await chatClient.streamChat(
                 message: text,
                 conversationId: currentConversationId
             ) {

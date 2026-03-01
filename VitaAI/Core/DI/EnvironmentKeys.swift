@@ -1,7 +1,7 @@
 import SwiftUI
 
 private struct AppContainerKey: EnvironmentKey {
-    static let defaultValue: AppContainer = AppContainer()
+    @MainActor static let defaultValue: AppContainer = AppContainer()
 }
 
 extension EnvironmentValues {
