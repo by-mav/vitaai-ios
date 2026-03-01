@@ -17,7 +17,7 @@ enum AppConfig {
         case .development:
             return "http://localhost:3070/api"
         case .production:
-            return "https://medcoach.bymav.com/api"
+            return "https://vita-ai.cloud/api"
         }
     }
 
@@ -26,7 +26,7 @@ enum AppConfig {
         case .development:
             return "http://localhost:3070"
         case .production:
-            return "https://medcoach.bymav.com"
+            return "https://vita-ai.cloud"
         }
     }
 
