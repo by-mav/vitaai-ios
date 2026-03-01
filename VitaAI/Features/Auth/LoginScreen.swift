@@ -26,9 +26,9 @@ struct LoginScreen: View {
                 ZStack {
                     Image("login_bg")
                         .resizable()
-                        .scaledToFill()  // fills edge-to-edge, no black bars on sides
+                        .scaledToFill()
+                        .scaleEffect(0.95)  // -5% zoom, still fills edge-to-edge
                         .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height * 0.75)
-                        .clipped()
                         .opacity(imageOpacity)
 
                     // Organic glow overlay
@@ -38,6 +38,7 @@ struct LoginScreen: View {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: UIScreen.main.bounds.height * 0.75)
+                .clipped()  // clip at ZStack level so scaleEffect doesn't bleed outside
 
                 Spacer()
             }
@@ -56,7 +57,7 @@ struct LoginScreen: View {
 
             // Buttons + footer — pinned to bottom third of screen
             VStack(spacing: 0) {
-                Spacer(minLength: UIScreen.main.bounds.height * 0.62)  // pushes buttons to bottom ~38%
+                Spacer(minLength: UIScreen.main.bounds.height * 0.70)  // pushes buttons to bottom ~30%
 
 
                 if authManager.isLoading {
