@@ -19,18 +19,17 @@ struct GlassAuthButton: View {
                     HStack(spacing: 12) {
                         icon
                         Text(label)
-                            .font(VitaTypography.bodyLarge)
+                            .font(VitaTypography.labelLarge)  // 14pt/medium — matches Android 14sp/500
                             .foregroundStyle(VitaColors.textPrimary)
-                            .fontWeight(.medium)
                     }
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .frame(height: 42)  // matches Android GlassAuthButton height=42dp
             .background(isPrimary ? VitaColors.glassHighlight : VitaColors.glassBg)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: 8))  // matches Android cornerRadius=8dp
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(
                         isPrimary ? VitaColors.accent.opacity(0.12) : VitaColors.glassBorder,
                         lineWidth: 1

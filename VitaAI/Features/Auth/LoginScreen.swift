@@ -20,13 +20,15 @@ struct LoginScreen: View {
             Color.black.ignoresSafeArea()
 
             // Background logo image — top 75% of screen
+            // ContentScale.FillWidth equivalent: fill width, height proportional, clip bottom.
+            // scaledToFit() + explicit width (not scaledToFill) avoids unwanted zoom.
             VStack {
                 ZStack {
                     Image("login_bg")
                         .resizable()
-                        .scaledToFill()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: UIScreen.main.bounds.height * 0.75)
+                        .scaledToFit()
+                        .frame(width: UIScreen.main.bounds.width)
+                        .frame(height: UIScreen.main.bounds.height * 0.75, alignment: .top)
                         .clipped()
                         .opacity(imageOpacity)
 
@@ -53,9 +55,10 @@ struct LoginScreen: View {
             }
             .ignoresSafeArea()
 
-            // Buttons + footer
+            // Buttons + footer — frame(maxWidth) ensures width = screen width in ZStack
             VStack(spacing: 0) {
                 Spacer()
+
 
                 if authManager.isLoading {
                     ProgressView()
@@ -131,7 +134,7 @@ struct LoginScreen: View {
 
                 Spacer().frame(height: 16)
 
-                // Legal footer
+                // Legal footer — frame(maxWidth) ensures text wraps within screen bounds
                 if showFooter {
                     (Text("Ao continuar voce concorda com os ")
                         .foregroundStyle(VitaColors.textTertiary) +
@@ -145,12 +148,14 @@ struct LoginScreen: View {
                         .underline())
                     .font(VitaTypography.labelSmall)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 36)
+                    .frame(maxWidth: .infinity)   // forces wrapping within screen width
+                    .padding(.horizontal, 48)     // matches Android: Column(h=36) + Text(h=12) = 48dp
                     .transition(.opacity)
                 }
 
                 Spacer().frame(height: 28)
             }
+            .frame(maxWidth: .infinity)  // anchors VStack to screen width inside ZStack
         }
         .onAppear {
             withAnimation(.easeOut(duration: 1.5)) { imageOpacity = 1 }
