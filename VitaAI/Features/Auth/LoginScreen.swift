@@ -25,7 +25,7 @@ struct LoginScreen: View {
                     Image("login_bg")
                         .resizable()
                         .scaledToFill()
-                        .scaleEffect(0.90)  // -10% zoom total vs fill, still covers edge-to-edge
+                        .scaleEffect(0.80)  // -20% zoom total vs fill
                         .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height * 0.82)
                         .opacity(imageOpacity)
 
@@ -55,7 +55,7 @@ struct LoginScreen: View {
 
             // Buttons + footer — pinned to bottom third of screen
             VStack(spacing: 0) {
-                Spacer(minLength: UIScreen.main.bounds.height * 0.58)  // pushes buttons to lower half, footer fits
+                Spacer(minLength: UIScreen.main.bounds.height * 0.68)  // buttons ~bottom 32%
 
 
                 if authManager.isLoading {
