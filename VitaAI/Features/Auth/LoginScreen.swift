@@ -24,9 +24,9 @@ struct LoginScreen: View {
                 ZStack {
                     Image("login_bg")
                         .resizable()
-                        .scaledToFit()  // FillWidth: fills width, height proportional (no crop = less zoom)
-                        .frame(width: UIScreen.main.bounds.width)
-                        .frame(maxHeight: .infinity, alignment: .top)
+                        .scaledToFill()  // fills edge-to-edge, no black bars
+                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height * 0.82)
+                        .clipped()
                         .opacity(imageOpacity)
 
                     // Organic glow overlay
