@@ -27,8 +27,8 @@ struct LoginScreen: View {
                     Image("login_bg")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: UIScreen.main.bounds.width)
-                        .frame(height: UIScreen.main.bounds.height * 0.75, alignment: .top)
+                        .frame(width: UIScreen.main.bounds.width * 0.9)  // -10% zoom vs full-width
+                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height * 0.75, alignment: .top)
                         .clipped()
                         .opacity(imageOpacity)
 
@@ -155,7 +155,7 @@ struct LoginScreen: View {
 
                 Spacer().frame(height: 28)
             }
-            .frame(maxWidth: .infinity)  // anchors VStack to screen width inside ZStack
+            .frame(maxWidth: .infinity, maxHeight: .infinity)  // fills ZStack so Spacer() pushes buttons to bottom
         }
         .onAppear {
             withAnimation(.easeOut(duration: 1.5)) { imageOpacity = 1 }
