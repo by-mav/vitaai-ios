@@ -5,6 +5,12 @@ import SwiftData
 struct VitaAIApp: App {
     @StateObject private var container = AppContainer()
 
+    init() {
+        // Initialize Sentry for crash reporting and performance monitoring.
+        // No-op in DEBUG builds. Requires SENTRY_DSN in Info.plist.
+        SentryConfig.initialize()
+    }
+
     var body: some Scene {
         WindowGroup {
             AppRouter(authManager: container.authManager)
