@@ -9,6 +9,8 @@ struct ProfileScreen: View {
     var onNavigateToNotifications: (() -> Void)?
     var onNavigateToCanvasConnect: (() -> Void)?
     var onNavigateToWebAluno:      (() -> Void)?
+    var onNavigateToInsights:      (() -> Void)?
+    var onNavigateToTrabalhos:     (() -> Void)?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -34,6 +36,26 @@ struct ProfileScreen: View {
                     }
                 }
                 .padding(.top, 20)
+
+                // Ferramentas group (Insights + Trabalhos)
+                VitaGlassCard {
+                    VStack(spacing: 0) {
+                        settingsRow(
+                            icon: "chart.line.uptrend.xyaxis",
+                            title: "Insights",
+                            subtitle: "Desempenho e estatísticas",
+                            action: { onNavigateToInsights?() }
+                        )
+                        Divider().background(VitaColors.glassBorder)
+                        settingsRow(
+                            icon: "checklist",
+                            title: "Trabalhos",
+                            subtitle: "Tarefas e notas",
+                            action: { onNavigateToTrabalhos?() }
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
 
                 // Integrations group
                 VitaGlassCard {

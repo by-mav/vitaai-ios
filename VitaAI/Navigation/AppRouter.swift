@@ -85,7 +85,9 @@ struct MainTabView: View {
                                 onNavigateToAppearance:    { router.navigate(to: .appearance) },
                                 onNavigateToNotifications: { router.navigate(to: .notifications) },
                                 onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) },
-                                onNavigateToWebAluno:      { router.navigate(to: .webalunoConnect) }
+                                onNavigateToWebAluno:      { router.navigate(to: .webalunoConnect) },
+                                onNavigateToInsights:      { router.navigate(to: .insights) },
+                                onNavigateToTrabalhos:     { router.navigate(to: .trabalhos) }
                             )
                             .tag(TabItem.profile)
                         }
@@ -182,6 +184,10 @@ struct MainTabView: View {
                     WebAlunoConnectScreen(
                         onBack: { router.goBack() }
                     )
+                case .insights:
+                    InsightsScreen()
+                case .trabalhos:
+                    TrabalhoScreen()
                 case .about:
                     AboutScreen()
                 case .appearance:
