@@ -4,6 +4,12 @@ struct DashboardScreen: View {
     @Environment(\.appContainer) private var container
     @State private var viewModel: DashboardViewModel?
 
+    // Navigation callbacks injected by AppRouter
+    var onNavigateToFlashcards: (() -> Void)?
+    var onNavigateToSimulados: (() -> Void)?
+    var onNavigateToPdfs: (() -> Void)?
+    var onNavigateToMaterials: (() -> Void)?
+
     var body: some View {
         Group {
             if let viewModel {
@@ -41,10 +47,20 @@ struct DashboardScreen: View {
                     WeekAgendaSection(days: viewModel.weekDays)
                 }
 
-                // Study Modules
+                // Study Modules — taps navigate to Estudos screen sections
                 if !viewModel.studyModules.isEmpty {
                     SectionHeader(title: "Módulos de Estudo")
-                    StudyModulesGrid(modules: viewModel.studyModules)
+                    StudyModulesGrid(
+                        modules: viewModel.studyModules,
+                        onModuleTap: { module in
+                            switch module.name {
+                            case "Flashcards": onNavigateToFlashcards?()
+                            case "Simulados":  onNavigateToSimulados?()
+                            case "PDFs":       onNavigateToPdfs?()
+                            default:           onNavigateToMaterials?()
+                            }
+                        }
+                    )
                 }
 
                 // Study Tip

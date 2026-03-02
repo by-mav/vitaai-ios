@@ -5,57 +5,83 @@ import Foundation
 final class OnboardingViewModel {
     private let tokenStore: TokenStore
 
+    // MARK: - Navigation
     var currentStep: Int = 0
-    var nickname: String = ""
-    var selectedState: String = ""
-    var selectedUniversity: String = ""
-    var selectedSemester: Int = 1
-    var selectedSubjects: Set<String> = []
-    var selectedGoals: Set<String> = []
-    var dailyStudyMinutes: Int = 120
+    let totalSteps = 5
     var isSaving = false
 
-    let totalSteps = 5
+    // MARK: - Step 0: Welcome
+    var nickname: String = ""
 
-    let availableGoals = [
-        "Passar nas provas",
-        "Manter média alta",
-        "Preparar para residência",
-        "Dominar conteúdo clínico",
-        "Melhorar organização",
-        "Reduzir ansiedade",
-        "Revisar conteúdo atrasado",
-        "Praticar questões",
-    ]
+    // MARK: - Step 1: University
+    var universityQuery: String = ""
+    var selectedUniversity: University? = nil
+    var selectedSemester: Int = 0
 
-    let studyTimeOptions = [30, 60, 90, 120, 180, 240]
+    // MARK: - Step 2: Subjects
+    var selectedSubjects: [String] = []
+    var customSubject: String = ""
+
+    // MARK: - Step 3: Goals
+    var selectedGoals: [String] = []
+
+    // MARK: - Step 4: Time
+    var dailyStudyMinutes: Int = 0
+
+    // MARK: - Derived
 
     var filteredUniversities: [University] {
-        guard !selectedState.isEmpty else { return brazilianMedicalSchools }
-        return brazilianMedicalSchools.filter { $0.state == selectedState }
+        let query = universityQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !query.isEmpty else { return [] }
+        return brazilianMedicalSchools.filter { uni in
+            uni.name.lowercased().contains(query) ||
+            uni.shortName.lowercased().contains(query) ||
+            uni.city.lowercased().contains(query)
+        }
     }
 
     var semesterSubjects: [String] {
-        medicineSubjectsBySemester[selectedSemester] ?? []
+        guard selectedSemester >= 1 && selectedSemester <= 12 else { return [] }
+        return medicineSubjectsBySemester[selectedSemester] ?? []
     }
 
     var canAdvance: Bool {
         switch currentStep {
         case 0: return !nickname.trimmingCharacters(in: .whitespaces).isEmpty
-        case 1: return !selectedUniversity.isEmpty
+        case 1: return selectedUniversity != nil && selectedSemester > 0
         case 2: return !selectedSubjects.isEmpty
         case 3: return !selectedGoals.isEmpty
-        case 4: return true
+        case 4: return dailyStudyMinutes > 0
         default: return false
         }
     }
 
-    init(tokenStore: TokenStore) {
-        self.tokenStore = tokenStore
+    /// Steps 1–3 can be skipped (university, subjects, goals)
+    var canSkip: Bool {
+        currentStep >= 1 && currentStep <= 3
     }
 
+    // MARK: - Init
+
+    init(tokenStore: TokenStore) {
+        self.tokenStore = tokenStore
+        // Pre-fill nickname from stored name
+        Task {
+            if let name = await tokenStore.userName, !name.isEmpty {
+                self.nickname = name.split(separator: " ").first.map(String.init) ?? name
+            }
+        }
+    }
+
+    // MARK: - Navigation
+
     func advance() {
-        guard canAdvance, currentStep < totalSteps - 1 else { return }
+        guard currentStep < totalSteps - 1 else { return }
+        currentStep += 1
+    }
+
+    func skip() {
+        guard canSkip, currentStep < totalSteps - 1 else { return }
         currentStep += 1
     }
 
@@ -64,31 +90,60 @@ final class OnboardingViewModel {
         currentStep -= 1
     }
 
+    // MARK: - Step mutations
+
+    func selectUniversity(_ university: University) {
+        selectedUniversity = university
+        universityQuery = university.shortName
+    }
+
+    func clearUniversity() {
+        selectedUniversity = nil
+        universityQuery = ""
+    }
+
+    func selectSemester(_ semester: Int) {
+        selectedSemester = semester
+        selectedSubjects = []
+    }
+
     func toggleSubject(_ subject: String) {
-        if selectedSubjects.contains(subject) {
-            selectedSubjects.remove(subject)
+        if let idx = selectedSubjects.firstIndex(of: subject) {
+            selectedSubjects.remove(at: idx)
         } else {
-            selectedSubjects.insert(subject)
+            selectedSubjects.append(subject)
         }
     }
 
+    func addCustomSubject() {
+        let trimmed = customSubject.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !selectedSubjects.contains(trimmed) else {
+            customSubject = ""
+            return
+        }
+        selectedSubjects.append(trimmed)
+        customSubject = ""
+    }
+
     func toggleGoal(_ goal: String) {
-        if selectedGoals.contains(goal) {
-            selectedGoals.remove(goal)
+        if let idx = selectedGoals.firstIndex(of: goal) {
+            selectedGoals.remove(at: idx)
         } else {
-            selectedGoals.insert(goal)
+            selectedGoals.append(goal)
         }
     }
+
+    // MARK: - Save
 
     func complete() async {
         isSaving = true
         let data = OnboardingData(
-            nickname: nickname,
-            universityName: selectedUniversity,
-            universityState: selectedState,
+            nickname: nickname.trimmingCharacters(in: .whitespaces),
+            universityName: selectedUniversity?.shortName ?? "",
+            universityState: selectedUniversity?.state ?? "",
             semester: selectedSemester,
-            subjects: Array(selectedSubjects),
-            goals: Array(selectedGoals),
+            subjects: selectedSubjects,
+            goals: selectedGoals,
             dailyStudyMinutes: dailyStudyMinutes
         )
         await tokenStore.saveOnboardingData(data)

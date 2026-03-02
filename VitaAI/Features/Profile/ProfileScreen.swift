@@ -3,6 +3,13 @@ import SwiftUI
 struct ProfileScreen: View {
     let authManager: AuthManager
 
+    // Navigation callbacks injected by AppRouter
+    var onNavigateToAbout:         (() -> Void)?
+    var onNavigateToAppearance:    (() -> Void)?
+    var onNavigateToNotifications: (() -> Void)?
+    var onNavigateToCanvasConnect: (() -> Void)?
+    var onNavigateToWebAluno:      (() -> Void)?
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
@@ -28,16 +35,55 @@ struct ProfileScreen: View {
                 }
                 .padding(.top, 20)
 
-                // Settings rows
+                // Integrations group
                 VitaGlassCard {
                     VStack(spacing: 0) {
-                        settingsRow(icon: "building.columns", title: "Canvas LMS", subtitle: "Conectar faculdade") {}
+                        settingsRow(
+                            icon: "building.columns",
+                            title: "Canvas LMS",
+                            subtitle: "Conectar faculdade",
+                            action: { onNavigateToCanvasConnect?() }
+                        )
                         Divider().background(VitaColors.glassBorder)
-                        settingsRow(icon: "graduationcap", title: "WebAluno", subtitle: "Conectar portal") {}
+                        settingsRow(
+                            icon: "graduationcap",
+                            title: "WebAluno",
+                            subtitle: "Conectar portal",
+                            action: { onNavigateToWebAluno?() }
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                // Preferences group
+                VitaGlassCard {
+                    VStack(spacing: 0) {
+                        settingsRow(
+                            icon: "bell",
+                            title: "Notificações",
+                            subtitle: "Configurar alertas",
+                            action: { onNavigateToNotifications?() }
+                        )
                         Divider().background(VitaColors.glassBorder)
-                        settingsRow(icon: "bell", title: "Notificações", subtitle: "Configurar alertas") {}
-                        Divider().background(VitaColors.glassBorder)
-                        settingsRow(icon: "questionmark.circle", title: "Ajuda", subtitle: "FAQ e suporte") {}
+                        settingsRow(
+                            icon: "paintpalette",
+                            title: "Aparência",
+                            subtitle: "Tema e preferências visuais",
+                            action: { onNavigateToAppearance?() }
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                // Support group
+                VitaGlassCard {
+                    VStack(spacing: 0) {
+                        settingsRow(
+                            icon: "questionmark.circle",
+                            title: "Sobre o VitaAI",
+                            subtitle: "Versão, licenças e créditos",
+                            action: { onNavigateToAbout?() }
+                        )
                     }
                 }
                 .padding(.horizontal, 20)
@@ -78,7 +124,12 @@ struct ProfileScreen: View {
         }
     }
 
-    private func settingsRow(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+    private func settingsRow(
+        icon: String,
+        title: String,
+        subtitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)

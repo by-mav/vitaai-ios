@@ -1,5 +1,25 @@
 import Foundation
 
+// MARK: - CourseGrade (Canvas course with average grade + completion progress)
+
+struct CourseGrade: Identifiable {
+    let id: String          // courseId
+    let courseName: String
+    let grade: Double       // average grade 0–10
+    let assignments: Int    // total assignments
+    let completed: Int      // submitted/completed
+}
+
+// MARK: - StudyStats (aggregate study metrics)
+
+struct StudyStats {
+    var totalHoursThisWeek: Double
+    var averageGrade: Double
+    var completedAssignments: Int
+    var pendingAssignments: Int
+    var streak: Int
+}
+
 enum EventType: String, Codable {
     case assignment = "ASSIGNMENT"
     case exam = "EXAM"

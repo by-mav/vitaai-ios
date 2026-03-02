@@ -110,6 +110,13 @@ actor VitaAPI {
         let _: EmptyResponse = try await client.post("ai/messages/\(messageId)/feedback", body: FeedbackRequest(feedback: feedback))
     }
 
+    // MARK: - File Download
+
+    /// Downloads raw bytes for a Canvas file. Used by EstudosViewModel to open PDFs in-app.
+    func downloadFileData(fileId: String) async throws -> Data {
+        try await client.downloadRaw("canvas/files/\(fileId)/download")
+    }
+
     // MARK: - WebAluno
 
     func getWebalunoStatus() async throws -> WebalunoStatusResponse {

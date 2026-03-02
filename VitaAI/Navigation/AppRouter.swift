@@ -51,17 +51,42 @@ struct MainTabView: View {
                         )
 
                         TabView(selection: $router.selectedTab) {
-                            DashboardScreen()
-                                .tag(TabItem.home)
+                            DashboardScreen(
+                                onNavigateToFlashcards: {
+                                    router.selectedTab = .estudos
+                                },
+                                onNavigateToSimulados: {
+                                    router.selectedTab = .estudos
+                                },
+                                onNavigateToPdfs: {
+                                    router.selectedTab = .estudos
+                                },
+                                onNavigateToMaterials: {
+                                    router.selectedTab = .estudos
+                                }
+                            )
+                            .tag(TabItem.home)
 
-                            EstudosScreen()
-                                .tag(TabItem.estudos)
+                            EstudosScreen(
+                                onNavigateToCanvasConnect:   { router.navigate(to: .canvasConnect) },
+                                onNavigateToNotebooks:        { router.navigate(to: .notebookList) },
+                                onNavigateToFlashcardSession: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
+                                onNavigateToPdfViewer:        { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) }
+                            )
+                            .tag(TabItem.estudos)
 
                             AgendaScreen()
                                 .tag(TabItem.agenda)
 
-                            ProfileScreen(authManager: authManager)
-                                .tag(TabItem.profile)
+                            ProfileScreen(
+                                authManager: authManager,
+                                onNavigateToAbout:         { router.navigate(to: .about) },
+                                onNavigateToAppearance:    { router.navigate(to: .appearance) },
+                                onNavigateToNotifications: { router.navigate(to: .notifications) },
+                                onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) },
+                                onNavigateToWebAluno:      { router.navigate(to: .webalunoConnect) }
+                            )
+                            .tag(TabItem.profile)
                         }
                         .tabViewStyle(.page(indexDisplayMode: .never))
                     }
@@ -102,6 +127,15 @@ struct MainTabView: View {
                         deckId: deckId,
                         onBack: { router.goBack() },
                         onFinished: { router.goBack() }
+                    )
+                case .canvasConnect:
+                    CanvasConnectScreen(
+                        onBack: { router.goBack() }
+                    )
+                case .webalunoConnect:
+                    // WebAlunoConnectScreen handles the WebView as an internal sheet
+                    WebAlunoConnectScreen(
+                        onBack: { router.goBack() }
                     )
                 case .about:
                     AboutScreen()

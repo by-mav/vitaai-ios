@@ -4,13 +4,25 @@ import SwiftUI
 
 struct EstudosScreen: View {
     @Environment(\.appContainer) private var container
+
+    // Navigation callbacks — injected by AppRouter/MainTabView
+    var onNavigateToCanvasConnect:   (() -> Void)?
+    var onNavigateToNotebooks:        (() -> Void)?
+    var onNavigateToFlashcardSession: ((String) -> Void)?
+    var onNavigateToPdfViewer:        ((URL) -> Void)?
+
     @State private var viewModel: EstudosViewModel?
-    @State private var selectedDeckId: String?
 
     var body: some View {
         Group {
             if let viewModel {
-                content(viewModel: viewModel)
+                EstudosContent(
+                    viewModel: viewModel,
+                    onNavigateToCanvasConnect:   onNavigateToCanvasConnect,
+                    onNavigateToNotebooks:        onNavigateToNotebooks,
+                    onNavigateToFlashcardSession: onNavigateToFlashcardSession,
+                    onNavigateToPdfViewer:        onNavigateToPdfViewer
+                )
             } else {
                 ProgressView()
                     .tint(VitaColors.accent)
@@ -22,162 +34,341 @@ struct EstudosScreen: View {
                 Task { await viewModel?.load() }
             }
         }
-        .fullScreenCover(item: Binding(
-            get: { selectedDeckId.map { IdentifiableString(value: $0) } },
-            set: { selectedDeckId = $0?.value }
-        )) { item in
-            FlashcardSessionScreen(
-                deckId: item.value,
-                onBack: { selectedDeckId = nil }
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func content(viewModel: EstudosViewModel) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                // 1. Stats Row
-                EstudosStatsRow(
-                    flashcardsDue: viewModel.flashcardsDue,
-                    streakDays: viewModel.streakDays,
-                    avgAccuracy: viewModel.avgAccuracy
-                )
-
-                // 2. Flashcards Section
-                FlashcardsSection(decks: viewModel.flashcardDecks) { deckId in
-                    selectedDeckId = deckId
-                }
-
-                // 3. Simulados Section
-                SimuladosSection(simulados: viewModel.simulados)
-
-                // 4. Documentos Section
-                DocumentosSection(documents: viewModel.documents)
-
-                // 5. Notas Section
-                NotasSection(notes: viewModel.notes)
-
-                Spacer().frame(height: 100) // tab bar clearance
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-        }
-        .refreshable {
-            await viewModel.load()
-        }
     }
 }
 
-// Small helper to make String Identifiable for fullScreenCover(item:)
-private struct IdentifiableString: Identifiable {
-    let id = UUID()
-    let value: String
-}
+// MARK: - Content
 
-// MARK: - Stats Row
-
-private struct EstudosStatsRow: View {
-    let flashcardsDue: Int
-    let streakDays: Int
-    let avgAccuracy: Double
+private struct EstudosContent: View {
+    @Bindable var viewModel: EstudosViewModel
+    let onNavigateToCanvasConnect:   (() -> Void)?
+    let onNavigateToNotebooks:        (() -> Void)?
+    let onNavigateToFlashcardSession: ((String) -> Void)?
+    let onNavigateToPdfViewer:        ((URL) -> Void)?
 
     var body: some View {
-        HStack(spacing: 10) {
-            StatCard(
-                value: "\(flashcardsDue)",
-                label: "Revisões Hoje",
-                color: flashcardsDue > 0 ? Color.orange : VitaColors.textPrimary
+        VStack(spacing: 0) {
+            // Canvas Connect Banner — matches Android CanvasConnectBanner
+            if !viewModel.isLoading && !viewModel.canvasConnected {
+                CanvasConnectBanner(onConnect: onNavigateToCanvasConnect)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
+            // 4-tab bar (Disciplinas | Notebooks | Flashcards | PDFs)
+            EstudosTabBar(selectedTab: $viewModel.selectedTab)
+
+            // Body
+            if let err = viewModel.error,
+               viewModel.courses.isEmpty && viewModel.flashcardDisplayDecks.isEmpty {
+                EstudosErrorView(message: err) {
+                    Task { await viewModel.load() }
+                }
+            } else if viewModel.isLoading && viewModel.courses.isEmpty {
+                EstudosSkeleton(tab: viewModel.selectedTab)
+            } else {
+                tabContent
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.canvasConnected)
+    }
+}
+
+private extension EstudosContent {
+    @ViewBuilder
+    var tabContent: some View {
+        switch viewModel.selectedTab {
+        case .disciplinas:
+            DisciplinasTab(
+                courses: viewModel.courses,
+                isLoading: viewModel.isLoading,
+                onCourseClick: { courseId in viewModel.selectCourse(courseId) },
+                onRefresh: { await viewModel.load() }
             )
-            StatCard(
-                value: "\(streakDays)d",
-                label: "Sequência",
-                color: streakDays > 0 ? Color.orange : VitaColors.textPrimary
+
+        case .notebooks:
+            NotebooksTab(
+                onNavigate: onNavigateToNotebooks ?? {}
             )
-            StatCard(
-                value: "\(Int(avgAccuracy))%",
-                label: "Precisão",
-                color: avgAccuracy >= 70 ? VitaColors.accent : VitaColors.textPrimary
+
+        case .flashcards:
+            FlashcardsTab(
+                decks: viewModel.flashcardDisplayDecks,
+                isLoading: viewModel.isLoading,
+                onDeckClick: { deckId in onNavigateToFlashcardSession?(deckId) },
+                onRefresh: { await viewModel.load() }
+            )
+
+        case .pdfs:
+            PdfsTab(
+                files: viewModel.files,
+                isLoading: viewModel.isLoading,
+                selectedCourseId: viewModel.selectedCourseId,
+                downloadingFileId: viewModel.downloadingFileId,
+                onFileClick: { file in
+                    Task {
+                        if let url = await viewModel.downloadFile(
+                            fileId: file.id,
+                            fileName: file.displayName
+                        ) {
+                            onNavigateToPdfViewer?(url)
+                        }
+                    }
+                },
+                onClearFilter: { viewModel.clearCourseFilter() },
+                onRefresh: { await viewModel.load() }
             )
         }
     }
 }
 
-private struct StatCard: View {
-    let value: String
-    let label: String
-    let color: Color
+// MARK: - Tab Bar
+
+private struct EstudosTabBar: View {
+    @Binding var selectedTab: EstudosTab
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(EstudosTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    VStack(spacing: 6) {
+                        Text(tab.title)
+                            .font(VitaTypography.labelMedium)
+                            .fontWeight(selectedTab == tab ? .semibold : .regular)
+                            .foregroundStyle(
+                                selectedTab == tab
+                                    ? VitaColors.accent
+                                    : VitaColors.textSecondary
+                            )
+
+                        Rectangle()
+                            .fill(selectedTab == tab ? VitaColors.accent : Color.clear)
+                            .frame(height: 2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .animation(.easeInOut(duration: 0.2), value: selectedTab)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(VitaColors.glassBorder)
+                .frame(height: 1)
+        }
+    }
+}
+
+// MARK: - Canvas Connect Banner
+
+private struct CanvasConnectBanner: View {
+    let onConnect: (() -> Void)?
 
     var body: some View {
         VitaGlassCard {
-            VStack(spacing: 4) {
-                Text(value)
-                    .font(.system(size: 24, weight: .bold))
-                    .monospacedDigit()
-                    .foregroundStyle(color)
-                Text(label)
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(VitaColors.textTertiary)
-                    .multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+                Image(systemName: "building.columns")
+                    .font(.system(size: 22))
+                    .foregroundStyle(VitaColors.accent.opacity(0.8))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Conecte o Canvas LMS")
+                        .font(VitaTypography.labelMedium)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(VitaColors.textPrimary)
+                    Text("Sincronize disciplinas, PDFs e tarefas")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textSecondary)
+                }
+
+                Spacer()
+
+                if let onConnect {
+                    Button("Conectar") { onConnect() }
+                        .font(VitaTypography.labelMedium)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(VitaColors.accent)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(VitaColors.accent.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
             }
+            .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .padding(.horizontal, 8)
         }
     }
 }
 
-// MARK: - Flashcards Section
+// MARK: - Skeleton
 
-private struct FlashcardsSection: View {
-    let decks: [FlashcardDeckEntry]
-    let onSelectDeck: (String) -> Void
+private struct EstudosSkeleton: View {
+    let tab: EstudosTab
 
     var body: some View {
-        VStack(spacing: 8) {
-            SectionHeader(title: "Flashcards")
-
-            if decks.isEmpty {
-                EmptyStateCard(icon: "brain.fill", message: "Nenhum flashcard pendente")
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(decks) { deck in
-                        FlashcardDeckRow(deck: deck) {
-                            onSelectDeck(deck.id)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 12) {
+                switch tab {
+                case .disciplinas, .flashcards:
+                    ForEach(0..<5, id: \.self) { _ in
+                        HStack(spacing: 14) {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(VitaColors.surfaceElevated)
+                                .frame(width: 44, height: 44)
+                                .shimmer()
+                            VStack(alignment: .leading, spacing: 6) {
+                                ShimmerText(width: 180, height: 16)
+                                ShimmerText(width: 120, height: 12)
+                            }
+                            Spacer()
                         }
+                        .padding(.horizontal, 16)
+                    }
+
+                case .pdfs:
+                    ForEach(0..<2, id: \.self) { groupIdx in
+                        VStack(alignment: .leading, spacing: 8) {
+                            ShimmerText(width: 140, height: 14)
+                                .padding(.horizontal, 16)
+                            ForEach(0..<3, id: \.self) { _ in
+                                HStack(spacing: 12) {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(VitaColors.surfaceElevated)
+                                        .frame(width: 22, height: 22)
+                                        .shimmer()
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        ShimmerText(width: 200, height: 14)
+                                        ShimmerText(width: 140, height: 12)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 16)
+                            }
+                        }
+                        if groupIdx == 0 { Spacer().frame(height: 8) }
+                    }
+
+                case .notebooks:
+                    ForEach(0..<5, id: \.self) { _ in
+                        ShimmerBox(height: 76, cornerRadius: 14)
+                            .padding(.horizontal, 16)
                     }
                 }
+            }
+            .padding(.top, 16)
+            .padding(.bottom, 100)
+        }
+    }
+}
 
-                Button {
-                    if let first = decks.first { onSelectDeck(first.id) }
-                } label: {
-                    Text("Revisar Agora")
-                        .font(VitaTypography.labelMedium)
-                        .foregroundStyle(VitaColors.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+// MARK: - Error View
+
+private struct EstudosErrorView: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(VitaColors.dataAmber)
+            Text("Erro ao carregar")
+                .font(VitaTypography.titleMedium)
+                .foregroundStyle(VitaColors.textPrimary)
+            Text(message)
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            Button("Tentar Novamente", action: onRetry)
+                .font(VitaTypography.labelMedium)
+                .fontWeight(.semibold)
+                .foregroundStyle(VitaColors.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(VitaColors.accent)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Disciplinas Tab
+
+private struct DisciplinasTab: View {
+    let courses: [Course]
+    var isLoading: Bool = false
+    let onCourseClick: (String) -> Void
+    var onRefresh: (() async -> Void)?
+
+    var body: some View {
+        if !isLoading && courses.isEmpty {
+            VitaEmptyState(
+                title: "Nenhuma disciplina",
+                message: "Conecte o Canvas para sincronizar suas disciplinas.",
+                actionText: nil,
+                onAction: nil
+            ) {
+                Image(systemName: "graduationcap.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(VitaColors.accent)
+            }
+        } else {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 12) {
+                    ForEach(Array(courses.enumerated()), id: \.element.id) { index, course in
+                        CourseRow(course: course, onClick: { onCourseClick(course.id) })
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            .animation(
+                                .easeOut(duration: 0.3).delay(Double(index) * 0.06),
+                                value: courses.count
+                            )
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 100)
+            }
+            .refreshable {
+                await onRefresh?()
             }
         }
     }
 }
 
-private struct FlashcardDeckRow: View {
-    let deck: FlashcardDeckEntry
-    let onTap: () -> Void
+private struct CourseRow: View {
+    let course: Course
+    let onClick: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: onClick) {
             VitaGlassCard {
-                HStack(spacing: 12) {
-                    IconSquare(systemName: "brain.fill")
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(VitaColors.accent.opacity(0.12))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "folder.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(VitaColors.accent)
+                    }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(deck.title)
-                            .font(VitaTypography.labelMedium)
+                        Text(course.name)
+                            .font(VitaTypography.bodyLarge)
+                            .fontWeight(.medium)
                             .foregroundStyle(VitaColors.textPrimary)
-                        Text("\(deck.cards.count) para revisar")
+                            .lineLimit(2)
+                        Text("\(course.filesCount) arquivo\(course.filesCount == 1 ? "" : "s") · \(course.assignmentsCount) tarefa\(course.assignmentsCount == 1 ? "" : "s")")
                             .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textTertiary)
+                            .foregroundStyle(VitaColors.textSecondary)
                     }
 
                     Spacer()
@@ -186,257 +377,363 @@ private struct FlashcardDeckRow: View {
                         .font(.system(size: 12))
                         .foregroundStyle(VitaColors.textTertiary)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
             }
         }
         .buttonStyle(.plain)
     }
 }
 
-// MARK: - Simulados Section
+// MARK: - Notebooks Tab
 
-private struct SimuladosSection: View {
-    let simulados: [SimuladoEntry]
+private struct NotebooksTab: View {
+    let onNavigate: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
-            SectionHeader(title: "Simulados")
+        VStack {
+            Spacer()
+            VStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(VitaColors.accent.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                    Image(systemName: "book.pages.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(VitaColors.accent)
+                }
 
-            if simulados.isEmpty {
-                EmptyStateCard(icon: "list.clipboard.fill", message: "Nenhum simulado realizado")
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(simulados) { simulado in
-                        SimuladoRow(simulado: simulado)
+                Text("Meus Notebooks")
+                    .font(VitaTypography.titleMedium)
+                    .fontWeight(.medium)
+                    .foregroundStyle(VitaColors.textPrimary)
+
+                Text("Toque para abrir seus notebooks de estudo")
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                Button(action: onNavigate) {
+                    Text("Abrir Notebooks")
+                        .font(VitaTypography.labelMedium)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(VitaColors.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(VitaColors.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 100)
+        .contentShape(Rectangle())
+        .onTapGesture { onNavigate() }
+    }
+}
+
+// MARK: - Flashcards Tab
+
+private struct FlashcardsTab: View {
+    let decks: [FlashcardDeckDisplayEntry]
+    var isLoading: Bool = false
+    let onDeckClick: (String) -> Void
+    var onRefresh: (() async -> Void)?
+
+    var body: some View {
+        if !isLoading && decks.isEmpty {
+            VitaEmptyState(
+                title: "Nenhum flashcard",
+                message: "Crie decks de flashcards para começar a revisar.",
+                actionText: nil,
+                onAction: nil
+            ) {
+                Image(systemName: "rectangle.on.rectangle.angled")
+                    .font(.system(size: 44))
+                    .foregroundStyle(VitaColors.accent)
+            }
+        } else {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 12) {
+                    ForEach(Array(decks.enumerated()), id: \.element.id) { index, deck in
+                        FlashcardRow(deck: deck, onClick: { onDeckClick(deck.id) })
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            .animation(
+                                .easeOut(duration: 0.3).delay(Double(index) * 0.06),
+                                value: decks.count
+                            )
                     }
                 }
-
-                Button {
-                    // TODO: navigate to new simulado
-                } label: {
-                    Text("Novo Simulado")
-                        .font(VitaTypography.labelMedium)
-                        .foregroundStyle(Color.blue)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 100)
+            }
+            .refreshable {
+                await onRefresh?()
             }
         }
     }
 }
 
-private struct SimuladoRow: View {
-    let simulado: SimuladoEntry
-
-    private var scoreBadgeColor: Color {
-        let pct = simulado.scorePercent
-        if pct >= 70 { return VitaColors.accent }
-        if pct >= 50 { return Color.yellow }
-        return Color.red.opacity(0.7)
-    }
+private struct FlashcardRow: View {
+    let deck: FlashcardDeckDisplayEntry
+    let onClick: () -> Void
 
     var body: some View {
-        VitaGlassCard {
-            HStack(spacing: 12) {
-                IconSquare(systemName: "list.clipboard.fill")
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(simulado.title)
-                        .font(VitaTypography.labelMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text("\(simulado.correctQ)/\(simulado.totalQ) questões")
-                        .font(VitaTypography.labelSmall)
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-
-                Spacer()
-
-                Text("\(simulado.scorePercent)%")
-                    .font(.system(size: 13, weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(scoreBadgeColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(scoreBadgeColor.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-        }
-    }
-}
-
-// MARK: - Documentos Section
-
-private struct DocumentosSection: View {
-    let documents: [DocumentEntry]
-
-    var body: some View {
-        VStack(spacing: 8) {
-            SectionHeader(title: "Documentos")
-
-            if documents.isEmpty {
-                EmptyStateCard(icon: "doc.fill", message: "Nenhum documento adicionado")
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(documents) { doc in
-                        DocumentRow(doc: doc)
+        Button(action: onClick) {
+            VitaGlassCard {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(VitaColors.accent.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "rectangle.on.rectangle.angled")
+                            .font(.system(size: 18))
+                            .foregroundStyle(VitaColors.accent)
                     }
-                }
-            }
-        }
-    }
-}
 
-private struct DocumentRow: View {
-    let doc: DocumentEntry
-
-    var body: some View {
-        VitaGlassCard {
-            VStack(spacing: 10) {
-                HStack(spacing: 12) {
-                    IconSquare(systemName: "doc.fill")
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(doc.title)
-                            .font(VitaTypography.labelMedium)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(deck.name)
+                            .font(VitaTypography.bodyLarge)
+                            .fontWeight(.medium)
                             .foregroundStyle(VitaColors.textPrimary)
-                        Text("Pág. \(doc.currentPage)/\(doc.totalPages)")
+
+                        if !deck.courseName.isEmpty {
+                            Text(deck.courseName)
+                                .font(VitaTypography.labelSmall)
+                                .foregroundStyle(VitaColors.textSecondary)
+                        }
+
+                        // Progress bar — mirrors Android LinearProgressIndicator
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(VitaColors.surfaceElevated)
+                                    .frame(height: 4)
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(VitaColors.accent)
+                                    .frame(
+                                        width: geo.size.width * CGFloat(deck.progress),
+                                        height: 4
+                                    )
+                                    .animation(.easeOut(duration: 0.4), value: deck.progress)
+                            }
+                        }
+                        .frame(height: 4)
+
+                        Text("\(deck.masteredCount)/\(deck.cardCount) dominados")
                             .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textTertiary)
                     }
 
-                    Spacer()
+                    Spacer(minLength: 4)
 
-                    // AI sparkle placeholder button
-                    Button {
-                        // TODO: open AI doc assistant
-                    } label: {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 14))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - PDFs Tab
+
+private struct PdfsTab: View {
+    let files: [CanvasFile]
+    var isLoading: Bool = false
+    var selectedCourseId: String?
+    let downloadingFileId: String?
+    let onFileClick: (CanvasFile) -> Void
+    let onClearFilter: () -> Void
+    var onRefresh: (() async -> Void)?
+
+    private var pdfs: [CanvasFile] {
+        files.filter {
+            $0.contentType?.contains("pdf") == true || $0.displayName.hasSuffix(".pdf")
+        }
+    }
+
+    // Returns ordered groups preserving encounter order (preserves course sort)
+    private var grouped: [(key: String, files: [CanvasFile])] {
+        var dict: [(key: String, files: [CanvasFile])] = []
+        var seen: [String: Int] = [:]
+        for file in pdfs {
+            let key = file.courseName ?? "Outros"
+            if let idx = seen[key] {
+                dict[idx].files.append(file)
+            } else {
+                seen[key] = dict.count
+                dict.append((key: key, files: [file]))
+            }
+        }
+        return dict
+    }
+
+    var body: some View {
+        if !isLoading && pdfs.isEmpty {
+            VitaEmptyState(
+                title: "Nenhum PDF",
+                message: "Conecte o Canvas para sincronizar seus materiais em PDF.",
+                actionText: nil,
+                onAction: nil
+            ) {
+                Image(systemName: "doc.text.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(VitaColors.accent)
+            }
+        } else {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    // Active filter pill
+                    if selectedCourseId != nil {
+                        Button(action: onClearFilter) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 13))
+                                Text("Limpar filtro de disciplina")
+                                    .font(VitaTypography.labelSmall)
+                            }
                             .foregroundStyle(VitaColors.accent)
-                            .padding(6)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
                             .background(VitaColors.accent.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(Capsule())
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                        .padding(.bottom, 4)
                     }
 
-                    Text("\(doc.readProgress)%")
-                        .font(VitaTypography.labelSmall)
-                        .monospacedDigit()
-                        .foregroundStyle(VitaColors.textSecondary)
+                    PdfsGroupedList(
+                        grouped: grouped,
+                        downloadingFileId: downloadingFileId,
+                        onFileClick: onFileClick
+                    )
                 }
+                .padding(.bottom, 100)
+            }
+            .refreshable {
+                await onRefresh?()
+            }
+        }
+    }
+}
 
-                // Progress bar
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(VitaColors.surfaceElevated)
-                            .frame(height: 3)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(VitaColors.accent)
-                            .frame(
-                                width: geo.size.width * CGFloat(doc.readProgress) / 100,
-                                height: 3
+// Extracted into its own view to compute stagger indexes cleanly.
+private struct PdfsGroupedList: View {
+    let grouped: [(key: String, files: [CanvasFile])]
+    let downloadingFileId: String?
+    let onFileClick: (CanvasFile) -> Void
+
+    // Pre-flatten groups into a typed list to avoid mutable state in @ViewBuilder.
+    private var flatItems: [PdfListItem] {
+        var result: [PdfListItem] = []
+        var fileIndex = 0
+        for group in grouped {
+            result.append(.header(group.key))
+            for file in group.files {
+                result.append(.file(file, staggerIndex: fileIndex))
+                fileIndex += 1
+            }
+        }
+        return result
+    }
+
+    var body: some View {
+        ForEach(Array(flatItems.enumerated()), id: \.offset) { _, item in
+            switch item {
+            case .header(let title):
+                Text(title)
+                    .font(VitaTypography.titleSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.accent)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 4)
+
+            case .file(let file, let idx):
+                FileRow(
+                    file: file,
+                    isDownloading: file.id == downloadingFileId,
+                    onClick: { onFileClick(file) }
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .animation(
+                    .easeOut(duration: 0.3).delay(Double(idx) * 0.05),
+                    value: grouped.count
+                )
+            }
+        }
+    }
+
+    private enum PdfListItem {
+        case header(String)
+        case file(CanvasFile, staggerIndex: Int)
+    }
+}
+
+private struct FileRow: View {
+    let file: CanvasFile
+    var isDownloading: Bool = false
+    let onClick: () -> Void
+
+    private var isPdf: Bool {
+        file.contentType?.contains("pdf") == true || file.displayName.hasSuffix(".pdf")
+    }
+
+    var body: some View {
+        Button(action: { if !isDownloading { onClick() } }) {
+            VitaGlassCard {
+                HStack(spacing: 12) {
+                    if isDownloading {
+                        ProgressView()
+                            .tint(VitaColors.accent)
+                            .frame(width: 22, height: 22)
+                    } else {
+                        Image(systemName: isPdf ? "doc.fill" : "doc.text.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(
+                                isPdf ? VitaColors.textSecondary : VitaColors.dataBlue
                             )
                     }
-                }
-                .frame(height: 3)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-        }
-    }
-}
 
-// MARK: - Notas Section
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(file.displayName)
+                            .font(VitaTypography.bodyMedium)
+                            .fontWeight(.medium)
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        if let module = file.moduleName {
+                            Text(module)
+                                .font(VitaTypography.labelSmall)
+                                .foregroundStyle(VitaColors.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
 
-private struct NotasSection: View {
-    let notes: [NoteEntry]
+                    Spacer()
 
-    var body: some View {
-        VStack(spacing: 8) {
-            SectionHeader(title: "Notas")
-
-            if notes.isEmpty {
-                EmptyStateCard(icon: "note.text", message: "Nenhuma nota criada")
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(notes) { note in
-                        NoteRow(note: note)
+                    if !isDownloading {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 16))
+                            .foregroundStyle(VitaColors.accent.opacity(0.6))
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
             }
         }
-    }
-}
-
-private struct NoteRow: View {
-    let note: NoteEntry
-
-    var body: some View {
-        VitaGlassCard {
-            HStack(spacing: 12) {
-                IconSquare(systemName: "note.text")
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(note.title)
-                        .font(VitaTypography.labelMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text(note.content)
-                        .font(VitaTypography.labelSmall)
-                        .foregroundStyle(VitaColors.textTertiary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundStyle(VitaColors.textTertiary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-        }
-    }
-}
-
-// MARK: - Shared Sub-components
-
-/// Rounded square icon container — shared across all row types in this screen.
-private struct IconSquare: View {
-    let systemName: String
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(VitaColors.surfaceElevated)
-                .frame(width: 36, height: 36)
-            Image(systemName: systemName)
-                .font(.system(size: 14))
-                .foregroundStyle(VitaColors.textSecondary)
-        }
-    }
-}
-
-/// Full-width empty state card with centered icon + message.
-private struct EmptyStateCard: View {
-    let icon: String
-    let message: String
-
-    var body: some View {
-        VitaGlassCard {
-            VStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 28))
-                    .foregroundStyle(VitaColors.textTertiary)
-                Text(message)
-                    .font(VitaTypography.bodySmall)
-                    .foregroundStyle(VitaColors.textTertiary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.vertical, 24)
-        }
+        .buttonStyle(.plain)
+        .opacity(isDownloading ? 0.7 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: isDownloading)
     }
 }

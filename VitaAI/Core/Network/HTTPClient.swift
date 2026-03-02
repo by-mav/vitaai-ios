@@ -82,6 +82,24 @@ actor HTTPClient {
     func delete(_ path: String) async throws {
         let _: EmptyResponse = try await request("DELETE", path: path)
     }
+
+    /// Downloads raw binary data (e.g. PDF bytes) from the given path.
+    func downloadRaw(_ path: String) async throws -> Data {
+        guard let url = URL(string: AppConfig.apiBaseURL + "/" + path) else {
+            throw APIError.invalidURL
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        if let token = await tokenStore.token {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, response) = try await session.data(for: req)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIError.unknown
+        }
+        return data
+    }
+
 }
 
 struct EmptyResponse: Decodable {}
