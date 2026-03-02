@@ -14,4 +14,11 @@ enum Route: Hashable {
     case vitaChat(prompt: String? = nil)
     case notebookList
     case notebookEditor(notebookId: String)
+    case flashcardSession(deckId: String)
+    case pdfViewer(url: String)
+
+    // MARK: - Settings sub-screens
+    case about
+    case appearance
+    case notifications
 }

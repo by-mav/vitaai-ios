@@ -5,6 +5,7 @@ import SwiftUI
 struct EstudosScreen: View {
     @Environment(\.appContainer) private var container
     @State private var viewModel: EstudosViewModel?
+    @State private var selectedDeckId: String?
 
     var body: some View {
         Group {
@@ -21,6 +22,15 @@ struct EstudosScreen: View {
                 Task { await viewModel?.load() }
             }
         }
+        .fullScreenCover(item: Binding(
+            get: { selectedDeckId.map { IdentifiableString(value: $0) } },
+            set: { selectedDeckId = $0?.value }
+        )) { item in
+            FlashcardSessionScreen(
+                deckId: item.value,
+                onBack: { selectedDeckId = nil }
+            )
+        }
     }
 
     @ViewBuilder
@@ -35,7 +45,9 @@ struct EstudosScreen: View {
                 )
 
                 // 2. Flashcards Section
-                FlashcardsSection(decks: viewModel.flashcardDecks)
+                FlashcardsSection(decks: viewModel.flashcardDecks) { deckId in
+                    selectedDeckId = deckId
+                }
 
                 // 3. Simulados Section
                 SimuladosSection(simulados: viewModel.simulados)
@@ -55,6 +67,12 @@ struct EstudosScreen: View {
             await viewModel.load()
         }
     }
+}
+
+// Small helper to make String Identifiable for fullScreenCover(item:)
+private struct IdentifiableString: Identifiable {
+    let id = UUID()
+    let value: String
 }
 
 // MARK: - Stats Row
@@ -112,6 +130,7 @@ private struct StatCard: View {
 
 private struct FlashcardsSection: View {
     let decks: [FlashcardDeckEntry]
+    let onSelectDeck: (String) -> Void
 
     var body: some View {
         VStack(spacing: 8) {
@@ -122,16 +141,18 @@ private struct FlashcardsSection: View {
             } else {
                 VStack(spacing: 8) {
                     ForEach(decks) { deck in
-                        FlashcardDeckRow(deck: deck)
+                        FlashcardDeckRow(deck: deck) {
+                            onSelectDeck(deck.id)
+                        }
                     }
                 }
 
                 Button {
-                    // TODO: navigate to flashcard review
+                    if let first = decks.first { onSelectDeck(first.id) }
                 } label: {
                     Text("Revisar Agora")
                         .font(VitaTypography.labelMedium)
-                        .foregroundStyle(Color.blue)
+                        .foregroundStyle(VitaColors.accent)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                 }
@@ -142,30 +163,34 @@ private struct FlashcardsSection: View {
 
 private struct FlashcardDeckRow: View {
     let deck: FlashcardDeckEntry
+    let onTap: () -> Void
 
     var body: some View {
-        VitaGlassCard {
-            HStack(spacing: 12) {
-                IconSquare(systemName: "brain.fill")
+        Button(action: onTap) {
+            VitaGlassCard {
+                HStack(spacing: 12) {
+                    IconSquare(systemName: "brain.fill")
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(deck.title)
-                        .font(VitaTypography.labelMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text("\(deck.cards.count) para revisar")
-                        .font(VitaTypography.labelSmall)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(deck.title)
+                            .font(VitaTypography.labelMedium)
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Text("\(deck.cards.count) para revisar")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textTertiary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
                         .foregroundStyle(VitaColors.textTertiary)
                 }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundStyle(VitaColors.textTertiary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
         }
+        .buttonStyle(.plain)
     }
 }
 

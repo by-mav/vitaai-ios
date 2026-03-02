@@ -36,4 +36,11 @@ enum VitaColors {
     static let textPrimary = Color.white.opacity(0.85)
     static let textSecondary = Color.white.opacity(0.55)
     static let textTertiary = Color.white.opacity(0.25)
+
+    // Semantic data colors (mirrors BymavTokens DataGreen/DataRed/DataAmber/DataBlue)
+    static let dataGreen  = Color(hex: 0x22C55E)   // green-500
+    static let dataRed    = Color(hex: 0xEF4444)   // red-500
+    static let dataAmber  = Color(hex: 0xF59E0B)   // amber-500
+    static let dataBlue   = Color(hex: 0x60A5FA)   // blue-400
+    static let dataIndigo = Color(hex: 0xA78BFA)   // violet-400 (card back accent)
 }
