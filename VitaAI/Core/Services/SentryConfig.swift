@@ -2,26 +2,31 @@ import Foundation
 
 // MARK: - SentryConfig
 //
-// Crash reporting configuration for VitaAI iOS.
-// Mirrors Android SentryConfig exactly:
-//   - Skipped entirely in DEBUG builds
-//   - tracesSampleRate = 1.0
-//   - environment = "production"
-//   - Only WARNING-level diagnostics and above
+// Crash reporting and performance monitoring for VitaAI iOS.
 //
-// Integration: call SentryConfig.initialize() at the top of VitaAIApp.init()
-// before any other subsystem.
+// Setup:
+//   1. Add the Sentry SDK via SPM: https://github.com/getsentry/sentry-cocoa (version >= 8.0.0)
+//   2. Add SENTRY_DSN key to Info.plist (read from environment or Xcode build settings)
+//   3. Call SentryConfig.initialize() at the top of VitaAIApp.init() before any other subsystem
 //
-// Add the Sentry SDK via SPM: https://github.com/getsentry/sentry-cocoa
-// When the SDK is available, uncomment the import and the SentrySDK block.
+// Once the SPM package is added, uncomment `import Sentry` and the SentrySDK blocks below.
+//
+// Configuration:
+//   - Skipped entirely in DEBUG builds (no noise in development)
+//   - tracesSampleRate = 0.1 (10% -- keeps costs low on free tier)
+//   - profilesSampleRate = 0.1 (10% of traced transactions)
+//   - environment = "production" (release) / "development" (debug)
+//   - App hang tracking enabled (equivalent to ANR detection on Android)
+//   - Breadcrumbs enabled for debugging context
 
-// import Sentry  ← uncomment once Sentry SPM package is added
+// import Sentry  // <-- uncomment once Sentry SPM package is added
 
 enum SentryConfig {
 
     // MARK: - DSN
-    // Add your DSN from the Sentry project settings.
-    // Recommended: read from Info.plist so it is not hardcoded in source.
+    // Read from Info.plist so it is never hardcoded in source.
+    // Add to Info.plist: <key>SENTRY_DSN</key><string>$(SENTRY_DSN)</string>
+    // Then set SENTRY_DSN in Xcode build settings or .xcconfig.
     private static var dsn: String {
         Bundle.main.infoDictionary?["SENTRY_DSN"] as? String ?? ""
     }
@@ -31,11 +36,11 @@ enum SentryConfig {
     /// Bootstraps Sentry SDK. No-op in DEBUG builds.
     static func initialize() {
         #if DEBUG
-        // Skip Sentry entirely in debug builds — matches Android behaviour.
+        // Skip Sentry in debug builds to avoid noise.
         return
         #else
         guard !dsn.isEmpty else {
-            // DSN not configured yet — safe to skip.
+            // DSN not configured yet -- safe to skip silently.
             return
         }
 
@@ -43,13 +48,30 @@ enum SentryConfig {
         //
         // SentrySDK.start { options in
         //     options.dsn = dsn
-        //     options.tracesSampleRate = 1.0
         //     options.environment = "production"
-        //     options.enableAppHangTracking = true         // equivalent to ANR detection
+        //
+        //     // Performance Monitoring -- 10% to stay within free tier limits
+        //     options.tracesSampleRate = 0.1
+        //     options.profilesSampleRate = 0.1
+        //
+        //     // Crash & hang detection
         //     options.enableCrashHandler = true
-        //     options.diagnosticLevel = .warning           // mirrors SentryLevel.WARNING
-        //     options.enableAutoPerformanceTracing = true
+        //     options.enableAppHangTracking = true
+        //     options.appHangTimeoutInterval = 2.0  // 2 seconds
+        //
+        //     // Stack traces & breadcrumbs
         //     options.attachStacktrace = true
+        //     options.enableSwizzling = true
+        //     options.enableAutoBreadcrumbTracking = true
+        //
+        //     // Auto performance tracing (view controllers, HTTP requests)
+        //     options.enableAutoPerformanceTracing = true
+        //
+        //     // Session tracking
+        //     options.enableAutoSessionTracking = true
+        //
+        //     // Diagnostics -- only warnings and above
+        //     options.diagnosticLevel = .warning
         // }
         #endif
     }
@@ -57,15 +79,18 @@ enum SentryConfig {
     // MARK: - Capture Helpers
 
     /// Captures a non-fatal error manually (e.g. network errors, unexpected states).
-    /// No-op if Sentry is not initialized.
     static func capture(error: Error, context: [String: Any]? = nil) {
         #if !DEBUG
-        // SentrySDK.capture(error: error)
-        _ = context  // suppress unused-variable warning until SDK is wired up
+        // SentrySDK.capture(error: error) { scope in
+        //     if let context = context {
+        //         scope.setContext(value: context, key: "custom")
+        //     }
+        // }
+        _ = context
         #endif
     }
 
-    /// Captures a message at WARNING level.
+    /// Captures a message at a given severity level.
     static func capture(message: String) {
         #if !DEBUG
         // SentrySDK.capture(message: message)
@@ -73,7 +98,9 @@ enum SentryConfig {
         #endif
     }
 
-    /// Sets the authenticated user context so events are attributed correctly.
+    // MARK: - User Context
+
+    /// Sets the authenticated user so Sentry events are attributed correctly.
     static func setUser(id: String, email: String?) {
         #if !DEBUG
         // let user = User(userId: id)
@@ -87,6 +114,19 @@ enum SentryConfig {
     static func clearUser() {
         #if !DEBUG
         // SentrySDK.setUser(nil)
+        #endif
+    }
+
+    // MARK: - Breadcrumbs
+
+    /// Adds a breadcrumb for debugging context.
+    static func addBreadcrumb(message: String, category: String, data: [String: Any]? = nil) {
+        #if !DEBUG
+        // let crumb = Breadcrumb(level: .info, category: category)
+        // crumb.message = message
+        // crumb.data = data
+        // SentrySDK.addBreadcrumb(crumb)
+        _ = message; _ = category; _ = data
         #endif
     }
 }

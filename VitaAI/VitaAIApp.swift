@@ -6,6 +6,10 @@ struct VitaAIApp: App {
     @StateObject private var container = AppContainer()
 
     init() {
+        // Initialize Sentry for crash reporting and performance monitoring.
+        // No-op in DEBUG builds. Requires SENTRY_DSN in Info.plist.
+        SentryConfig.initialize()
+
         #if DEBUG
         // CI screenshot mode: inject demo session before AppContainer boots
         // so AuthManager finds a valid token on first checkLoginStatus().
