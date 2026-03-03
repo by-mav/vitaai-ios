@@ -85,7 +85,7 @@ struct FlashcardStatsView: View {
                 // Mapa de Atividade (heatmap)
                 if !vm.reviewsPerDay.isEmpty {
                     GlassStatsSection(title: "Mapa de Atividade") {
-                        HeatmapCalendarView(reviewsPerDay: vm.reviewsPerDay)
+                        FlashcardHeatmapView(reviewsPerDay: vm.reviewsPerDay)
                     }
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 16)
@@ -115,7 +115,7 @@ struct FlashcardStatsView: View {
                 // Distribuição dos cards
                 if vm.totalCards > 0 {
                     GlassStatsSection(title: "Distribuição dos Cards") {
-                        CardDistributionDonutView(
+                        FlashcardDistributionDonutView(
                             newCards: vm.newCards,
                             youngCards: vm.youngCards,
                             matureCards: vm.matureCards
@@ -251,11 +251,11 @@ private struct MiniStatCard: View {
     }
 }
 
-// MARK: - Heatmap Calendar
+// MARK: - Flashcard Heatmap Calendar
 
 /// Renders the last 13 weeks (91 days) as a compact activity grid.
 /// Matches Android HeatmapCalendar — columns = weeks (Sun→Sat).
-private struct HeatmapCalendarView: View {
+private struct FlashcardHeatmapView: View {
     let reviewsPerDay: [String: Int]
 
     private let weeks = 13
@@ -451,10 +451,10 @@ private struct ForecastBarChartView: View {
     }
 }
 
-// MARK: - Card Distribution Donut
+// MARK: - Flashcard Distribution Donut
 
 /// Donut chart showing new / young / mature card split using Swift Charts SectorMark (iOS 17+).
-private struct CardDistributionDonutView: View {
+private struct FlashcardDistributionDonutView: View {
     let newCards: Int
     let youngCards: Int
     let matureCards: Int
@@ -588,7 +588,7 @@ private struct StatsLoadingSkeleton: View {
 
 #Preview("Charts — Donut") {
     GlassStatsSection(title: "Distribuição") {
-        CardDistributionDonutView(newCards: 12, youngCards: 34, matureCards: 54)
+        FlashcardDistributionDonutView(newCards: 12, youngCards: 34, matureCards: 54)
     }
     .padding()
     .background(VitaColors.surface)
