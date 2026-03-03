@@ -75,7 +75,8 @@ struct MainTabView: View {
                                 onNavigateToFlashcardSession:   { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
                                 onNavigateToFlashcardStats:     { router.navigate(to: .flashcardStats) },
                                 onNavigateToPdfViewer:          { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) },
-                                onNavigateToSimulados:          { router.navigate(to: .simuladoHome) }
+                                onNavigateToSimulados:          { router.navigate(to: .simuladoHome) },
+                                onNavigateToOsce:               { router.navigate(to: .osce) }
                             )
                             .tag(TabItem.estudos)
 
@@ -220,7 +221,9 @@ struct MainTabView: View {
                 case .notifications:
                     NotificationSettingsScreen()
                 case .paywall:
-                    PaywallScreen()
+                    VitaPaywallScreen(onDismiss: { router.goBack() })
+                case .osce:
+                    OsceScreen(onBack: { router.goBack() })
                 default:
                     EmptyView()
                 }

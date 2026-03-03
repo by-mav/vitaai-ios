@@ -147,6 +147,12 @@ actor VitaAPI {
         try await client.get("webaluno/schedule")
     }
 
+    // MARK: - OSCE
+
+    func startOsceCase(specialty: String) async throws -> OsceStartResponse {
+        try await client.post("osce/sessions", body: OsceStartRequest(specialty: specialty))
+    }
+
     // MARK: - Push Notifications
 
     func registerPushToken(token: String) async throws {
@@ -205,5 +211,17 @@ actor VitaAPI {
             URLQueryItem(name: "subject", value: subject),
             URLQueryItem(name: "period", value: period),
         ])
+    }
+
+    /// Verify an Apple App Store transaction server-side after StoreKit 2 purchase.
+    func verifyAppleReceipt(transactionId: String, productId: String) async throws -> VerifyAppleReceiptResponse {
+        try await client.post(
+            "billing/verify/apple",
+            body: VerifyAppleReceiptRequest(
+                transactionId: transactionId,
+                productId: productId,
+                bundleId: "com.bymav.vitaai"
+            )
+        )
     }
 }
