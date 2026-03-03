@@ -28,6 +28,7 @@ final class AppContainer: ObservableObject {
     let modelContainer: ModelContainer
 
     let notebookStore: NotebookStore
+    let mindMapStore: MindMapStore
 
     // MARK: - Init
 
@@ -53,6 +54,8 @@ final class AppContainer: ObservableObject {
             NotebookEntity.self,
             PageEntity.self,
             AnnotationEntity.self,
+            MindMapEntity.self,
+            LocalAssignmentEntity.self,
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -78,5 +81,9 @@ final class AppContainer: ObservableObject {
             strokeStorage: StrokeFileStorage()
         )
         self.notebookStore = NotebookStore(repository: repository)
+
+        // --- MindMapStore backed by SwiftData ---
+        let mindMapRepository = MindMapRepository(context: self.modelContainer.mainContext)
+        self.mindMapStore = MindMapStore(repository: mindMapRepository)
     }
 }
