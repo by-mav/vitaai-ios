@@ -159,6 +159,9 @@ SimuladoConfigScreen.swift definia `private struct FlowLayout` ao mesmo tempo
     aliviar type-checker (compiler unable to type-check expression)
   - SimuladoConfigScreen: extrair pdfSection() para quebrar body complexo
     e aliviar type-checker
+- *(ios)* Merge duplicate BillingModels.swift — fix filename collision
+Features/Billing/BillingModels.swift e Models/API/BillingModels.swift
+  tinham o mesmo filename, causando erro de build no XcodeGen.
 
 ### Documentation
 
@@ -451,6 +454,7 @@ Minimal GitHub Actions workflow for iOS build without Mac.
 
   New tokens now available: cyan300, indigo400, glowB, glowC,
   bgSubtle, borderSurface
+- Update changelog
 - Update changelog
 - Update changelog
 
