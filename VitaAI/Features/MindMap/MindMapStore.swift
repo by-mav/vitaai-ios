@@ -62,7 +62,7 @@ final class MindMapStore {
             }
 
             guard let data = entity.nodesJson.data(using: .utf8),
-                  let decoded = try decoder.decode(MindMapData.self, from: data) else {
+                  let decoded = try? decoder.decode(MindMapData.self, from: data) else {
                 return nil
             }
 

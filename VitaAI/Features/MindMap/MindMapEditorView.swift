@@ -182,7 +182,7 @@ struct MindMapEditorView: View {
         .background(VitaColors.surfaceElevated)
         .overlay(
             Rectangle()
-                .fill(VitaColors.border)
+                .fill(VitaColors.surfaceBorder)
                 .frame(height: 1),
             alignment: .top
         )

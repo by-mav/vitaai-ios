@@ -35,7 +35,7 @@ struct MindMapCanvasView: View {
                 // Background
                 context.fill(
                     Path(CGRect(origin: .zero, size: size)),
-                    with: .color(Color(VitaColors.surface))
+                    with: .color(VitaColors.surface)
                 )
 
                 // Dot grid (for visual reference)
@@ -96,7 +96,7 @@ struct MindMapCanvasView: View {
                     width: dotRadius * 2,
                     height: dotRadius * 2
                 ))
-                context.fill(dotPath, with: .color(VitaColors.border.opacity(0.3)))
+                context.fill(dotPath, with: .color(VitaColors.surfaceBorder.opacity(0.3)))
                 y += gridSpacing
             }
             x += gridSpacing
@@ -169,11 +169,8 @@ struct MindMapCanvasView: View {
             .font(.system(size: 14, weight: .medium))
             .foregroundStyle(.white)
 
-        context.draw(
-            text,
-            in: rect.insetBy(dx: 8, dy: 8),
-            shading: .color(.white)
-        )
+        let resolvedText = context.resolve(text)
+        context.draw(resolvedText, in: rect.insetBy(dx: 8, dy: 8))
     }
 
     // MARK: - Gestures
