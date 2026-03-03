@@ -144,6 +144,10 @@ defaults write escreve fora do sandbox (não funciona). A abordagem correta
 
   - TokenStore: VITA_CI_TOKEN via ProcessInfo.environment → token + onboarded
   - CI: xcrun simctl launch --env VITA_CI_TOKEN=demo-ci-token
+- *(ios)* Extract shared FlowLayout to DesignSystem — fix duplicate declaration
+SimuladoConfigScreen.swift definia `private struct FlowLayout` ao mesmo tempo
+  que SubjectsStep.swift definia `struct FlowLayout` globalmente.
+  Swift não permite dois tipos com o mesmo nome no mesmo módulo.
 
 ### Documentation
 
@@ -413,4 +417,5 @@ Minimal GitHub Actions workflow for iOS build without Mac.
 
   New tokens now available: cyan300, indigo400, glowB, glowC,
   bgSubtle, borderSurface
+- Update changelog
 
