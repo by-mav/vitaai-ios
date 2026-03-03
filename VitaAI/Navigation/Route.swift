@@ -20,6 +20,9 @@ enum Route: Hashable {
     case flashcardStats
     case pdfViewer(url: String)
 
+    // MARK: - OSCE
+    case osce
+
     // MARK: - Simulado
     case simuladoHome
     case simuladoConfig

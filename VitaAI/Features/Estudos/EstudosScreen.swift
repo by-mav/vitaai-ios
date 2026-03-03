@@ -13,6 +13,7 @@ struct EstudosScreen: View {
     var onNavigateToFlashcardStats:    (() -> Void)?
     var onNavigateToPdfViewer:         ((URL) -> Void)?
     var onNavigateToSimulados:         (() -> Void)?
+    var onNavigateToOsce:              (() -> Void)?
 
     @State private var viewModel: EstudosViewModel?
 
@@ -27,7 +28,8 @@ struct EstudosScreen: View {
                     onNavigateToFlashcardSession: onNavigateToFlashcardSession,
                     onNavigateToFlashcardStats:   onNavigateToFlashcardStats,
                     onNavigateToPdfViewer:        onNavigateToPdfViewer,
-                    onNavigateToSimulados:        onNavigateToSimulados
+                    onNavigateToSimulados:        onNavigateToSimulados,
+                    onNavigateToOsce:             onNavigateToOsce
                 )
             } else {
                 ProgressView()
@@ -54,6 +56,7 @@ private struct EstudosContent: View {
     let onNavigateToFlashcardStats:    (() -> Void)?
     let onNavigateToPdfViewer:         ((URL) -> Void)?
     let onNavigateToSimulados:         (() -> Void)?
+    let onNavigateToOsce:              (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -93,6 +96,7 @@ private extension EstudosContent {
                 viewModel: viewModel,
                 onCourseClick: { courseId in viewModel.selectCourse(courseId) },
                 onNavigateToSimulados: onNavigateToSimulados,
+                onNavigateToOsce: onNavigateToOsce,
                 onRefresh: { await viewModel.load() }
             )
 
@@ -321,6 +325,7 @@ private struct DisciplinasTab: View {
     @Bindable var viewModel: EstudosViewModel
     let onCourseClick: (String) -> Void
     var onNavigateToSimulados: (() -> Void)?
+    var onNavigateToOsce: (() -> Void)?
     var onRefresh: (() async -> Void)?
 
     @State private var isGridView = false
@@ -354,6 +359,13 @@ private struct DisciplinasTab: View {
                     // Simulados entry card
                     if let onSimulados = onNavigateToSimulados {
                         SimuladosEntryCard(onTap: onSimulados)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                    }
+
+                    // OSCE entry card
+                    if let onOsce = onNavigateToOsce {
+                        OsceEntryCard(onTap: onOsce)
                             .padding(.horizontal, 16)
                             .padding(.bottom, 8)
                     }
@@ -439,6 +451,44 @@ private struct SimuladosEntryCard: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(VitaColors.textPrimary)
                         Text("Pratique com questões de múltipla escolha")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - OSCE Entry Card
+
+private struct OsceEntryCard: View {
+    let onTap: () -> Void
+    var body: some View {
+        Button(action: onTap) {
+            VitaGlassCard {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(VitaColors.accent.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "person.2.wave.2.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(VitaColors.accent)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Caso Clínico OSCE")
+                            .font(VitaTypography.bodyLarge)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Text("Pratique com paciente simulado e avaliação por IA")
                             .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textSecondary)
                     }
