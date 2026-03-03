@@ -78,17 +78,28 @@ platform :ios do
   # Lane: TestFlight COMPLETO (build + upload)
   desc "Build and upload to TestFlight"
   lane :beta do
-    # 1. Gerar xcodeproj
+    # 1. Configurar API Key (se disponível) - para Match e TestFlight
+    if ENV['ASC_KEY_ID'] && ENV['ASC_ISSUER_ID']
+      UI.message("🔑 Configurando App Store Connect API Key...")
+      app_store_connect_api_key(
+        key_id: ENV['ASC_KEY_ID'],
+        issuer_id: ENV['ASC_ISSUER_ID'],
+        key_filepath: "./fastlane/keys/AuthKey_#{ENV['ASC_KEY_ID']}.p8",
+        in_house: false
+      )
+    end
+
+    # 2. Gerar xcodeproj
     UI.message("🔨 Gerando Xcode project...")
     sh("cd .. && xcodegen generate")
 
-    # 2. Incrementar build number
+    # 3. Incrementar build number
     UI.message("📈 Incrementando build number...")
     increment_build_number(xcodeproj: workspace)
     current_build = get_build_number(xcodeproj: workspace)
     current_version = get_version_number(xcodeproj: workspace, target: app_name)
 
-    # 3. Code signing (certificates + provisioning profiles)
+    # 4. Code signing (certificates + provisioning profiles)
     UI.message("🔐 Configurando code signing...")
     match(
       type: "appstore",
@@ -96,7 +107,7 @@ platform :ios do
       readonly: false  # false na primeira vez para criar certificados, depois pode mudar para true
     )
 
-    # 4. Build + Archive
+    # 5. Build + Archive
     UI.message("🏗️  Building and archiving...")
     build_app(
       scheme: scheme,
@@ -112,19 +123,8 @@ platform :ios do
       }
     )
 
-    # 5. Upload para TestFlight (usando App Store Connect API Key)
+    # 6. Upload para TestFlight
     UI.message("📤 Uploading to TestFlight...")
-
-    # Configurar API Key se disponível (mais seguro que app-specific password)
-    if ENV['ASC_KEY_ID'] && ENV['ASC_ISSUER_ID']
-      app_store_connect_api_key(
-        key_id: ENV['ASC_KEY_ID'],
-        issuer_id: ENV['ASC_ISSUER_ID'],
-        key_filepath: "./fastlane/keys/AuthKey_#{ENV['ASC_KEY_ID']}.p8",
-        in_house: false
-      )
-    end
-
     upload_to_testflight(
       skip_waiting_for_build_processing: true,
       distribute_external: false,
@@ -132,7 +132,7 @@ platform :ios do
       changelog: "Build #{current_build}\n\n✅ MindMap feature completa\n✅ Canvas pan/zoom/drag\n✅ Paleta 8 cores"
     )
 
-    # 6. Commit build number increment
+    # 7. Commit build number increment
     UI.message("💾 Commitando build number...")
     commit_version_bump(
       message: "chore(ios): bump build to #{current_build} for TestFlight",
@@ -140,7 +140,7 @@ platform :ios do
       force: true
     )
 
-    # 7. Push para git
+    # 8. Push para git
     push_to_git_remote(
       remote: "origin",
       local_branch: "main",
