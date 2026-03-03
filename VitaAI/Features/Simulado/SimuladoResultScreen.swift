@@ -32,14 +32,18 @@ struct SimuladoResultScreen: View {
         }
     }
 
+    private func calcCorrectQ(vm: SimuladoViewModel) -> Int {
+        if let r = vm.state.result { return r.correctQ }
+        return vm.state.answers.reduce(0) { acc, pair in
+            let isCorrect = vm.state.questions.first { $0.id == pair.key }?.correctIdx == pair.value
+            return acc + (isCorrect ? 1 : 0)
+        }
+    }
+
     @ViewBuilder
     private func resultContent(vm: SimuladoViewModel) -> some View {
         let totalQ = vm.state.result?.totalQ ?? vm.state.questions.count
-        let correctQ: Int = vm.state.result?.correctQ ?? vm.state.answers.reduce(0) { acc, pair in
-            let (qId, chosen) = pair
-            let isCorrect = vm.state.questions.first { $0.id == qId }?.correctIdx == chosen
-            return acc + (isCorrect ? 1 : 0)
-        }
+        let correctQ = calcCorrectQ(vm: vm)
         let wrongQ = vm.state.answers.count - correctQ
         let blankQ = totalQ - vm.state.answers.count
         let scorePercent = totalQ > 0 ? Int(Double(correctQ) / Double(totalQ) * 100) : 0
@@ -152,8 +156,8 @@ struct SimuladoResultScreen: View {
                 Spacer().frame(height: 32)
 
                 VStack(spacing: 10) {
-                    VitaButton(label: "Revisar Questões", variant: .secondary, action: onReview)
-                    VitaButton(label: "Novo Simulado", action: onNewSimulado)
+                    VitaButton(text: "Revisar Questões", variant: .secondary, action: onReview)
+                    VitaButton(text: "Novo Simulado", action: onNewSimulado)
                 }
                 .padding(.horizontal, 24)
 

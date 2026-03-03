@@ -70,10 +70,7 @@ struct SimuladoSessionScreen: View {
 
     @ViewBuilder
     private func sessionContent(vm: SimuladoViewModel) -> some View {
-        guard let question = vm.state.currentQuestion else {
-            EmptyView()
-            return
-        }
+        if let question = vm.state.currentQuestion {
         let options = question.parsedOptions
         let selectedIdx = vm.state.answers[question.id]
         let isExam = vm.state.isExamMode
@@ -221,6 +218,7 @@ struct SimuladoSessionScreen: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 20)
         }
+        } // end if let question
     }
 
     // MARK: - Grid Sheet
@@ -255,10 +253,10 @@ struct SimuladoSessionScreen: View {
                 }
             }
 
-            VitaButton(label: "Finalizar Prova", variant: .secondary) {
+            VitaButton(text: "Finalizar Prova", variant: .secondary, action: {
                 showGrid = false
                 showFinishDialog = true
-            }
+            })
         }
         .padding(20)
         .background(VitaColors.surface)

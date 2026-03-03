@@ -100,7 +100,7 @@ struct AnswerSimuladoResponse: Decodable {
 
 // MARK: - Finish
 
-struct FinishSimuladoResponse: Decodable {
+struct FinishSimuladoResponse: Decodable, Equatable {
     var id: String = ""
     var correctQ: Int = 0
     var totalQ: Int = 0

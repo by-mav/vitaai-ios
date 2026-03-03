@@ -64,7 +64,7 @@ struct SimuladoHomeScreen: View {
                         StatsCard(stats: vm.state.stats)
                             .padding(.top, 8)
 
-                        VitaButton(label: "Novo Simulado", action: onNewSimulado)
+                        VitaButton(text: "Novo Simulado", action: onNewSimulado)
                             .padding(.horizontal, 16)
 
                         if !vm.state.bySubject.isEmpty {
@@ -140,7 +140,7 @@ struct SimuladoHomeScreen: View {
                             }
                         }
 
-                        VitaButton(label: "Ver Diagnóstico Completo", variant: .secondary, action: onOpenDiagnostics)
+                        VitaButton(text: "Ver Diagnóstico Completo", variant: .secondary, action: onOpenDiagnostics)
                             .padding(.horizontal, 16)
                             .padding(.bottom, 24)
                     }

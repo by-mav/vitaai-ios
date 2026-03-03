@@ -90,48 +90,7 @@ struct SimuladoConfigScreen: View {
 
                     // ── 2. PDF selector (visible after selecting a course) ──
                     if vm.state.selectedCourse != nil {
-                        ConfigSectionTitle("Slides / PDFs")
-
-                        if vm.state.filesLoading {
-                            HStack {
-                                Spacer()
-                                ProgressView().tint(VitaColors.accent)
-                                Spacer()
-                            }
-                            .padding(.vertical, 8)
-                        } else if vm.state.files.isEmpty {
-                            Text("Nenhum PDF com texto extraído neste curso.")
-                                .font(.system(size: 12))
-                                .foregroundStyle(VitaColors.textTertiary)
-                        } else {
-                            let grouped = Dictionary(grouping: vm.state.files) { $0.moduleName ?? "Sem módulo" }
-                            let sortedKeys = grouped.keys.sorted()
-                            ForEach(sortedKeys, id: \.self) { moduleName in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(moduleName)
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundStyle(VitaColors.textTertiary)
-
-                                    FlowLayout(spacing: 8) {
-                                        ForEach(grouped[moduleName] ?? []) { file in
-                                            let displayName = file.displayName
-                                                .replacingOccurrences(of: ".pdf", with: "", options: .caseInsensitive)
-                                            ChipButton(
-                                                label: displayName,
-                                                isSelected: vm.state.selectedFileIds.contains(file.id)
-                                            ) {
-                                                vm.toggleFile(file.id)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if vm.state.selectedFileIds.isEmpty {
-                                Text("Nenhum selecionado = usa todos os PDFs do curso")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(VitaColors.textTertiary)
-                            }
-                        }
+                        pdfSection(vm: vm)
                     }
 
                     // ── 3. Difficulty ──
@@ -204,8 +163,8 @@ struct SimuladoConfigScreen: View {
                     .padding(.vertical, 12)
                 } else {
                     VitaButton(
-                        label: "Gerar Simulado",
-                        isDisabled: vm.state.selectedSubject.isEmpty,
+                        text: "Gerar Simulado",
+                        isEnabled: !vm.state.selectedSubject.isEmpty,
                         action: { vm.generateSimulado() }
                     )
                     .padding(.horizontal, 16)
@@ -218,6 +177,51 @@ struct SimuladoConfigScreen: View {
         .onChange(of: vm.state.currentAttemptId) { _, newId in
             if let id = newId, !vm.state.isGenerating, !vm.state.questions.isEmpty {
                 onStartSession(id)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func pdfSection(vm: SimuladoViewModel) -> some View {
+        ConfigSectionTitle("Slides / PDFs")
+
+        if vm.state.filesLoading {
+            HStack {
+                Spacer()
+                ProgressView().tint(VitaColors.accent)
+                Spacer()
+            }
+            .padding(.vertical, 8)
+        } else if vm.state.files.isEmpty {
+            Text("Nenhum PDF com texto extraído neste curso.")
+                .font(.system(size: 12))
+                .foregroundStyle(VitaColors.textTertiary)
+        } else {
+            let grouped = Dictionary(grouping: vm.state.files) { $0.moduleName ?? "Sem módulo" }
+            let sortedKeys = grouped.keys.sorted()
+            ForEach(sortedKeys, id: \.self) { moduleName in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(moduleName)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(VitaColors.textTertiary)
+                    FlowLayout(spacing: 8) {
+                        ForEach(grouped[moduleName] ?? []) { file in
+                            let displayName = file.displayName
+                                .replacingOccurrences(of: ".pdf", with: "", options: .caseInsensitive)
+                            ChipButton(
+                                label: displayName,
+                                isSelected: vm.state.selectedFileIds.contains(file.id)
+                            ) {
+                                vm.toggleFile(file.id)
+                            }
+                        }
+                    }
+                }
+            }
+            if vm.state.selectedFileIds.isEmpty {
+                Text("Nenhum selecionado = usa todos os PDFs do curso")
+                    .font(.system(size: 11))
+                    .foregroundStyle(VitaColors.textTertiary)
             }
         }
     }
