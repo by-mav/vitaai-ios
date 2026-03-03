@@ -83,14 +83,11 @@ jobs:
           echo "App: $APP_PATH"
           xcrun simctl install "$DEVICE_ID" "$APP_PATH"
 
-          # Inject CI session via UserDefaults BEFORE launching the app.
-          # TokenStore reads vita_ci_token as fallback when Keychain is empty (DEBUG only).
-          xcrun simctl spawn "$DEVICE_ID" defaults write com.bymav.vitaai vita_ci_token "demo-ci-token"
-          xcrun simctl spawn "$DEVICE_ID" defaults write com.bymav.vitaai vita_user_name "Estudante CI"
-          xcrun simctl spawn "$DEVICE_ID" defaults write com.bymav.vitaai vita_user_email "ci@vitaai.app"
-          xcrun simctl spawn "$DEVICE_ID" defaults write com.bymav.vitaai vita_is_onboarded -bool true
-
-          xcrun simctl launch "$DEVICE_ID" com.bymav.vitaai
+          # Inject CI session via env vars — ProcessInfo.environment is read inside the sandbox.
+          # TokenStore reads VITA_CI_TOKEN as token fallback + marks onboarding done (DEBUG only).
+          xcrun simctl launch \
+            --env VITA_CI_TOKEN=demo-ci-token \
+            "$DEVICE_ID" com.bymav.vitaai
           sleep 5  # wait for auth check + dashboard render
 
           mkdir -p screenshots
