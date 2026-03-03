@@ -17,6 +17,7 @@ enum Route: Hashable {
     case mindMapList
     case mindMapEditor(id: String)
     case flashcardSession(deckId: String)
+    case flashcardStats
     case pdfViewer(url: String)
 
     // MARK: - Settings sub-screens

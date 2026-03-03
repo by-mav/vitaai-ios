@@ -6,11 +6,12 @@ struct EstudosScreen: View {
     @Environment(\.appContainer) private var container
 
     // Navigation callbacks — injected by AppRouter/MainTabView
-    var onNavigateToCanvasConnect:   (() -> Void)?
-    var onNavigateToNotebooks:        (() -> Void)?
-    var onNavigateToMindMaps:         (() -> Void)?
-    var onNavigateToFlashcardSession: ((String) -> Void)?
-    var onNavigateToPdfViewer:        ((URL) -> Void)?
+    var onNavigateToCanvasConnect:    (() -> Void)?
+    var onNavigateToNotebooks:         (() -> Void)?
+    var onNavigateToMindMaps:          (() -> Void)?
+    var onNavigateToFlashcardSession:  ((String) -> Void)?
+    var onNavigateToFlashcardStats:    (() -> Void)?
+    var onNavigateToPdfViewer:         ((URL) -> Void)?
 
     @State private var viewModel: EstudosViewModel?
 
@@ -23,6 +24,7 @@ struct EstudosScreen: View {
                     onNavigateToNotebooks:        onNavigateToNotebooks,
                     onNavigateToMindMaps:         onNavigateToMindMaps,
                     onNavigateToFlashcardSession: onNavigateToFlashcardSession,
+                    onNavigateToFlashcardStats:   onNavigateToFlashcardStats,
                     onNavigateToPdfViewer:        onNavigateToPdfViewer
                 )
             } else {
@@ -43,11 +45,12 @@ struct EstudosScreen: View {
 
 private struct EstudosContent: View {
     @Bindable var viewModel: EstudosViewModel
-    let onNavigateToCanvasConnect:   (() -> Void)?
-    let onNavigateToNotebooks:        (() -> Void)?
-    let onNavigateToMindMaps:         (() -> Void)?
-    let onNavigateToFlashcardSession: ((String) -> Void)?
-    let onNavigateToPdfViewer:        ((URL) -> Void)?
+    let onNavigateToCanvasConnect:    (() -> Void)?
+    let onNavigateToNotebooks:         (() -> Void)?
+    let onNavigateToMindMaps:          (() -> Void)?
+    let onNavigateToFlashcardSession:  ((String) -> Void)?
+    let onNavigateToFlashcardStats:    (() -> Void)?
+    let onNavigateToPdfViewer:         ((URL) -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -105,6 +108,7 @@ private extension EstudosContent {
                 decks: viewModel.flashcardDisplayDecks,
                 isLoading: viewModel.isLoading,
                 onDeckClick: { deckId in onNavigateToFlashcardSession?(deckId) },
+                onStatsClick: onNavigateToFlashcardStats,
                 onRefresh: { await viewModel.load() }
             )
 
@@ -497,6 +501,7 @@ private struct FlashcardsTab: View {
     let decks: [FlashcardDeckDisplayEntry]
     var isLoading: Bool = false
     let onDeckClick: (String) -> Void
+    var onStatsClick: (() -> Void)?
     var onRefresh: (() async -> Void)?
 
     var body: some View {
@@ -514,6 +519,36 @@ private struct FlashcardsTab: View {
         } else {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 12) {
+                    // Stats entry button — mirrors Android header pattern
+                    if let onStats = onStatsClick {
+                        Button(action: onStats) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "chart.bar.xaxis")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(VitaColors.accent)
+
+                                Text("Ver Estatísticas")
+                                    .font(VitaTypography.labelLarge)
+                                    .foregroundStyle(VitaColors.accent)
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(VitaColors.textTertiary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(VitaColors.accent.opacity(0.06))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(VitaColors.accent.opacity(0.15), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     ForEach(Array(decks.enumerated()), id: \.element.id) { index, deck in
                         FlashcardRow(deck: deck, onClick: { onDeckClick(deck.id) })
                             .transition(.opacity.combined(with: .move(edge: .bottom)))

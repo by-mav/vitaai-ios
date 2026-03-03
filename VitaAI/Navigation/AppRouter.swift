@@ -68,11 +68,12 @@ struct MainTabView: View {
                             .tag(TabItem.home)
 
                             EstudosScreen(
-                                onNavigateToCanvasConnect:   { router.navigate(to: .canvasConnect) },
-                                onNavigateToNotebooks:        { router.navigate(to: .notebookList) },
-                                onNavigateToMindMaps:         { router.navigate(to: .mindMapList) },
-                                onNavigateToFlashcardSession: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
-                                onNavigateToPdfViewer:        { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) }
+                                onNavigateToCanvasConnect:     { router.navigate(to: .canvasConnect) },
+                                onNavigateToNotebooks:          { router.navigate(to: .notebookList) },
+                                onNavigateToMindMaps:           { router.navigate(to: .mindMapList) },
+                                onNavigateToFlashcardSession:   { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
+                                onNavigateToFlashcardStats:     { router.navigate(to: .flashcardStats) },
+                                onNavigateToPdfViewer:          { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) }
                             )
                             .tag(TabItem.estudos)
 
@@ -143,6 +144,8 @@ struct MainTabView: View {
                         onBack: { router.goBack() },
                         onFinished: { router.goBack() }
                     )
+                case .flashcardStats:
+                    FlashcardStatsView(onBack: { router.goBack() })
                 case .canvasConnect:
                     CanvasConnectScreen(
                         onBack: { router.goBack() }
