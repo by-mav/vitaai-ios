@@ -168,6 +168,10 @@ VitaAPI.swift referenciava OsceStartResponse e OsceSseClient mas os
 - *(ios)* Register TranscricaoClient in AppContainer
 TranscricaoScreen referenciava container.transcricaoClient mas o
   client não havia sido instanciado nem exposto no AppContainer.
+- *(ios)* Add SwiftUI import to EmailAuthViewModel — fix withAnimation scope error
+withAnimation/_Animation requer SwiftUI. ViewModel tinha só Foundation+Observation.
+- *(ios)* Fix VitaButton argument order in SimuladoConfigScreen
+action deve preceder isEnabled na chamada VitaButton.
 
 ### Documentation
 
@@ -460,6 +464,7 @@ Minimal GitHub Actions workflow for iOS build without Mac.
 
   New tokens now available: cyan300, indigo400, glowB, glowC,
   bgSubtle, borderSurface
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
