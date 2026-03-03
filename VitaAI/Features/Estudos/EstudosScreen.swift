@@ -8,6 +8,7 @@ struct EstudosScreen: View {
     // Navigation callbacks — injected by AppRouter/MainTabView
     var onNavigateToCanvasConnect:   (() -> Void)?
     var onNavigateToNotebooks:        (() -> Void)?
+    var onNavigateToMindMaps:         (() -> Void)?
     var onNavigateToFlashcardSession: ((String) -> Void)?
     var onNavigateToPdfViewer:        ((URL) -> Void)?
 
@@ -20,6 +21,7 @@ struct EstudosScreen: View {
                     viewModel: viewModel,
                     onNavigateToCanvasConnect:   onNavigateToCanvasConnect,
                     onNavigateToNotebooks:        onNavigateToNotebooks,
+                    onNavigateToMindMaps:         onNavigateToMindMaps,
                     onNavigateToFlashcardSession: onNavigateToFlashcardSession,
                     onNavigateToPdfViewer:        onNavigateToPdfViewer
                 )
@@ -43,6 +45,7 @@ private struct EstudosContent: View {
     @Bindable var viewModel: EstudosViewModel
     let onNavigateToCanvasConnect:   (() -> Void)?
     let onNavigateToNotebooks:        (() -> Void)?
+    let onNavigateToMindMaps:         (() -> Void)?
     let onNavigateToFlashcardSession: ((String) -> Void)?
     let onNavigateToPdfViewer:        ((URL) -> Void)?
 
@@ -90,6 +93,11 @@ private extension EstudosContent {
         case .notebooks:
             NotebooksTab(
                 onNavigate: onNavigateToNotebooks ?? {}
+            )
+
+        case .mindMaps:
+            MindMapsTab(
+                onNavigate: onNavigateToMindMaps ?? {}
             )
 
         case .flashcards:
@@ -416,6 +424,55 @@ private struct NotebooksTab: View {
 
                 Button(action: onNavigate) {
                     Text("Abrir Notebooks")
+                        .font(VitaTypography.labelMedium)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(VitaColors.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(VitaColors.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 100)
+        .contentShape(Rectangle())
+        .onTapGesture { onNavigate() }
+    }
+}
+
+// MARK: - MindMaps Tab
+
+private struct MindMapsTab: View {
+    let onNavigate: () -> Void
+
+    var body: some View {
+        VStack {
+            Spacer()
+            VStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(VitaColors.accent.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 36))
+                        .foregroundStyle(VitaColors.accent)
+                }
+
+                Text("Mapas Mentais")
+                    .font(VitaTypography.titleMedium)
+                    .fontWeight(.medium)
+                    .foregroundStyle(VitaColors.textPrimary)
+
+                Text("Organize ideias e conceitos visualmente")
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                Button(action: onNavigate) {
+                    Text("Abrir Mapas Mentais")
                         .font(VitaTypography.labelMedium)
                         .fontWeight(.semibold)
                         .foregroundStyle(VitaColors.white)

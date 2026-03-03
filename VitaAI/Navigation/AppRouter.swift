@@ -70,6 +70,7 @@ struct MainTabView: View {
                             EstudosScreen(
                                 onNavigateToCanvasConnect:   { router.navigate(to: .canvasConnect) },
                                 onNavigateToNotebooks:        { router.navigate(to: .notebookList) },
+                                onNavigateToMindMaps:         { router.navigate(to: .mindMapList) },
                                 onNavigateToFlashcardSession: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
                                 onNavigateToPdfViewer:        { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) }
                             )
@@ -114,6 +115,20 @@ struct MainTabView: View {
                     EditorScreen(
                         notebookId: uuid,
                         store: container.notebookStore,
+                        onBack: { router.goBack() }
+                    )
+                case .mindMapList:
+                    MindMapListView(
+                        store: container.mindMapStore,
+                        onBack: { router.goBack() },
+                        onOpenMindMap: { id in
+                            router.navigate(to: .mindMapEditor(id: id))
+                        }
+                    )
+                case .mindMapEditor(let id):
+                    MindMapEditorView(
+                        mindMapId: id,
+                        store: container.mindMapStore,
                         onBack: { router.goBack() }
                     )
                 case .pdfViewer(let urlString):
