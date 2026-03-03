@@ -56,7 +56,7 @@ struct MainTabView: View {
                                     router.selectedTab = .estudos
                                 },
                                 onNavigateToSimulados: {
-                                    router.selectedTab = .estudos
+                                    router.navigate(to: .simuladoHome)
                                 },
                                 onNavigateToPdfs: {
                                     router.selectedTab = .estudos
@@ -73,7 +73,8 @@ struct MainTabView: View {
                                 onNavigateToMindMaps:           { router.navigate(to: .mindMapList) },
                                 onNavigateToFlashcardSession:   { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
                                 onNavigateToFlashcardStats:     { router.navigate(to: .flashcardStats) },
-                                onNavigateToPdfViewer:          { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) }
+                                onNavigateToPdfViewer:          { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) },
+                                onNavigateToSimulados:          { router.navigate(to: .simuladoHome) }
                             )
                             .tag(TabItem.estudos)
 
@@ -146,6 +147,50 @@ struct MainTabView: View {
                     )
                 case .flashcardStats:
                     FlashcardStatsView(onBack: { router.goBack() })
+                case .simuladoHome:
+                    SimuladoHomeScreen(
+                        onBack: { router.goBack() },
+                        onNewSimulado: { router.navigate(to: .simuladoConfig) },
+                        onOpenSession: { id in router.navigate(to: .simuladoSession(attemptId: id)) },
+                        onOpenResult: { id in router.navigate(to: .simuladoResult(attemptId: id)) },
+                        onOpenDiagnostics: { router.navigate(to: .simuladoDiagnostics) }
+                    )
+                case .simuladoConfig:
+                    SimuladoConfigScreen(
+                        onBack: { router.goBack() },
+                        onStartSession: { id in
+                            router.path.removeLast()
+                            router.navigate(to: .simuladoSession(attemptId: id))
+                        }
+                    )
+                case .simuladoSession(let attemptId):
+                    SimuladoSessionScreen(
+                        attemptId: attemptId,
+                        onBack: { router.goBack() },
+                        onFinished: { id in
+                            router.path.removeLast()
+                            router.navigate(to: .simuladoResult(attemptId: id))
+                        }
+                    )
+                case .simuladoResult(let attemptId):
+                    SimuladoResultScreen(
+                        attemptId: attemptId,
+                        onBack: { router.goBack() },
+                        onReview: { router.navigate(to: .simuladoReview(attemptId: attemptId)) },
+                        onNewSimulado: {
+                            router.path.removeLast()
+                            router.navigate(to: .simuladoConfig)
+                        }
+                    )
+                case .simuladoReview(let attemptId):
+                    SimuladoReviewScreen(
+                        attemptId: attemptId,
+                        onBack: { router.goBack() }
+                    )
+                case .simuladoDiagnostics:
+                    SimuladoDiagnosticsScreen(
+                        onBack: { router.goBack() }
+                    )
                 case .canvasConnect:
                     CanvasConnectScreen(
                         onBack: { router.goBack() }
