@@ -148,6 +148,17 @@ defaults write escreve fora do sandbox (não funciona). A abordagem correta
 SimuladoConfigScreen.swift definia `private struct FlowLayout` ao mesmo tempo
   que SubjectsStep.swift definia `struct FlowLayout` globalmente.
   Swift não permite dois tipos com o mesmo nome no mesmo módulo.
+- *(ios)* Fix Simulado build errors — VitaButton API + FlowLayout + Equatable
+- VitaButton: corrigir `label:` → `text:` e `isDisabled:` → `isEnabled:!` em
+    SimuladoHomeScreen, SimuladoSessionScreen, SimuladoConfigScreen, SimuladoResultScreen
+  - SimuladoSessionScreen: converter `guard let` em @ViewBuilder para `if let`
+    (guard+return não funciona em @ViewBuilder)
+  - SimuladoSessionScreen: fechar trailing brace do VitaButton corretamente
+  - SimuladoModels: adicionar Equatable a FinishSimuladoResponse (onChange requer)
+  - SimuladoResultScreen: extrair reduce complexo para calcCorrectQ() para
+    aliviar type-checker (compiler unable to type-check expression)
+  - SimuladoConfigScreen: extrair pdfSection() para quebrar body complexo
+    e aliviar type-checker
 
 ### Documentation
 
@@ -375,6 +386,29 @@ Implements P3 gamification components ported from Android VitaXpBar.kt,
 
   New tokens now available: cyan300, indigo400, glowB, glowC,
   bgSubtle, borderSurface
+- *(ios/auth)* EmailAuthSheet — email/password login and signup
+- EmailAuthViewModel: @Observable @MainActor, manages tabs/fields/loading/errors
+  - EmailAuthSheet: bottom sheet with Sign In / Sign Up / Forgot Password tabs
+    - Inline validation (email format, password ≥8 chars)
+    - Password visibility toggle
+    - Animated tab transitions (easeInOut 0.2s) matching Android
+    - Forgot password: input → success state with checkmark
+    - Keyboard avoidance via ignoresSafeArea(.keyboard)
+    - presentationDetents([.medium, .large]) + drag indicator
+  - LoginScreen: wire "Continuar com Email" button → showEmailSheet
+  - All colors/typography via VitaColors.* and VitaTypography.* (zero hardcode)
+  - Delegates auth to existing AuthManager.signInWithEmail/signUpWithEmail/forgotPassword
+- *(ios)* VitaPaywallScreen + StoreKitManager — StoreKit 2 native paywall
+- StoreKitManager.swift (@Observable @MainActor): Product.products(for:) load,
+    purchase(_:) with VerificationResult handling, AppStore.sync() restore,
+    Transaction.currentEntitlements entitlement check, background Transaction.updates listener
+  - VitaPaywallScreen.swift: monthly/annual plan selector cards, annual savings badge,
+    per-month price breakdown, 6-feature list with SF Symbol icons, loading/subscribed/error states,
+    staggered spring entrance animations (hero→plans→features→CTA)
+  - BillingModels.swift: VerifyAppleReceiptRequest/Response for server-side validation
+  - VitaAPI.swift: +verifyAppleReceipt(transactionId:productId:) endpoint
+  - AppRouter.swift: .paywall route now renders VitaPaywallScreen (was PaywallScreen/Stripe)
+  - Product IDs: com.bymav.vitaai.monthly + com.bymav.vitaai.annual
 
 ### Miscellaneous
 
@@ -417,5 +451,6 @@ Minimal GitHub Actions workflow for iOS build without Mac.
 
   New tokens now available: cyan300, indigo400, glowB, glowC,
   bgSubtle, borderSurface
+- Update changelog
 - Update changelog
 
