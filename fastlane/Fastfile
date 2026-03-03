@@ -116,7 +116,9 @@ platform :ios do
       export_method: "app-store",
       output_directory: output_directory,
       clean: true,
+      xcargs: "DEVELOPMENT_TEAM=#{ENV['TEAM_ID']}",
       export_options: {
+        teamID: ENV['TEAM_ID'],
         provisioningProfiles: {
           app_identifier => "match AppStore #{app_identifier}"
         }
