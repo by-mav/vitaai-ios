@@ -11,7 +11,7 @@ platform :ios do
   # App Info
   app_identifier = "com.bymav.vitaai"
   app_name = "VitaAI"
-  workspace = "VitaAI.xcodeproj"
+  project = "VitaAI.xcodeproj"
   scheme = "VitaAI"
 
   # Build Settings
@@ -50,10 +50,10 @@ platform :ios do
   desc "Increment build number"
   lane :bump do
     increment_build_number(
-      xcodeproj: workspace
+      xcodeproj: project
     )
 
-    current_build = get_build_number(xcodeproj: workspace)
+    current_build = get_build_number(xcodeproj: project)
     UI.success("✅ Build number: #{current_build}")
   end
 
@@ -66,7 +66,7 @@ platform :ios do
     # Build (sem archive)
     build_app(
       scheme: scheme,
-      workspace: workspace,
+      project: project,
       configuration: "Release",
       skip_archive: true,
       clean: true
@@ -95,9 +95,9 @@ platform :ios do
 
     # 3. Incrementar build number
     UI.message("📈 Incrementando build number...")
-    increment_build_number(xcodeproj: workspace)
-    current_build = get_build_number(xcodeproj: workspace)
-    current_version = get_version_number(xcodeproj: workspace, target: app_name)
+    increment_build_number(xcodeproj: project)
+    current_build = get_build_number(xcodeproj: project)
+    current_version = get_version_number(xcodeproj: project, target: app_name)
 
     # 4. Code signing (certificates + provisioning profiles)
     UI.message("🔐 Configurando code signing...")
@@ -111,7 +111,7 @@ platform :ios do
     UI.message("🏗️  Building and archiving...")
     build_app(
       scheme: scheme,
-      workspace: workspace,
+      project: project,
       configuration: "Release",
       export_method: "app-store",
       output_directory: output_directory,
@@ -136,7 +136,7 @@ platform :ios do
     UI.message("💾 Commitando build number...")
     commit_version_bump(
       message: "chore(ios): bump build to #{current_build} for TestFlight",
-      xcodeproj: workspace,
+      xcodeproj: project,
       force: true
     )
 
