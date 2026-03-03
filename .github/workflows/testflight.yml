@@ -9,7 +9,10 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
