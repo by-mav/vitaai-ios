@@ -38,4 +38,9 @@ jobs:
 
       - run: xcodegen generate
 
+      - name: Configure Git credentials for Match
+        run: |
+          git config --global credential.helper store
+          echo "https://rafamav:${{ secrets.GITHUB_TOKEN }}@github.com" > ~/.git-credentials
+
       - run: fastlane beta
