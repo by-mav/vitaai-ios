@@ -31,34 +31,39 @@ jobs:
           fi
           echo "✓ Sem filenames duplicados"
 
-      - name: Check VitaButton API (text: não label:)
+      - name: Check VitaButton API usage
         run: |
           if grep -rn 'VitaButton(label:' --include="*.swift" VitaAI/; then
-            echo "::error::VitaButton usa 'text:' não 'label:'. Corrigir as chamadas acima."
+            echo "::error::VitaButton usa text: nao label: — corrigir as chamadas acima"
             exit 1
           fi
-          echo "✓ VitaButton API ok"
+          echo "OK VitaButton API"
 
-      - name: Check VitaButton argument order (action: antes de variant:/isEnabled:)
+      - name: Check VitaButton argument order
         run: |
-          # Detecta padrão errado: VitaButton(text: "...", variant: ...)
-          if grep -rn 'VitaButton(text:.*variant:' --include="*.swift" VitaAI/ | grep -v 'action:'; then
-            echo "::error::VitaButton: 'action:' deve preceder 'variant:' e 'isEnabled:'"
+          # action: deve vir antes de variant: e isEnabled:
+          # Padrao errado: VitaButton(text: "X", variant: ...) sem action antes
+          WRONG=$(grep -rn 'VitaButton(text:' --include="*.swift" VitaAI/ \
+            | grep 'variant:\|isEnabled:' | grep -v 'action:') || true
+          if [ -n "$WRONG" ]; then
+            echo "::error::VitaButton — action: deve preceder variant: e isEnabled:"
+            echo "$WRONG"
             exit 1
           fi
-          echo "✓ VitaButton argument order ok"
+          echo "OK VitaButton argument order"
 
-      - name: Check guard-let in @ViewBuilder
+      - name: Check guard-let in ViewBuilder
         run: |
-          # guard let + return dentro de @ViewBuilder não compila
-          if grep -rn -A2 '@ViewBuilder' --include="*.swift" VitaAI/ | grep -q 'guard let.*else'; then
-            echo "::warning::Possível guard-let em @ViewBuilder detectado. Usar if-let em vez disso."
+          # guard let + return dentro de @ViewBuilder nao compila
+          FOUND=$(grep -rn 'guard let' --include="*.swift" VitaAI/ -B5 | grep '@ViewBuilder' | head -5) || true
+          if [ -n "$FOUND" ]; then
+            echo "::warning::Possivel guard-let em @ViewBuilder — usar if-let"
+            echo "$FOUND"
           fi
-          echo "✓ @ViewBuilder check ok"
+          echo "OK @ViewBuilder check"
 
-      - name: Verify AppContainer registers all new clients
+      - name: Verify AppContainer registers all clients
         run: |
-          # Todo arquivo *Client.swift deve ter correspondência em AppContainer
           CLIENTS=$(find VitaAI/Core/Network -name "*Client.swift" -exec basename {} .swift \;)
           MISSING=""
           for c in $CLIENTS; do
@@ -67,10 +72,10 @@ jobs:
             fi
           done
           if [ -n "$MISSING" ]; then
-            echo "::error::Clients não registrados no AppContainer:$MISSING"
+            echo "::error::Clients nao registrados no AppContainer:$MISSING"
             exit 1
           fi
-          echo "✓ AppContainer registra todos os clients"
+          echo "OK AppContainer registra todos os clients"
 
   screenshots:
     name: Screenshots & App Bundle
