@@ -76,8 +76,49 @@ jobs:
           xcrun simctl launch "$DEVICE_ID" com.bymav.vitaai
 
           mkdir -p screenshots
-          sleep 15  # wait for splash + login animation (image fade 1.5s + button stagger ~2s)
+
+          # Screenshot 1: Launch/Login
+          sleep 3
           xcrun simctl io "$DEVICE_ID" screenshot screenshots/01-launch.png
+          echo "✓ Screenshot 1: Launch"
+
+          # Screenshot 2: Dashboard (tap skip onboarding if exists, or tap login)
+          sleep 2
+          xcrun simctl ui "$DEVICE_ID" tap 200 600 || true
+          sleep 2
+          xcrun simctl io "$DEVICE_ID" screenshot screenshots/02-dashboard.png
+          echo "✓ Screenshot 2: Dashboard"
+
+          # Screenshot 3: Navigate to Estudos
+          sleep 1
+          xcrun simctl ui "$DEVICE_ID" tap 200 700 || true
+          sleep 2
+          xcrun simctl io "$DEVICE_ID" screenshot screenshots/03-estudos.png
+          echo "✓ Screenshot 3: Estudos"
+
+          # Screenshot 4: Tap Mapas tab (3rd tab)
+          sleep 1
+          xcrun simctl ui "$DEVICE_ID" tap 300 850 || true
+          sleep 2
+          xcrun simctl io "$DEVICE_ID" screenshot screenshots/04-mindmap-list.png
+          echo "✓ Screenshot 4: MindMap List"
+
+          # Screenshot 5: Create new map (FAB button)
+          sleep 1
+          xcrun simctl ui "$DEVICE_ID" tap 350 800 || true
+          sleep 3
+          xcrun simctl io "$DEVICE_ID" screenshot screenshots/05-mindmap-editor.png
+          echo "✓ Screenshot 5: MindMap Editor"
+
+          # Screenshot 6: After interaction (tap canvas)
+          sleep 1
+          xcrun simctl ui "$DEVICE_ID" tap 200 400 || true
+          sleep 1
+          xcrun simctl io "$DEVICE_ID" screenshot screenshots/06-mindmap-interaction.png
+          echo "✓ Screenshot 6: MindMap Interaction"
+
+          echo "=== Generated $(ls screenshots/*.png | wc -l) screenshots ==="
+          ls -lh screenshots/
 
           xcrun simctl shutdown "$DEVICE_ID" || true
 
