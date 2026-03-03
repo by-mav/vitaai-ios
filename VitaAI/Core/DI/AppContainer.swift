@@ -50,6 +50,7 @@ final class AppContainer: ObservableObject {
             PageEntity.self,
             AnnotationEntity.self,
             MindMapEntity.self,
+            LocalAssignmentEntity.self,
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
