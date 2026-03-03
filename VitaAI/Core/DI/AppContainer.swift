@@ -16,6 +16,7 @@ final class AppContainer: ObservableObject {
     let api: VitaAPI
     let chatClient: VitaChatClient
     let osceSseClient: OsceSseClient
+    let transcricaoClient: TranscricaoClient
     let authManager: AuthManager
 
     // MARK: - Billing / Subscription
@@ -40,6 +41,7 @@ final class AppContainer: ObservableObject {
         let api = VitaAPI(client: httpClient)
         let chatClient = VitaChatClient(tokenStore: tokenStore)
         let osceSseClient = OsceSseClient(tokenStore: tokenStore)
+        let transcricaoClient = TranscricaoClient(tokenStore: tokenStore)
         let authManager = AuthManager(tokenStore: tokenStore)
 
         self.tokenStore = tokenStore
@@ -47,6 +49,7 @@ final class AppContainer: ObservableObject {
         self.api = api
         self.chatClient = chatClient
         self.osceSseClient = osceSseClient
+        self.transcricaoClient = transcricaoClient
         self.authManager = authManager
         self.subscriptionStatus = SubscriptionStatusProvider(api: api)
 
