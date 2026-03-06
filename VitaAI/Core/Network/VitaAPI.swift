@@ -163,6 +163,14 @@ actor VitaAPI {
         try await client.delete("push/unregister")
     }
 
+    func getPushPreferences() async throws -> PushPreferences {
+        try await client.get("push/preferences")
+    }
+
+    func updatePushPreferences(_ prefs: PushPreferences) async throws {
+        let _: EmptyResponse = try await client.post("push/preferences", body: prefs)
+    }
+
     // MARK: - Billing
     // Mirrors Android: MedCoachApi.getBillingStatus / getCheckoutUrl
     // Endpoints: GET billing/status, POST billing/checkout
