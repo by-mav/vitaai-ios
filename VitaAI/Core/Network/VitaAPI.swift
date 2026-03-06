@@ -195,7 +195,8 @@ actor VitaAPI {
     }
 
     func explainQuestion(attemptId: String, questionId: String) async throws -> ExplainResponse {
-        try await client.get("simulados/\(attemptId)/explain/\(questionId)")
+        struct ExplainBody: Encodable { let questionId: String }
+        return try await client.post("simulados/\(attemptId)/explain", body: ExplainBody(questionId: questionId))
     }
 
     func deleteSimulado(attemptId: String) async throws {
