@@ -104,6 +104,54 @@ actor HTTPClient {
         return data
     }
 
+    /// Uploads multiple images as multipart/form-data.
+    /// `images`: array of (Data, filename, mimeType) tuples, each sent as field "files".
+    func uploadMultipart<T: Decodable>(_ path: String, images: [(Data, String, String)]) async throws -> T {
+        guard let url = URL(string: AppConfig.apiBaseURL + "/" + path) else {
+            throw APIError.invalidURL
+        }
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if let token = await tokenStore.token {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        var body = Data()
+        for (imageData, filename, mimeType) in images {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"files\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(imageData)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        req.httpBody = body
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: req)
+        } catch {
+            throw APIError.networkError(error)
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.unknown
+        }
+        switch http.statusCode {
+        case 200...299:
+            do {
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                throw APIError.decodingError(error)
+            }
+        case 401:
+            throw APIError.unauthorized
+        default:
+            throw APIError.serverError(http.statusCode)
+        }
+    }
+
 }
 
 struct EmptyResponse: Decodable {}

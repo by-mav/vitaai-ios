@@ -15,6 +15,9 @@ struct EstudosScreen: View {
     var onNavigateToSimulados:         (() -> Void)?
     var onNavigateToOsce:              (() -> Void)?
     var onNavigateToAtlas:             (() -> Void)?
+    /// (courseId, colorIndex) — navigates to CourseDetailScreen
+    var onNavigateToCourseDetail:      ((String, Int) -> Void)?
+    var onNavigateToProvas:            (() -> Void)?
 
     @State private var viewModel: EstudosViewModel?
 
@@ -31,7 +34,9 @@ struct EstudosScreen: View {
                     onNavigateToPdfViewer:        onNavigateToPdfViewer,
                     onNavigateToSimulados:        onNavigateToSimulados,
                     onNavigateToOsce:             onNavigateToOsce,
-                    onNavigateToAtlas:            onNavigateToAtlas
+                    onNavigateToAtlas:            onNavigateToAtlas,
+                    onNavigateToCourseDetail:     onNavigateToCourseDetail,
+                    onNavigateToProvas:           onNavigateToProvas
                 )
             } else {
                 ProgressView()
@@ -60,6 +65,8 @@ private struct EstudosContent: View {
     let onNavigateToSimulados:         (() -> Void)?
     let onNavigateToOsce:              (() -> Void)?
     let onNavigateToAtlas:             (() -> Void)?
+    let onNavigateToCourseDetail:      ((String, Int) -> Void)?
+    let onNavigateToProvas:            (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -97,10 +104,18 @@ private extension EstudosContent {
         case .disciplinas:
             DisciplinasTab(
                 viewModel: viewModel,
-                onCourseClick: { courseId in viewModel.selectCourse(courseId) },
+                onCourseClick: { courseId, colorIndex in
+                    if let navigate = onNavigateToCourseDetail {
+                        navigate(courseId, colorIndex)
+                    } else {
+                        // Fallback: switch to PDFs tab filtered by course
+                        viewModel.selectCourse(courseId)
+                    }
+                },
                 onNavigateToSimulados: onNavigateToSimulados,
                 onNavigateToOsce: onNavigateToOsce,
                 onNavigateToAtlas: onNavigateToAtlas,
+                onNavigateToProvas: onNavigateToProvas,
                 onRefresh: { await viewModel.load() }
             )
 
@@ -327,10 +342,12 @@ private struct EstudosErrorView: View {
 
 private struct DisciplinasTab: View {
     @Bindable var viewModel: EstudosViewModel
-    let onCourseClick: (String) -> Void
+    /// (courseId, colorIndex)
+    let onCourseClick: (String, Int) -> Void
     var onNavigateToSimulados: (() -> Void)?
     var onNavigateToOsce: (() -> Void)?
     var onNavigateToAtlas: (() -> Void)?
+    var onNavigateToProvas: (() -> Void)?
     var onRefresh: (() async -> Void)?
 
     @State private var isGridView = false
@@ -382,6 +399,13 @@ private struct DisciplinasTab: View {
                             .padding(.bottom, 8)
                     }
 
+                    // Provas entry card
+                    if let onProvas = onNavigateToProvas {
+                        ProvasEntryCard(onTap: onProvas)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                    }
+
                     if isGridView {
                         // Grid layout
                         LazyVGrid(columns: gridColumns, spacing: 12) {
@@ -394,7 +418,7 @@ private struct DisciplinasTab: View {
                                     colorIndex: index,
                                     isFavorite: viewModel.isFavorite(course.id),
                                     onFavoriteToggle: { viewModel.toggleFavorite(course.id) },
-                                    onClick: { onCourseClick(course.id) }
+                                    onClick: { onCourseClick(course.id, index) }
                                 )
                                 .transition(.opacity.combined(with: .scale))
                                 .animation(
@@ -418,7 +442,7 @@ private struct DisciplinasTab: View {
                                     colorIndex: index,
                                     isFavorite: viewModel.isFavorite(course.id),
                                     onFavoriteToggle: { viewModel.toggleFavorite(course.id) },
-                                    onClick: { onCourseClick(course.id) }
+                                    onClick: { onCourseClick(course.id, index) }
                                 )
                                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                                 .animation(
@@ -539,6 +563,44 @@ private struct AtlasEntryCard: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(VitaColors.textPrimary)
                         Text("Anatomia interativa em 3D")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Provas Entry Card
+
+private struct ProvasEntryCard: View {
+    let onTap: () -> Void
+    var body: some View {
+        Button(action: onTap) {
+            VitaGlassCard {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(VitaColors.dataAmber.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.system(size: 18))
+                            .foregroundStyle(VitaColors.dataAmber)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Provas")
+                            .font(VitaTypography.bodyLarge)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Text("Provas de outros alunos com questões extraídas por IA")
                             .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textSecondary)
                     }

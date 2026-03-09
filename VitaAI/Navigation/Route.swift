@@ -11,6 +11,8 @@ enum Route: Hashable {
     case profile
     case canvasConnect
     case webalunoConnect
+    case googleCalendarConnect
+    case googleDriveConnect
     case vitaChat(prompt: String? = nil)
     case notebookList
     case notebookEditor(notebookId: String)
@@ -38,6 +40,7 @@ enum Route: Hashable {
     case about
     case appearance
     case notifications
+    case connections
 
     // MARK: - Activity / Gamification
     case activityFeed
@@ -45,4 +48,10 @@ enum Route: Hashable {
 
     // MARK: - Billing
     case paywall
+
+    // MARK: - Course Detail
+    case courseDetail(courseId: String, colorIndex: Int)
+
+    // MARK: - Provas (Crowd)
+    case provas
 }

@@ -77,7 +77,9 @@ struct MainTabView: View {
                                 onNavigateToPdfViewer:          { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) },
                                 onNavigateToSimulados:          { router.navigate(to: .simuladoHome) },
                                 onNavigateToOsce:               { router.navigate(to: .osce) },
-                                onNavigateToAtlas:              { router.navigate(to: .atlas3D) }
+                                onNavigateToAtlas:              { router.navigate(to: .atlas3D) },
+                                onNavigateToCourseDetail:       { courseId, colorIdx in router.navigate(to: .courseDetail(courseId: courseId, colorIndex: colorIdx)) },
+                                onNavigateToProvas:             { router.navigate(to: .provas) }
                             )
                             .tag(TabItem.estudos)
 
@@ -89,6 +91,7 @@ struct MainTabView: View {
                                 onNavigateToAbout:         { router.navigate(to: .about) },
                                 onNavigateToAppearance:    { router.navigate(to: .appearance) },
                                 onNavigateToNotifications: { router.navigate(to: .notifications) },
+                                onNavigateToConnections:   { router.navigate(to: .connections) },
                                 onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) },
                                 onNavigateToWebAluno:      { router.navigate(to: .webalunoConnect) },
                                 onNavigateToInsights:      { router.navigate(to: .insights) },
@@ -222,6 +225,14 @@ struct MainTabView: View {
                     WebAlunoConnectScreen(
                         onBack: { router.goBack() }
                     )
+                case .googleCalendarConnect:
+                    GoogleCalendarConnectScreen(
+                        onBack: { router.goBack() }
+                    )
+                case .googleDriveConnect:
+                    GoogleDriveConnectScreen(
+                        onBack: { router.goBack() }
+                    )
                 case .insights:
                     InsightsScreen()
                 case .trabalhos:
@@ -232,6 +243,14 @@ struct MainTabView: View {
                     AppearanceScreen()
                 case .notifications:
                     NotificationSettingsScreen()
+                case .connections:
+                    ConnectionsScreen(
+                        onCanvasConnect:         { router.navigate(to: .canvasConnect) },
+                        onWebAlunoConnect:       { router.navigate(to: .webalunoConnect) },
+                        onGoogleCalendarConnect: { router.navigate(to: .googleCalendarConnect) },
+                        onGoogleDriveConnect:    { router.navigate(to: .googleDriveConnect) },
+                        onBack:                  { router.goBack() }
+                    )
                 case .paywall:
                     VitaPaywallScreen(onDismiss: { router.goBack() })
                 case .atlas3D:
@@ -245,6 +264,18 @@ struct MainTabView: View {
                     )
                 case .leaderboard:
                     LeaderboardScreen(onBack: { router.goBack() })
+                case .courseDetail(let courseId, let colorIndex):
+                    CourseDetailScreen(
+                        courseId: courseId,
+                        folderColor: FolderPalette.color(forIndex: colorIndex),
+                        onBack: { router.goBack() },
+                        onNavigateToPdfViewer: { url in
+                            router.navigate(to: .pdfViewer(url: url.absoluteString))
+                        },
+                        onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) }
+                    )
+                case .provas:
+                    ProvasScreen(onBack: { router.goBack() })
                 default:
                     EmptyView()
                 }
