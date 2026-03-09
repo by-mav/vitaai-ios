@@ -181,6 +181,9 @@ action deve preceder isEnabled na chamada VitaButton.
 - *(ci)* Fix YAML syntax in pre-check job — colon in name field
 YAML interpreta "text: nao label:" como mapping value dentro de name:.
   Removido caracteres especiais e renomeado steps para evitar o problema.
+- Resolve CGFloat clamped() ambiguity with Swift.max/Swift.min
+- Resolve CGFloat clamped() ambiguity with Swift.max/Swift.min
+- Add GoogleModels.swift (cherry-pick from feat/ios-connections-screen)
 
 ### Documentation
 
@@ -438,6 +441,51 @@ Implements P3 gamification components ported from Android VitaXpBar.kt,
   - Add backend sync to NotificationSettingsScreen (mirrors Android fix)
   - Request push permission on login via MainTabView .task
 - *(ios)* QBank progressive UI, activity tracking, atlas webview, billing
+- *(qbank)* Convex glass design overhaul for iOS home screen
+- Add QBank API methods to VitaAPI (getProgress, getFilters, createSession, etc.)
+  - Add QBankSessionSummary model + sessions list response
+  - Add status field to QBankCreateSessionRequest for smart study
+  - Add startSmartStudy() and loadRecentSessions() to ViewModel
+  - Rewrite QBankHomeContent with convex glass design matching web/Android:
+    - Stats row: 3 cards with convex glass circles (book/target/trophy)
+    - Action CTAs: Nova Sessao + Estudo Inteligente with chevron
+    - Quick access: Historico + Listas buttons
+    - Recent sessions with convex glass status circles + progress bars
+    - Difficulty: clean semibold labels with 5px bars
+    - Topics: individual cards per topic
+    - Empty state with convex glass icon + gradient
+    - 9px uppercase section headers throughout
+  - Add missing helper views: QBankSectionTitle, QBankChip, QBankFlowLayout, QBankConfigToggleRow
+  - Fix VitaButton parameter order (text, action, variant)
+- *(ios)* Add CourseDetailScreen and ProvasScreen
+- CourseDetailScreen: shows course files (grouped by module) and
+    assignments with urgency indicators. Tapping a discipline in
+    EstudosScreen now navigates to this screen via Route.courseDetail.
+  - ProvasViewModel/ProvasScreen: crowd-sourced exam repository with
+    three tabs — Upload (PhotosPicker + multipart upload + polling),
+    Professores (professor profiles), Provas (exam list + question
+    detail with expand/collapse). Accessible via ProvasEntryCard on
+    the Disciplinas tab.
+  - HTTPClient: added uploadMultipart() for multipart/form-data upload.
+  - VitaAPI: added crowd endpoints (GET professors/exams/uploads, POST upload).
+  - CrowdModels: new DTOs mirroring Android CrowdModels.kt.
+  - CanvasModels: added modulePosition/itemPosition to CanvasFile for
+    module grouping in CourseDetailScreen.
+  - Route: added .courseDetail(courseId:colorIndex:) and .provas cases.
+  - EstudosScreen: DisciplinasTab onCourseClick now passes colorIndex,
+    added ProvasEntryCard, wired onNavigateToCourseDetail/onNavigateToProvas.
+- *(ios)* Add ConnectionsScreen hub with Google Calendar/Drive support
+- Create ConnectionsScreen: unified hub showing 4 integration cards
+    (Canvas LMS, WebAluno, Google Calendar, Google Drive)
+  - Sections: connected services grouped above, available below (Android parity)
+  - Tapping connected service opens bottom sheet with stats + sync/disconnect
+  - Tapping disconnected service navigates to its dedicated connect screen
+  - Add GoogleCalendarConnectScreen + ViewModel (mirrors CanvasConnectScreen pattern)
+  - Add GoogleDriveConnectScreen + ViewModel
+  - Add GoogleModels.swift with response structs (GoogleCalendarStatusResponse, etc.)
+  - Update ProfileScreen: replace 4 individual integration rows with single "Integracoes" entry
+  - Add Route.connections destination and AppRouter wiring
+  - Uses VitaColors/VitaTypography tokens throughout, zero hardcoded colors
 
 ### Miscellaneous
 
@@ -502,5 +550,6 @@ PRE-CHECK JOB (ubuntu, ~30s, antes do build macOS):
 - stale.yml: auto-mark PRs stale after 7d, close after 14d
   - PR template: summary, type, DoD checklist, evidence, test plan
   - Exempt labels: pinned, security, P0
+- Update changelog
 - Update changelog
 
