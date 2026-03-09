@@ -58,6 +58,8 @@ struct CanvasFile: Codable, Identifiable {
     var courseName: String?
     var courseId: String?
     var moduleName: String?
+    var modulePosition: Int?
+    var itemPosition: Int?
     var updatedAt: String?
 }
 

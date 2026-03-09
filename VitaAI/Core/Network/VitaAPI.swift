@@ -139,12 +139,44 @@ actor VitaAPI {
         try await client.post("webaluno/sync")
     }
 
+    func disconnectWebaluno() async throws {
+        try await client.delete("webaluno/connect")
+    }
+
     func getWebalunoGrades() async throws -> WebalunoGradesResponse {
         try await client.get("webaluno/grades")
     }
 
     func getWebalunoSchedule() async throws -> WebalunoScheduleResponse {
         try await client.get("webaluno/schedule")
+    }
+
+    // MARK: - Google Calendar
+
+    func getGoogleCalendarStatus() async throws -> GoogleCalendarStatusResponse {
+        try await client.get("google/calendar/status")
+    }
+
+    func syncGoogleCalendar() async throws -> GoogleCalendarSyncResponse {
+        try await client.post("google/calendar/sync")
+    }
+
+    func disconnectGoogleCalendar() async throws {
+        try await client.delete("google/calendar/connect")
+    }
+
+    // MARK: - Google Drive
+
+    func getGoogleDriveStatus() async throws -> GoogleDriveStatusResponse {
+        try await client.get("google/drive/status")
+    }
+
+    func syncGoogleDrive() async throws -> GoogleDriveSyncResponse {
+        try await client.post("google/drive/sync")
+    }
+
+    func disconnectGoogleDrive() async throws {
+        try await client.delete("google/drive/connect")
     }
 
     // MARK: - OSCE
@@ -225,6 +257,34 @@ actor VitaAPI {
         ])
     }
 
+    // MARK: - QBank
+
+    func getQBankProgress() async throws -> QBankProgressResponse {
+        try await client.get("qbank/progress")
+    }
+
+    func getQBankFilters() async throws -> QBankFiltersResponse {
+        try await client.get("qbank/filters")
+    }
+
+    func createQBankSession(request: QBankCreateSessionRequest) async throws -> QBankSession {
+        try await client.post("qbank/sessions", body: request)
+    }
+
+    func getQBankQuestion(id: Int) async throws -> QBankQuestionDetail {
+        try await client.get("qbank/questions/\(id)")
+    }
+
+    func answerQBankQuestion(id: Int, request: QBankAnswerRequest) async throws -> QBankAnswerResponse {
+        try await client.post("qbank/questions/\(id)/answer", body: request)
+    }
+
+    func getQBankSessions(limit: Int = 5) async throws -> QBankSessionsResponse {
+        try await client.get("qbank/sessions", queryItems: [
+            URLQueryItem(name: "limit", value: String(limit)),
+        ])
+    }
+
     // MARK: - Activity / Gamification
 
     func logActivity(action: String, metadata: [String: String]? = nil) async throws -> LogActivityResponse {
@@ -259,5 +319,30 @@ actor VitaAPI {
                 bundleId: "com.bymav.vitaai"
             )
         )
+    }
+
+    // MARK: - Crowd (Provas)
+    // Mirrors Android: MedCoachApi crowd endpoints
+
+    func getCrowdProfessors() async throws -> [CrowdProfessor] {
+        try await client.get("crowd/professors")
+    }
+
+    func getCrowdExams() async throws -> [CrowdExamEntry] {
+        try await client.get("crowd/exams")
+    }
+
+    func getCrowdExamDetail(_ examId: String) async throws -> CrowdExamDetail {
+        try await client.get("crowd/exams/\(examId)")
+    }
+
+    func getCrowdUploads() async throws -> [CrowdUploadRecord] {
+        try await client.get("crowd/upload")
+    }
+
+    /// Uploads exam images as multipart/form-data.
+    /// images: array of (Data, filename, mimeType) tuples.
+    func uploadExamImages(_ images: [(Data, String, String)]) async throws -> CrowdUploadResponse {
+        try await client.uploadMultipart("crowd/upload", images: images)
     }
 }
