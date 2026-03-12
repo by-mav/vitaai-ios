@@ -15,25 +15,35 @@ struct VitaTopBar: View {
     var body: some View {
         HStack(spacing: 12) {
             // Avatar with XP ring + level badge (matches mockup topbar)
+            // Mockup: avatar 38x38 inside gold XP ring, level pill badge
             Button(action: { onAvatarTap?() }) {
                 ZStack(alignment: .bottom) {
-                    // XP ring — thin progress arc around avatar
+                    // XP ring — thin SVG-style arc (gold, 2px stroke)
                     let xpProgress: CGFloat = 0.82 // mock: 82% to next level
                     ZStack {
+                        // Track circle
                         Circle()
                             .stroke(Color.white.opacity(0.08), lineWidth: 2.5)
-                            .frame(width: 50, height: 50)
+                            .frame(width: 46, height: 46)
+                        // Progress arc — gold
                         Circle()
                             .trim(from: 0, to: xpProgress)
                             .stroke(
-                                VitaColors.accent.opacity(0.60),
+                                LinearGradient(
+                                    colors: [
+                                        VitaColors.accent.opacity(0.80),
+                                        VitaColors.accentLight.opacity(0.60)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
                                 style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
                             )
-                            .frame(width: 50, height: 50)
+                            .frame(width: 46, height: 46)
                             .rotationEffect(.degrees(-90))
                     }
 
-                    // Avatar inside ring
+                    // Avatar inside ring — 38x38 per mockup spec
                     Group {
                         if let url = userImageURL {
                             AsyncImage(url: url) { image in
@@ -41,43 +51,55 @@ struct VitaTopBar: View {
                             } placeholder: {
                                 initialsView
                             }
-                            .frame(width: 42, height: 42)
+                            .frame(width: 38, height: 38)
                             .clipShape(Circle())
                         } else {
                             initialsView
-                                .frame(width: 42, height: 42)
+                                .frame(width: 38, height: 38)
                         }
                     }
 
-                    // Level badge at bottom of ring (matches mockup .level-badge)
+                    // Level badge pill at bottom of ring (matches mockup .level-badge)
                     let levelValue = userLevel ?? 0
                     if levelValue > 0 {
-                        Text("\(levelValue)")
-                            .font(.system(size: 7, weight: .black))
-                            .foregroundStyle(Color(red: 26/255, green: 20/255, blue: 18/255))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(VitaColors.accent.opacity(0.90))
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .offset(y: 8)
+                        Text("Lv.\(levelValue)")
+                            .font(.system(size: 8, weight: .black))
+                            .foregroundStyle(Color(red: 20/255, green: 14/255, blue: 10/255))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                LinearGradient(
+                                    colors: [VitaColors.accent, VitaColors.accentLight],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .clipShape(Capsule())
+                            .offset(y: 9)
                     } else if let streak = userStreak, streak > 0 {
-                        // Fallback: show streak if no level
-                        HStack(spacing: 1) {
+                        // Fallback: show streak pill if no level
+                        HStack(spacing: 2) {
                             Image(systemName: "flame.fill")
-                                .font(.system(size: 5, weight: .bold))
-                                .foregroundStyle(Color(red: 26/255, green: 20/255, blue: 18/255))
+                                .font(.system(size: 6, weight: .bold))
+                                .foregroundStyle(Color(red: 20/255, green: 14/255, blue: 10/255))
                             Text("\(streak)")
-                                .font(.system(size: 7, weight: .black))
-                                .foregroundStyle(Color(red: 26/255, green: 20/255, blue: 18/255))
+                                .font(.system(size: 8, weight: .black))
+                                .foregroundStyle(Color(red: 20/255, green: 14/255, blue: 10/255))
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(VitaColors.accent.opacity(0.90))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                        .offset(y: 8)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            LinearGradient(
+                                colors: [VitaColors.accent, VitaColors.accentLight],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(Capsule())
+                        .offset(y: 9)
                     }
                 }
-                .frame(width: 50, height: 58) // extra height for badge
+                .frame(width: 46, height: 56) // extra height for badge
             }
             .buttonStyle(.plain)
 

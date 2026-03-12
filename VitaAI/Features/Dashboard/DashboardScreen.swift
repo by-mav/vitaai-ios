@@ -39,6 +39,7 @@ struct DashboardScreen: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
                         .padding(.bottom, 8)
+                        .fadeUpAppear(delay: 0.05)
                 }
 
                 // MARK: Acesso Rapido
@@ -50,6 +51,7 @@ struct DashboardScreen: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
                 .padding(.bottom, 10)
+                .fadeUpAppear(delay: 0.10)
 
                 DashQuickAccessGrid(
                     modules: viewModel.studyModules,
@@ -63,6 +65,7 @@ struct DashboardScreen: View {
                     }
                 )
                 .padding(.horizontal, 20)
+                .fadeUpAppear(delay: 0.15)
 
                 // MARK: Hoje / Semana
                 DashSectionHeader(
@@ -73,12 +76,14 @@ struct DashboardScreen: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
                 .padding(.bottom, 10)
+                .fadeUpAppear(delay: 0.20)
 
                 if !viewModel.weekDays.isEmpty {
                     WeekAgendaSection(
                         days: viewModel.weekDays,
                         todayEvents: viewModel.todayEvents
                     )
+                    .fadeUpAppear(delay: 0.25)
                 }
 
                 // MARK: Proximas Provas
@@ -91,9 +96,11 @@ struct DashboardScreen: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                     .padding(.bottom, 10)
+                    .fadeUpAppear(delay: 0.30)
 
                     UpcomingExamsRow(exams: viewModel.upcomingExams)
                         .padding(.horizontal, 20)
+                        .fadeUpAppear(delay: 0.35)
                 }
 
                 // MARK: Atencao Necessaria
@@ -106,9 +113,11 @@ struct DashboardScreen: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                     .padding(.bottom, 10)
+                    .fadeUpAppear(delay: 0.40)
 
                     DashWeakSubjectsRow(subjects: viewModel.weakSubjects)
                         .padding(.horizontal, 20)
+                        .fadeUpAppear(delay: 0.45)
                 }
 
                 // MARK: XP / Progresso
@@ -121,6 +130,7 @@ struct DashboardScreen: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                     .padding(.bottom, 10)
+                    .fadeUpAppear(delay: 0.50)
 
                     VitaGlassCard {
                         VStack(spacing: 8) {
@@ -139,6 +149,7 @@ struct DashboardScreen: View {
                         .padding(.bottom, 4)
                     }
                     .padding(.horizontal, 20)
+                    .fadeUpAppear(delay: 0.55)
                 }
 
                 // MARK: Conquistas
@@ -151,12 +162,14 @@ struct DashboardScreen: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                     .padding(.bottom, 10)
+                    .fadeUpAppear(delay: 0.60)
 
                     VitaGlassCard {
                         VitaBadgeGrid(badges: userProgress.badges)
                             .padding(16)
                     }
                     .padding(.horizontal, 20)
+                    .fadeUpAppear(delay: 0.65)
                 }
 
                 // MARK: Dica do Dia
@@ -169,11 +182,13 @@ struct DashboardScreen: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
                     .padding(.bottom, 10)
+                    .fadeUpAppear(delay: 0.70)
 
                     StudyTipCard(tip: viewModel.studyTip)
+                        .fadeUpAppear(delay: 0.75)
                 }
 
-                Spacer().frame(height: 110) // Tab bar clearance
+                Spacer().frame(height: 140) // Tab bar clearance (130px bar + safe area)
             }
         }
         .refreshable {

@@ -9,11 +9,11 @@ import SwiftUI
 enum VitaTokens {
 
     // MARK: Dark Colors
-    // Background: #0A0A0F (deep near-black) — from mockup vita-app.html
+    // Background: #08060A (deeper warm near-black) — from mockup vita-app.html spec
     // Accent:     #C8A050 gold-400 primary — rgba(200,160,80,1.0)
     enum DarkColors {
-        // Backgrounds — near-black, very slightly warm (not cyan-tinted)
-        static let bg          = Color(red: 0.039, green: 0.039, blue: 0.059)   // #0A0A0F
+        // Backgrounds — near-black, warm-tinted (not blue/cyan)
+        static let bg          = Color(red: 0.031, green: 0.024, blue: 0.039)   // #08060A
         static let bgCard      = Color(red: 0.071, green: 0.063, blue: 0.086)   // #120F16 — warm dark
         static let bgElevated  = Color(red: 0.059, green: 0.051, blue: 0.075)   // #0F0D13
         static let bgHover     = Color(red: 0.094, green: 0.082, blue: 0.114)   // #18151D
