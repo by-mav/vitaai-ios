@@ -853,52 +853,175 @@ private struct FaculdadeCourseRow: View {
 private struct HorarioTab: View {
     let schedule: [WebalunoScheduleBlock]
 
+    // Day indices: 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex
     private let weekDayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
+    private let weekDayShort = ["", "Seg", "Ter", "Qua", "Qui", "Sex"]
 
-    private var groupedByDay: [(dayIndex: Int, dayName: String, blocks: [WebalunoScheduleBlock])] {
-        let grouped = Dictionary(grouping: schedule) { $0.dayOfWeek }
-        return (1...6).compactMap { day -> (Int, String, [WebalunoScheduleBlock])? in
-            guard let blocks = grouped[day], !blocks.isEmpty else { return nil }
-            let name = day < weekDayNames.count ? weekDayNames[day] : "Dia \(day)"
-            let sorted = blocks.sorted { $0.startTime < $1.startTime }
-            return (day, name, sorted)
-        }
+    // Start on today's weekday if it's Mon-Fri, else Seg
+    @State private var selectedDay: Int = {
+        let wd = Calendar.current.component(.weekday, from: Date())
+        // weekday: 1=Sun, 2=Mon, ..., 6=Fri, 7=Sat
+        let mapped = wd - 1  // 1=Mon...5=Fri
+        return (mapped >= 1 && mapped <= 5) ? mapped : 1
+    }()
+
+    private var groupedByDay: [Int: [WebalunoScheduleBlock]] {
+        Dictionary(grouping: schedule) { $0.dayOfWeek }
+    }
+
+    private var activeDays: [Int] {
+        (1...5).filter { groupedByDay[$0] != nil }
+    }
+
+    private var selectedBlocks: [WebalunoScheduleBlock] {
+        (groupedByDay[selectedDay] ?? []).sorted { $0.startTime < $1.startTime }
     }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
                 if schedule.isEmpty {
-                    VitaEmptyState(
-                        title: "Sem horário",
-                        message: "Conecte o WebAluno para importar sua grade horária"
-                    ) {
-                        Image(systemName: "calendar.badge.clock")
-                            .font(.system(size: 40))
-                            .foregroundStyle(VitaColors.textTertiary)
-                    }
-                    .padding(.top, 40)
-                } else {
-                    ForEach(groupedByDay, id: \.dayIndex) { entry in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(entry.dayName)
-                                .font(VitaTypography.labelLarge)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(VitaColors.textSecondary)
-                                .padding(.horizontal, 16)
+                    // Mock data for visual preview when no WebAluno connected
+                    HorarioDayTabs(
+                        selectedDay: $selectedDay,
+                        activeDays: [1, 2, 3, 4, 5],
+                        weekDayShort: weekDayShort
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
 
-                            ForEach(Array(entry.blocks.enumerated()), id: \.offset) { _, block in
+                    VStack(spacing: 0) {
+                        mockSlotRow(time: "08:00", name: "Fisiologia", sub: "Prof. Martins", room: "Sala 302", color: VitaColors.dataBlue)
+                        Divider().background(VitaColors.glassBorder).padding(.leading, 66)
+                        mockSlotRow(time: "10:00", name: "Medicina Legal", sub: "Prof. Tavares", room: "Sala 105", color: VitaColors.dataAmber)
+                        Divider().background(VitaColors.glassBorder).padding(.leading, 66)
+                        mockFreeSlot(time: "14:00")
+                        Divider().background(VitaColors.glassBorder).padding(.leading, 66)
+                        mockSlotRow(time: "16:00", name: "Anatomia Lab", sub: "Prof. Silva", room: "Lab 2", color: VitaColors.accent)
+                    }
+                    .background(VitaColors.glassBg)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(VitaColors.glassBorder, lineWidth: 1))
+                    .padding(.horizontal, 16)
+                } else {
+                    HorarioDayTabs(
+                        selectedDay: $selectedDay,
+                        activeDays: activeDays,
+                        weekDayShort: weekDayShort
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+
+                    if selectedBlocks.isEmpty {
+                        Text("Sem aulas")
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle(VitaColors.textTertiary)
+                            .padding(.top, 40)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(Array(selectedBlocks.enumerated()), id: \.offset) { index, block in
+                                if index > 0 {
+                                    Divider().background(VitaColors.glassBorder).padding(.leading, 66)
+                                }
                                 ScheduleBlockRow(block: block)
-                                    .padding(.horizontal, 16)
                             }
                         }
+                        .background(VitaColors.glassBg)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(VitaColors.glassBorder, lineWidth: 1))
+                        .padding(.horizontal, 16)
                     }
                 }
 
                 Spacer().frame(height: 100)
             }
-            .padding(.top, 12)
         }
+        .animation(.easeInOut(duration: 0.2), value: selectedDay)
+    }
+
+    private func mockSlotRow(time: String, name: String, sub: String, room: String, color: Color) -> some View {
+        HStack(spacing: 10) {
+            Text(time)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.35))
+                .frame(width: 40, alignment: .trailing)
+            Rectangle()
+                .fill(color)
+                .frame(width: 3, height: 36)
+                .cornerRadius(2)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.70))
+                Text(sub)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color.white.opacity(0.30))
+            }
+            Spacer()
+            Text(room)
+                .font(.system(size: 10))
+                .foregroundStyle(Color.white.opacity(0.25))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private func mockFreeSlot(time: String) -> some View {
+        HStack(spacing: 10) {
+            Text(time)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.35))
+                .frame(width: 40, alignment: .trailing)
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 3, height: 28)
+                .cornerRadius(2)
+            Text("Livre")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.white.opacity(0.20))
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .opacity(0.5)
+    }
+}
+
+private struct HorarioDayTabs: View {
+    @Binding var selectedDay: Int
+    let activeDays: [Int]
+    let weekDayShort: [String]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(1...5, id: \.self) { day in
+                let isActive = selectedDay == day
+                let hasClasses = activeDays.contains(day)
+                let label = day < weekDayShort.count ? weekDayShort[day] : "?"
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { selectedDay = day }
+                } label: {
+                    Text(label)
+                        .font(.system(size: 11, weight: isActive ? .semibold : .regular))
+                        .foregroundStyle(
+                            isActive ? VitaColors.accent : (hasClasses ? Color.white.opacity(0.55) : Color.white.opacity(0.25))
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(isActive ? VitaColors.accent.opacity(0.12) : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(isActive ? VitaColors.accent.opacity(0.20) : Color.clear, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(Color.white.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
     }
 }
 
@@ -916,44 +1039,39 @@ private struct ScheduleBlockRow: View {
     }
 
     var body: some View {
-        VitaGlassCard {
-            HStack(spacing: 12) {
-                Rectangle()
-                    .fill(accentColor)
-                    .frame(width: 3)
-                    .cornerRadius(2)
+        HStack(spacing: 10) {
+            Text(block.startTime)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.35))
+                .frame(width: 40, alignment: .trailing)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(block.subjectName)
-                        .font(VitaTypography.labelMedium)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(VitaColors.textPrimary)
-                        .lineLimit(2)
+            Rectangle()
+                .fill(accentColor)
+                .frame(width: 3, height: 36)
+                .cornerRadius(2)
 
-                    HStack(spacing: 8) {
-                        Label("\(block.startTime)–\(block.endTime)", systemImage: "clock")
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textSecondary)
-
-                        if let room = block.room, !room.isEmpty {
-                            Label(room, systemImage: "mappin")
-                                .font(VitaTypography.labelSmall)
-                                .foregroundStyle(VitaColors.textTertiary)
-                        }
-                    }
-
-                    if let prof = block.professor, !prof.isEmpty {
-                        Text(prof)
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textTertiary)
-                    }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(block.subjectName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.70))
+                    .lineLimit(1)
+                if let prof = block.professor, !prof.isEmpty {
+                    Text(prof)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.white.opacity(0.30))
                 }
-
-                Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+
+            Spacer()
+
+            if let room = block.room, !room.isEmpty {
+                Text(room)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color.white.opacity(0.25))
+            }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }
 
