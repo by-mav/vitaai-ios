@@ -5,6 +5,7 @@ struct VitaTopBar: View {
     var userName: String?
     var userImageURL: URL?
     var userLevel: Int?
+    var userStreak: Int?
     var userCourse: String?
     var userSemester: String?
     var onAvatarTap: (() -> Void)?
@@ -13,7 +14,7 @@ struct VitaTopBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Avatar with level badge
+            // Avatar with streak badge
             Button(action: { onAvatarTap?() }) {
                 ZStack(alignment: .bottomTrailing) {
                     Group {
@@ -35,15 +36,22 @@ struct VitaTopBar: View {
                             .stroke(VitaColors.accent.opacity(0.35), lineWidth: 1.5)
                     )
 
-                    // Level badge
-                    if let level = userLevel {
-                        Text("\(level)")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(Color(red: 26/255, green: 20/255, blue: 18/255))
-                            .frame(width: 16, height: 16)
-                            .background(VitaColors.accent)
-                            .clipShape(Circle())
-                            .offset(x: 2, y: 2)
+                    // Streak badge (days) — replaces level badge
+                    let streakValue = userStreak ?? userLevel ?? 0
+                    if streakValue > 0 {
+                        HStack(spacing: 1) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 5, weight: .bold))
+                                .foregroundStyle(Color(red: 26/255, green: 20/255, blue: 18/255))
+                            Text("\(streakValue)")
+                                .font(.system(size: 7, weight: .black))
+                                .foregroundStyle(Color(red: 26/255, green: 20/255, blue: 18/255))
+                        }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(VitaColors.accent)
+                        .clipShape(Capsule())
+                        .offset(x: 4, y: 4)
                     }
                 }
             }

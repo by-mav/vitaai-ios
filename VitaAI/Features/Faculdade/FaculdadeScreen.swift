@@ -149,7 +149,7 @@ private struct FaculdadeTabBar: View {
     }
 }
 
-// MARK: - Cursos Tab
+// MARK: - Cursos Tab (with CR ring, semester swiper, frequência, eventos, docs pills)
 
 private struct CursosTab: View {
     let vm: FaculdadeViewModel
@@ -158,7 +158,32 @@ private struct CursosTab: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 12) {
+            VStack(spacing: 0) {
+                // ── Semester swiper ──────────────────────────────────────────────
+                SemesterSwiperView()
+                    .padding(.top, 12)
+                    .padding(.bottom, 12)
+
+                // ── CR ring + academic summary ───────────────────────────────────
+                AcademicSummaryCard()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
+
+                // ── Frequência colorida ──────────────────────────────────────────
+                FrequenciaSection()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
+
+                // ── Próximos eventos (horizontal scroll) ─────────────────────────
+                ProximosEventosSection()
+                    .padding(.bottom, 14)
+
+                // ── Documentos pills ─────────────────────────────────────────────
+                DocumentosPillsSection()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
+
+                // ── Canvas connect banner ────────────────────────────────────────
                 if !vm.canvasConnected {
                     ConnectBanner(
                         icon: "building.columns",
@@ -168,38 +193,612 @@ private struct CursosTab: View {
                         action: onNavigateToCanvasConnect
                     )
                     .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                    .padding(.bottom, 14)
                 }
 
-                if vm.courses.isEmpty && !vm.isLoading {
-                    VitaEmptyState(
-                        title: "Nenhuma disciplina",
-                        message: "Conecte o Canvas para ver suas disciplinas"
-                    ) {
-                        Image(systemName: "book.closed")
-                            .font(.system(size: 40))
-                            .foregroundStyle(VitaColors.textTertiary)
-                    }
-                    .padding(.top, 40)
-                } else {
-                    ForEach(Array(vm.courses.enumerated()), id: \.element.id) { index, course in
-                        Button {
-                            onNavigateToCourseDetail?(course.id, index % 6)
-                        } label: {
-                            FaculdadeCourseRow(course: course, colorIndex: index)
+                // ── Canvas courses ───────────────────────────────────────────────
+                if !vm.courses.isEmpty {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("Disciplinas Canvas")
+                                .font(VitaTypography.labelSmall)
+                                .textCase(.uppercase)
+                                .tracking(0.6)
+                                .foregroundStyle(VitaColors.textTertiary)
+                            Spacer()
                         }
-                        .buttonStyle(.plain)
                         .padding(.horizontal, 16)
+
+                        ForEach(Array(vm.courses.enumerated()), id: \.element.id) { index, course in
+                            Button {
+                                onNavigateToCourseDetail?(course.id, index % 6)
+                            } label: {
+                                FaculdadeCourseRow(course: course, colorIndex: index)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 16)
+                        }
                     }
                 }
 
                 Spacer().frame(height: 100)
             }
-            .padding(.top, 8)
         }
         .refreshable { await vm.load() }
     }
 }
+
+// MARK: - Semester Swiper
+
+private struct SemesterSwiperView: View {
+    private let totalSemesters = 12
+    private let currentSemester = 5
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(1...totalSemesters, id: \.self) { sem in
+                    let state: SemChipState = sem < currentSemester ? .done
+                                           : sem == currentSemester ? .active
+                                           : .locked
+                    SemesterChip(semester: sem, state: state)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+}
+
+private enum SemChipState { case done, active, locked }
+
+private struct SemesterChip: View {
+    let semester: Int
+    let state: SemChipState
+
+    private var bgColor: Color {
+        switch state {
+        case .done:   return VitaColors.accent
+        case .active: return Color.clear
+        case .locked: return Color.white.opacity(0.03)
+        }
+    }
+    private var borderColor: Color {
+        switch state {
+        case .done:   return VitaColors.accent
+        case .active: return VitaColors.accent
+        case .locked: return Color.white.opacity(0.07)
+        }
+    }
+    private var textColor: Color {
+        switch state {
+        case .done:   return Color(red: 20/255, green: 16/255, blue: 10/255)
+        case .active: return VitaColors.accent
+        case .locked: return VitaColors.textTertiary
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(bgColor)
+                    .frame(width: 36, height: 28)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(borderColor, lineWidth: 1)
+                    )
+                Text("\(semester)°")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(textColor)
+            }
+            .opacity(state == .locked ? 0.25 : 1.0)
+
+            if state == .active {
+                Text("atual")
+                    .font(.system(size: 7, weight: .medium))
+                    .foregroundStyle(VitaColors.accent.opacity(0.7))
+            } else {
+                // Reserve space so chips are same height
+                Text(" ")
+                    .font(.system(size: 7))
+            }
+        }
+    }
+}
+
+// MARK: - Academic Summary Card (CR donut ring + expandable grades)
+
+private struct AcademicSummaryCard: View {
+    private let crValue: Double = 7.66
+    private let university = "ULBRA — Medicina"
+    private let semesterLabel = "5° Semestre • 2026.1"
+    private let disciplines = 6
+    private let creditsCompleted = 120
+    private let creditsTotal = 240
+    private let compHoursCompleted = 45
+    private let compHoursTotal = 120
+
+    @State private var expanded = false
+
+    private var ringProgress: Double { crValue / 10.0 }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // ── Closed row ──
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    expanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 14) {
+                    // CR donut
+                    ZStack {
+                        Circle()
+                            .stroke(Color.white.opacity(0.05), lineWidth: 4)
+                            .frame(width: 68, height: 68)
+
+                        Circle()
+                            .trim(from: 0, to: CGFloat(ringProgress))
+                            .stroke(
+                                VitaColors.accent.opacity(0.75),
+                                style: StrokeStyle(lineWidth: 4.5, lineCap: .round)
+                            )
+                            .frame(width: 68, height: 68)
+                            .rotationEffect(.degrees(-90))
+                            .shadow(color: VitaColors.accent.opacity(0.25), radius: 4)
+
+                        VStack(spacing: 1) {
+                            Text(String(format: "%.2f", crValue))
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(VitaColors.accent)
+                            Text("CR")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundStyle(VitaColors.textTertiary)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(university)
+                            .font(VitaTypography.labelMedium)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .lineLimit(1)
+
+                        Text(semesterLabel)
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+
+                        HStack(spacing: 6) {
+                            AcadPill("\(disciplines) disc")
+                            AcadPill("\(creditsCompleted)/\(creditsTotal) cred")
+                            AcadPill("\(compHoursCompleted)/\(compHoursTotal)h compl")
+                        }
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(VitaColors.textTertiary)
+                        .rotationEffect(.degrees(expanded ? 180 : 0))
+                }
+                .padding(14)
+            }
+            .buttonStyle(.plain)
+
+            // ── Expanded detail ──
+            if expanded {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(VitaColors.glassBorder)
+                        .frame(height: 1)
+                        .padding(.horizontal, 14)
+
+                    GradeTableView()
+                        .padding(.horizontal, 14)
+                        .padding(.top, 10)
+                        .padding(.bottom, 6)
+
+                    VStack(spacing: 8) {
+                        AcadProgressBar(
+                            label: "Creditos",
+                            valueStr: "\(creditsCompleted)/\(creditsTotal) (50%)",
+                            progress: Double(creditsCompleted) / Double(creditsTotal)
+                        )
+                        AcadProgressBar(
+                            label: "Horas Compl.",
+                            valueStr: "\(compHoursCompleted)/\(compHoursTotal)h",
+                            progress: Double(compHoursCompleted) / Double(compHoursTotal)
+                        )
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .background(VitaColors.glassBg)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(VitaColors.glassBorder, lineWidth: 1)
+        )
+    }
+}
+
+private struct AcadPill: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(VitaColors.textSecondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(Color.white.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+    }
+}
+
+private struct AcadProgressBar: View {
+    let label: String
+    let valueStr: String
+    let progress: Double
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 10))
+                    .foregroundStyle(VitaColors.textSecondary)
+                Spacer()
+                Text(valueStr)
+                    .font(.system(size: 10))
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+            GeometryReader { geo in
+                let pct = CGFloat(min(max(progress, 0), 1))
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.white.opacity(0.05))
+                        .frame(height: 4)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(VitaColors.goldBarGradient)
+                        .frame(width: geo.size.width * pct, height: 4)
+                }
+            }
+            .frame(height: 4)
+        }
+    }
+}
+
+// MARK: - Grade Table (inside expanded summary card)
+
+private struct GradeTableView: View {
+    private struct GradeEntry {
+        let subject: String
+        let n1: String
+        let n2: String
+        let avg: String
+        let avgState: AcadGradeState
+        let needs: String
+        let needsDanger: Bool
+    }
+
+    private enum AcadGradeState { case good, mid, bad }
+
+    private let entries: [GradeEntry] = [
+        .init(subject: "Anatomia",     n1: "8.5", n2: "7.9", avg: "8.2", avgState: .good, needs: "—",       needsDanger: false),
+        .init(subject: "Fisiologia",   n1: "7.0", n2: "8.0", avg: "7.5", avgState: .good, needs: "—",       needsDanger: false),
+        .init(subject: "Bioquimica",   n1: "5.8", n2: "7.0", avg: "6.4", avgState: .bad,  needs: "N3: 7.8", needsDanger: true),
+        .init(subject: "Farmacologia", n1: "7.2", n2: "—",   avg: "7.2", avgState: .mid,  needs: "N2: 6.8", needsDanger: false),
+        .init(subject: "Med Legal",    n1: "8.8", n2: "—",   avg: "8.8", avgState: .good, needs: "—",       needsDanger: false),
+        .init(subject: "Prat Interp",  n1: "—",   n2: "—",   avg: "—",   avgState: .mid,  needs: "—",       needsDanger: false),
+    ]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header row
+            HStack {
+                Text("Disciplina")
+                    .font(.system(size: 9)).textCase(.uppercase).tracking(0.5)
+                    .foregroundStyle(Color.white.opacity(0.18))
+                Spacer()
+                HStack(spacing: 8) {
+                    Text("N1").frame(minWidth: 22, alignment: .trailing)
+                    Text("N2").frame(minWidth: 22, alignment: .trailing)
+                    Text("Med").frame(minWidth: 28, alignment: .trailing)
+                    Text("Precisa").frame(minWidth: 50, alignment: .trailing)
+                }
+                .font(.system(size: 9)).foregroundStyle(Color.white.opacity(0.18))
+            }
+            .padding(.bottom, 6)
+
+            ForEach(entries, id: \.subject) { entry in
+                let avgColor: Color = {
+                    switch entry.avgState {
+                    case .good: return VitaColors.dataGreen
+                    case .mid:  return VitaColors.dataAmber
+                    case .bad:  return VitaColors.dataRed
+                    }
+                }()
+                HStack {
+                    Text(entry.subject)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .lineLimit(1)
+                    Spacer()
+                    HStack(spacing: 8) {
+                        Text(entry.n1).frame(minWidth: 22, alignment: .trailing)
+                        Text(entry.n2).frame(minWidth: 22, alignment: .trailing)
+                        Text(entry.avg)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(avgColor)
+                            .frame(minWidth: 28, alignment: .trailing)
+                        Text(entry.needs)
+                            .foregroundStyle(entry.needsDanger ? VitaColors.dataRed.opacity(0.8) : VitaColors.textTertiary)
+                            .frame(minWidth: 50, alignment: .trailing)
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+}
+
+// MARK: - Frequência Section
+
+private struct FreqItemData: Identifiable {
+    let id = UUID()
+    let subject: String
+    let percent: Double
+    let absences: Int
+    let total: Int
+}
+
+private let mockFreqData: [FreqItemData] = [
+    FreqItemData(subject: "Anatomia",     percent: 95,  absences: 2, total: 40),
+    FreqItemData(subject: "Fisiologia",   percent: 88,  absences: 4, total: 34),
+    FreqItemData(subject: "Bioquimica",   percent: 78,  absences: 8, total: 36),
+    FreqItemData(subject: "Farmacologia", percent: 92,  absences: 3, total: 38),
+    FreqItemData(subject: "Med Legal",    percent: 100, absences: 0, total: 30),
+    FreqItemData(subject: "Prat Interp",  percent: 76,  absences: 9, total: 38),
+]
+
+private struct FrequenciaSection: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Frequência")
+                    .font(VitaTypography.labelLarge)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer()
+                Text("Min 75%")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+            .padding(.bottom, 10)
+
+            VStack(spacing: 0) {
+                ForEach(Array(mockFreqData.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 {
+                        Rectangle()
+                            .fill(VitaColors.glassBorder)
+                            .frame(height: 1)
+                    }
+                    FreqRowView(item: item)
+                        .padding(.vertical, 8)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+            .background(VitaColors.glassBg)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(VitaColors.glassBorder, lineWidth: 1)
+            )
+        }
+    }
+}
+
+private struct FreqRowView: View {
+    let item: FreqItemData
+
+    private var barColor: Color {
+        if item.percent >= 85 { return VitaColors.dataGreen }
+        if item.percent >= 75 { return VitaColors.dataAmber }
+        return VitaColors.dataRed
+    }
+
+    private var isAtLimit: Bool { item.percent < 76 }
+
+    private var remainingAbsences: Int {
+        let maxAllowed = Int(Double(item.total) * 0.25)
+        return max(0, maxAllowed - item.absences)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(item.subject)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(VitaColors.textSecondary)
+                .frame(width: 76, alignment: .leading)
+                .lineLimit(1)
+
+            GeometryReader { geo in
+                let pct = CGFloat(min(max(item.percent / 100, 0), 1))
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.white.opacity(0.05))
+                        .frame(height: 5)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(barColor)
+                        .frame(width: geo.size.width * pct, height: 5)
+                }
+            }
+            .frame(height: 5)
+
+            Text("\(Int(item.percent))%")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(barColor)
+                .frame(width: 32, alignment: .trailing)
+
+            if isAtLimit {
+                Text("LIMITE!")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(VitaColors.dataRed)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(VitaColors.dataRed.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                Text("Restam \(remainingAbsences)")
+                    .font(.system(size: 9))
+                    .foregroundStyle(VitaColors.textTertiary)
+                    .lineLimit(1)
+                    .frame(minWidth: 52, alignment: .leading)
+            }
+        }
+    }
+}
+
+// MARK: - Próximos Eventos
+
+private struct EventoItem: Identifiable {
+    let id = UUID()
+    let date: String
+    let title: String
+    let tag: String
+    let tagColor: Color
+}
+
+private let mockEventos: [EventoItem] = [
+    EventoItem(date: "17-21 Mar", title: "Semana de Provas P2",   tag: "provas",   tagColor: VitaColors.dataRed),
+    EventoItem(date: "28 Mar",    title: "Entrega TCC parcial",    tag: "entrega",  tagColor: VitaColors.dataAmber),
+    EventoItem(date: "07-11 Abr", title: "Provas Finais",          tag: "provas",   tagColor: VitaColors.dataRed),
+    EventoItem(date: "14 Abr",    title: "Matrícula 6° sem",       tag: "info",     tagColor: VitaColors.dataBlue),
+    EventoItem(date: "21 Abr",    title: "Recesso Tiradentes",     tag: "feriado",  tagColor: VitaColors.dataGreen),
+]
+
+private struct ProximosEventosSection: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text("Próximos")
+                    .font(VitaTypography.labelLarge)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer()
+                Text("Calendário")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.accent)
+            }
+            .padding(.horizontal, 16)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(mockEventos) { event in
+                        EventoCard(event: event)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+}
+
+private struct EventoCard: View {
+    let event: EventoItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(event.date)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(VitaColors.textTertiary)
+
+            Text(event.title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(VitaColors.textPrimary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(event.tag)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(event.tagColor)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(event.tagColor.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+        }
+        .padding(12)
+        .frame(width: 130, alignment: .leading)
+        .background(VitaColors.glassBg)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(VitaColors.glassBorder, lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Documentos Pills Section
+
+private struct DocPillItem: Identifiable {
+    let id = UUID()
+    let label: String
+    let icon: String
+}
+
+private let mockDocPills: [DocPillItem] = [
+    DocPillItem(label: "Histórico",  icon: "doc.text.fill"),
+    DocPillItem(label: "Matrícula",  icon: "checkmark.seal.fill"),
+    DocPillItem(label: "Declaração", icon: "arrow.down.doc.fill"),
+    DocPillItem(label: "Atestados",  icon: "calendar.badge.plus"),
+]
+
+private struct DocumentosPillsSection: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text("Documentos")
+                    .font(VitaTypography.labelLarge)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer()
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(mockDocPills) { doc in
+                        HStack(spacing: 6) {
+                            Image(systemName: doc.icon)
+                                .font(.system(size: 13))
+                                .foregroundStyle(VitaColors.textSecondary.opacity(0.7))
+                            Text(doc.label)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(VitaColors.textSecondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(VitaColors.glassBg)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(VitaColors.glassBorder, lineWidth: 1)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - FaculdadeCourseRow
 
 private struct FaculdadeCourseRow: View {
     let course: Course
@@ -591,7 +1190,7 @@ private struct DocumentRow: View {
     }
 }
 
-// MARK: - Connect Banner (shared)
+// MARK: - Connect Banner
 
 private struct ConnectBanner: View {
     let icon: String
