@@ -230,7 +230,7 @@ private struct DashMiniPlayer: View {
     var body: some View {
         Button(action: { onTap?() }) {
             HStack(spacing: 10) {
-                // Play button
+                // Play button — gold subtle bg + border (matches mockup .mini-play-btn)
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(VitaColors.accent.opacity(0.15))
@@ -240,25 +240,36 @@ private struct DashMiniPlayer: View {
                         )
                         .frame(width: 32, height: 32)
 
+                    // Spec: fill rgba(200,160,80,0.25), stroke rgba(200,160,80,0.7)
                     Image(systemName: "play.fill")
-                        .font(.system(size: 12))
+                        .font(.system(size: 11))
                         .foregroundStyle(VitaColors.accent.opacity(0.70))
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Spec: font-size 12px, weight 600, color rgba(255,255,255,0.70)
                     Text("\(player.subject) · \(player.tool)")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.85))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.70))
                         .lineLimit(1)
 
-                    // Progress bar
+                    // Progress bar — spec: rgba(200,160,80,0.5) → rgba(200,160,80,0.7)
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Capsule()
-                                .fill(Color.white.opacity(0.08))
+                                .fill(Color.white.opacity(0.06))
                                 .frame(height: 3)
                             Capsule()
-                                .fill(VitaColors.goldGradient)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            VitaColors.accent.opacity(0.50),
+                                            VitaColors.accent.opacity(0.70)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
                                 .frame(
                                     width: geo.size.width * CGFloat(player.completed) / CGFloat(max(player.total, 1)),
                                     height: 3
@@ -270,18 +281,22 @@ private struct DashMiniPlayer: View {
 
                 Spacer()
 
+                // Spec: font-size 11px, weight 700, color rgba(255,255,255,0.30) — muted counter
                 Text("\(player.completed)/\(player.total)")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(VitaColors.accent.opacity(0.80))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.white.opacity(0.30))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.04))
+            // Glass: material blur + tint + border (matches mockup .mini-player)
+            .background(.ultraThinMaterial)
+            .background(Color.white.opacity(0.035))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(Color.white.opacity(0.06), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
     }
@@ -379,12 +394,15 @@ private struct DashWeakSubjectsRow: View {
                     }
                     .padding(14)
                     .frame(minWidth: 120)
-                    .background(Color.white.opacity(0.04))
+                    // Glass: material blur + tint + border (matches mockup .glass-sm)
+                    .background(.ultraThinMaterial)
+                    .background(Color.white.opacity(0.03))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(Color.white.opacity(0.05), lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                 }
             }
         }

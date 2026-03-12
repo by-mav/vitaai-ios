@@ -59,43 +59,41 @@ struct VitaTopBar: View {
                         }
                     }
 
-                    // Level badge pill at bottom of ring (matches mockup .level-badge)
+                    // Level badge pill at bottom of ring (matches mockup .level-badge exactly)
+                    // Spec: background rgba(200,160,80,0.25) + border 1.5px rgba(200,160,80,0.35)
+                    //       border-radius 6px + padding 0 5px + font 8px/700 goldText
                     let levelValue = userLevel ?? 0
                     if levelValue > 0 {
-                        Text("Lv.\(levelValue)")
-                            .font(.system(size: 8, weight: .black))
-                            .foregroundStyle(Color(red: 20/255, green: 14/255, blue: 10/255))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                LinearGradient(
-                                    colors: [VitaColors.accent, VitaColors.accentLight],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
+                        Text("\(levelValue)")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color(red: 255/255, green: 220/255, blue: 160/255).opacity(0.90))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(VitaColors.accent.opacity(0.25))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(VitaColors.accent.opacity(0.35), lineWidth: 1.5)
                             )
-                            .clipShape(Capsule())
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
                             .offset(y: 9)
                     } else if let streak = userStreak, streak > 0 {
-                        // Fallback: show streak pill if no level
+                        // Fallback: show streak pill in same glass style
                         HStack(spacing: 2) {
                             Image(systemName: "flame.fill")
-                                .font(.system(size: 6, weight: .bold))
-                                .foregroundStyle(Color(red: 20/255, green: 14/255, blue: 10/255))
+                                .font(.system(size: 6))
+                                .foregroundStyle(Color(red: 255/255, green: 220/255, blue: 160/255).opacity(0.80))
                             Text("\(streak)")
-                                .font(.system(size: 8, weight: .black))
-                                .foregroundStyle(Color(red: 20/255, green: 14/255, blue: 10/255))
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(Color(red: 255/255, green: 220/255, blue: 160/255).opacity(0.90))
                         }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            LinearGradient(
-                                colors: [VitaColors.accent, VitaColors.accentLight],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(VitaColors.accent.opacity(0.25))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(VitaColors.accent.opacity(0.35), lineWidth: 1.5)
                         )
-                        .clipShape(Capsule())
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                         .offset(y: 9)
                     }
                 }
@@ -128,33 +126,46 @@ struct VitaTopBar: View {
 
             Spacer()
 
-            // Notification bell
+            // Notification bell — 38x38 glass circle with border (matches mockup spec)
             Button(action: { onNotificationsTap?() }) {
                 ZStack(alignment: .topTrailing) {
-                    Image(systemName: "bell.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color.white.opacity(0.60))
-                        .frame(width: 34, height: 34)
-                        .background(Color.white.opacity(0.06))
-                        .clipShape(Circle())
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.05))
+                            .frame(width: 38, height: 38)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                            )
+                        Image(systemName: "bell.fill")
+                            .font(.system(size: 15))
+                            .foregroundStyle(Color.white.opacity(0.60))
+                    }
+                    .frame(width: 38, height: 38)
 
-                    // Notification dot
+                    // Notification dot — rgba(255,120,100,0.7) per spec
                     Circle()
-                        .fill(Color(red: 255/255, green: 80/255, blue: 60/255))
-                        .frame(width: 8, height: 8)
-                        .offset(x: 2, y: -2)
+                        .fill(Color(red: 255/255, green: 120/255, blue: 100/255).opacity(0.85))
+                        .frame(width: 7, height: 7)
+                        .offset(x: 1, y: 0)
                 }
             }
             .buttonStyle(.plain)
 
-            // Menu (hamburger)
+            // Hamburger — 38x38 glass circle with border (matches mockup spec)
             Button(action: { onMenuTap?() }) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Color.white.opacity(0.60))
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.06))
-                    .clipShape(Circle())
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.05))
+                        .frame(width: 38, height: 38)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                        )
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(Color.white.opacity(0.55))
+                }
             }
             .buttonStyle(.plain)
         }

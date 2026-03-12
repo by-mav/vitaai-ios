@@ -35,12 +35,27 @@ struct UpcomingExamsRow: View {
                 .padding(.vertical, 10)
             }
         }
-        .background(Color.white.opacity(0.04))
+        // Glass: material blur + rgba tint + inset shimmer + shadow (matches mockup .glass)
+        .background(.ultraThinMaterial)
+        .background(Color.white.opacity(0.035))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 20)
                 .stroke(Color.white.opacity(0.07), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(alignment: .top) {
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: [.clear, Color.white.opacity(0.06), .clear],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                )
+                .frame(height: 1)
+                .padding(.horizontal, 16)
+                .padding(.top, 0.5)
+        }
+        .shadow(color: .black.opacity(0.18), radius: 20, x: 0, y: 10)
     }
 }
 

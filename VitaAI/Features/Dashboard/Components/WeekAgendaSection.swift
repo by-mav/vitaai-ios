@@ -58,12 +58,12 @@ struct WeekAgendaSection: View {
             .padding(.horizontal, 20)
             .padding(.bottom, todayEvents.isEmpty ? 0 : 12)
 
-            // Eventos do dia dentro de glass card
+            // Eventos do dia dentro de glass card (glassmorphism: material + tint layer)
             if !todayEvents.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(todayEvents) { event in
                         HStack(spacing: 10) {
-                            // All agenda icons are gold per mockup (.agenda-ico.green/.orange all same gold)
+                            // All agenda icons are gold per mockup (.agenda-ico gold themed)
                             ZStack {
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(VitaColors.accent.opacity(0.12))
@@ -92,12 +92,28 @@ struct WeekAgendaSection: View {
                         .padding(.vertical, 12)
                     }
                 }
-                .background(Color.white.opacity(0.04))
+                // Glass: material blur + rgba tint + border (matches mockup .glass-sm)
+                .background(.ultraThinMaterial)
+                .background(Color.white.opacity(0.035))
+                .clipShape(RoundedRectangle(cornerRadius: 18))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 18)
                         .stroke(Color.white.opacity(0.07), lineWidth: 1)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                // Inset top shimmer
+                .overlay(alignment: .top) {
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [.clear, Color.white.opacity(0.06), .clear],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
+                        .frame(height: 1)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 0.5)
+                }
+                .shadow(color: .black.opacity(0.15), radius: 16, x: 0, y: 8)
                 .padding(.horizontal, 20)
             }
         }
