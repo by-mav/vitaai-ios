@@ -11,6 +11,7 @@ final class DashboardViewModel {
     var weekDays: [WeekDay] = []
     var todayEvents: [AgendaEvent] = []
     var miniPlayer: MiniPlayerData?
+    var weakSubjects: [WeakSubject] = []
     var studyModules: [StudyModule] = []
     var studyTip: String = ""
     var suggestions: [VitaSuggestion] = []
@@ -66,6 +67,7 @@ final class DashboardViewModel {
         weekDays = MockData.weekDays()
         todayEvents = MockData.todayAgendaEvents()
         miniPlayer = MockData.miniPlayer()
+        weakSubjects = MockData.weakSubjects()
         studyModules = MockData.studyModules()
         studyTip = MockData.studyTip()
         suggestions = MockData.vitaSuggestions()

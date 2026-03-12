@@ -58,3 +58,10 @@ struct MiniPlayerData {
     let completed: Int        // 34
     let total: Int            // 50
 }
+
+// Disciplina fraca — seção "Atenção Necessária"
+struct WeakSubject: Identifiable {
+    let id = UUID()
+    let name: String
+    let score: Double  // 0.0 – 1.0
+}

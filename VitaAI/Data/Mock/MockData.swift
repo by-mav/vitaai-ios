@@ -52,10 +52,10 @@ enum MockData {
 
     static func studyModules() -> [StudyModule] {
         [
-            StudyModule(name: "Flashcards", icon: "book.pages", count: 23, color: VitaColors.accent),
-            StudyModule(name: "Simulados", icon: "questionmark.circle", count: 5, color: VitaColors.accent),
-            StudyModule(name: "PDFs", icon: "book", count: 48, color: VitaColors.accent),
-            StudyModule(name: "Materiais", icon: "folder", count: 124, color: VitaColors.accent),
+            StudyModule(name: "Questoes",   icon: "doc.text.fill",         count: 120, color: VitaColors.accent),
+            StudyModule(name: "Flashcards", icon: "rectangle.stack.fill",  count: 23,  color: VitaColors.accent),
+            StudyModule(name: "Simulados",  icon: "list.bullet.clipboard", count: 5,   color: VitaColors.accent),
+            StudyModule(name: "Atlas 3D",   icon: "staroflife.fill",       count: 0,   color: VitaColors.accent),
         ]
     }
 
@@ -77,6 +77,14 @@ enum MockData {
 
     static func miniPlayer() -> MiniPlayerData {
         MiniPlayerData(subject: "Anatomia", tool: "Flashcards", completed: 34, total: 50)
+    }
+
+    static func weakSubjects() -> [WeakSubject] {
+        [
+            WeakSubject(name: "Bioquimica",   score: 0.64),
+            WeakSubject(name: "Farmacologia", score: 0.68),
+            WeakSubject(name: "Histologia",   score: 0.71),
+        ]
     }
 
     static func studyTip() -> String {

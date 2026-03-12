@@ -96,6 +96,21 @@ struct DashboardScreen: View {
                         .padding(.horizontal, 20)
                 }
 
+                // MARK: Atencao Necessaria
+                if !viewModel.weakSubjects.isEmpty {
+                    DashSectionHeader(
+                        title: NSLocalizedString("ATENCAO NECESSARIA", comment: ""),
+                        link: NSLocalizedString("Detalhes", comment: ""),
+                        onLink: nil
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 10)
+
+                    DashWeakSubjectsRow(subjects: viewModel.weakSubjects)
+                        .padding(.horizontal, 20)
+                }
+
                 // MARK: XP / Progresso
                 if let userProgress = viewModel.userProgress {
                     DashSectionHeader(
@@ -272,13 +287,11 @@ private struct DashQuickAccessGrid: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(quickTools, id: \.name) { tool in
+            ForEach(Array(quickTools.enumerated()), id: \.offset) { index, tool in
                 Button(action: {
-                    if let match = modules.first(where: { $0.name.contains(tool.name) }) {
-                        onModuleTap?(match)
-                    } else if !modules.isEmpty {
-                        onModuleTap?(modules[0])
-                    }
+                    // Match by index for reliability (mock data order matches quickTools order)
+                    let module = index < modules.count ? modules[index] : modules.first
+                    if let m = module { onModuleTap?(m) }
                 }) {
                     VStack(spacing: 8) {
                         GlassAssetImage(
@@ -307,5 +320,58 @@ private struct ScaleButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Weak Subjects Row (matches mockup .weak-scroll)
+private struct DashWeakSubjectsRow: View {
+    let subjects: [WeakSubject]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(subjects) { subject in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(subject.name)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Color.white.opacity(0.55))
+
+                        Text("\(Int(subject.score * 100))%")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.70))
+
+                        // Progress bar (red-orange gradient for weak)
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.06))
+                                    .frame(height: 3)
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color(red: 255/255, green: 120/255, blue: 80/255).opacity(0.50),
+                                                Color(red: 255/255, green: 180/255, blue: 100/255).opacity(0.35)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: geo.size.width * subject.score, height: 3)
+                            }
+                        }
+                        .frame(height: 3)
+                    }
+                    .padding(14)
+                    .frame(minWidth: 120)
+                    .background(Color.white.opacity(0.04))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+            }
+        }
     }
 }
