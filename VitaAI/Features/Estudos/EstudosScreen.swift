@@ -78,6 +78,12 @@ private struct EstudosContent: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
+            // Quick Stats Row — matches mockup top stats (Media, Resolvidas, Sequência)
+            EstudosQuickStats(viewModel: viewModel)
+                .padding(.horizontal, 16)
+                .padding(.top, viewModel.canvasConnected ? 8 : 4)
+                .padding(.bottom, 8)
+
             // 4-tab bar (Disciplinas | Notebooks | Flashcards | PDFs)
             EstudosTabBar(selectedTab: $viewModel.selectedTab)
 
@@ -158,6 +164,55 @@ private extension EstudosContent {
                 onRefresh: { await viewModel.load() }
             )
         }
+    }
+}
+
+// MARK: - Quick Stats Row (matches mockup top quick stats)
+
+private struct EstudosQuickStats: View {
+    let viewModel: EstudosViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            statCard(
+                value: "\(Int(viewModel.avgAccuracy * 100))%",
+                label: NSLocalizedString("Media", comment: ""),
+                valueColor: VitaColors.accent.opacity(0.85)
+            )
+            statCard(
+                value: viewModel.flashcardsDue > 999
+                    ? "\(viewModel.flashcardsDue / 1000)k"
+                    : "\(viewModel.flashcardsDue)",
+                label: NSLocalizedString("Pendentes", comment: ""),
+                valueColor: Color.white.opacity(0.70)
+            )
+            statCard(
+                value: "\(viewModel.streakDays)d",
+                label: NSLocalizedString("Sequencia", comment: ""),
+                valueColor: Color.white.opacity(0.70)
+            )
+        }
+    }
+
+    private func statCard(value: String, label: String, valueColor: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(valueColor)
+            Text(label)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.25))
+                .textCase(.uppercase)
+                .kerning(0.5)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.04))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
