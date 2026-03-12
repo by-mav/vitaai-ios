@@ -500,34 +500,35 @@ private struct StatsGrid: View {
         else if vm.avgAccuracy >= 50 { accuracySubtitle = "Razoável" }
         else { accuracySubtitle = "Precisa melhorar" }
 
+        // Colors match mockup stats grid: horas=gold, acerto=green, questoes=purple, cards=tan
         return [
             InsightsStatItem(
-                label: "PRECISÃO",
-                value: "\(Int(vm.avgAccuracy))%",
-                subtitle: accuracySubtitle,
-                icon: "target",
-                valueColor: accuracyColor
-            ),
-            InsightsStatItem(
-                label: "SEQUÊNCIA",
-                value: "\(vm.streakDays)d",
-                subtitle: "dias seguidos",
-                icon: "flame.fill",
-                valueColor: VitaColors.textTertiary
-            ),
-            InsightsStatItem(
-                label: "HORAS",
-                value: String(format: "%.1fh", vm.totalHours),
+                label: "Este Mes",
+                value: String(format: "%.0fh", vm.totalHours),
                 subtitle: "de estudo",
                 icon: "clock.fill",
-                valueColor: VitaColors.textTertiary
+                valueColor: VitaColors.accent
             ),
             InsightsStatItem(
-                label: "FLASHCARDS",
+                label: "Acerto",
+                value: "\(Int(vm.avgAccuracy))%",
+                subtitle: accuracySubtitle,
+                icon: "checkmark.circle.fill",
+                valueColor: VitaColors.dataGreen
+            ),
+            InsightsStatItem(
+                label: "Questoes",
+                value: "\(vm.totalCards > 0 ? vm.totalCards : 0)",
+                subtitle: "respondidas",
+                icon: "list.bullet.clipboard.fill",
+                valueColor: Color(red: 0.63, green: 0.55, blue: 0.78)
+            ),
+            InsightsStatItem(
+                label: "Cards",
                 value: "\(vm.totalCards)",
                 subtitle: "\(vm.flashcardsDue) pendentes",
-                icon: "brain.fill",
-                valueColor: VitaColors.textTertiary
+                icon: "square.stack.fill",
+                valueColor: Color(red: 0.78, green: 0.67, blue: 0.51)
             ),
         ]
     }
@@ -548,28 +549,34 @@ private struct SmallStatCard: View {
     let stat: InsightsStatItem
 
     var body: some View {
+        // Matches mockup stats 2x2 grid style (padding:12px 14px, icon badge + value + label)
         VitaGlassCard {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 4) {
+            HStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(stat.valueColor.opacity(0.10))
+                        .frame(width: 28, height: 28)
                     Image(systemName: stat.icon)
-                        .font(.system(size: 10))
-                        .foregroundStyle(VitaColors.textTertiary)
-                    Text(stat.label)
-                        .font(.system(size: 9))
-                        .textCase(.uppercase)
-                        .tracking(0.8)
-                        .foregroundStyle(VitaColors.textTertiary)
+                        .font(.system(size: 14))
+                        .foregroundStyle(stat.valueColor.opacity(0.60))
                 }
-                Text(stat.value)
-                    .font(.system(size: 24, weight: .bold))
-                    .monospacedDigit()
-                    .foregroundStyle(VitaColors.textPrimary)
-                Text(stat.subtitle)
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(stat.valueColor)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(stat.value)
+                        .font(.system(size: 17, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(stat.valueColor.opacity(0.88))
+                        .lineLimit(1)
+                    Text(stat.label)
+                        .font(.system(size: 7, weight: .medium))
+                        .textCase(.uppercase)
+                        .tracking(0.3)
+                        .foregroundStyle(Color.white.opacity(0.20))
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
         }
         .accessibilityLabel("\(stat.label): \(stat.value), \(stat.subtitle)")
     }
