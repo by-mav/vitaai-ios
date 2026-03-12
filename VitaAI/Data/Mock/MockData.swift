@@ -68,6 +68,17 @@ enum MockData {
         ]
     }
 
+    static func todayAgendaEvents() -> [AgendaEvent] {
+        [
+            AgendaEvent(title: NSLocalizedString("Medicina Legal, Deontologia e Etica", comment: ""), time: "09:00", colorTag: .green),
+            AgendaEvent(title: NSLocalizedString("Praticas Interprofissionais", comment: ""), time: "14:00", colorTag: .blue),
+        ]
+    }
+
+    static func miniPlayer() -> MiniPlayerData {
+        MiniPlayerData(subject: "Anatomia", tool: "Flashcards", completed: 34, total: 50)
+    }
+
     static func studyTip() -> String {
         let tips = [
             "Técnica Pomodoro: 25min de foco, 5min de pausa. Após 4 ciclos, 15min de pausa longa.",

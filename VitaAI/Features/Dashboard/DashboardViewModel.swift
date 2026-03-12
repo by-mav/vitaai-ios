@@ -9,6 +9,8 @@ final class DashboardViewModel {
     var userProgress: UserProgress?
     var upcomingExams: [UpcomingExam] = []
     var weekDays: [WeekDay] = []
+    var todayEvents: [AgendaEvent] = []
+    var miniPlayer: MiniPlayerData?
     var studyModules: [StudyModule] = []
     var studyTip: String = ""
     var suggestions: [VitaSuggestion] = []
@@ -62,6 +64,8 @@ final class DashboardViewModel {
         userProgress = MockData.userProgress()
         upcomingExams = MockData.upcomingExams()
         weekDays = MockData.weekDays()
+        todayEvents = MockData.todayAgendaEvents()
+        miniPlayer = MockData.miniPlayer()
         studyModules = MockData.studyModules()
         studyTip = MockData.studyTip()
         suggestions = MockData.vitaSuggestions()
