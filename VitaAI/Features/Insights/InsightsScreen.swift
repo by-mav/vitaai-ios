@@ -1273,12 +1273,6 @@ private let mockBadges: [BadgeItem] = [
 ]
 
 private struct ConquistasSection: View {
-    let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-    ]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -1292,9 +1286,22 @@ private struct ConquistasSection: View {
                     .foregroundStyle(VitaColors.accent)
             }
 
-            LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(mockBadges) { badge in
-                    BadgeCell(badge: badge)
+            // 3-col grid via chunked VStack (avoids LazyVGrid-in-LazyVStack height issue)
+            VStack(spacing: 10) {
+                let rows = mockBadges.chunked(into: 3)
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: 10) {
+                        ForEach(row) { badge in
+                            BadgeCell(badge: badge)
+                                .frame(maxWidth: .infinity)
+                        }
+                        // Fill empty slots in last row
+                        if row.count < 3 {
+                            ForEach(0..<(3 - row.count), id: \.self) { _ in
+                                Color.clear.frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
                 }
             }
             .padding(14)
@@ -1348,6 +1355,17 @@ private struct BadgeCell: View {
                 .lineLimit(1)
         }
         .opacity(badge.locked ? 0.25 : 1.0)
+    }
+}
+
+// MARK: - Array chunked helper (file-scoped)
+
+private extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [self] }
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
     }
 }
 
