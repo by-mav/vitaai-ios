@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "level-10-pill.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

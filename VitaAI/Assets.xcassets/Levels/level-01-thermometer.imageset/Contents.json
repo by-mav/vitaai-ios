@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "level-01-thermometer.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

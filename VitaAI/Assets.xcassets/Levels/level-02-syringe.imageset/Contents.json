@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "level-02-syringe.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

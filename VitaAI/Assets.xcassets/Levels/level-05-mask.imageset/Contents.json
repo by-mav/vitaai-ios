@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "level-05-mask.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

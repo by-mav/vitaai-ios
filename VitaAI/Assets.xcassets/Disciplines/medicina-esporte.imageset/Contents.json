@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "medicina-esporte.png",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
