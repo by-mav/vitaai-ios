@@ -1,0 +1,17 @@
+/* Tool Manager */
+"tool_manager_title" = "Tools";
+"tool_manager_subtitle" = "Customize your study tools";
+"tool_manager_selected_count" = "%d selected";
+"tool_manager_save" = "Save";
+"tool_manager_questoes" = "Questions";
+"tool_manager_flashcards" = "Flashcards";
+"tool_manager_simulados" = "Mock Exams";
+"tool_manager_atlas" = "Atlas 3D";
+"tool_manager_resumos" = "Notes";
+"tool_manager_mapas" = "Mind Maps";
+"tool_manager_osce" = "OSCE";
+"tool_manager_trabalhos" = "Assignments";
+"tool_manager_transcricao" = "Transcription";
+"tool_manager_agenda" = "Calendar";
+"tool_manager_provas" = "Exams";
+"tool_manager_cadernos" = "Notebooks";

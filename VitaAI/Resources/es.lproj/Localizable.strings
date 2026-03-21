@@ -1,0 +1,17 @@
+/* Tool Manager */
+"tool_manager_title" = "Herramientas";
+"tool_manager_subtitle" = "Personaliza tus herramientas de estudio";
+"tool_manager_selected_count" = "%d seleccionadas";
+"tool_manager_save" = "Guardar";
+"tool_manager_questoes" = "Preguntas";
+"tool_manager_flashcards" = "Flashcards";
+"tool_manager_simulados" = "Simulacros";
+"tool_manager_atlas" = "Atlas 3D";
+"tool_manager_resumos" = "Resúmenes";
+"tool_manager_mapas" = "Mapas";
+"tool_manager_osce" = "OSCE";
+"tool_manager_trabalhos" = "Trabajos";
+"tool_manager_transcricao" = "Transcripción";
+"tool_manager_agenda" = "Agenda";
+"tool_manager_provas" = "Exámenes";
+"tool_manager_cadernos" = "Cuadernos";

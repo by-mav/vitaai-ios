@@ -283,6 +283,11 @@ struct MainTabView: View {
                         onBack: { router.goBack() },
                         onNavigate: { route in router.navigate(to: route) }
                     )
+                case .toolManager:
+                    ToolManagerScreen(
+                        onBack: { router.goBack() },
+                        onSave: { _ in router.goBack() }
+                    )
                 default:
                     EmptyView()
                 }
