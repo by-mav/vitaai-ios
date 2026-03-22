@@ -79,7 +79,9 @@ struct MainTabView: View {
                                 onNavigateToOsce:               { router.navigate(to: .osce) },
                                 onNavigateToAtlas:              { router.navigate(to: .atlas3D) },
                                 onNavigateToCourseDetail:       { courseId, colorIdx in router.navigate(to: .courseDetail(courseId: courseId, colorIndex: colorIdx)) },
-                                onNavigateToProvas:             { router.navigate(to: .provas) }
+                                onNavigateToProvas:             { router.navigate(to: .provas) },
+                                onNavigateToQBank:              { router.navigate(to: .qbank) },
+                                onNavigateToTranscricao:        { router.navigate(to: .transcricao) }
                             )
                             .tag(TabItem.estudos)
 
@@ -288,6 +290,10 @@ struct MainTabView: View {
                         onBack: { router.goBack() },
                         onSave: { _ in router.goBack() }
                     )
+                case .qbank:
+                    QBankCoordinatorScreen(onBack: { router.goBack() })
+                case .transcricao:
+                    TranscricaoScreen(onBack: { router.goBack() })
                 default:
                     EmptyView()
                 }

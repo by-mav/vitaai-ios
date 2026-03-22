@@ -18,6 +18,8 @@ struct EstudosScreen: View {
     /// (courseId, colorIndex) — navigates to CourseDetailScreen
     var onNavigateToCourseDetail:      ((String, Int) -> Void)?
     var onNavigateToProvas:            (() -> Void)?
+    var onNavigateToQBank:             (() -> Void)?
+    var onNavigateToTranscricao:       (() -> Void)?
 
     @State private var viewModel: EstudosViewModel?
 
@@ -36,7 +38,9 @@ struct EstudosScreen: View {
                     onNavigateToOsce:             onNavigateToOsce,
                     onNavigateToAtlas:            onNavigateToAtlas,
                     onNavigateToCourseDetail:     onNavigateToCourseDetail,
-                    onNavigateToProvas:           onNavigateToProvas
+                    onNavigateToProvas:           onNavigateToProvas,
+                    onNavigateToQBank:            onNavigateToQBank,
+                    onNavigateToTranscricao:      onNavigateToTranscricao
                 )
             } else {
                 ProgressView()
@@ -67,6 +71,8 @@ private struct EstudosContent: View {
     let onNavigateToAtlas:             (() -> Void)?
     let onNavigateToCourseDetail:      ((String, Int) -> Void)?
     let onNavigateToProvas:            (() -> Void)?
+    let onNavigateToQBank:             (() -> Void)?
+    let onNavigateToTranscricao:       (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -116,6 +122,8 @@ private extension EstudosContent {
                 onNavigateToOsce: onNavigateToOsce,
                 onNavigateToAtlas: onNavigateToAtlas,
                 onNavigateToProvas: onNavigateToProvas,
+                onNavigateToQBank: onNavigateToQBank,
+                onNavigateToTranscricao: onNavigateToTranscricao,
                 onRefresh: { await viewModel.load() }
             )
 
@@ -348,6 +356,8 @@ private struct DisciplinasTab: View {
     var onNavigateToOsce: (() -> Void)?
     var onNavigateToAtlas: (() -> Void)?
     var onNavigateToProvas: (() -> Void)?
+    var onNavigateToQBank: (() -> Void)?
+    var onNavigateToTranscricao: (() -> Void)?
     var onRefresh: (() async -> Void)?
 
     @State private var isGridView = false
@@ -378,6 +388,13 @@ private struct DisciplinasTab: View {
                         isGridView: $isGridView
                     )
 
+                    // QBank entry card — primary feature (Questões)
+                    if let onQBank = onNavigateToQBank {
+                        QBankEntryCard(onTap: onQBank)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                    }
+
                     // Simulados entry card
                     if let onSimulados = onNavigateToSimulados {
                         SimuladosEntryCard(onTap: onSimulados)
@@ -402,6 +419,13 @@ private struct DisciplinasTab: View {
                     // Provas entry card
                     if let onProvas = onNavigateToProvas {
                         ProvasEntryCard(onTap: onProvas)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                    }
+
+                    // Transcrição entry card
+                    if let onTranscricao = onNavigateToTranscricao {
+                        TranscricaoEntryCard(onTap: onTranscricao)
                             .padding(.horizontal, 16)
                             .padding(.bottom, 8)
                     }
@@ -601,6 +625,82 @@ private struct ProvasEntryCard: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(VitaColors.textPrimary)
                         Text("Provas de outros alunos com questões extraídas por IA")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - QBank Entry Card
+
+private struct QBankEntryCard: View {
+    let onTap: () -> Void
+    var body: some View {
+        Button(action: onTap) {
+            VitaGlassCard {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(VitaColors.accent.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "questionmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(VitaColors.accent)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Questões")
+                            .font(VitaTypography.bodyLarge)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Text("+95 mil questões de residência médica")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Transcrição Entry Card
+
+private struct TranscricaoEntryCard: View {
+    let onTap: () -> Void
+    var body: some View {
+        Button(action: onTap) {
+            VitaGlassCard {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(VitaColors.accent.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "waveform.and.mic")
+                            .font(.system(size: 18))
+                            .foregroundStyle(VitaColors.accent)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Transcrição")
+                            .font(VitaTypography.bodyLarge)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Text("Transcreva aulas e gere resumos com IA")
                             .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textSecondary)
                     }
