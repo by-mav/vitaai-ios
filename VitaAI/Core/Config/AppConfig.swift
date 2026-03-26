@@ -15,7 +15,7 @@ enum AppConfig {
     static var apiBaseURL: String {
         switch environment {
         case .development:
-            return "http://localhost:3070/api"
+            return "http://100.112.8.71:3110/api"
         case .production:
             return "https://vita-ai.cloud/api"
         }
@@ -24,7 +24,7 @@ enum AppConfig {
     static var authBaseURL: String {
         switch environment {
         case .development:
-            return "http://localhost:3070"
+            return "http://100.112.8.71:3110"
         case .production:
             return "https://vita-ai.cloud"
         }

@@ -1,67 +1,79 @@
 import SwiftUI
 
 struct VitaTopBar: View {
-    let title: String
     var userName: String?
     var userImageURL: URL?
+    var userLevel: Int = 7
+    var xpProgress: Double = 0.70
+    var periodText: String = "5o periodo - Medicina"
     var onAvatarTap: (() -> Void)?
+    var onNotificationTap: (() -> Void)?
+    var onMenuTap: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 14) {
-            // Avatar
-            Button(action: { onAvatarTap?() }) {
-                ZStack {
-                    if let url = userImageURL {
-                        AsyncImage(url: url) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            initialsView
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                    } else {
-                        initialsView
-                    }
-                }
-                .frame(width: 40, height: 40)
-                .background(VitaColors.accent.opacity(0.15))
-                .clipShape(Circle())
+        HStack(spacing: 12) {
+            // Avatar circle
+            ZStack {
+                Circle()
+                    .stroke(Color.orange.opacity(0.6), lineWidth: 2.5)
+                Circle()
+                    .trim(from: 0, to: xpProgress)
+                    .stroke(Color.orange, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Text(String((userName ?? "R").prefix(1)))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white.opacity(0.8))
             }
-            .buttonStyle(.plain)
+            .frame(width: 40, height: 40)
+            .onTapGesture { onAvatarTap?() }
 
-            // Greeting + title
-            VStack(alignment: .leading, spacing: 1) {
-                if let userName {
-                    let firstName = userName.split(separator: " ").first.map(String.init) ?? userName
-                    Text("Olá, \(firstName)")
-                        .font(VitaTypography.bodySmall)
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
-                Text(title)
-                    .font(VitaTypography.titleMedium)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(VitaColors.white)
+            // Greeting
+            VStack(alignment: .leading, spacing: 2) {
+                Text(greetingText)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                Text(periodText)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.4))
             }
 
             Spacer()
 
-            // Notification bell
-            Button(action: {}) {
+            // Notification button
+            Button(action: { onNotificationTap?() }) {
                 Image(systemName: "bell")
-                    .font(.system(size: 18))
-                    .foregroundStyle(VitaColors.textTertiary)
+                    .font(.system(size: 16))
+                    .foregroundColor(.white.opacity(0.6))
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(Color.white.opacity(0.06)))
             }
-            .buttonStyle(.plain)
+
+            // Menu button
+            Button(action: { onMenuTap?() }) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 16))
+                    .foregroundColor(.white.opacity(0.6))
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(Color.white.opacity(0.06)))
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 28)
+                .fill(Color(red: 0.1, green: 0.07, blue: 0.05).opacity(0.95))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28)
+                        .stroke(Color.orange.opacity(0.15), lineWidth: 1)
+                )
+        )
     }
 
-    private var initialsView: some View {
-        Text(userName?.prefix(1).uppercased() ?? "M")
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(VitaColors.accent)
+    private var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let name = userName?.split(separator: " ").first.map(String.init) ?? "Rafael"
+        if hour < 12 { return "Bom dia, \(name)" }
+        if hour < 18 { return "Boa tarde, \(name)" }
+        return "Boa noite, \(name)"
     }
 }

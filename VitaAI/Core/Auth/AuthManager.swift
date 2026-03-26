@@ -5,18 +5,22 @@ import Foundation
 final class AuthManager: ObservableObject {
     private let tokenStore: TokenStore
 
-    @Published var isLoggedIn: Bool = false
-    @Published var isLoading: Bool = true
+    @Published var isLoggedIn: Bool = true // DEV BYPASS
+    @Published var isLoading: Bool = false // DEV BYPASS
     @Published var error: String?
-    @Published var userName: String?
+    @Published var userName: String? = "Atlas Dev" // DEV BYPASS
     @Published var userImage: String?
 
     init(tokenStore: TokenStore) {
         self.tokenStore = tokenStore
-        Task { await checkLoginStatus() }
+        // Task { await checkLoginStatus() } // DEV BYPASS
     }
 
     private func checkLoginStatus() async {
+        // DEV BYPASS - force login
+        if !(await tokenStore.isLoggedIn) {
+            await tokenStore.saveDemoUser()
+        }
         let loggedIn = await tokenStore.isLoggedIn
         let name = await tokenStore.userName
         let image = await tokenStore.userImage

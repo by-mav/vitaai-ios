@@ -25,6 +25,10 @@ targets:
           - "**/*.md"
     info:
       path: VitaAI/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
     settings:
       base:
         PRODUCT_NAME: VitaAI
