@@ -146,15 +146,15 @@ actor VitaAPI {
     // MARK: - AI Conversations
 
     func getConversations() async throws -> [ConversationEntry] {
-        try await client.get("ai/conversations")
+        try await client.get("ai/coach/conversations")
     }
 
     func getConversationMessages(conversationId: String) async throws -> ConversationMessagesResponse {
-        try await client.get("ai/conversations/\(conversationId)/messages")
+        try await client.get("ai/coach/conversations/\(conversationId)")
     }
 
     func sendFeedback(messageId: String, feedback: Int) async throws {
-        let _: EmptyResponse = try await client.post("ai/messages/\(messageId)/feedback", body: FeedbackRequest(feedback: feedback))
+        let _: EmptyResponse = try await client.post("ai/coach/messages/\(messageId)/feedback", body: FeedbackRequest(feedback: feedback))
     }
 
     // MARK: - File Download
