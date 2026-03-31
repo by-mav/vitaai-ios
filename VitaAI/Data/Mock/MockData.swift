@@ -98,8 +98,8 @@ enum MockData {
             achievements: [
                 BadgeWithStatus(
                     id: "first_review",
-                    name: "Primeira Revisao",
-                    description: "Complete sua primeira sessao.",
+                    name: "Primeira Revisão",
+                    description: "Complete sua primeira sessão.",
                     icon: "rectangle.stack.fill",
                     category: "cards",
                     rarity: "common",

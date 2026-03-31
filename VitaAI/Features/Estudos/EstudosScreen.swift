@@ -60,7 +60,6 @@ struct EstudosScreen: View {
                     .tint(GoldAccent.primary)
             }
         }
-        .vitaScreenBg()
         .onAppear {
             if viewModel == nil {
                 viewModel = EstudosViewModel(api: container.api)
@@ -89,19 +88,8 @@ private struct EstudosContent: View {
     let onNavigateToTranscricao:       (() -> Void)?
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
-                // Continue studying card
-                if let firstRec = viewModel.studyRecommendations.first {
-                    ContinueStudyingCard(
-                        recommendation: firstRec,
-                        onNavigateToFlashcardSession: onNavigateToFlashcardSession
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 12)
-                }
-
                 // 3 module cards horizontal
                 ModulesRow(
                     onNavigateToQBank: onNavigateToQBank,
@@ -111,7 +99,6 @@ private struct EstudosContent: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
 
-                // Suas disciplinas
                 EstudosSectionLabel(text: "SUAS DISCIPLINAS")
                     .padding(.horizontal, 16)
                     .padding(.bottom, 10)
@@ -122,38 +109,16 @@ private struct EstudosContent: View {
                 )
                 .padding(.bottom, 16)
 
-                // Vita sugere
                 EstudosSectionLabel(text: "VITA SUGERE")
                     .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 10)
 
-                MateriaisScroll(recommendations: viewModel.studyRecommendations)
-                    .padding(.bottom, 16)
-
-                // Trabalhos pendentes
                 EstudosSectionLabel(text: "TRABALHOS PENDENTES")
                     .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 10)
 
-                TrabalhosSection()
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
-
-                // Sessoes recentes
                 EstudosSectionLabel(text: "SESSÕES RECENTES")
                     .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 10)
-
-                SessoesRecentesSection(activities: viewModel.recentActivity)
-                    .padding(.horizontal, 16)
             }
-            .padding(.bottom, 120)
-        }
-        .refreshable {
-            await viewModel.load()
+            .padding(.top, 20)
         }
     }
 }
@@ -164,13 +129,11 @@ private struct EstudosSectionLabel: View {
     let text: String
 
     var body: some View {
-        HStack {
-            Text(text)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(GoldAccent.labelGold)
-                .tracking(0.8)
-            Spacer()
-        }
+        Text(text)
+            .font(.system(size: 15, weight: .bold))
+            .foregroundStyle(Color.white)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.red)
     }
 }
 
@@ -390,10 +353,13 @@ private struct ModuleImageCard: View {
         Button(action: onTap) {
             // Try image first, fallback to icon+label glass card
             if UIImage(named: imageName) != nil {
-                Image(imageName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                Color.clear
                     .frame(height: 110)
+                    .overlay {
+                        Image(imageName)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    }
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .shadow(color: .black.opacity(0.30), radius: 6, y: 4)
             } else {
@@ -468,17 +434,6 @@ private struct DisciplinesCarousel: View {
             }
             .padding(.horizontal, 16)
         }
-        .mask(
-            HStack(spacing: 0) {
-                Color.white
-                LinearGradient(
-                    colors: [.white, .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: 40)
-            }
-        )
     }
 }
 
@@ -557,17 +512,6 @@ private struct MateriaisScroll: View {
                 }
                 .padding(.horizontal, 16)
             }
-            .mask(
-                HStack(spacing: 0) {
-                    Color.white
-                    LinearGradient(
-                        colors: [.white, .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .frame(width: 40)
-                }
-            )
         }
     }
 }
