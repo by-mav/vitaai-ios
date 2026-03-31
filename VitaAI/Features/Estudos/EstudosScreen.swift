@@ -141,7 +141,7 @@ private struct EstudosContent: View {
                     .padding(.bottom, 16)
 
                 // Sessoes recentes
-                EstudosSectionLabel(text: "SESSOES RECENTES")
+                EstudosSectionLabel(text: "SESSÕES RECENTES")
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
                     .padding(.bottom, 10)
@@ -354,7 +354,7 @@ private struct ModulesRow: View {
             ModuleImageCard(
                 imageName: "tool-questoes",
                 fallbackIcon: "questionmark.circle.fill",
-                fallbackLabel: "Questoes",
+                fallbackLabel: "Questões",
                 fallbackColor: VitaColors.dataBlue,
                 onTap: { onNavigateToQBank?() }
             )
@@ -541,7 +541,7 @@ private struct MateriaisScroll: View {
         if recommendations.isEmpty {
             // Empty state
             HStack {
-                Text("Nenhuma sugestao no momento")
+                Text("Nenhuma sugestão no momento")
                     .font(.system(size: 12))
                     .foregroundStyle(GoldAccent.textGoldDim)
                 Spacer()
@@ -755,7 +755,7 @@ private struct TrabalhoCard: View {
     }
 }
 
-// MARK: - Sessoes Recentes Section (data from API activity feed)
+// MARK: - Sessões Recentes Section (data from API activity feed)
 
 private struct SessoesRecentesSection: View {
     let activities: [ActivityFeedItem]
@@ -767,7 +767,7 @@ private struct SessoesRecentesSection: View {
                     .font(.system(size: 18))
                     .foregroundStyle(GoldAccent.textGoldDim.opacity(0.50))
 
-                Text("Nenhuma sessao recente")
+                Text("Nenhuma sessão recente")
                     .font(.system(size: 12))
                     .foregroundStyle(GoldAccent.textGoldDim)
 

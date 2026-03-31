@@ -151,7 +151,7 @@ struct TranscricaoPendingContent: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("Esta gravacao ainda nao foi transcrita")
+            Text("Esta gravação ainda não foi transcrita")
                 .font(.system(size: 13))
                 .foregroundStyle(Color.white.opacity(0.50))
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -582,7 +582,7 @@ struct TranscricaoFlashcardsTab: View {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 12, weight: .semibold))
-                            Text("Nova gravacao")
+                            Text("Nova gravação")
                                 .font(.system(size: 10, weight: .medium))
                         }
                         .foregroundStyle(TealColors.accentLight)

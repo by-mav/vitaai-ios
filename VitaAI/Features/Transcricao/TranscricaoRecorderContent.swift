@@ -80,7 +80,7 @@ struct TranscricaoRecorderArea: View {
                 // Stop button (only visible when recording)
                 if isRecording {
                     Button(action: onToggle) {
-                        Text("Parar gravacao")
+                        Text("Parar gravação")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(TealColors.accentBright.opacity(0.85))
                             .frame(maxWidth: .infinity)
@@ -221,7 +221,7 @@ struct TranscricaoRecordingsListSection: View {
                 .padding(.horizontal, 16)
 
             // Section label
-            Text("GRAVACOES")
+            Text("GRAVAÇÕES")
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(VitaColors.textWarm.opacity(0.55))
                 .tracking(0.5)
@@ -241,7 +241,7 @@ struct TranscricaoRecordingsListSection: View {
                         .font(.system(size: 24))
                         .foregroundStyle(TealColors.accent.opacity(0.35))
 
-                    Text("Nenhuma gravacao ainda")
+                    Text("Nenhuma gravação ainda")
                         .font(.system(size: 12))
                         .foregroundStyle(Color.white.opacity(0.45))
 
