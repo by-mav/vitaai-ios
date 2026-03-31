@@ -203,11 +203,7 @@ struct MainTabView: View {
         case .faculdade:
             AgendaScreen()
         case .progresso:
-            ProfileScreen(
-                authManager: authManager,
-                onNavigateToConfiguracoes: { router.navigate(to: .configuracoes) },
-                onNavigateToAchievements: { router.navigate(to: .achievements) }
-            )
+            ProgressoScreen()
         }
     }
 
