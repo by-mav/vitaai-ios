@@ -1,58 +1,70 @@
 import SwiftUI
 
-// MARK: - VitaAI Gold Ambient Glass Design System
-// DO NOT hardcode Color(hex:) here — all values must come from VitaTokens.
-// Source of truth: packages/design-tokens/tokens.json → node generate.mjs
+// MARK: - VitaAI Gold Glassmorphism Design System
+// Source of truth: mockup CSS at vita-design-system.css
+// All values extracted from actual mockup rgba() values.
 
 enum VitaColors {
-    // Accent: Gold (ONLY accent color)
-    static let accent        = VitaTokens.DarkColors.accent          // gold-400 primary
-    static let accentDark    = VitaTokens.DarkColors.accentHover     // gold-500
-    static let accentLight   = VitaTokens.PrimitiveColors.gold300    // gold-300
-    static let accentSubtle  = VitaTokens.DarkColors.bgSubtle        // deep accent-tinted bg
+    // Accent: Gold (primary brand color)
+    static let accent        = VitaTokens.DarkColors.accent          // rgba(200,160,80)
+    static let accentDark    = VitaTokens.PrimitiveColors.gold600    // rgba(140,100,50)
+    static let accentLight   = VitaTokens.PrimitiveColors.gold300    // rgba(255,220,160)
+    static let accentSubtle  = VitaTokens.DarkColors.bgSubtle        // gold subtle bg
+    static let accentHover   = VitaTokens.DarkColors.accentHover     // rgba(255,200,120)
 
     // Ambient light colors (for background radial gradients)
-    static let ambientPrimary   = VitaTokens.DarkColors.accent          // gold-400
-    static let ambientSecondary = VitaTokens.DarkColors.accentHover     // gold-500
-    static let ambientTertiary  = VitaTokens.PrimitiveColors.gold600    // gold-600
+    static let ambientPrimary   = VitaTokens.PrimitiveColors.glowA      // rgba(255,192,95)
+    static let ambientSecondary = VitaTokens.PrimitiveColors.glowB      // rgba(255,200,120)
+    static let ambientTertiary  = VitaTokens.PrimitiveColors.gold400    // rgba(200,160,80)
 
     // Glow animation colors
-    static let glowA = VitaTokens.DarkColors.accent                  // gold-400
-    static let glowB = VitaTokens.PrimitiveColors.glowB              // warm gold glow
-    static let glowC = VitaTokens.PrimitiveColors.glowC              // lighter gold glow
+    static let glowA = VitaTokens.PrimitiveColors.glowA              // rgba(255,192,95)
+    static let glowB = VitaTokens.PrimitiveColors.glowB              // rgba(255,200,120)
+    static let glowC = VitaTokens.PrimitiveColors.glowC              // rgba(200,160,80)
 
-    // Surfaces — near-black with warm tint
+    // Surfaces — warm near-black
     static let black           = VitaTokens.PrimitiveColors.black
-    static let surface         = VitaTokens.DarkColors.bg
+    static let surface         = VitaTokens.DarkColors.bg             // #08060a
     static let surfaceElevated = VitaTokens.DarkColors.bgElevated
-    static let surfaceCard     = VitaTokens.DarkColors.bgCard
-    static let surfaceBorder   = VitaTokens.DarkColors.borderSurface  // warm-tinted border
+    static let surfaceCard     = VitaTokens.DarkColors.bgCard         // rgba(12,9,7)
+    static let surfaceBorder   = VitaTokens.DarkColors.borderSurface  // rgba(255,240,214,0.04)
 
-    // Glass (fine-tuned opacities — no exact token, intentional)
-    static let glassBg        = Color.white.opacity(0.025)
-    static let glassBorder    = Color.white.opacity(0.04)
-    static let glassHighlight = Color.white.opacity(0.06)
+    // Glass — 3-layer system (matches mockup .g3 / .gpanel)
+    static let glassBg        = Color(red: 0.047, green: 0.035, blue: 0.027).opacity(0.92) // rgba(12,9,7,0.92)
+    static let glassBorder    = Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.14)   // rgba(255,200,120,0.14)
+    static let glassHighlight = Color(red: 1.0, green: 0.941, blue: 0.824).opacity(0.10)   // rgba(255,240,210,0.10)
+    static let glassInnerLight = VitaTokens.PrimitiveColors.gold700                         // rgba(200,155,70)
 
-    // Text
+    // Text — warm white
     static let white         = VitaTokens.PrimitiveColors.white
-    static let textPrimary   = VitaTokens.DarkColors.text
-    static let textSecondary = VitaTokens.DarkColors.textSecondary
-    static let textTertiary  = VitaTokens.DarkColors.textMuted
+    static let textPrimary   = VitaTokens.DarkColors.text            // rgba(255,252,248,0.96)
+    static let textSecondary = VitaTokens.DarkColors.textSecondary   // rgba(255,240,215,0.40)
+    static let textTertiary  = VitaTokens.DarkColors.textMuted       // rgba(255,240,215,0.25)
+
+    // Section label
+    static let sectionLabel  = Color(red: 1.0, green: 0.945, blue: 0.843).opacity(0.55) // rgba(255,241,215,0.55)
+
+    // Subtle warm white (base for opacity variations)
+    static let textWarm      = Color(red: 1.0, green: 0.941, blue: 0.843)               // rgba(255,240,215) — use with .opacity()
 
     // Semantic data colors
     static let dataGreen  = VitaTokens.PrimitiveColors.green500     // #22c55e
     static let dataRed    = VitaTokens.PrimitiveColors.red500       // #ef4444
     static let dataAmber  = VitaTokens.PrimitiveColors.amber500     // #f59e0b
     static let dataBlue   = VitaTokens.PrimitiveColors.blue400      // #60a5fa
-    static let dataIndigo = VitaTokens.PrimitiveColors.indigo400    // #a78bfa (card back accent)
+    static let dataIndigo = VitaTokens.PrimitiveColors.indigo400    // #a78bfa
+    static let dataTeal   = VitaTokens.PrimitiveColors.teal400      // rgba(60,180,170)
 
-    // Gold (achievements & text)
-    static let goldText = Color(red: 255/255, green: 240/255, blue: 214/255)  // #FFF0D6
+    // Tool-specific accent colors
+    static let toolQBank       = VitaTokens.PrimitiveColors.gold400    // gold
+    static let toolSimulados   = VitaTokens.PrimitiveColors.blue400    // blue
+    static let toolTranscricao = VitaTokens.PrimitiveColors.teal400    // teal
+    static let toolFlashcards  = VitaTokens.PrimitiveColors.indigo400  // purple
+
+    // Derived / convenience
+    static let goldText = accentLight                                   // rgba(255,220,160)
     static let goldBarGradient = LinearGradient(
-        colors: [
-            Color(red: 200/255, green: 160/255, blue: 80/255).opacity(0.85),   // #C8A050
-            Color(red: 176/255, green: 138/255, blue: 58/255).opacity(0.65)    // #B08A3A
-        ],
+        colors: [accent, accentHover],
         startPoint: .leading,
         endPoint: .trailing
     )

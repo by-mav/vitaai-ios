@@ -1,0 +1,29 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - auth
+---
+# 01 - Login: verify app launches and shows either login or dashboard
+- launchApp:
+    clearState: false
+    stopApp: false
+
+# App should show login screen OR dashboard (already logged in)
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Continuar com Google|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: "01-app-launched"

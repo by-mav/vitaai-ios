@@ -1,5 +1,10 @@
 import SwiftUI
 
+// Gold accent → VitaColors references
+private let quizGold     = VitaColors.glassInnerLight   // rgba(200,155,70)
+private let quizGoldHi   = VitaColors.accentHover       // rgba(255,200,120)
+private let quizBg       = VitaColors.surface            // #08060a
+
 private let optionLetters = ["A", "B", "C", "D", "E"]
 
 struct SimuladoSessionScreen: View {
@@ -15,30 +20,64 @@ struct SimuladoSessionScreen: View {
     @State private var elapsedSeconds = 0
     @State private var timerTask: Task<Void, Never>? = nil
 
-    var timerStr: String {
-        "\(elapsedSeconds / 60):\(String(format: "%02d", elapsedSeconds % 60))"
+    private var totalSeconds: Int {
+        guard let vm else { return 1 }
+        return max(1, vm.state.questions.count * 120)
+    }
+
+    private var remainingSeconds: Int {
+        max(0, totalSeconds - elapsedSeconds)
+    }
+
+    private var timerStr: String {
+        let secs = vm?.state.timedMode == true ? remainingSeconds : elapsedSeconds
+        return String(format: "%02d:%02d", secs / 60, secs % 60)
+    }
+
+    private var timerWarning: Bool {
+        guard vm?.state.timedMode == true else { return false }
+        return remainingSeconds < 300 && remainingSeconds >= 120
+    }
+
+    private var timerCritical: Bool {
+        guard vm?.state.timedMode == true else { return false }
+        return remainingSeconds < 120
     }
 
     var body: some View {
         Group {
             if let vm {
                 ZStack {
-                    VitaColors.surface.ignoresSafeArea()
+                    // Background: #08060a + subtle blue radial gradients
+                    quizBg.ignoresSafeArea()
+                    RadialGradient(
+                        colors: [Color(red: 30/255, green: 80/255, blue: 160/255).opacity(0.10), Color.clear],
+                        center: UnitPoint(x: 0.5, y: 0.2),
+                        startRadius: 0, endRadius: 280
+                    ).ignoresSafeArea()
+                    RadialGradient(
+                        colors: [Color(red: 40/255, green: 100/255, blue: 180/255).opacity(0.06), Color.clear],
+                        center: UnitPoint(x: 0.8, y: 0.7),
+                        startRadius: 0, endRadius: 200
+                    ).ignoresSafeArea()
+
                     if vm.state.isLoading || vm.state.currentQuestion == nil {
-                        ProgressView().tint(VitaColors.accent)
+                        loadingView
                     } else {
                         sessionContent(vm: vm)
                     }
                 }
-                .onChange(of: vm.state.result) { _, result in
+                .onChange(of: vm.state.result) { result in
                     if result != nil {
                         onFinished(vm.state.currentAttemptId ?? attemptId)
                     }
                 }
+                .onChange(of: vm.state.timedMode) { timed in
+                    if timed && remainingSeconds <= 0 { vm.finishSimulado() }
+                }
                 .sheet(isPresented: $showGrid) { gridSheet(vm: vm) }
                 .sheet(isPresented: $showExplanationSheet) { explanationSheet(vm: vm) }
                 .alert("Finalizar?", isPresented: $showFinishDialog) {
-                    let unanswered = vm.state.questions.count - vm.state.answers.count
                     Button("Finalizar", role: .destructive) { vm.finishSimulado() }
                     Button("Continuar", role: .cancel) {}
                 } message: {
@@ -51,8 +90,8 @@ struct SimuladoSessionScreen: View {
                 }
             } else {
                 ZStack {
-                    VitaColors.surface.ignoresSafeArea()
-                    ProgressView().tint(VitaColors.accent)
+                    quizBg.ignoresSafeArea()
+                    loadingView
                 }
             }
         }
@@ -68,116 +107,227 @@ struct SimuladoSessionScreen: View {
         .onDisappear { timerTask?.cancel() }
     }
 
+    // MARK: - Loading
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .tint(quizGold)
+                .scaleEffect(1.2)
+            Text("Carregando simulado...")
+                .font(.system(size: 13))
+                .foregroundStyle(VitaColors.white.opacity(0.55))
+        }
+    }
+
+    // MARK: - Session
+
     @ViewBuilder
     private func sessionContent(vm: SimuladoViewModel) -> some View {
         if let question = vm.state.currentQuestion {
-        let options = question.parsedOptions
-        let selectedIdx = vm.state.answers[question.id]
-        let isExam = vm.state.isExamMode
+            let options = question.parsedOptions
+            let selectedIdx = vm.state.answers[question.id]
+            let isExam = vm.state.isExamMode
+            let showFeedback = vm.state.showFeedback && !isExam
+            let isAnswered = showFeedback
 
-        VStack(spacing: 0) {
-            // Top bar
-            HStack(spacing: 8) {
-                Button(action: onBack) {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(VitaColors.textSecondary)
-                        .frame(width: 40, height: 40)
-                }
-
-                Text("Questão \(vm.state.currentQuestionIndex + 1)/\(vm.state.questions.count)")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-
-                Spacer()
-
-                Text(timerStr)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(VitaColors.textTertiary)
-
-                if let subj = question.subject, !subj.isEmpty {
-                    Text(subj)
-                        .font(.system(size: 10))
-                        .foregroundStyle(VitaColors.accent)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(VitaColors.accent.opacity(0.1))
-                        .clipShape(Capsule())
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-
-            // Statement + options
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(question.statement)
-                        .font(.system(size: 15))
-                        .foregroundStyle(VitaColors.textPrimary)
-                        .lineSpacing(4)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 20)
-
-                    ForEach(Array(options.enumerated()), id: \.offset) { idx, optionText in
-                        OptionRow(
-                            idx: idx,
-                            text: optionText,
-                            selectedIdx: selectedIdx,
-                            correctIdx: question.correctIdx,
-                            showFeedback: vm.state.showFeedback && !isExam
-                        ) {
-                            vm.selectAnswer(questionId: question.id, chosenIdx: idx)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, idx < options.count - 1 ? 8 : 0)
-                    }
-                }
-                .padding(.bottom, 16)
-            }
-
-            // Bottom actions
-            VStack(spacing: 8) {
-                if vm.state.showFeedback && !isExam {
-                    // Immediate mode after confirm
-                    HStack(spacing: 10) {
-                        Button {
-                            vm.loadExplanation(questionId: question.id)
-                            showExplanationSheet = true
-                        } label: {
-                            Text("Ver Explicação")
+            VStack(spacing: 0) {
+                // ── Header ──────────────────────────────────────
+                HStack(spacing: 10) {
+                    Button(action: onBack) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(VitaColors.accent)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 46)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.accent, lineWidth: 1))
+                            Text("Sair")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                        .frame(minWidth: 52, alignment: .leading)
+                    }
+
+                    Spacer()
+
+                    Text("Questão \(vm.state.currentQuestionIndex + 1) de \(vm.state.questions.count)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(VitaColors.white.opacity(0.65))
+
+                    Spacer()
+
+                    if vm.state.timedMode {
+                        Text(timerStr)
+                            .font(.system(size: 14, weight: .bold).monospacedDigit())
+                            .foregroundStyle(timerCritical
+                                ? Color(red: 239/255, green: 68/255, blue: 68/255).opacity(0.92)
+                                : timerWarning
+                                    ? Color(red: 245/255, green: 180/255, blue: 60/255).opacity(0.92)
+                                    : VitaColors.white.opacity(0.85))
+                            .frame(minWidth: 52, alignment: .trailing)
+                            .opacity(timerCritical ? (elapsedSeconds % 2 == 0 ? 1 : 0.55) : 1)
+                            .animation(.easeInOut(duration: 0.4), value: elapsedSeconds)
+                    } else {
+                        Spacer().frame(minWidth: 52)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+
+                // ── Progress bar (3px gold gradient) ───────────
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.06))
+                        let pct = vm.state.questions.isEmpty ? 0.0
+                            : CGFloat(vm.state.currentQuestionIndex) / CGFloat(vm.state.questions.count)
+                        Capsule()
+                            .fill(LinearGradient(
+                                colors: [quizGold.opacity(0.70), quizGoldHi.opacity(0.50)],
+                                startPoint: .leading, endPoint: .trailing
+                            ))
+                            .frame(width: geo.size.width * pct)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: vm.state.currentQuestionIndex)
+                    }
+                }
+                .frame(height: 3)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 18)
+
+                // ── Scrollable content ───────────────────────
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+
+                        // ── Question card ──────────────────────
+                        ZStack(alignment: .topLeading) {
+                            // Card background
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(LinearGradient(
+                                    colors: [
+                                        Color(red: 12/255, green: 9/255, blue: 7/255).opacity(0.94),
+                                        Color(red: 14/255, green: 11/255, blue: 8/255).opacity(0.90)
+                                    ],
+                                    startPoint: UnitPoint(x: 0.5, y: 0),
+                                    endPoint: UnitPoint(x: 0.5, y: 1)
+                                ))
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(quizGold.opacity(0.10), lineWidth: 1)
+                            // Inner corner glow
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(VitaColors.textWarm.opacity(0.10), lineWidth: 0.5)
+                                .padding(0.5)
+
+                            VStack(alignment: .leading, spacing: 14) {
+                                // Topic tag
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(Color(red: 200/255, green: 155/255, blue: 70/255).opacity(0.45))
+                                        .frame(width: 4, height: 4)
+                                    Text((question.topic ?? question.subject ?? "Geral").uppercased())
+                                        .font(.system(size: 10, weight: .bold))
+                                        .tracking(1.0)
+                                        .foregroundStyle(Color(red: 200/255, green: 155/255, blue: 70/255).opacity(0.65))
+                                }
+
+                                // Question text
+                                Text(question.statement)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(VitaColors.white.opacity(0.92))
+                                    .lineSpacing(5.4)
+                                    .tracking(-0.15)
+                            }
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 20)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 14)
+                        .shadow(color: .black.opacity(0.50), radius: 25, y: 10)
+
+                        // ── Options ────────────────────────────
+                        VStack(spacing: 8) {
+                            ForEach(Array(options.enumerated()), id: \.offset) { idx, optionText in
+                                QuizOptionRow(
+                                    idx: idx,
+                                    text: optionText,
+                                    selectedIdx: selectedIdx,
+                                    correctIdx: question.correctIdx,
+                                    showFeedback: showFeedback
+                                ) {
+                                    vm.selectAnswer(questionId: question.id, chosenIdx: idx)
+                                    if !isExam { vm.confirmAnswer() }
+                                    else { vm.confirmAnswer() }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 14)
+
+                        // ── Inline feedback card ───────────────
+                        if isAnswered {
+                            let isCorrect = vm.state.lastAnswerCorrect == true
+                            QuizFeedbackCard(
+                                isCorrect: isCorrect,
+                                explanation: question.explanation,
+                                onViewDetail: question.explanation == nil ? {
+                                    vm.loadExplanation(questionId: question.id)
+                                    showExplanationSheet = true
+                                } : nil
+                            )
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .offset(y: 6)),
+                                removal: .opacity
+                            ))
                         }
 
-                        Button {
-                            if vm.state.currentQuestionIndex < vm.state.questions.count - 1 {
-                                vm.nextQuestion()
-                            } else {
-                                vm.finishSimulado()
-                            }
-                        } label: {
-                            Text(vm.state.currentQuestionIndex < vm.state.questions.count - 1 ? "Próxima" : "Finalizar")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(VitaColors.surface)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 46)
-                                .background(VitaColors.accent)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
+                        Spacer(minLength: 120)
                     }
-                } else {
-                    // Confirm row + exam controls
-                    HStack(spacing: 8) {
-                        if isExam {
+                }
+
+                // ── Bottom actions ─────────────────────────────
+                VStack(spacing: 8) {
+                    if isAnswered {
+                        // Full-width gold nav button
+                        let isLast = vm.state.currentQuestionIndex == vm.state.questions.count - 1
+                        Button {
+                            if isLast { vm.finishSimulado() }
+                            else { vm.nextQuestion() }
+                        } label: {
+                            Text(isLast ? "Finalizar Simulado" : "Próxima Questão →")
+                                .font(.system(size: 15, weight: .bold))
+                                .tracking(-0.15)
+                                .foregroundStyle(Color.white.opacity(0.96))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(
+                                    LinearGradient(
+                                        colors: [quizGold.opacity(0.80), Color(red: 160/255, green: 110/255, blue: 40/255).opacity(0.65)],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                    )
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .shadow(color: quizGold.opacity(0.25), radius: 12, y: 4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(Color(red: 1, green: 235/255, blue: 180/255).opacity(0.22),
+                                                lineWidth: 0.5)
+                                        .padding(0.5)
+                                )
+                        }
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .offset(y: 4)),
+                            removal: .opacity
+                        ))
+                    } else if isExam {
+                        // Exam mode: mark + grid + confirm
+                        HStack(spacing: 8) {
                             Button {
                                 vm.toggleMark(question.questionNo)
                             } label: {
                                 Image(systemName: vm.state.markedQuestions.contains(question.questionNo) ? "bookmark.fill" : "bookmark")
                                     .font(.system(size: 18))
-                                    .foregroundStyle(vm.state.markedQuestions.contains(question.questionNo) ? VitaColors.dataAmber : VitaColors.textTertiary)
-                                    .frame(width: 40, height: 40)
+                                    .foregroundStyle(vm.state.markedQuestions.contains(question.questionNo)
+                                        ? VitaColors.dataAmber : VitaColors.textTertiary)
+                                    .frame(width: 44, height: 44)
                             }
 
                             Button {
@@ -186,39 +336,39 @@ struct SimuladoSessionScreen: View {
                                 Image(systemName: "square.grid.3x3")
                                     .font(.system(size: 18))
                                     .foregroundStyle(VitaColors.textTertiary)
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 44, height: 44)
                             }
-                        }
 
-                        Spacer()
+                            Spacer()
 
-                        Button {
-                            vm.confirmAnswer()
-                        } label: {
-                            Text("Confirmar")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(VitaColors.surface)
-                                .padding(.horizontal, 32)
-                                .frame(height: 46)
-                                .background(selectedIdx != nil ? VitaColors.accent : VitaColors.accent.opacity(0.4))
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                            Button {
+                                vm.confirmAnswer()
+                            } label: {
+                                Text("Confirmar")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(quizBg)
+                                    .padding(.horizontal, 32)
+                                    .frame(height: 46)
+                                    .background(selectedIdx != nil ? quizGold : quizGold.opacity(0.4))
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            .disabled(selectedIdx == nil)
                         }
-                        .disabled(selectedIdx == nil)
+                    }
+
+                    Button {
+                        showFinishDialog = true
+                    } label: {
+                        Text(isExam ? "Finalizar Prova" : "Encerrar Simulado")
+                            .font(.system(size: 13))
+                            .foregroundStyle(VitaColors.textTertiary)
                     }
                 }
-
-                Button {
-                    showFinishDialog = true
-                } label: {
-                    Text(isExam ? "Finalizar Prova" : "Encerrar Simulado")
-                        .font(.system(size: 13))
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
+                .animation(.easeInOut(duration: 0.3), value: isAnswered)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 20)
         }
-        } // end if let question
     }
 
     // MARK: - Grid Sheet
@@ -236,8 +386,7 @@ struct SimuladoSessionScreen: View {
                     let isAnswered = vm.state.answers[q.id] != nil
                     let isMarked = vm.state.markedQuestions.contains(q.questionNo)
                     let isCurrent = idx == vm.state.currentQuestionIndex
-
-                    let bg: Color = isMarked ? VitaColors.dataAmber : isAnswered ? VitaColors.accent : VitaColors.glassBorder
+                    let bg: Color = isMarked ? VitaColors.dataAmber : isAnswered ? quizGold : VitaColors.glassBorder
 
                     Button {
                         vm.goToQuestion(idx)
@@ -245,7 +394,7 @@ struct SimuladoSessionScreen: View {
                     } label: {
                         Text("\(idx + 1)")
                             .font(.system(size: 12, weight: isCurrent ? .bold : .medium))
-                            .foregroundStyle(isAnswered || isMarked ? VitaColors.surface : VitaColors.textSecondary)
+                            .foregroundStyle(isAnswered || isMarked ? quizBg : VitaColors.textSecondary)
                             .frame(width: 40, height: 40)
                             .background(bg.opacity(isCurrent ? 1 : 0.65))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -259,7 +408,7 @@ struct SimuladoSessionScreen: View {
             }, variant: .secondary)
         }
         .padding(20)
-        .background(VitaColors.surface)
+        .background(quizBg)
         .presentationDetents([.medium, .large])
     }
 
@@ -275,7 +424,7 @@ struct SimuladoSessionScreen: View {
                     .padding(.top, 20)
 
                 if vm.state.isLoadingExplanation {
-                    HStack { Spacer(); ProgressView().tint(VitaColors.accent); Spacer() }
+                    HStack { Spacer(); ProgressView().tint(quizGold); Spacer() }
                         .frame(height: 80)
                 } else if let explanation = vm.state.currentExplanation {
                     Text(explanation.general)
@@ -312,7 +461,7 @@ struct SimuladoSessionScreen: View {
             }
             .padding(.horizontal, 20)
         }
-        .background(VitaColors.surface)
+        .background(quizBg)
         .onDisappear { vm.dismissExplanation() }
         .presentationDetents([.medium, .large])
     }
@@ -326,14 +475,18 @@ struct SimuladoSessionScreen: View {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 elapsedSeconds = Int(Date().timeIntervalSince(start))
+                if vm?.state.timedMode == true && remainingSeconds <= 0 {
+                    vm?.finishSimulado()
+                    break
+                }
             }
         }
     }
 }
 
-// MARK: - Option Row
+// MARK: - Quiz Option Row
 
-private struct OptionRow: View {
+private struct QuizOptionRow: View {
     let idx: Int
     let text: String
     let selectedIdx: Int?
@@ -343,27 +496,57 @@ private struct OptionRow: View {
 
     private var isSelected: Bool { selectedIdx == idx }
     private var isCorrect: Bool { idx == correctIdx }
-    private var isWrongChoice: Bool { showFeedback && isSelected && !isCorrect }
+    private var isWrong: Bool { showFeedback && isSelected && !isCorrect }
 
     private var borderColor: Color {
-        if showFeedback && isCorrect { return VitaColors.dataGreen }
-        if isWrongChoice { return VitaColors.dataRed }
-        if isSelected { return VitaColors.accent }
-        return VitaColors.glassBorder
+        if showFeedback && isCorrect { return Color(red: 34/255, green: 197/255, blue: 94/255).opacity(0.45) }
+        if isWrong { return Color(red: 239/255, green: 68/255, blue: 68/255).opacity(0.40) }
+        if isSelected { return VitaColors.accentHover.opacity(0.40) }
+        return VitaColors.accentHover.opacity(0.10)
     }
 
-    private var bgColor: Color {
-        if showFeedback && isCorrect { return VitaColors.dataGreen.opacity(0.12) }
-        if isWrongChoice { return VitaColors.dataRed.opacity(0.12) }
-        if isSelected { return VitaColors.accent.opacity(0.1) }
-        return Color.clear
+    private var bgColors: [Color] {
+        if showFeedback && isCorrect {
+            return [Color(red: 8/255, green: 24/255, blue: 14/255).opacity(0.95),
+                    Color(red: 6/255, green: 18/255, blue: 10/255).opacity(0.92)]
+        }
+        if isWrong {
+            return [Color(red: 22/255, green: 8/255, blue: 8/255).opacity(0.95),
+                    Color(red: 16/255, green: 6/255, blue: 6/255).opacity(0.92)]
+        }
+        if isSelected {
+            return [Color(red: 24/255, green: 16/255, blue: 8/255).opacity(0.95),
+                    Color(red: 16/255, green: 11/255, blue: 7/255).opacity(0.92)]
+        }
+        return [Color(red: 12/255, green: 9/255, blue: 7/255).opacity(0.85),
+                Color(red: 10/255, green: 8/255, blue: 6/255).opacity(0.80)]
     }
 
-    private var letterColor: Color {
-        if showFeedback && isCorrect { return VitaColors.dataGreen }
-        if isWrongChoice { return VitaColors.dataRed }
-        if isSelected { return VitaColors.accent }
-        return VitaColors.textTertiary
+    private var letterBg: Color {
+        if showFeedback && isCorrect { return Color(red: 34/255, green: 197/255, blue: 94/255).opacity(0.20) }
+        if isWrong { return Color(red: 239/255, green: 68/255, blue: 68/255).opacity(0.20) }
+        if isSelected { return Color(red: 200/255, green: 155/255, blue: 70/255).opacity(0.20) }
+        return Color.white.opacity(0.06)
+    }
+
+    private var letterBorder: Color {
+        if showFeedback && isCorrect { return Color(red: 34/255, green: 197/255, blue: 94/255).opacity(0.35) }
+        if isWrong { return Color(red: 239/255, green: 68/255, blue: 68/255).opacity(0.30) }
+        if isSelected { return VitaColors.accentHover.opacity(0.30) }
+        return VitaColors.accentHover.opacity(0.12)
+    }
+
+    private var letterFg: Color {
+        if showFeedback && isCorrect { return Color(red: 130/255, green: 220/255, blue: 140/255).opacity(0.92) }
+        if isWrong { return Color(red: 255/255, green: 120/255, blue: 100/255).opacity(0.92) }
+        if isSelected { return VitaColors.accentLight.opacity(0.90) }
+        return VitaColors.textWarm.opacity(0.55)
+    }
+
+    private var textFg: Color {
+        if showFeedback && isCorrect { return Color(red: 200/255, green: 240/255, blue: 210/255).opacity(0.92) }
+        if isWrong { return Color(red: 255/255, green: 200/255, blue: 190/255).opacity(0.85) }
+        return VitaColors.white.opacity(0.82)
     }
 
     private var letter: String {
@@ -371,30 +554,109 @@ private struct OptionRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(isSelected || (showFeedback && isCorrect) ? borderColor.opacity(0.15) : VitaColors.glassBg)
-                    .frame(width: 28, height: 28)
-                Text(letter)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(letterColor)
-            }
+        Button(action: { if !showFeedback { onSelect() } }) {
+            HStack(alignment: .top, spacing: 12) {
+                // Letter badge: 24×24, cornerRadius 8 (rounded square per mockup)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(letterBg)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(letterBorder, lineWidth: 1)
+                        )
+                    Text(letter)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(letterFg)
+                }
+                .frame(width: 24, height: 24)
 
-            Text(text)
-                .font(.system(size: 14))
-                .foregroundStyle(VitaColors.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(text)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(textFg)
+                    .lineSpacing(2.5)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
+            .background(
+                LinearGradient(
+                    colors: bgColors,
+                    startPoint: UnitPoint(x: 0.5, y: 0),
+                    endPoint: UnitPoint(x: 0.5, y: 1)
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(borderColor, lineWidth: 1)
+            )
         }
-        .padding(12)
-        .background(bgColor)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(borderColor, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .contentShape(RoundedRectangle(cornerRadius: 12))
-        .onTapGesture {
-            if !showFeedback { onSelect() }
-        }
-        .animation(.easeInOut(duration: 0.25), value: showFeedback)
-        .animation(.easeInOut(duration: 0.25), value: isSelected)
+        .buttonStyle(.plain)
+        .disabled(showFeedback)
+        .animation(.easeInOut(duration: 0.18), value: isSelected)
+        .animation(.easeInOut(duration: 0.18), value: showFeedback)
     }
 }
+
+// MARK: - Inline Feedback Card
+
+private struct QuizFeedbackCard: View {
+    let isCorrect: Bool
+    let explanation: String?
+    let onViewDetail: (() -> Void)?
+
+    private var accent: Color {
+        isCorrect ? Color(red: 34/255, green: 197/255, blue: 94/255)
+                  : Color(red: 239/255, green: 68/255, blue: 68/255)
+    }
+
+    private var bgColors: [Color] {
+        isCorrect
+            ? [Color(red: 8/255, green: 20/255, blue: 12/255).opacity(0.90),
+               Color(red: 6/255, green: 16/255, blue: 10/255).opacity(0.88)]
+            : [Color(red: 20/255, green: 8/255, blue: 8/255).opacity(0.90),
+               Color(red: 16/255, green: 6/255, blue: 6/255).opacity(0.88)]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(isCorrect ? "✓ Correto!" : "✗ Incorreto")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(
+                    isCorrect
+                        ? Color(red: 130/255, green: 220/255, blue: 140/255).opacity(0.90)
+                        : Color(red: 255/255, green: 120/255, blue: 100/255).opacity(0.90)
+                )
+
+            if let explanation, !explanation.isEmpty {
+                Text(explanation)
+                    .font(.system(size: 12))
+                    .foregroundStyle(VitaColors.white.opacity(0.65))
+                    .lineSpacing(3.3)
+            } else if let onViewDetail {
+                Button(action: onViewDetail) {
+                    Text("Ver explicação detalhada →")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color(red: 200/255, green: 155/255, blue: 70/255).opacity(0.80))
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: bgColors,
+                startPoint: UnitPoint(x: 0.5, y: 0),
+                endPoint: UnitPoint(x: 0.5, y: 1)
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(accent.opacity(0.22), lineWidth: 1)
+        )
+        .shadow(color: accent.opacity(0.06), radius: 7)
+    }
+}
+

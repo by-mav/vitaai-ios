@@ -1,0 +1,102 @@
+appId: com.bymav.vitaai
+---
+# Dismiss password save dialog if present
+- tapOn:
+    text: "Agora Não"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: e2e-05-sleep
+
+# Wake up Vita
+- tapOn: "Acordar Vita"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Wait for typewriter to finish
+- extendedWaitUntil:
+    visible: "Digite sua universidade..."
+    timeout: 10000
+
+- takeScreenshot: e2e-06-welcome
+
+# Type university
+- tapOn: "Digite sua universidade..."
+- inputText: "ulbra"
+
+# Wait for dropdown
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: e2e-07-search
+
+# Tap ULBRA Porto Alegre
+- tapOn:
+    text: "ULBRA Porto Alegre"
+    optional: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: e2e-08-selected
+
+# Continue to connectors
+- tapOn: "Continuar"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- takeScreenshot: e2e-09-connectors
+
+# Continue past connectors
+- tapOn: "Continuar"
+- waitForAnimationToEnd:
+    timeout: 8000
+
+- takeScreenshot: e2e-10-syncing
+
+# Wait for sync step to auto-advance or click continue
+- waitForAnimationToEnd:
+    timeout: 10000
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: e2e-11-subjects
+
+# Continue past subjects
+- tapOn: "Continuar"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: e2e-12-notifications
+
+# Tap notifications button
+- tapOn: "Permitir notificações"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Dismiss iOS permission dialog
+- tapOn:
+    text: "Permitir"
+    optional: true
+- tapOn:
+    text: "Allow"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: e2e-13-trial
+
+# Start trial
+- tapOn: "Começar 7 dias grátis"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: e2e-14-done
+
+# Finish
+- tapOn: "Bora estudar"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- takeScreenshot: e2e-15-dashboard

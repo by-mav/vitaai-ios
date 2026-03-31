@@ -12,6 +12,11 @@ struct ProgressResponse: Codable {
     var subjects: [SubjectProgress] = []
     var weekGrades: [GradeEntry] = []
     var upcomingExams: [ExamEntry] = []
+    var heatmap: [Int] = []
+    var weeklyHours: [Double] = Array(repeating: 0, count: 7)
+    var weeklyGoalHours: Double = 0
+    var weeklyActualHours: Double = 0
+    var dailyStudyGoalMinutes: Int = 120
 }
 
 struct SubjectProgress: Codable {
@@ -19,6 +24,7 @@ struct SubjectProgress: Codable {
     var accuracy: Double = 0.0
     var hoursSpent: Double = 0.0
     var cardsDue: Int = 0
+    var questionCount: Int = 0
 }
 
 struct GradeEntry: Codable, Identifiable {
@@ -34,11 +40,24 @@ struct GradeEntry: Codable, Identifiable {
 
 struct ExamEntry: Codable, Identifiable {
     var id: String = ""
-    var subjectName: String = ""
-    var examType: String = ""
+    var title: String = ""
+    var subjectId: String?
+    var subjectName: String?
+    var examType: String?
     var date: String = ""
+    var result: Double?
     var notes: String?
     var daysUntil: Int = 0
+    var weight: Double?
+    var pointsPossible: Double?
+    var conceptCards: Int?
+    var practiceCards: Int?
+    var userId: String?
+    var createdAt: String?
+    var deletedAt: String?
+
+    // Compat: display name from title or subjectName
+    var displayName: String { title.isEmpty ? (subjectName ?? "Prova") : title }
 }
 
 struct ExamsResponse: Codable {
@@ -89,16 +108,45 @@ struct FlashcardDeckEntry: Codable, Identifiable {
     var id: String = ""
     var title: String = ""
     var subjectId: String?
+    var disciplineId: String?
+    var userId: String?
+    var createdAt: String?
     var updatedAt: String?
+    var deletedAt: String?
     var cards: [FlashcardEntry] = []
 }
 
 struct FlashcardEntry: Codable, Identifiable {
+    // Fields from the REAL API (/api/mockup/flashcards)
     var id: String = ""
     var front: String = ""
     var back: String = ""
     var nextReviewAt: String?
-    var easeFactor: Double = 2.5
-    var interval: Int = 0
-    var repetitions: Int = 0
+    var lastReviewAt: String?
+    var stability: Double?
+    var difficulty: Double?
+    var reps: Int = 0
+    var lapses: Int = 0
+    var state: String?
+    var scheduledDays: Int?
+    var tag: String?
+    var deckId: String?
+    var disciplineId: String?
+    var sourceQuestionId: String?
+    var createdAt: String?
+    var updatedAt: String?
+    var deletedAt: String?
+
+    // Backwards compat
+    var repetitions: Int { reps }
+    var easeFactor: Double { difficulty ?? 2.5 }
+    var interval: Int { scheduledDays ?? 0 }
+}
+
+struct FlashcardRecommended: Decodable, Identifiable {
+    var id: String { deckId }
+    var title: String = ""
+    var dueCount: Int = 0
+    var totalCards: Int = 0
+    var deckId: String = ""
 }

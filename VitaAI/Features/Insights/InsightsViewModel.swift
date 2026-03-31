@@ -60,9 +60,6 @@ final class InsightsViewModel {
         isLoading = true
         error = nil
 
-        // Load mock immediately so skeleton → data feels snappy
-        loadMock()
-
         do {
             // Fire all requests concurrently
             async let progressTask = api.getProgress()
@@ -127,7 +124,6 @@ final class InsightsViewModel {
 
         } catch {
             self.error = error.localizedDescription
-            // Keep mock data so screen isn't blank if we had it
         }
 
         isLoading = false
@@ -136,36 +132,6 @@ final class InsightsViewModel {
     /// Fetches WebAluno grades, returning nil on error (WebAluno is optional / may not be connected).
     private func tryFetchWebalunoGrades() async -> WebalunoGradesResponse? {
         do { return try await api.getWebalunoGrades() } catch { return nil }
-    }
-
-    // MARK: - Mock data (shown during initial load)
-
-    private func loadMock() {
-        streakDays = 7
-        avgAccuracy = 72.0
-        totalHours = 48.5
-        totalCards = 234
-        flashcardsDue = 12
-        todayCompleted = 3
-        todayTotal = 5
-        todayMinutes = 95
-        subjects = [
-            SubjectProgress(subjectId: "cm-cardio", accuracy: 78.0, hoursSpent: 12.5, cardsDue: 3),
-            SubjectProgress(subjectId: "cm-pneumo", accuracy: 65.0, hoursSpent: 8.0, cardsDue: 5),
-            SubjectProgress(subjectId: "cm-gastro", accuracy: 82.0, hoursSpent: 10.0, cardsDue: 1),
-            SubjectProgress(subjectId: "cir-geral", accuracy: 55.0, hoursSpent: 6.0, cardsDue: 8),
-            SubjectProgress(subjectId: "ped-geral", accuracy: 70.0, hoursSpent: 5.0, cardsDue: 2),
-        ]
-        upcomingExams = [
-            ExamEntry(id: "e1", subjectName: "Cardiologia", examType: "Prova", date: "2025-02-15", daysUntil: 12),
-            ExamEntry(id: "e2", subjectName: "Internato", examType: "OSCE", date: "2025-02-28", daysUntil: 25),
-        ]
-        // studyStats is left nil — the skeleton shows until real data arrives
-        // Build chart data from mock values
-        retentionHistory = buildRetentionCurve(accuracy: 72.0)
-        studyHeatmap = buildHeatmap(streak: 7, totalHours: 48.5)
-        forecastData = buildForecast(due: 12)
-        cardDistribution = buildDistribution(total: 234, due: 12)
     }
 
     // MARK: - Chart data builders

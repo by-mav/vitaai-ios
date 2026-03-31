@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 // MARK: - State
 
@@ -69,19 +70,32 @@ final class WebAlunoConnectViewModel {
             state.error = nil
             state.successMessage = nil
             do {
-                let result = try await api.connectWebalunoWithSession(
-                    sessionCookie: sessionCookie
-                )
-                if result.success {
-                    state.isConnecting = false
-                    state.isConnected = true
-                    state.status = "active"
-                    state.gradesCount = result.grades
-                    state.scheduleCount = result.schedule
-                    state.successMessage = "WebAluno conectado! \(result.grades) notas, \(result.schedule) aulas importadas."
-                } else {
-                    state.isConnecting = false
-                    state.error = result.error ?? "Sessão inválida ou expirada. Tente novamente."
+                let url = state.instanceUrl.isEmpty ? "https://ac3949.mannesoftprime.com.br" : state.instanceUrl
+                // Start Vita server-side crawl with cookies
+                let crawlResult = try await api.startVitaCrawl(cookies: sessionCookie, instanceUrl: url)
+                state.isConnecting = false
+                state.isConnected = true
+                state.status = "active"
+                state.successMessage = "Vita extraindo dados do portal..."
+                // Poll progress
+                if let syncId = crawlResult.syncId, !syncId.isEmpty {
+                    for _ in 0..<60 {
+                        try await Task.sleep(for: .seconds(2))
+                        let progress = try await api.getSyncProgress(syncId: syncId)
+                        state.successMessage = progress.label.isEmpty ? "Vita trabalhando..." : progress.label
+                        if progress.isDone {
+                            state.gradesCount = progress.grades
+                            state.scheduleCount = progress.schedule
+                            state.successMessage = "Extração completa! \(progress.grades) notas, \(progress.schedule) aulas"
+                            await loadStatus()
+                            return
+                        }
+                        if progress.isError {
+                            state.error = progress.label.isEmpty ? "Erro na extração" : progress.label
+                            return
+                        }
+                    }
+                    state.successMessage = "Vita continua em background..."
                 }
             } catch {
                 state.isConnecting = false

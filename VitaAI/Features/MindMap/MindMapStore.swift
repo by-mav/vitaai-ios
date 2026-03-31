@@ -7,6 +7,7 @@ import SwiftUI
 // @MainActor since SwiftData ModelContext requires main thread.
 
 @Observable
+@available(iOS 17, *)
 @MainActor
 final class MindMapStore {
     private let repository: MindMapRepository
@@ -16,6 +17,9 @@ final class MindMapStore {
     private(set) var mindMaps: [MindMap] = []
     private(set) var isLoading: Bool = false
     private(set) var error: String?
+
+    /// Optional sync manager — set by AppContainer after init.
+    var syncManager: MindMapSyncManager?
 
     init(repository: MindMapRepository) {
         self.repository = repository

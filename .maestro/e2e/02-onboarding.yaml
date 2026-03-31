@@ -1,0 +1,30 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - onboarding
+---
+# 02 - Onboarding: verify app handles onboarding or skips to dashboard
+# If already onboarded, this just verifies dashboard loads
+- launchApp:
+    clearState: false
+    stopApp: false
+
+# Wait for either onboarding or dashboard
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-onboarding-or-dashboard"

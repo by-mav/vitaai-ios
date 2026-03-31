@@ -1,0 +1,64 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - edge-case
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Back from Simulados
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+- takeScreenshot: "24-back-sim"
+
+# Back from Flashcards
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+- takeScreenshot: "24-back-flash"
+
+# Back from Questoes
+- tapOn:
+    text: "Questões"
+    optional: true
+- tapOn:
+    text: "Questoes"
+    optional: true
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+- takeScreenshot: "24-back-quest"
+
+# Back from Transcricao
+- tapOn:
+    text: "Transcrição"
+    optional: true
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+- takeScreenshot: "24-back-trans"

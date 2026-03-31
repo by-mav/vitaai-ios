@@ -5,6 +5,7 @@ import SwiftUI
 // Two-column grid with staggered entrance animation, pull-to-refresh,
 // create dialog, delete via swipe.
 
+@available(iOS 17, *)
 struct MindMapListView: View {
 
     let onBack: () -> Void
@@ -32,7 +33,7 @@ struct MindMapListView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                VitaColors.surface.ignoresSafeArea()
+                VitaScreenBg()
 
                 Group {
                     if viewModel.isLoading && viewModel.mindMaps.isEmpty {

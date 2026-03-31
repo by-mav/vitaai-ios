@@ -54,15 +54,7 @@ struct VitaAIApp: App {
         SentryConfig.initialize()
 
         #if DEBUG
-        // CI screenshot mode: inject demo session before AppContainer boots
-        // so AuthManager finds a valid token on first checkLoginStatus().
-        // Launch via: xcrun simctl launch <device> com.bymav.vitaai --vita-demo-login
-        if CommandLine.arguments.contains("--vita-demo-login") {
-            KeychainHelper.shared.save(key: "vita_session_token", value: "demo-ci-token")
-            UserDefaults.standard.set("Estudante CI", forKey: "vita_user_name")
-            UserDefaults.standard.set("ci@vitaai.app", forKey: "vita_user_email")
-            UserDefaults.standard.set(true, forKey: "vita_is_onboarded")
-        }
+        bootstrapLaunchState()
         #endif
     }
 
@@ -71,10 +63,55 @@ struct VitaAIApp: App {
             AppRouter(authManager: container.authManager)
                 .environment(\.appContainer, container)
                 .environment(\.subscriptionStatus, container.subscriptionStatus)
-                // Attach the shared ModelContainer so child views that use
-                // @Query or @Environment(\.modelContext) receive the same store.
-                .modelContainer(container.modelContainer)
+                // SwiftData (iOS 17+) - notes/mindmaps local persistence
+                .modifier(ModelContainerModifier(container: container))
                 .preferredColorScheme(.dark)
+        }
+    }
+}
+
+private extension VitaAIApp {
+    func bootstrapLaunchState() {
+        let defaults = UserDefaults.standard
+        let keychain = KeychainHelper.shared
+
+        if AppConfig.shouldResetOnboarding {
+            AppConfig.setOnboardingComplete(false, in: defaults)
+        }
+
+        if let injected = AppConfig.injectedSession {
+            keychain.save(key: "vita_session_token", value: injected.token)
+            if let name = injected.name { defaults.set(name, forKey: "vita_user_name") }
+            if let email = injected.email { defaults.set(email, forKey: "vita_user_email") }
+            if let image = injected.image { defaults.set(image, forKey: "vita_user_image") }
+            return
+        }
+
+        guard AppConfig.isE2EDemoMode else { return }
+
+        // Demo mode should look authenticated to the app without leaking a fake API token.
+        keychain.delete(key: "vita_session_token")
+        keychain.save(key: "vita_user_name", value: AppConfig.demoUserName)
+        keychain.save(key: "vita_user_email", value: AppConfig.demoUserEmail)
+        defaults.set(AppConfig.demoUserName, forKey: "vita_user_name")
+        defaults.set(AppConfig.demoUserEmail, forKey: "vita_user_email")
+        defaults.removeObject(forKey: "vita_user_image")
+
+        if !AppConfig.shouldResetOnboarding {
+            AppConfig.setOnboardingComplete(true, in: defaults)
+        }
+    }
+}
+
+// MARK: - SwiftData Compatibility (iOS 17+)
+struct ModelContainerModifier: ViewModifier {
+    let container: AppContainer
+    
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content.modelContainer(container.modelContainer)
+        } else {
+            content // SwiftData not available on iOS 16
         }
     }
 }

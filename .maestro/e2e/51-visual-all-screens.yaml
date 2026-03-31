@@ -1,0 +1,101 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - visual
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Screenshot every main screen for visual comparison
+# Simulados
+- tapOn:
+    id: "tool_simulados"
+    optional: true
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "51-vis-simulados"
+- pressKey: back
+- waitForAnimationToEnd
+
+# Flashcards
+- tapOn:
+    id: "tool_flashcards"
+    optional: true
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "51-vis-flashcards"
+- pressKey: back
+- waitForAnimationToEnd
+
+# Questoes
+- tapOn:
+    id: "tool_questoes"
+    optional: true
+- tapOn:
+    text: "Questões"
+    optional: true
+- tapOn:
+    text: "Questoes"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "51-vis-questoes"
+- pressKey: back
+- waitForAnimationToEnd
+
+# Transcricao
+- tapOn:
+    id: "tool_transcricao"
+    optional: true
+- tapOn:
+    text: "Transcrição"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "51-vis-transcricao"
+- pressKey: back
+- waitForAnimationToEnd
+
+# Progresso
+- tapOn:
+    text: "Progresso"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "51-vis-progresso"
+
+# Faculdade
+- tapOn:
+    text: "Faculdade"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "51-vis-faculdade"
+
+# Home
+- tapOn:
+    text: "Início"
+    optional: true
+- tapOn:
+    text: "Home"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "51-vis-final"

@@ -5,6 +5,7 @@ import SwiftData
 // SwiftData persistent entity for mind maps.
 // nodesJson stores serialized MindMapData (matches Android approach).
 
+@available(iOS 17, *)
 @Model
 final class MindMapEntity {
     @Attribute(.unique) var id: String
@@ -16,6 +17,12 @@ final class MindMapEntity {
     var createdAt: Int64           // milliseconds since epoch
     var updatedAt: Int64           // milliseconds since epoch
 
+    // Cloud sync fields
+    /// Server-side UUID from studio_outputs. nil = local-only.
+    var remoteId: String?
+    /// Epoch millis when entity was last successfully synced.
+    var syncedAt: Int64?
+
     init(
         id: String,
         title: String,
@@ -24,7 +31,9 @@ final class MindMapEntity {
         courseName: String? = nil,
         coverColor: Int64,
         createdAt: Int64,
-        updatedAt: Int64
+        updatedAt: Int64,
+        remoteId: String? = nil,
+        syncedAt: Int64? = nil
     ) {
         self.id = id
         self.title = title
@@ -34,5 +43,7 @@ final class MindMapEntity {
         self.coverColor = coverColor
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.remoteId = remoteId
+        self.syncedAt = syncedAt
     }
 }

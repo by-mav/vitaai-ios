@@ -4,6 +4,7 @@ import SwiftUI
 
 struct VitaChatScreen: View {
     @Environment(\.appContainer) private var container
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ChatViewModel?
     @State private var showVoiceMode: Bool = false
     @FocusState private var isInputFocused: Bool
@@ -16,7 +17,7 @@ struct VitaChatScreen: View {
                 ProgressView()
                     .tint(VitaColors.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(VitaColors.surface)
+                    VitaScreenBg()
             }
         }
         .onAppear {
@@ -38,7 +39,7 @@ struct VitaChatScreen: View {
     @ViewBuilder
     private func chatContent(viewModel: ChatViewModel) -> some View {
         VStack(spacing: 0) {
-            ChatTopBar(viewModel: viewModel, onVoiceMode: { showVoiceMode = true })
+            ChatTopBar(viewModel: viewModel, onVoiceMode: { showVoiceMode = true }, onClose: { dismiss() })
 
             Divider()
                 .background(VitaColors.surfaceBorder)
@@ -51,7 +52,7 @@ struct VitaChatScreen: View {
 
             ChatInputBar(viewModel: viewModel, isInputFocused: $isInputFocused)
         }
-        .background(VitaColors.surface)
+        .vitaScreenBg()
         .ignoresSafeArea(.keyboard)
         .sheet(isPresented: Binding(
             get: { viewModel.showHistory },
@@ -77,16 +78,16 @@ private struct ChatTopBar: View {
                     .frame(width: 36, height: 36)
                 Image(systemName: "cross.vial.fill")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(VitaColors.accent)
+                    .foregroundColor(VitaColors.accent)
             }
 
             VStack(alignment: .leading, spacing: 1) {
                 Text("Vita IA")
                     .font(VitaTypography.titleMedium)
-                    .foregroundStyle(VitaColors.white)
+                    .foregroundColor(VitaColors.white)
                 Text(viewModel.isStreaming ? "Digitando..." : "Assistente de estudos")
                     .font(VitaTypography.labelSmall)
-                    .foregroundStyle(
+                    .foregroundColor(
                         viewModel.isStreaming ? VitaColors.accent : VitaColors.textTertiary
                     )
                     .animation(.easeInOut(duration: 0.2), value: viewModel.isStreaming)
@@ -102,10 +103,12 @@ private struct ChatTopBar: View {
                         .frame(width: 36, height: 36)
                     Image(systemName: "mic.fill")
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(VitaColors.accent)
+                        .foregroundColor(VitaColors.accent)
                 }
+                .frame(minWidth: 44, minHeight: 44)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Modo voz")
 
             // New conversation
             Button {
@@ -113,10 +116,11 @@ private struct ChatTopBar: View {
             } label: {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 18))
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
+                    .foregroundColor(VitaColors.textSecondary)
+                    .frame(minWidth: 44, minHeight: 44)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Nova conversa")
 
             // History
             Button {
@@ -125,10 +129,11 @@ private struct ChatTopBar: View {
             } label: {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 18))
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
+                    .foregroundColor(VitaColors.textSecondary)
+                    .frame(minWidth: 44, minHeight: 44)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Historico")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -147,7 +152,10 @@ private struct MessagesArea: View {
                     ForEach(viewModel.messages) { message in
                         MessageBubble(
                             message: message,
-                            isStreaming: viewModel.isStreaming && message.id == viewModel.messages.last?.id
+                            isStreaming: viewModel.isStreaming && message.id == viewModel.messages.last?.id,
+                            onRetry: message.isError ? {
+                                Task { await viewModel.retryLastMessage() }
+                            } : nil
                         )
                         .id(message.id)
                     }
@@ -156,10 +164,10 @@ private struct MessagesArea: View {
                 .padding(.top, 12)
                 .padding(.bottom, 16)
             }
-            .onChange(of: viewModel.messages.count) {
+            .onChange(of: viewModel.messages.count) { _ in
                 scrollToBottom(proxy: proxy)
             }
-            .onChange(of: viewModel.messages.last?.content) {
+            .onChange(of: viewModel.messages.last?.content) { _ in
                 scrollToBottom(proxy: proxy)
             }
         }
@@ -178,6 +186,7 @@ private struct MessagesArea: View {
 private struct MessageBubble: View {
     let message: ChatMessage
     let isStreaming: Bool
+    var onRetry: (() -> Void)? = nil
 
     @State private var cursorVisible: Bool = true
 
@@ -190,7 +199,12 @@ private struct MessageBubble: View {
                 userBubble
             } else {
                 assistantAvatar
-                assistantBubble
+                VStack(alignment: .leading, spacing: 8) {
+                    assistantBubble
+                    if message.isError, let onRetry {
+                        RetryButton(action: onRetry)
+                    }
+                }
                 Spacer(minLength: 52)
             }
         }
@@ -199,7 +213,7 @@ private struct MessageBubble: View {
     private var userBubble: some View {
         Text(message.content)
             .font(VitaTypography.bodyMedium)
-            .foregroundStyle(VitaColors.textPrimary)
+            .foregroundColor(VitaColors.textPrimary)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(VitaColors.accent.opacity(0.15))
@@ -217,7 +231,7 @@ private struct MessageBubble: View {
                 .frame(width: 28, height: 28)
             Image(systemName: "cross.vial.fill")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(VitaColors.accent)
+                .foregroundColor(VitaColors.accent)
         }
         .alignmentGuide(.bottom) { d in d[.bottom] }
     }
@@ -232,10 +246,10 @@ private struct MessageBubble: View {
                 // During streaming: plain text + cursor (avoid re-parsing markdown mid-stream)
                 (Text(message.content)
                     .font(VitaTypography.bodyMedium)
-                    .foregroundStyle(VitaColors.textPrimary)
+                    .foregroundColor(VitaColors.textPrimary)
                 + Text(cursorVisible ? " |" : "  ")
                     .font(VitaTypography.bodyMedium)
-                    .foregroundStyle(VitaColors.accent))
+                    .foregroundColor(VitaColors.accent))
             } else {
                 // Finished: render full Markdown
                 VitaMarkdown(content: message.content)
@@ -244,18 +258,21 @@ private struct MessageBubble: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VitaColors.glassBg)
+        .background(message.isError ? VitaColors.dataRed.opacity(0.06) : VitaColors.glassBg)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
+                .stroke(
+                    message.isError ? VitaColors.dataRed.opacity(0.3) : VitaColors.glassBorder,
+                    lineWidth: 1
+                )
         )
         .onAppear {
             if isStreaming {
                 startCursorBlink()
             }
         }
-        .onChange(of: isStreaming) { _, streaming in
+        .onChange(of: isStreaming) { streaming in
             if !streaming { cursorVisible = false }
         }
     }
@@ -266,6 +283,33 @@ private struct MessageBubble: View {
         ) {
             cursorVisible = false
         }
+    }
+}
+
+// MARK: - Retry Button
+
+private struct RetryButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Tentar novamente")
+                    .font(VitaTypography.labelSmall)
+            }
+            .foregroundColor(VitaColors.dataRed)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(VitaColors.dataRed.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(VitaColors.dataRed.opacity(0.25), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -324,16 +368,16 @@ private struct EmptyStateView: View {
                         .frame(width: 80, height: 80)
                     Image(systemName: "cross.vial.fill")
                         .font(.system(size: 32, weight: .medium))
-                        .foregroundStyle(VitaColors.accent)
+                        .foregroundColor(VitaColors.accent)
                 }
 
                 VStack(spacing: 6) {
                     Text("Vita IA")
                         .font(VitaTypography.headlineSmall)
-                        .foregroundStyle(VitaColors.white)
+                        .foregroundColor(VitaColors.white)
                     Text("Seu assistente de estudos de medicina")
                         .font(VitaTypography.bodySmall)
-                        .foregroundStyle(VitaColors.textSecondary)
+                        .foregroundColor(VitaColors.textSecondary)
                         .multilineTextAlignment(.center)
                 }
 
@@ -365,10 +409,10 @@ private struct SuggestionChip: View {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 11))
-                    .foregroundStyle(VitaColors.accent)
+                    .foregroundColor(VitaColors.accent)
                 Text(text)
                     .font(VitaTypography.labelMedium)
-                    .foregroundStyle(VitaColors.textSecondary)
+                    .foregroundColor(VitaColors.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
@@ -416,11 +460,11 @@ private struct StudioActionsMenu: View {
                                 .frame(width: 32, height: 32)
                             Image(systemName: action.icon)
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(VitaColors.accent)
+                                .foregroundColor(VitaColors.accent)
                         }
                         Text(action.label)
                             .font(VitaTypography.bodyMedium)
-                            .foregroundStyle(VitaColors.textPrimary)
+                            .foregroundColor(VitaColors.textPrimary)
                         Spacer()
                     }
                     .padding(.horizontal, 14)
@@ -472,11 +516,13 @@ private struct ChatInputBar: View {
                             .frame(width: 34, height: 34)
                         Image(systemName: showPlusMenu ? "xmark" : "plus")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(showPlusMenu ? VitaColors.accent : VitaColors.textSecondary)
+                            .foregroundColor(showPlusMenu ? VitaColors.accent : VitaColors.textSecondary)
                             .animation(.easeInOut(duration: 0.15), value: showPlusMenu)
                     }
+                    .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(showPlusMenu ? "Fechar menu" : "Abrir studio")
                 .overlay(alignment: .bottomLeading) {
                     if showPlusMenu {
                         StudioActionsMenu(
@@ -503,7 +549,7 @@ private struct ChatInputBar: View {
                     axis: .vertical
                 )
                 .font(VitaTypography.bodyMedium)
-                .foregroundStyle(VitaColors.textPrimary)
+                .foregroundColor(VitaColors.textPrimary)
                 .tint(VitaColors.accent)
                 .lineLimit(1...5)
                 .focused(isInputFocused)
@@ -544,7 +590,7 @@ private struct ChatInputBar: View {
             .padding(.top, 10)
             .padding(.bottom, 12)
         }
-        .background(VitaColors.surface)
+        .vitaScreenBg()
     }
 }
 
@@ -566,10 +612,12 @@ private struct SendButton: View {
                     .frame(width: 34, height: 34)
                 Image(systemName: viewModel.isStreaming ? "stop.fill" : "arrow.up")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(canSend ? VitaColors.surface : VitaColors.textTertiary)
+                    .foregroundColor(canSend ? VitaColors.surface : VitaColors.textTertiary)
             }
+            .frame(minWidth: 44, minHeight: 44)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(viewModel.isStreaming ? "Parar" : "Enviar mensagem")
         .disabled(!canSend)
         .opacity(canSend ? 1.0 : 0.4)
         .animation(.easeInOut(duration: 0.15), value: canSend)
@@ -585,7 +633,7 @@ private struct HistorySheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                VitaColors.surface.ignoresSafeArea()
+                VitaScreenBg()
 
                 Group {
                     if viewModel.conversations.isEmpty {
@@ -600,7 +648,7 @@ private struct HistorySheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Fechar") { dismiss() }
-                        .foregroundStyle(VitaColors.accent)
+                        .foregroundColor(VitaColors.accent)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -612,7 +660,7 @@ private struct HistorySheet: View {
                             Text("Nova")
                         }
                         .font(VitaTypography.labelMedium)
-                        .foregroundStyle(VitaColors.accent)
+                        .foregroundColor(VitaColors.accent)
                     }
                 }
             }
@@ -624,10 +672,10 @@ private struct HistorySheet: View {
         VStack(spacing: 12) {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.system(size: 36))
-                .foregroundStyle(VitaColors.textTertiary)
+                .foregroundColor(VitaColors.textTertiary)
             Text("Nenhuma conversa ainda")
                 .font(VitaTypography.bodyMedium)
-                .foregroundStyle(VitaColors.textSecondary)
+                .foregroundColor(VitaColors.textSecondary)
         }
     }
 
@@ -674,18 +722,18 @@ private struct ConversationRow: View {
                     .frame(width: 36, height: 36)
                 Image(systemName: "bubble.left.and.bubble.right.fill")
                     .font(.system(size: 13))
-                    .foregroundStyle(VitaColors.accent)
+                    .foregroundColor(VitaColors.accent)
             }
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(displayTitle)
                     .font(VitaTypography.labelMedium)
-                    .foregroundStyle(VitaColors.textPrimary)
+                    .foregroundColor(VitaColors.textPrimary)
                     .lineLimit(1)
                 if !formattedDate.isEmpty {
                     Text(formattedDate)
                         .font(VitaTypography.labelSmall)
-                        .foregroundStyle(VitaColors.textTertiary)
+                        .foregroundColor(VitaColors.textTertiary)
                 }
             }
 
@@ -693,7 +741,7 @@ private struct ConversationRow: View {
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 11))
-                .foregroundStyle(VitaColors.textTertiary)
+                .foregroundColor(VitaColors.textTertiary)
         }
         .padding(.vertical, 4)
     }

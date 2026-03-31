@@ -14,10 +14,11 @@ struct VitaAmbientBackground<Content: View>: View {
                 .ignoresSafeArea()
 
             // Layer 1: background image with dark gradient overlay
-            Image("fundo_dashboard")
+            Image("fundo-dashboard")
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .scaleEffect(1.32) // 132% scale like mockup
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
                 .overlay(
                     LinearGradient(
                         colors: [

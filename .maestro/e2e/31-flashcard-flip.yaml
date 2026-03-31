@@ -1,0 +1,73 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - interaction
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Flashcard: open deck → flip card → rate
+- tapOn:
+    id: "tool_flashcards"
+    optional: true
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "31-flash-home"
+
+# Tap first deck
+- tapOn:
+    index: 0
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "31-flash-deck"
+
+# Tap to flip
+- tapOn:
+    text: "Revelar"
+    optional: true
+- tapOn:
+    text: "Virar"
+    optional: true
+- tapOn:
+    text: "Mostrar"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "31-flash-flipped"
+
+# Rate
+- tapOn:
+    text: "Fácil"
+    optional: true
+- tapOn:
+    text: "Bom"
+    optional: true
+- tapOn:
+    text: "Difícil"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "31-flash-rated"
+
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd

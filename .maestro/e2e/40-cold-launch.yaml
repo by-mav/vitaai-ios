@@ -1,0 +1,28 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - performance
+---
+# Cold launch — measure time from launch to dashboard
+- launchApp:
+    clearState: false
+    stopApp: true
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Continuar com Google|Acordar|Continuar).*"
+    timeout: 15000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: "40-cold-launch"

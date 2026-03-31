@@ -1,0 +1,26 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - launch
+---
+# 01 - App Launch: verify the app starts without crash and lands on login
+# Note: clearState=false avoids pm clear which can crash the CI emulator.
+# The APK was freshly installed (no saved state), so this is equivalent.
+- launchApp:
+    clearState: false
+
+# Wait for login screen to fully render (CI emulator is slower, allow 30s)
+- extendedWaitUntil:
+    visible: "Continuar com Google"
+    timeout: 30000
+
+# Verify core login elements are present
+- assertVisible: "Continuar com Google"
+- assertVisible: "Continuar com Apple"
+- assertVisible: "Continuar com Email"
+
+# Note: "Termos de Uso" and "Politica de Privacidade" are inside a
+# ClickableText AnnotatedString span and cannot be detected as
+# standalone text by Maestro — assertions removed from CI smoke.
+
+- takeScreenshot: "01-app-launch"

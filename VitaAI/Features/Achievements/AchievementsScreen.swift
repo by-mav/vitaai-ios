@@ -101,6 +101,8 @@ private struct AchievementsTopBar: View {
                     .background(Color.white.opacity(0.04))
                     .clipShape(Circle())
             }
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel("Voltar")
 
             Text(NSLocalizedString("Conquistas", comment: "Achievements title"))
                 .font(.system(size: 17, weight: .bold))
@@ -297,7 +299,7 @@ private struct AchievementBadgeCell: View {
                 } else {
                     // Locked
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(0.02))
+                        .fill(Color.white.opacity(0.06))
                         .frame(width: 56, height: 56)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
@@ -408,6 +410,6 @@ private struct AchievementDetailSheet: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
-        .background(VitaColors.surface)
+        .vitaScreenBg()
     }
 }

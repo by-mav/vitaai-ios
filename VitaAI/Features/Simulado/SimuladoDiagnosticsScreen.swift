@@ -1,5 +1,9 @@
 import SwiftUI
 
+// Simulado teal accent (from simulado-mobile-v1.html mockup)
+private let simuladoAccent = Color(red: 120/255, green: 220/255, blue: 240/255)
+private let simuladoBg     = Color(red: 0x06/255, green: 0x0a/255, blue: 0x0e/255)
+
 private let periodOptions: [(String, String)] = [
     ("7 dias", "7d"),
     ("14 dias", "14d"),
@@ -21,12 +25,12 @@ struct SimuladoDiagnosticsScreen: View {
                 diagnosticsContent(vm: vm)
             } else {
                 ZStack {
-                    VitaColors.surface.ignoresSafeArea()
-                    ProgressView().tint(VitaColors.accent)
+                    simuladoBg.ignoresSafeArea()
+                    ProgressView().tint(simuladoAccent)
                 }
             }
         }
-        .background(VitaColors.surface.ignoresSafeArea())
+        .background(simuladoBg.ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
             if vm == nil { vm = SimuladoViewModel(api: container.api) }
@@ -63,10 +67,10 @@ struct SimuladoDiagnosticsScreen: View {
                         } label: {
                             Text(label)
                                 .font(.system(size: 12, weight: selectedPeriod == value ? .semibold : .regular))
-                                .foregroundStyle(selectedPeriod == value ? VitaColors.accent : VitaColors.textPrimary)
+                                .foregroundStyle(selectedPeriod == value ? simuladoAccent : VitaColors.textPrimary)
                                 .padding(.horizontal, 14).padding(.vertical, 6)
-                                .background(selectedPeriod == value ? VitaColors.accent.opacity(0.15) : VitaColors.glassBg)
-                                .overlay(Capsule().stroke(selectedPeriod == value ? VitaColors.accent : VitaColors.glassBorder, lineWidth: 1))
+                                .background(selectedPeriod == value ? simuladoAccent.opacity(0.15) : VitaColors.glassBg)
+                                .overlay(Capsule().stroke(selectedPeriod == value ? simuladoAccent : VitaColors.glassBorder, lineWidth: 1))
                                 .clipShape(Capsule())
                         }
                     }
@@ -77,7 +81,7 @@ struct SimuladoDiagnosticsScreen: View {
 
             if vm.state.isLoading {
                 Spacer()
-                ProgressView().tint(VitaColors.accent)
+                ProgressView().tint(simuladoAccent)
                 Spacer()
             } else if let diag = vm.state.diagnostics {
                 ScrollView {
@@ -160,7 +164,7 @@ private struct OverallStatsCard: View {
                 Spacer()
                 DiagMiniStat(label: "Média", value: "\(avgPercent)%", valueColor: VitaColors.dataGreen)
                 Spacer()
-                DiagMiniStat(label: "Melhor", value: "\(bestPercent)%", valueColor: VitaColors.accent)
+                DiagMiniStat(label: "Melhor", value: "\(bestPercent)%", valueColor: simuladoAccent)
                 Spacer()
             }
             HStack {

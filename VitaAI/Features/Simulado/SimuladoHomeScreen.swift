@@ -1,5 +1,53 @@
 import SwiftUI
 
+// MARK: - Teal color palette for Simulados (matches web mockup exactly)
+private enum SimuladoColors {
+    // Background
+    static let bg = Color(red: 0.024, green: 0.039, blue: 0.055) // #060a0e
+
+    // Teal accent shades
+    static let tealPrimary = Color(red: 0.471, green: 0.863, blue: 0.941)    // rgba(120,220,240)
+    static let tealMedium = Color(red: 0.314, green: 0.784, blue: 0.863)     // rgba(80,200,220)
+    static let tealDark = Color(red: 0.235, green: 0.706, blue: 0.784)       // rgba(60,180,200)
+    // Section label: rgba(120,210,230,0.55) — slightly cooler than tealPrimary
+    static let sectionLabel = Color(red: 0.471, green: 0.824, blue: 0.902).opacity(0.55)
+
+    // Text
+    static let textPrimary = Color.white.opacity(0.90)
+    static let textSecondary = Color(red: 0.627, green: 0.863, blue: 0.941).opacity(0.45) // rgba(160,220,240,0.45)
+    static let textMuted = Color(red: 0.627, green: 0.863, blue: 0.941).opacity(0.40)
+
+    // Card
+    static let cardBg = LinearGradient(
+        colors: [
+            Color(red: 0.024, green: 0.055, blue: 0.078).opacity(0.94),
+            Color(red: 0.031, green: 0.063, blue: 0.086).opacity(0.90)
+        ],
+        startPoint: .top, endPoint: .bottom
+    )
+    static let cardBorder = Color(red: 0.314, green: 0.784, blue: 0.863).opacity(0.16) // rgba(80,200,220,0.16)
+
+    // CTA button
+    static let ctaGradient = LinearGradient(
+        colors: [
+            Color(red: 0.157, green: 0.627, blue: 0.706).opacity(0.7),
+            Color(red: 0.118, green: 0.471, blue: 0.588).opacity(0.5)
+        ],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    // Badges
+    static let badgeDoneBg = Color(red: 0.235, green: 0.706, blue: 0.471).opacity(0.15)
+    static let badgeDoneText = Color(red: 0.471, green: 0.863, blue: 0.627).opacity(0.85)
+    static let badgeDoneBorder = Color(red: 0.235, green: 0.706, blue: 0.471).opacity(0.20)
+
+    static let badgeProgressBg = Color(red: 0.784, green: 0.627, blue: 0.235).opacity(0.15)
+    static let badgeProgressText = Color(red: 0.941, green: 0.784, blue: 0.392).opacity(0.85)
+    static let badgeProgressBorder = Color(red: 0.784, green: 0.627, blue: 0.235).opacity(0.20)
+}
+
+// MARK: - SimuladoHomeScreen
+
 struct SimuladoHomeScreen: View {
     @Environment(\.appContainer) private var container
     @State private var vm: SimuladoViewModel?
@@ -15,8 +63,8 @@ struct SimuladoHomeScreen: View {
                 homeContent(vm: vm)
             } else {
                 ZStack {
-                    VitaColors.surface.ignoresSafeArea()
-                    ProgressView().tint(VitaColors.accent)
+                    SimuladoColors.bg.ignoresSafeArea()
+                    ProgressView().tint(SimuladoColors.tealPrimary)
                 }
             }
         }
@@ -28,287 +76,407 @@ struct SimuladoHomeScreen: View {
 
     @ViewBuilder
     private func homeContent(vm: SimuladoViewModel) -> some View {
-        VStack(spacing: 0) {
-            // Top bar
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(VitaColors.textPrimary)
-                        .frame(width: 44, height: 44)
-                }
-                Text("Simulados")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+        ZStack {
+            // Background image
+            Image("bg-simulados")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+
+            // Dark overlay gradient matching web
+            LinearGradient(
+                stops: [
+                    .init(color: Color(red: 0.016, green: 0.031, blue: 0.055).opacity(0.3), location: 0),
+                    .init(color: Color(red: 0.016, green: 0.031, blue: 0.055).opacity(0.1), location: 0.4),
+                    .init(color: Color(red: 0.016, green: 0.031, blue: 0.055).opacity(0.5), location: 1.0)
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
             if vm.state.isLoading {
-                Spacer()
-                ProgressView().tint(VitaColors.accent)
-                Spacer()
+                ProgressView().tint(SimuladoColors.tealPrimary)
             } else if vm.state.attempts.isEmpty {
-                Spacer()
-                VitaEmptyState(
-                    title: "Nenhum simulado ainda",
-                    message: "Comece seu primeiro simulado para testar seus conhecimentos e acompanhar sua evolução.",
-                    actionText: "Começar primeiro simulado",
-                    onAction: onNewSimulado
-                )
-                Spacer()
+                emptyState
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        StatsCard(stats: vm.state.stats)
-                            .padding(.top, 8)
-
-                        VitaButton(text: "Novo Simulado", action: onNewSimulado)
-                            .padding(.horizontal, 16)
-
-                        if !vm.state.bySubject.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Por Matéria")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(VitaColors.textPrimary)
-                                    .padding(.horizontal, 16)
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 10) {
-                                        ForEach(vm.state.bySubject) { subj in SubjectCard(subj: subj) }
-                                    }
-                                    .padding(.horizontal, 16)
-                                }
-                            }
-                        }
-
-                        if !vm.state.bySemester.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Semestres")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(VitaColors.textPrimary)
-                                    .padding(.horizontal, 16)
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 8) {
-                                        SemesterChip(label: "Todos", isSelected: vm.state.selectedSemester == nil) {
-                                            vm.selectSemester(nil)
-                                        }
-                                        ForEach(vm.state.bySemester) { sem in
-                                            SemesterChip(label: sem.label, isSelected: vm.state.selectedSemester == sem.label) {
-                                                vm.selectSemester(sem.label)
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                }
-                            }
-                        }
-
-                        HStack {
-                            Text(vm.state.selectedSemester.map { "Histórico — \($0)" } ?? "Histórico")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(VitaColors.textPrimary)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 4)
-
-                        if vm.state.filteredAttempts.isEmpty {
-                            Text("Nenhum simulado neste período.")
-                                .font(.system(size: 12))
-                                .foregroundStyle(VitaColors.textTertiary)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                        } else {
-                            ForEach(vm.state.filteredAttempts) { attempt in
-                                AttemptCard(attempt: attempt) {
-                                    if attempt.status == "finished" { onOpenResult(attempt.id) }
-                                    else { onOpenSession(attempt.id) }
-                                }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) { vm.deleteAttempt(attempt.id) } label: {
-                                        Label("Apagar", systemImage: "trash")
-                                    }
-                                }
-                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                    Button { vm.archiveAttempt(attempt.id) } label: {
-                                        Label("Arquivar", systemImage: "archivebox")
-                                    }
-                                    .tint(VitaColors.accent)
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                        }
-
-                        VitaButton(text: "Ver Diagnóstico Completo", action: onOpenDiagnostics, variant: .secondary)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 24)
-                    }
-                }
+                scrollContent(vm: vm)
             }
         }
-        .background(VitaColors.surface.ignoresSafeArea())
         .navigationBarHidden(true)
     }
-}
 
-// MARK: - Sub-components
-
-private struct StatsCard: View {
-    let stats: SimuladoStats
-    var body: some View {
-        HStack {
+    private var emptyState: some View {
+        VStack(spacing: 16) {
             Spacer()
-            MiniStat(label: "Simulados", value: "\(stats.completedAttempts)")
-            Spacer()
-            MiniStat(label: "Média", value: "\(Int(stats.avgScore * 100))%",
-                     valueColor: VitaColors.dataGreen)
-            Spacer()
-            MiniStat(label: "Questões", value: "\(stats.totalQuestions)")
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(SimuladoColors.tealPrimary.opacity(0.4))
+            Text("Nenhum simulado ainda")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(SimuladoColors.textPrimary)
+            Text("Comece seu primeiro simulado para testar seus conhecimentos.")
+                .font(.system(size: 13))
+                .foregroundStyle(SimuladoColors.textMuted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            Button(action: onNewSimulado) {
+                Text("Começar primeiro simulado")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.95))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(SimuladoColors.ctaGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .shadow(color: SimuladoColors.tealDark.opacity(0.25), radius: 12, y: 8)
+            }
+            .padding(.horizontal, 16)
             Spacer()
         }
-        .padding(16)
-        .background(VitaColors.glassBg)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VitaColors.glassBorder, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal, 16)
+    }
+
+    @ViewBuilder
+    private func scrollContent(vm: SimuladoViewModel) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                // Stats hero card
+                SimuladoStatsHero(stats: vm.state.stats)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+
+                // CTA button
+                Button(action: onNewSimulado) {
+                    Text("Novo Simulado")
+                        .font(.system(size: 15, weight: .bold, design: .default))
+                        .tracking(-0.15)
+                        .foregroundStyle(.white.opacity(0.95))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(SimuladoColors.ctaGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(alignment: .top) {
+                            // inset 0 1px 0 rgba(120,220,240,0.20) — top inner highlight
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [SimuladoColors.tealPrimary.opacity(0.20), .clear],
+                                        startPoint: .top, endPoint: .init(x: 0.5, y: 0.08)
+                                    )
+                                )
+                                .frame(height: 4)
+                        }
+                        .shadow(color: SimuladoColors.tealDark.opacity(0.25), radius: 12, y: 8)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+
+                // "RECENTES" section label
+                HStack {
+                    Text("Recentes")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(SimuladoColors.sectionLabel)
+                        .tracking(0.5)
+                        .textCase(.uppercase)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
+
+                // Attempt cards
+                ForEach(vm.state.filteredAttempts) { attempt in
+                    SimuladoAttemptCard(attempt: attempt) {
+                        if attempt.status == "finished" { onOpenResult(attempt.id) }
+                        else { onOpenSession(attempt.id) }
+                    }
+                    .padding(.horizontal, 16)
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            vm.deleteAttempt(attempt.id)
+                        } label: {
+                            Label("Apagar", systemImage: "trash")
+                        }
+                        Button {
+                            vm.archiveAttempt(attempt.id)
+                        } label: {
+                            Label("Arquivar", systemImage: "archivebox")
+                        }
+                    }
+                }
+
+                // Diagnostic link
+                Button(action: onOpenDiagnostics) {
+                    HStack(spacing: 8) {
+                        // 3-bar chart: left short, center tall, right medium (matches web SVG M18 20V10, M12 20V4, M6 20v-6)
+                        SimuladoBarChartIcon()
+                            .frame(width: 16, height: 16)
+                        Text("Ver diagnóstico completo")
+                            .font(.system(size: 12.5, weight: .semibold))
+                    }
+                    .foregroundStyle(SimuladoColors.tealPrimary.opacity(0.70))
+                    .padding(.vertical, 12)
+                }
+                .padding(.top, 4)
+                .padding(.bottom, 120)
+            }
+        }
     }
 }
 
-private struct MiniStat: View {
-    let label: String
+// MARK: - Stats Hero Card
+
+private struct SimuladoStatsHero: View {
+    let stats: SimuladoStats
+
+    private var avgPercent: String {
+        let pct = stats.avgScore * 100
+        if pct == pct.rounded() {
+            return "\(Int(pct))%"
+        }
+        return String(format: "%.1f%%", pct)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Big score
+            Text(avgPercent)
+                .font(.system(size: 48, weight: .heavy))
+                .tracking(-1.9)
+                .foregroundStyle(SimuladoColors.tealPrimary.opacity(0.92))
+                .padding(.top, 22)
+
+            Text("Score médio")
+                .font(.system(size: 12))
+                .foregroundStyle(SimuladoColors.textMuted)
+                .tracking(0.5)
+                .padding(.top, 4)
+
+            // Stats row
+            HStack(spacing: 24) {
+                SimuladoMiniStat(value: "\(stats.completedAttempts)", label: "Simulados")
+                SimuladoMiniStat(value: "\(stats.totalQuestions)", label: "Questões")
+                SimuladoMiniStat(value: "\(stats.totalCorrect)", label: "Acertos")
+            }
+            .padding(.top, 16)
+            .padding(.bottom, 22)
+        }
+        .frame(maxWidth: .infinity)
+        .background(SimuladoTealGlassBackground())
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(SimuladoColors.cardBorder, lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.50), radius: 25, y: 20)
+        .shadow(color: SimuladoColors.tealDark.opacity(0.09), radius: 14, y: 0)
+    }
+}
+
+private struct SimuladoMiniStat: View {
     let value: String
-    var valueColor: Color = .white.opacity(0.85)
+    let label: String
     var body: some View {
         VStack(spacing: 2) {
             Text(value)
                 .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(valueColor)
+                .foregroundStyle(Color.white.opacity(0.88))
             Text(label)
-                .font(.system(size: 10))
-                .foregroundStyle(VitaColors.textTertiary)
+                .font(.system(size: 9.5, weight: .regular))
+                .foregroundStyle(SimuladoColors.textMuted)
+                .tracking(0.4)
+                .textCase(.uppercase)
         }
     }
 }
 
-private struct SubjectCard: View {
-    let subj: SubjectSummary
-    private var rate: Int { Int(subj.correctRate) }
-    private var barColor: Color {
-        rate >= 70 ? VitaColors.dataGreen : rate >= 50 ? VitaColors.dataAmber : VitaColors.dataRed
-    }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(subj.subject)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(VitaColors.textPrimary)
-                .lineLimit(1)
-            Text("\(subj.totalAttempts) simulado\(subj.totalAttempts != 1 ? "s" : "")")
-                .font(.system(size: 10))
-                .foregroundStyle(VitaColors.textTertiary)
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2).fill(VitaColors.glassBorder)
-                    RoundedRectangle(cornerRadius: 2).fill(barColor)
-                        .frame(width: geo.size.width * CGFloat(subj.correctRate / 100).clamped(to: 0...1))
-                }
-            }
-            .frame(height: 4)
-            Text("\(rate)% acerto")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(barColor)
-        }
-        .padding(12)
-        .frame(width: 140)
-        .background(VitaColors.glassBg)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.glassBorder, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-}
+// MARK: - Attempt Card
 
-private struct SemesterChip: View {
-    let label: String
-    let isSelected: Bool
-    let onTap: () -> Void
-    var body: some View {
-        Text(label)
-            .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-            .foregroundStyle(isSelected ? VitaColors.accent : VitaColors.textPrimary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .background(isSelected ? VitaColors.accent.opacity(0.15) : VitaColors.glassBg)
-            .overlay(
-                Capsule().stroke(isSelected ? VitaColors.accent : VitaColors.glassBorder, lineWidth: 1)
-            )
-            .clipShape(Capsule())
-            .onTapGesture(perform: onTap)
-    }
-}
-
-private struct AttemptCard: View {
+private struct SimuladoAttemptCard: View {
     let attempt: SimuladoAttemptEntry
     let onTap: () -> Void
-    private var scorePercent: Int { Int(attempt.score * 100) }
+
     private var isFinished: Bool { attempt.status == "finished" }
-    private var scoreColor: Color {
-        scorePercent >= 70 ? VitaColors.dataGreen : scorePercent >= 50 ? VitaColors.dataAmber : VitaColors.dataRed
+    private var scoreDisplay: String {
+        if isFinished {
+            return "\(Int(attempt.score * 100))%"
+        }
+        return "\(attempt.correctQ)/\(attempt.totalQ)"
     }
+
     private var dateDisplay: String {
         guard let raw = attempt.startedAt, raw.count >= 10 else { return "" }
         let parts = String(raw.prefix(10)).split(separator: "-")
         guard parts.count == 3 else { return "" }
-        return "\(parts[2])/\(parts[1])"
-    }
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(attempt.title.isEmpty ? "Simulado" : attempt.title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(VitaColors.textPrimary)
-                HStack(spacing: 6) {
-                    if let subj = attempt.subject, !subj.isEmpty {
-                        Text(subj)
-                            .font(.system(size: 10))
-                            .foregroundStyle(VitaColors.accent)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(VitaColors.accent.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
-                    Text(attempt.mode == "exam" ? "Prova" : "Imediato")
-                        .font(.system(size: 10))
-                        .foregroundStyle(VitaColors.textSecondary)
-                    if !dateDisplay.isEmpty {
-                        Text(dateDisplay)
-                            .font(.system(size: 10))
-                            .foregroundStyle(VitaColors.textTertiary)
-                    }
-                }
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                if isFinished {
-                    Text("\(scorePercent)%")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(scoreColor)
-                }
-                Text(isFinished ? "Finalizado" : "Em andamento")
-                    .font(.system(size: 10))
-                    .foregroundStyle(isFinished ? VitaColors.dataGreen : VitaColors.dataAmber)
-            }
+        let months = ["", "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+        let day = String(parts[2])
+        if let monthInt = Int(parts[1]), monthInt > 0, monthInt <= 12 {
+            return "\(day) \(months[monthInt])"
         }
-        .padding(14)
-        .background(VitaColors.glassBg)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VitaColors.glassBorder, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .contentShape(RoundedRectangle(cornerRadius: 12))
-        .onTapGesture(perform: onTap)
+        return "\(day)/\(parts[1])"
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    SimuladoColors.tealDark.opacity(0.22),
+                                    SimuladoColors.tealDark.opacity(0.10)
+                                ],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(SimuladoColors.cardBorder, lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.3), radius: 4, y: 3)
+
+                    Image(systemName: isFinished ? "checkmark.square" : "clock")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(SimuladoColors.tealPrimary.opacity(0.85))
+                }
+                .frame(width: 40, height: 40)
+
+                // Info
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(attempt.title.isEmpty ? (attempt.subject ?? "Simulado") : attempt.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(SimuladoColors.textPrimary)
+                        .lineLimit(1)
+                    Text("\(attempt.totalQ) questões · \(dateDisplay)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(SimuladoColors.textMuted)
+                }
+
+                Spacer(minLength: 4)
+
+                // Score + badge
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(scoreDisplay)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(SimuladoColors.tealPrimary.opacity(0.90))
+
+                    Text(isFinished ? "Concluído" : "Em andamento")
+                        .font(.system(size: 9, weight: .semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            isFinished ? SimuladoColors.badgeDoneBg : SimuladoColors.badgeProgressBg
+                        )
+                        .foregroundStyle(
+                            isFinished ? SimuladoColors.badgeDoneText : SimuladoColors.badgeProgressText
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(
+                                    isFinished ? SimuladoColors.badgeDoneBorder : SimuladoColors.badgeProgressBorder,
+                                    lineWidth: 1
+                                )
+                        )
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(SimuladoTealGlassBackground())
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(SimuladoColors.cardBorder, lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.50), radius: 25, y: 20)
+            .shadow(color: SimuladoColors.tealDark.opacity(0.06), radius: 20, y: 8)
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, 10)
     }
 }
 
-// MARK: - Extensions
+// MARK: - Bar Chart Icon (matches web SVG: left=short, center=tall, right=medium)
 
-private extension Comparable {
-    func clamped(to range: ClosedRange<Self>) -> Self {
-        max(range.lowerBound, min(self, range.upperBound))
+private struct SimuladoBarChartIcon: View {
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+            let barW: CGFloat = w * 0.14
+            let gap = (w - barW * 3) / 4
+            let color = GraphicsContext.Shading.color(SimuladoColors.tealPrimary.opacity(0.85))
+            // Left bar: 30% height
+            let leftH = h * 0.30
+            ctx.fill(Path(CGRect(x: gap, y: h - leftH, width: barW, height: leftH).insetBy(dx: -0.5, dy: 0)), with: color)
+            // Center bar: 80% height (tallest)
+            let midH = h * 0.80
+            ctx.fill(Path(CGRect(x: gap * 2 + barW, y: h - midH, width: barW, height: midH)), with: color)
+            // Right bar: 50% height
+            let rightH = h * 0.50
+            ctx.fill(Path(CGRect(x: gap * 3 + barW * 2, y: h - rightH, width: barW, height: rightH)), with: color)
+        }
+    }
+}
+
+// MARK: - Teal Glass Background (3-layer matching web)
+
+private struct SimuladoTealGlassBackground: View {
+    var body: some View {
+        ZStack {
+            // Layer 1: base dark gradient
+            LinearGradient(
+                colors: [
+                    Color(red: 0.024, green: 0.055, blue: 0.078).opacity(0.94),
+                    Color(red: 0.031, green: 0.063, blue: 0.086).opacity(0.90)
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+
+            // Layer 2: corner radial lights (inner glow)
+            ZStack {
+                // Bottom-left glow
+                RadialGradient(
+                    colors: [SimuladoColors.tealDark.opacity(0.18), .clear],
+                    center: .bottomLeading, startRadius: 0, endRadius: 120
+                )
+                // Bottom-right glow
+                RadialGradient(
+                    colors: [SimuladoColors.tealDark.opacity(0.12), .clear],
+                    center: .bottomTrailing, startRadius: 0, endRadius: 120
+                )
+                // Top-left glow
+                RadialGradient(
+                    colors: [SimuladoColors.tealDark.opacity(0.09), .clear],
+                    center: .topLeading, startRadius: 0, endRadius: 100
+                )
+                // Top-right glow
+                RadialGradient(
+                    colors: [SimuladoColors.tealDark.opacity(0.06), .clear],
+                    center: .topTrailing, startRadius: 0, endRadius: 100
+                )
+            }
+
+            // Layer 3: top highlight line
+            VStack {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.clear, SimuladoColors.tealPrimary.opacity(0.12), .clear],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+                Spacer()
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.clear, SimuladoColors.tealDark.opacity(0.08), .clear],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 1)
+            }
+        }
     }
 }

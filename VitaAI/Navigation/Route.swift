@@ -5,6 +5,8 @@ enum Route: Hashable {
     case onboarding
     case home
     case estudos
+    case faculdade
+    case progresso
     case trabalhos
     case agenda
     case insights
@@ -18,6 +20,7 @@ enum Route: Hashable {
     case notebookEditor(notebookId: String)
     case mindMapList
     case mindMapEditor(id: String)
+    case flashcardHome
     case flashcardSession(deckId: String)
     case flashcardStats
     case pdfViewer(url: String)
@@ -41,6 +44,7 @@ enum Route: Hashable {
     case appearance
     case notifications
     case connections
+    case configuracoes
 
     // MARK: - Activity / Gamification
     case activityFeed

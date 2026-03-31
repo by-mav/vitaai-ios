@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="iPhone 17e - iOS 26.3 - 5D092BE9-AD96-49A8-9E1B-2DF72BEC376B" tests="1" failures="0" time="98.0">
+    <testcase id="51-visual-all-screens" name="51-visual-all-screens" classname="51-visual-all-screens" time="98.0" status="SUCCESS">
+      <properties>
+        <property name="tags" value="e2e, visual"/>
+      </properties>
+    </testcase>
+  </testsuite>
+</testsuites>

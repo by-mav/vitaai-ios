@@ -16,8 +16,39 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.bymav.vitaai</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>vitaai</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>100.86.55.27</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VitaAI precisa do microfone para gravar suas aulas e gerar transcricoes automaticas.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>VitaAI usa reconhecimento de fala para transcrever suas aulas em tempo real.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

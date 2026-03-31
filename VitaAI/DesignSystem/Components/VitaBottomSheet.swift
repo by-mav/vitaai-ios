@@ -70,10 +70,10 @@ struct VitaBottomSheet<Content: View>: View {
             .stroke(VitaColors.glassBorder, lineWidth: 1)
         }
         // Native sheet presentation modifiers — caller can override
-        .presentationBackground(Color.clear)
+        .background(Color.clear)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.hidden) // We draw our own handle
-        .presentationCornerRadius(20)
+        // // .presentationCornerRadius(20)
     }
 }
 

@@ -1,0 +1,39 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - interaction
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify flashcard decks list
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "35-flash-decks"
+
+# Scroll to see more decks
+- scroll
+- takeScreenshot: "35-flash-decks-scrolled"
+
+- pressKey: back
+- waitForAnimationToEnd

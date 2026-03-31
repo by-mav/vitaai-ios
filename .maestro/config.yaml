@@ -1,0 +1,5 @@
+name: VitaAI Tests
+flows:
+  - "smoke/*"
+  - "smoke-local/*"
+  - "e2e/*"

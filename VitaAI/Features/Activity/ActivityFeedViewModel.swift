@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 @MainActor
 @Observable
@@ -8,6 +9,7 @@ final class ActivityFeedViewModel {
     var stats: GamificationStatsResponse?
     var feed: [ActivityFeedItem] = []
     var isLoading = true
+    var errorMessage: String?
 
     init(api: VitaAPI) {
         self.api = api
@@ -15,6 +17,7 @@ final class ActivityFeedViewModel {
 
     func load() async {
         isLoading = true
+        errorMessage = nil
         async let statsTask: GamificationStatsResponse = api.getGamificationStats()
         async let feedTask: [ActivityFeedItem] = api.getActivityFeed(limit: 50)
         do {
@@ -22,7 +25,7 @@ final class ActivityFeedViewModel {
             stats = s
             feed = f
         } catch {
-            // Silently fail — UI shows empty state
+            errorMessage = "Erro ao carregar atividade"
         }
         isLoading = false
     }

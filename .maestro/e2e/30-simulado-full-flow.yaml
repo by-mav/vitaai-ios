@@ -1,0 +1,75 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - interaction
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Full simulado: open → config → start → answer → result
+- tapOn:
+    id: "tool_simulados"
+    optional: true
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "30-sim-home"
+
+- tapOn:
+    text: "Novo Simulado"
+    optional: true
+- tapOn:
+    text: "Novo"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "30-sim-config"
+
+# Try starting
+- tapOn:
+    text: "Gerar"
+    optional: true
+- tapOn:
+    text: "Iniciar"
+    optional: true
+- tapOn:
+    text: "Começar"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "30-sim-started"
+
+# If quiz loaded, try answering
+- tapOn:
+    text: "A"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Confirmar"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "30-sim-answered"
+
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd

@@ -2,6 +2,136 @@ import Foundation
 import SwiftUI
 
 enum MockData {
+    static func dashboardResponse() -> DashboardResponse {
+        DashboardResponse(
+            greeting: "Boa noite, \(AppConfig.demoUserName)",
+            subtitle: "ULBRA",
+            exams: [
+                DashboardExam(
+                    id: "exam-anatomia-p2",
+                    title: "P2",
+                    subject: "Anatomia Humana II",
+                    daysUntil: 4,
+                    description: nil,
+                    conceptCards: 18,
+                    practiceCards: 12
+                ),
+                DashboardExam(
+                    id: "exam-farmaco-simulado",
+                    title: "Simulado",
+                    subject: "Farmacologia I",
+                    daysUntil: 7,
+                    description: nil,
+                    conceptCards: 14,
+                    practiceCards: 10
+                )
+            ],
+            subjects: [
+                DashboardSubject(name: "Anatomia Humana II"),
+                DashboardSubject(name: "Farmacologia I"),
+                DashboardSubject(name: "Histologia")
+            ],
+            agenda: [
+                DashboardAgendaItem(type: "exam", title: "P2 · Anatomia Humana II", daysUntil: 4, date: "em 4 dias"),
+                DashboardAgendaItem(type: "review", title: "Revisar farmacologia", daysUntil: 1, date: "amanha")
+            ],
+            flashcardsDueTotal: 23,
+            studyRecommendations: [
+                DashboardRecommendation(title: "Anatomia Humana II", dueCount: 12, deckId: "deck-anatomia")
+            ],
+            xp: DashboardXP(total: 1250, level: 5),
+            todayReviewed: 18
+        )
+    }
+
+    static func progressResponse() -> ProgressResponse {
+        ProgressResponse(
+            streakDays: 7,
+            totalStudyHours: 42.5,
+            avgAccuracy: 0.78,
+            flashcardsDue: 23,
+            totalCards: 245,
+            todayCompleted: 18,
+            todayTotal: 25,
+            todayStudyMinutes: 85,
+            subjects: [
+                SubjectProgress(subjectId: "Anatomia Humana II", accuracy: 0.58, hoursSpent: 12, cardsDue: 8, questionCount: 42),
+                SubjectProgress(subjectId: "Farmacologia I", accuracy: 0.64, hoursSpent: 10, cardsDue: 5, questionCount: 36),
+                SubjectProgress(subjectId: "Histologia", accuracy: 0.71, hoursSpent: 8, cardsDue: 4, questionCount: 28)
+            ],
+            weekGrades: [],
+            upcomingExams: [
+                ExamEntry(
+                    id: "exam-anatomia-p2",
+                    title: "P2",
+                    subjectId: "anatomia",
+                    subjectName: "Anatomia Humana II",
+                    examType: "prova",
+                    date: "2026-04-03",
+                    result: nil,
+                    notes: nil,
+                    daysUntil: 4,
+                    weight: nil,
+                    pointsPossible: nil,
+                    conceptCards: 18,
+                    practiceCards: 12,
+                    userId: nil,
+                    createdAt: nil,
+                    deletedAt: nil
+                )
+            ],
+            heatmap: demoHeatmap(),
+            weeklyHours: [1.5, 2.0, 0.5, 3.0, 1.0, 0.0, 0.0],
+            weeklyGoalHours: 10,
+            weeklyActualHours: 8,
+            dailyStudyGoalMinutes: 120
+        )
+    }
+
+    static func gamificationStats() -> GamificationStatsResponse {
+        GamificationStatsResponse(
+            totalXp: 1250,
+            level: 5,
+            currentLevelXp: 400,
+            xpToNextLevel: 450,
+            streakDays: 7,
+            achievements: [
+                BadgeWithStatus(
+                    id: "first_review",
+                    name: "Primeira Revisao",
+                    description: "Complete sua primeira sessao.",
+                    icon: "rectangle.stack.fill",
+                    category: "cards",
+                    rarity: "common",
+                    unlocked: true,
+                    unlockedAt: "2026-03-28T12:00:00.000Z"
+                )
+            ]
+        )
+    }
+
+    static func leaderboardEntries() -> [LeaderboardEntry] {
+        [
+            LeaderboardEntry(oderId: "u1", rank: 1, displayName: "Ana Lima", xp: 2100, level: 8, isMe: false),
+            LeaderboardEntry(oderId: "u2", rank: 2, displayName: "Bruno Alves", xp: 1850, level: 7, isMe: false),
+            LeaderboardEntry(oderId: "me", rank: 3, displayName: AppConfig.demoUserName, xp: 1250, level: 5, isMe: true),
+            LeaderboardEntry(oderId: "u4", rank: 4, displayName: "Carla Souza", xp: 980, level: 4, isMe: false),
+            LeaderboardEntry(oderId: "u5", rank: 5, displayName: "Diego Costa", xp: 900, level: 4, isMe: false)
+        ]
+    }
+
+    static func demoHeatmap() -> [Int] {
+        (0..<91).map { index in
+            switch index % 5 {
+            case 0: return 0
+            case 1: return 1
+            case 2: return 2
+            case 3: return 3
+            default: return 4
+            }
+        }
+    }
+
     static func dashboardProgress() -> DashboardProgress {
         DashboardProgress(
             progressPercent: 0.68,
@@ -83,7 +213,6 @@ enum MockData {
     // MARK: - Gamification
 
     static func userProgress() -> UserProgress {
-        let now = Date()
         return UserProgress(
             totalXp: 1_250,
             level: 5,

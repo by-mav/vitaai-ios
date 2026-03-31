@@ -1,0 +1,51 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - edge-case
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Scroll dashboard fully
+- scroll
+- scroll
+- scroll
+- takeScreenshot: "22-dashboard-bottom"
+- scroll
+- scroll
+- scroll
+- takeScreenshot: "22-dashboard-top"
+
+# Scroll progresso
+- tapOn:
+    text: "Progresso"
+    optional: true
+- waitForAnimationToEnd
+- scroll
+- scroll
+- takeScreenshot: "22-progresso-scrolled"
+- tapOn:
+    text: "Início"
+    optional: true
+- tapOn:
+    text: "Home"
+    optional: true
+- waitForAnimationToEnd

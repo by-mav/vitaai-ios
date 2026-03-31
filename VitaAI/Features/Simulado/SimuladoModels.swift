@@ -168,3 +168,37 @@ struct WeakTopic: Decodable, Identifiable {
     var suggestion: String = ""
     var id: String { subject }
 }
+
+// MARK: - Config Redesign
+
+struct SimuladoDiscipline: Identifiable {
+    let name: String
+    let count: Int
+    var id: String { name }
+
+    static let defaults: [SimuladoDiscipline] = [
+        .init(name: "Cardiologia", count: 124),
+        .init(name: "Farmacologia", count: 98),
+        .init(name: "Anatomia", count: 87),
+        .init(name: "Histologia", count: 72),
+        .init(name: "Fisiologia", count: 95),
+        .init(name: "Bioquímica", count: 63),
+    ]
+}
+
+struct SimuladoTemplate: Identifiable {
+    let id: Int
+    let name: String
+    let count: Int
+    let timed: Bool
+    let timeLimitMinutes: Int?
+    let disciplineName: String?
+    let iconName: String
+
+    static let defaults: [SimuladoTemplate] = [
+        .init(id: 0, name: "Revisão Rápida",  count: 10, timed: true,  timeLimitMinutes: 20,  disciplineName: nil,           iconName: "bolt"),
+        .init(id: 1, name: "Simulado Padrão", count: 25, timed: true,  timeLimitMinutes: 50,  disciplineName: nil,           iconName: "checkmark.square"),
+        .init(id: 2, name: "Intensivo",        count: 50, timed: true,  timeLimitMinutes: 90,  disciplineName: nil,           iconName: "clock"),
+        .init(id: 3, name: "Cardiologia P1",   count: 25, timed: false, timeLimitMinutes: nil, disciplineName: "Cardiologia", iconName: "heart"),
+    ]
+}

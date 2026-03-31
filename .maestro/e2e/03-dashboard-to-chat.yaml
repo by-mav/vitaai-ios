@@ -1,0 +1,41 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - chat
+---
+# Wait for dashboard
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+
+- takeScreenshot: "03-dashboard"
+
+# Tap Vita/Coach
+- tapOn:
+    id: "tab_vita"
+    optional: true
+- tapOn:
+    text: "Vita"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "03-chat"
+- pressKey: back
+- waitForAnimationToEnd

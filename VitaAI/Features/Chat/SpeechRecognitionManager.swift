@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Speech
 import AVFoundation
 
@@ -51,8 +52,12 @@ final class SpeechRecognitionManager {
 
     func requestPermissions() async {
         // Mic
-        let micStatus = await AVAudioApplication.requestRecordPermission()
-        guard micStatus else {
+        let micGranted = await withCheckedContinuation { continuation in
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+        guard micGranted else {
             permissionStatus = .micDenied
             return
         }
@@ -162,9 +167,12 @@ final class SpeechRecognitionManager {
         self.recognitionRequest = request
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            guard let self else { return }
+            guard self != nil else { return }
 
-            Task { @MainActor in
+            // Hop to MainActor with weak self to avoid retain cycle through recognitionTask
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+
                 if let result {
                     let text = result.bestTranscription.formattedString
                     if result.isFinal {

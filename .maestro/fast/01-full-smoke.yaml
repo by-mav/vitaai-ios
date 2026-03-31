@@ -1,0 +1,147 @@
+appId: com.bymav.vitaai
+tags:
+  - fast
+  - smoke
+---
+# FAST SMOKE — All main screens in 1 flow, no relaunch
+# Covers: dashboard, all 4 tools, all 4 tabs, back navigation
+# Expected time: ~2min instead of ~20min
+
+- launchApp:
+    clearState: false
+    stopApp: true
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar|Google|Email).*"
+    timeout: 25000
+
+# Dismiss onboarding if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: "fast-01-dashboard"
+
+# ── Tool 1: Simulados ──
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-02-simulados"
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── Tool 2: Flashcards ──
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-03-flashcards"
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── Tool 3: Questoes ──
+- tapOn:
+    text: "Questoes"
+    optional: true
+- tapOn:
+    text: "Questões"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-04-questoes"
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── Tool 4: Transcricao ──
+- tapOn:
+    text: "Transcrição"
+    optional: true
+- tapOn:
+    text: "Transcricao"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-05-transcricao"
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── Tab: Estudos ──
+- tapOn:
+    text: "Estudo"
+    optional: true
+- tapOn:
+    text: "Estudos"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-06-estudos"
+
+# ── Tab: Faculdade ──
+- tapOn:
+    text: "Faculdade"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-07-faculdade"
+
+# ── Tab: Progresso ──
+- tapOn:
+    text: "Progresso"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-08-progresso"
+
+# ── Back to Home ──
+- tapOn:
+    text: "Home"
+    optional: true
+- tapOn:
+    text: "Início"
+    optional: true
+- tapOn:
+    id: "tab_home"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-09-home"
+
+# ── Deep nav: Simulados → Config ──
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Novo"
+    optional: true
+- tapOn:
+    text: "Novo Simulado"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-10-sim-config"
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── Scroll dashboard ──
+- scroll
+- scroll
+- takeScreenshot: "fast-11-dashboard-scrolled"
+
+# ── Menu ──
+- tapOn:
+    text: "Menu"
+    optional: true
+- tapOn:
+    id: "menu_button"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-12-menu"
+
+- takeScreenshot: "fast-13-final"

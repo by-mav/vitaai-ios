@@ -2,7 +2,6 @@ import SwiftUI
 
 // MARK: - PlannerViewModel
 // Drives PlannerScreen: daily study tasks from API (GET /api/estudos/plan).
-// Falls back to mock data if API unavailable.
 
 @MainActor
 @Observable
@@ -26,7 +25,7 @@ final class PlannerViewModel {
 
     // Study time today
     var studyMinutesToday: Int = 0
-    var dailyGoalMinutes: Int = Int(VitaDomain.dailyStudyGoals.first(where: { $0.id == "moderate" })?.hours ?? 3) * 60
+    var dailyGoalMinutes: Int = 3 * 60 // 3 hours default (moderate goal)
 
     // Streak
     var streakDays: Int = 0
@@ -74,7 +73,6 @@ final class PlannerViewModel {
 
         } catch {
             errorMessage = NSLocalizedString("Erro ao carregar plano", comment: "")
-            loadMockData()
         }
 
         isLoading = false
@@ -147,49 +145,6 @@ final class PlannerViewModel {
         }
     }
 
-    // MARK: - Mock Data
-
-    private func loadMockData() {
-        streakDays = 7
-        studyMinutesToday = 45
-        tasks = [
-            PlannerTask(
-                id: "1", title: NSLocalizedString("Revisar Flashcards", comment: ""),
-                subtitle: NSLocalizedString("Anatomia · 42 cards pendentes", comment: ""),
-                icon: "rectangle.stack.fill", color: VitaColors.dataBlue,
-                type: "flashcard", estimatedMinutes: 20, isCompleted: true,
-                linkedRoute: nil
-            ),
-            PlannerTask(
-                id: "2", title: NSLocalizedString("QBank — Farmacologia", comment: ""),
-                subtitle: NSLocalizedString("25 questoes · Revisao Espacada", comment: ""),
-                icon: "checkmark.square.fill", color: Color(red: 160/255, green: 140/255, blue: 200/255),
-                type: "qbank", estimatedMinutes: 30, isCompleted: false,
-                linkedRoute: .qbank
-            ),
-            PlannerTask(
-                id: "3", title: NSLocalizedString("Fisiologia — Leitura", comment: ""),
-                subtitle: NSLocalizedString("Cap. 12: Sistema Renal", comment: ""),
-                icon: "doc.text.fill", color: VitaColors.accent,
-                type: "reading", estimatedMinutes: 45, isCompleted: false,
-                linkedRoute: nil
-            ),
-            PlannerTask(
-                id: "4", title: NSLocalizedString("Simulado Rapido", comment: ""),
-                subtitle: NSLocalizedString("10 questoes mistas", comment: ""),
-                icon: "list.bullet.clipboard.fill", color: VitaColors.dataGreen,
-                type: "simulado", estimatedMinutes: 15, isCompleted: false,
-                linkedRoute: .simuladoHome
-            ),
-            PlannerTask(
-                id: "5", title: NSLocalizedString("Revisao de Notas", comment: ""),
-                subtitle: NSLocalizedString("Semiologia — Anamnese", comment: ""),
-                icon: "note.text", color: Color(red: 200/255, green: 170/255, blue: 130/255),
-                type: "notes", estimatedMinutes: 20, isCompleted: false,
-                linkedRoute: nil
-            ),
-        ]
-    }
 }
 
 // MARK: - Data Models

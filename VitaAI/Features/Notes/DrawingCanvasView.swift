@@ -73,6 +73,10 @@ struct DrawingCanvasView: UIViewRepresentable {
         return canvas
     }
 
+    static func dismantleUIView(_ canvas: PKCanvasView, coordinator: Coordinator) {
+        NotificationCenter.default.removeObserver(coordinator)
+    }
+
     func updateUIView(_ canvas: PKCanvasView, context: Context) {
         // Update tool when brush/color/size changes
         applyTool(to: canvas)

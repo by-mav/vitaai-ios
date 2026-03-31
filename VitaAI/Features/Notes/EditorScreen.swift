@@ -6,6 +6,7 @@ import PencilKit
 // Mirrors EditorScreen.kt (Android).
 // Uses PencilKit PKCanvasView for GoodNotes-level Apple Pencil experience.
 
+@available(iOS 17, *)
 struct EditorScreen: View {
 
     let notebookId: UUID
@@ -88,7 +89,7 @@ struct EditorScreen: View {
                 currentDrawing = drawing
             }
         }
-        .onChange(of: viewModel.currentPageIndex) { _, _ in
+        .onChange(of: viewModel.currentPageIndex) { _ in
             // Force canvas re-init on page change so it loads correct PKDrawing
             canvasKey = UUID()
             if let data = viewModel.loadCanvasData(),
@@ -145,7 +146,7 @@ struct EditorScreen: View {
                             .font(.system(size: 18))
                             .foregroundColor(viewModel.currentPageIndex > 0 ? topBarText : topBarSecondary.opacity(0.3))
                     }
-                    .frame(width: 36, height: 44)
+                    .frame(width: 44, height: 44)
                     .disabled(viewModel.currentPageIndex == 0)
 
                     Button {
@@ -155,7 +156,7 @@ struct EditorScreen: View {
                             .font(.system(size: 18))
                             .foregroundColor(viewModel.currentPageIndex < viewModel.pages.count - 1 ? topBarText : topBarSecondary.opacity(0.3))
                     }
-                    .frame(width: 36, height: 44)
+                    .frame(width: 44, height: 44)
                     .disabled(viewModel.currentPageIndex >= viewModel.pages.count - 1)
                 }
             }
@@ -167,7 +168,7 @@ struct EditorScreen: View {
                 Image(systemName: "plus.circle")
                     .font(.system(size: 18))
                     .foregroundColor(topBarSecondary)
-                    .frame(width: 36, height: 44)
+                    .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Adicionar página")
 
@@ -191,7 +192,7 @@ struct EditorScreen: View {
                 Image(systemName: viewModel.paperTemplate.systemIcon)
                     .font(.system(size: 16))
                     .foregroundColor(topBarSecondary)
-                    .frame(width: 36, height: 44)
+                    .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Template de papel")
         }

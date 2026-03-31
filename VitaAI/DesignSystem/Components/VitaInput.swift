@@ -90,6 +90,8 @@ struct VitaInput: View {
                 .focused($isFocused)
                 .disabled(!isEnabled)
                 .tint(VitaColors.accent)
+                .textInputAutocapitalization(keyboardType == .emailAddress ? .never : .sentences)
+                .autocorrectionDisabled(keyboardType == .emailAddress)
 
                 // Trailing area
                 if let customIcon = trailingSystemImage {

@@ -1,0 +1,20 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - navigation
+---
+# 04 - Auth screen interaction: verify Email auth button opens sheet
+# CI smoke: no auth state, app shows login screen. Verifies the
+# Email auth flow opens without crash.
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Continuar com Email"
+    timeout: 20000
+
+# Tap email auth — should open email sheet
+- tapOn: "Continuar com Email"
+- waitForAnimationToEnd
+
+- takeScreenshot: "04-email-auth-opened"

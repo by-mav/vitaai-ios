@@ -1,0 +1,18 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - dashboard
+---
+# 03 - App stability: verify app does not crash on second launch
+# CI smoke: no auth state available, so app will show login screen.
+# This flow just verifies the app is still alive and responsive.
+- launchApp:
+    clearState: false
+
+# The app should either show login (unauthenticated) or dashboard (authenticated).
+# In CI (no auth), login screen is expected. Just verify it didn't crash.
+- extendedWaitUntil:
+    visible: "Continuar com Google"
+    timeout: 20000
+
+- takeScreenshot: "03-app-stability"

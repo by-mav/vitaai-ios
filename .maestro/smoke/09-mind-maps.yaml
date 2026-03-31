@@ -1,0 +1,58 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - mind-maps
+---
+# 09 - Mind Maps smoke: navigate to Estudos > Mapas tab and verify screen loads
+# Assumes user is logged in and on dashboard.
+# Strings verified against app/src/main/res/values/strings.xml and MindMapListScreen.kt
+- launchApp
+
+# Wait for dashboard to be visible — any of the known landmark texts
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 15000
+
+- takeScreenshot: "09-mindmaps-dashboard"
+
+# Navigate to Estudos tab (bottom nav label = "Estudo", verified in NavGraph.kt)
+- tapOn:
+    text: "Estudo"
+    optional: true
+- waitForAnimationToEnd
+
+# Wait for Estudos screen to load — tab bar appears
+- extendedWaitUntil:
+    visible: "Disciplinas"
+    timeout: 10000
+
+- takeScreenshot: "09-mindmaps-estudos"
+
+# Tap the Mapas tab inside EstudosScreen
+# Tab label verified in strings.xml: estudos_tab_mindmaps = "Mapas"
+- tapOn: "Mapas"
+- waitForAnimationToEnd
+
+# Wait for MindMapListScreen to load
+# Either the list is empty (shows "Nenhum mapa mental") or shows the grid
+# TopAppBar title = "Mapas Mentais" (hardcoded in MindMapListScreen.kt line 85)
+- extendedWaitUntil:
+    visible: "Mapas Mentais"
+    timeout: 10000
+
+- takeScreenshot: "09-mindmaps-screen"
+
+# Verify FAB is present (contentDescription = "Criar mapa mental", line 118)
+- assertVisible:
+    id: "mindmap_create_fab"
+    optional: true
+
+# Verify empty state or grid — both are valid initial states
+# Empty state title verified in MindMapListScreen.kt line 155: "Nenhum mapa mental"
+# Empty state CTA verified in line 166: "Criar mapa mental"
+- assertVisible:
+    text: "Nenhum mapa mental"
+    optional: true
+- assertVisible:
+    text: "Criar mapa mental"
+    optional: true

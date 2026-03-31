@@ -70,13 +70,12 @@ final class TrabalhoViewModel {
 
     func load() async {
         isLoading = true
-        loadMock()
-        isLoading = false
 
-        // Attempt real API; silently fall back to mock on any error
         async let assignmentsTask: Void = fetchAssignments()
         async let gradesTask: Void = fetchGrades()
         _ = await (assignmentsTask, gradesTask)
+
+        isLoading = false
     }
 
     private func fetchAssignments() async {
@@ -148,86 +147,4 @@ final class TrabalhoViewModel {
         }
     }
 
-    // MARK: - Mock Seed
-
-    private func loadMock() {
-        let cal = Calendar.current
-        assignments = [
-            LocalAssignment(
-                id: "a1",
-                title: "Relatório de Caso Clínico",
-                courseName: "Semiologia",
-                dueAt: cal.date(byAdding: .day, value: 2, to: Date()),
-                pointsPossible: 10,
-                isSubmitted: false
-            ),
-            LocalAssignment(
-                id: "a2",
-                title: "Apresentação Cardiologia",
-                courseName: "Clínica Médica",
-                dueAt: cal.date(byAdding: .day, value: 7, to: Date()),
-                pointsPossible: 8,
-                isSubmitted: false
-            ),
-            LocalAssignment(
-                id: "a3",
-                title: "Quiz Pneumologia",
-                courseName: "Clínica Médica",
-                dueAt: cal.date(byAdding: .day, value: -2, to: Date()),
-                pointsPossible: 5,
-                isSubmitted: true
-            ),
-            LocalAssignment(
-                id: "a4",
-                title: "Seminário de Semiologia",
-                courseName: "Semiologia",
-                dueAt: cal.date(byAdding: .day, value: 1, to: Date()),
-                pointsPossible: 6,
-                isSubmitted: false
-            ),
-        ]
-
-        grades = [
-            GradeEntry(
-                id: "g1",
-                userId: "",
-                subjectId: "cm-cardio",
-                label: "Prova 1 - Cardio",
-                value: 7.5,
-                maxValue: 10,
-                notes: nil,
-                date: "2025-01-15"
-            ),
-            GradeEntry(
-                id: "g2",
-                userId: "",
-                subjectId: "cm-pneumo",
-                label: "Prova 1 - Pneumo",
-                value: 8.0,
-                maxValue: 10,
-                notes: nil,
-                date: "2025-01-10"
-            ),
-            GradeEntry(
-                id: "g3",
-                userId: "",
-                subjectId: "cir-geral",
-                label: "Avaliação Cirurgia",
-                value: 6.5,
-                maxValue: 10,
-                notes: nil,
-                date: "2025-01-08"
-            ),
-            GradeEntry(
-                id: "g4",
-                userId: "",
-                subjectId: "semi",
-                label: "Prova Semiologia",
-                value: 4.5,
-                maxValue: 10,
-                notes: nil,
-                date: "2025-01-05"
-            ),
-        ]
-    }
 }

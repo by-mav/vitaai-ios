@@ -1,0 +1,27 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - chat
+---
+# 05 - App resilience: verify app recovers after background/foreground cycle
+# CI smoke: no auth state. Opens app, backgrounds it, brings it back.
+# Verifies the app is still on login screen (no crash on lifecycle).
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Continuar com Google"
+    timeout: 20000
+
+# Press home (background the app) then relaunch
+- pressKey: Home
+- waitForAnimationToEnd
+
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Continuar com Google"
+    timeout: 20000
+
+- takeScreenshot: "05-app-lifecycle"

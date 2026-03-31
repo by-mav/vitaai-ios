@@ -1,0 +1,41 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke-local
+  - ios
+  - demo
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    arguments:
+      --vita-e2e-demo: "true"
+
+- extendedWaitUntil:
+    visible: "Ferramentas de Estudo"
+    timeout: 30000
+
+- tapOn:
+    id: "tab_estudos"
+
+- extendedWaitUntil:
+    visible:
+      id: "tab_estudos"
+    timeout: 10000
+
+- tapOn:
+    id: "tab_faculdade"
+
+- extendedWaitUntil:
+    visible:
+      id: "tab_faculdade"
+    timeout: 10000
+
+- tapOn:
+    id: "tab_progresso"
+
+- extendedWaitUntil:
+    visible:
+      id: "tab_progresso"
+    timeout: 10000
+
+- takeScreenshot: "smoke-local-navigation"

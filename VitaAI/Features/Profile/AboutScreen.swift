@@ -62,8 +62,10 @@ struct AboutScreen: View {
                 // Changelog card
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Changelog")
-                        .font(VitaTypography.titleLarge)
-                        .foregroundStyle(VitaColors.white)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color(red: 1.0, green: 0.945, blue: 0.843).opacity(0.55))
+                        .textCase(.uppercase)
+                        .tracking(0.5)
                         .padding(.horizontal, 20)
 
                     VitaGlassCard {
@@ -109,8 +111,10 @@ struct AboutScreen: View {
                 // Legal card
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Legal")
-                        .font(VitaTypography.titleLarge)
-                        .foregroundStyle(VitaColors.white)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color(red: 1.0, green: 0.945, blue: 0.843).opacity(0.55))
+                        .textCase(.uppercase)
+                        .tracking(0.5)
                         .padding(.horizontal, 20)
 
                     VitaGlassCard {
@@ -134,7 +138,7 @@ struct AboutScreen: View {
                 Spacer().frame(height: 100)
             }
         }
-        .background(VitaColors.surface.ignoresSafeArea())
+        .vitaScreenBg()
         .navigationTitle("Sobre")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)

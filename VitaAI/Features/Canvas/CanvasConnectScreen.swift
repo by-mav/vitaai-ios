@@ -11,7 +11,7 @@ struct CanvasConnectScreen: View {
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
 
             // Ambient glow
             Canvas { context, size in
@@ -47,13 +47,13 @@ struct CanvasConnectScreen: View {
             }
         }
         .vitaToastHost(toastState)
-        .onChange(of: viewModel?.state.successMessage) { _, msg in
+        .onChange(of: viewModel?.state.successMessage) { msg in
             if let msg {
                 toastState.show(msg, type: .success)
                 viewModel?.dismissMessages()
             }
         }
-        .onChange(of: viewModel?.state.error) { _, err in
+        .onChange(of: viewModel?.state.error) { err in
             if let err {
                 toastState.show(err, type: .error)
                 viewModel?.dismissMessages()

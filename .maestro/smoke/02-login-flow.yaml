@@ -1,0 +1,27 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - auth
+---
+# 02 - Login Flow: verify login screen elements and Google sign-in button
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible: "Continuar com Google"
+    timeout: 30000
+
+# Assert all three auth providers are visible
+- assertVisible: "Continuar com Google"
+- assertVisible: "Continuar com Apple"
+- assertVisible: "Continuar com Email"
+
+- takeScreenshot: "02-login-providers"
+
+# Tap Google sign-in (will trigger OAuth flow or error — we just verify it responds)
+- tapOn: "Continuar com Google"
+
+# Wait briefly for any response (loading spinner or Google prompt)
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-login-google-tap"

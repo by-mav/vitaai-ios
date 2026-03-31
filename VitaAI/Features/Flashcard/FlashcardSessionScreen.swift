@@ -1,4 +1,12 @@
 import SwiftUI
+import Combine
+
+// MARK: - Flashcard Session accent colors (from flashcard-session-v1.html mockup)
+// Purple accent: rgba(148,75,220), rgba(100,40,180), rgba(120,50,200)
+private let flashcardAccent     = Color(red: 148/255, green: 75/255, blue: 220/255)
+private let flashcardAccentDark = Color(red: 100/255, green: 40/255, blue: 180/255)
+// Screen bg: #08060a + purple ambient per mockup .app-shell
+private let flashcardScreenBg   = Color(red: 8/255, green: 6/255, blue: 10/255) // #08060a
 
 // MARK: - Flashcard Session Screen
 
@@ -11,18 +19,65 @@ struct FlashcardSessionScreen: View {
     @Environment(\.appContainer) private var container
     @State private var viewModel: FlashcardViewModel?
     @State private var elapsedSeconds: Int = 0
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var timerCancellable: (any Cancellable)?
+    private let timer = Timer.publish(every: 1, on: .main, in: .common)
 
-    // Progress bar gradient — gold theme matches web/Android
+    // Progress bar gradient — rgba(148,75,220,0.70) → rgba(180,120,255,0.50) per mockup
     private let progressGradient = LinearGradient(
-        colors: [VitaColors.accent, VitaColors.accentDark],
+        colors: [
+            Color(red: 148/255, green: 75/255, blue: 220/255).opacity(0.70),
+            Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.50)
+        ],
         startPoint: .leading,
         endPoint: .trailing
     )
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            // Screen background: #08060a base + purple ambient radial gradients per mockup
+            flashcardScreenBg.ignoresSafeArea()
+            Canvas { ctx, size in
+                // Radial 1: top-center, rgba(100,40,180,0.08) ellipse 60%×50% at 50% 30%
+                ctx.drawLayer { c in
+                    c.fill(
+                        Path(ellipseIn: CGRect(
+                            x: size.width * 0.20, y: size.height * 0.05,
+                            width: size.width * 0.60, height: size.height * 0.50)),
+                        with: .radialGradient(
+                            Gradient(colors: [
+                                Color(red: 100/255, green: 40/255, blue: 180/255).opacity(0.08),
+                                .clear]),
+                            center: CGPoint(x: size.width * 0.50, y: size.height * 0.30),
+                            startRadius: 0, endRadius: size.width * 0.50))
+                }
+                // Radial 2: top-right, rgba(148,75,220,0.06) ellipse 40%×40% at 80% 20%
+                ctx.drawLayer { c in
+                    c.fill(
+                        Path(ellipseIn: CGRect(
+                            x: size.width * 0.60, y: 0,
+                            width: size.width * 0.40, height: size.height * 0.40)),
+                        with: .radialGradient(
+                            Gradient(colors: [
+                                Color(red: 148/255, green: 75/255, blue: 220/255).opacity(0.06),
+                                .clear]),
+                            center: CGPoint(x: size.width * 0.80, y: size.height * 0.20),
+                            startRadius: 0, endRadius: size.width * 0.35))
+                }
+                // Radial 3: bottom-left, rgba(120,50,200,0.04) ellipse 40%×40% at 20% 80%
+                ctx.drawLayer { c in
+                    c.fill(
+                        Path(ellipseIn: CGRect(
+                            x: 0, y: size.height * 0.60,
+                            width: size.width * 0.40, height: size.height * 0.40)),
+                        with: .radialGradient(
+                            Gradient(colors: [
+                                Color(red: 120/255, green: 50/255, blue: 200/255).opacity(0.04),
+                                .clear]),
+                            center: CGPoint(x: size.width * 0.20, y: size.height * 0.80),
+                            startRadius: 0, endRadius: size.width * 0.35))
+                }
+            }
+            .ignoresSafeArea()
 
             if let vm = viewModel {
                 switch vm.phase {
@@ -59,6 +114,11 @@ struct FlashcardSessionScreen: View {
                 viewModel = vm
                 vm.loadDeck(deckId)
             }
+            timerCancellable = timer.connect()
+        }
+        .onDisappear {
+            timerCancellable?.cancel()
+            timerCancellable = nil
         }
         .onReceive(timer) { _ in
             elapsedSeconds = viewModel?.elapsedSeconds ?? 0
@@ -71,11 +131,16 @@ struct FlashcardSessionScreen: View {
     @ViewBuilder
     private func studyingBody(vm: FlashcardViewModel) -> some View {
         VStack(spacing: 0) {
-            topBar(vm: vm)
+            // Session header: back | title | count  (per mockup .session-header)
+            sessionHeader(vm: vm)
                 .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.top, 6)
+                .padding(.bottom, 14)
 
-            Spacer().frame(height: 20)
+            // Progress bar — separate 3px bar below header
+            sessionProgressBar(vm: vm)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
 
             if let card = vm.currentCard {
                 FlashcardCardView(
@@ -85,6 +150,8 @@ struct FlashcardSessionScreen: View {
                     isFlipped: vm.isFlipped,
                     onFlip: { vm.flipCard() }
                 )
+                // Card scene height: 380px per mockup .card-scene
+                .frame(height: 380)
                 .padding(.horizontal, 16)
             }
 
@@ -100,42 +167,58 @@ struct FlashcardSessionScreen: View {
         }
     }
 
-    // MARK: Top Bar
+    // MARK: Session Header — chevron+Voltar | title | count (purple)
 
-    private func topBar(vm: FlashcardViewModel) -> some View {
-        HStack(spacing: 8) {
+    private func sessionHeader(vm: FlashcardViewModel) -> some View {
+        HStack(spacing: 0) {
+            // Back — chevron.left + "Voltar", rgba(255,240,215,0.50)
             Button(action: onBack) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .frame(width: 32, height: 32)
-                    .background(VitaColors.glassBg)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 1))
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .medium))
+                    Text("Voltar")
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .foregroundStyle(VitaColors.textWarm.opacity(0.50))
+                .frame(minWidth: 60, alignment: .leading)
             }
             .buttonStyle(.plain)
 
-            // Animated progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(VitaColors.surfaceElevated)
-                        .frame(height: 4)
+            Spacer()
 
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(progressGradient)
-                        .frame(width: geo.size.width * vm.progress, height: 4)
-                        .animation(.easeInOut(duration: 0.4), value: vm.progress)
-                }
-            }
-            .frame(height: 4)
+            // Center title — 14px semibold, rgba(255,252,248,0.90)
+            Text(vm.deckTitle)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(VitaColors.textPrimary)
+                .lineLimit(1)
 
+            Spacer()
+
+            // Count — 11px semibold, rgba(180,120,255,0.60)
             Text(vm.progressLabel)
-                .font(VitaTypography.labelSmall)
-                .foregroundStyle(VitaColors.textSecondary)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.60))
                 .monospacedDigit()
+                .frame(minWidth: 60, alignment: .trailing)
         }
-        .frame(height: 32)
+    }
+
+    // MARK: Progress Bar — 3px, rgba(255,255,255,0.06) bg, purple gradient fill
+
+    private func sessionProgressBar(vm: FlashcardViewModel) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 999)
+                    .fill(Color.white.opacity(0.06))
+                    .frame(height: 3)
+
+                RoundedRectangle(cornerRadius: 999)
+                    .fill(progressGradient)
+                    .frame(width: geo.size.width * vm.progress, height: 3)
+                    .animation(.easeInOut(duration: 0.4), value: vm.progress)
+            }
+        }
+        .frame(height: 3)
     }
 
     // MARK: Rating Section
@@ -149,7 +232,7 @@ struct FlashcardSessionScreen: View {
 
         if isReviewing {
             ProgressView()
-                .tint(VitaColors.accent)
+                .tint(flashcardAccent)
                 .frame(height: 72)
         } else if vm.isFlipped {
             RatingButtonsView(
@@ -184,7 +267,7 @@ struct FlashcardSessionScreen: View {
         VStack(spacing: 20) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(VitaColors.accent)
+                .foregroundStyle(flashcardAccent)
 
             VStack(spacing: 8) {
                 Text("Nenhum card para revisar")
@@ -200,12 +283,12 @@ struct FlashcardSessionScreen: View {
 
             Button("Voltar", action: onBack)
                 .font(VitaTypography.labelLarge)
-                .foregroundStyle(VitaColors.accent)
+                .foregroundStyle(flashcardAccent)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(VitaColors.accent.opacity(0.08))
+                .background(flashcardAccent.opacity(0.08))
                 .clipShape(Capsule())
-                .overlay(Capsule().stroke(VitaColors.accent.opacity(0.18), lineWidth: 1))
+                .overlay(Capsule().stroke(flashcardAccent.opacity(0.18), lineWidth: 1))
         }
         .padding(32)
     }
@@ -222,7 +305,7 @@ struct FlashcardSessionScreen: View {
 
             Button("Voltar", action: onBack)
                 .font(VitaTypography.labelLarge)
-                .foregroundStyle(VitaColors.accent)
+                .foregroundStyle(flashcardAccent)
         }
         .padding(32)
     }
@@ -256,10 +339,11 @@ private struct FlashcardLoadingSkeleton: View {
 
             Spacer().frame(height: 20)
 
-            // Card skeleton
-            RoundedRectangle(cornerRadius: 16)
+            // Card skeleton — 380pt per mockup .card-scene
+            RoundedRectangle(cornerRadius: 22)
                 .fill(VitaColors.surfaceCard)
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(VitaColors.glassBorder, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 22).stroke(VitaColors.glassBorder, lineWidth: 1))
+                .frame(height: 380)
                 .shimmer()
                 .padding(.horizontal, 16)
 

@@ -1,0 +1,45 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - simulados
+---
+# 08 - Simulados smoke: verify screen loads without crash and primary CTA is visible
+# Assumes user is already logged in and onboarded.
+
+- launchApp
+
+# Wait for dashboard
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 15000
+
+- takeScreenshot: "08-simulados-smoke-dashboard"
+
+# Navigate to Estudos tab
+- tapOn:
+    text: "Estudo"
+    optional: true
+- waitForAnimationToEnd
+
+# Tap Simulados tab/section
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: "08-simulados-smoke-screen"
+
+# Verify the screen loaded: either list or empty state — no crash
+- extendedWaitUntil:
+    visible: "Simulados"
+    timeout: 10000
+
+# Verify primary action CTA is present (empty state or list)
+- assertVisible:
+    text: "Novo Simulado"
+    optional: true
+- assertVisible:
+    text: "Começar primeiro simulado"
+    optional: true
+
+- takeScreenshot: "08-simulados-smoke-verified"

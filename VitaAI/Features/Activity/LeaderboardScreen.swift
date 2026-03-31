@@ -66,7 +66,23 @@ struct LeaderboardScreen: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 12)
 
-            if let vm, !vm.isLoading {
+            if let vm, !vm.isLoading, let error = vm.errorMessage {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 28))
+                        .foregroundStyle(VitaColors.textTertiary)
+                    Text(error)
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textSecondary)
+                    Button("Tentar novamente") {
+                        Task { await vm.load(period: selectedPeriod) }
+                    }
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.accent)
+                }
+                Spacer()
+            } else if let vm, !vm.isLoading {
                 if vm.entries.isEmpty {
                     Spacer()
                     Text("Nenhum dado para este periodo")

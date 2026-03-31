@@ -61,7 +61,7 @@ struct VitaVoiceInput: View {
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)                  // 44pt touch target
         .accessibilityLabel(accessibilityLabel)
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: machine.state == .recording)
+        // sensoryFeedback removed (iOS 17+)
     }
 
     // MARK: Appearance helpers
@@ -193,14 +193,16 @@ final class VoiceInputMachine {
         state = .requestingPermission
 
         // Check microphone permission
-        let micStatus = AVAudioApplication.shared.recordPermission
+        let micStatus = AVAudioSession.sharedInstance().recordPermission
         if micStatus == .denied {
             state = .error(message: "Microfone bloqueado. Ative nas configurações.")
             onPermissionDenied?()
             return
         }
         if micStatus == .undetermined {
-            let granted = await AVAudioApplication.requestRecordPermission()
+            let granted = await withCheckedContinuation { cont in
+                AVAudioSession.sharedInstance().requestRecordPermission { g in cont.resume(returning: g) }
+            }
             guard granted else {
                 state = .idle
                 onPermissionDenied?()
@@ -269,32 +271,35 @@ final class VoiceInputMachine {
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
 
-            if let result {
-                finalText = result.bestTranscription.formattedString
+            // Callback fires on arbitrary thread — hop to MainActor for @Observable state
+            Task { @MainActor [weak self] in
+                guard let self else { return }
 
-                // On iOS, isFinal triggers when silence is detected
-                if result.isFinal {
-                    self.finishRecording()
-                    if !finalText.isEmpty {
-                        onTranscript(finalText)
-                        self.state = .done(text: finalText)
-                        // Auto-reset to idle after 1.5s
-                        Task { @MainActor in
+                if let result {
+                    finalText = result.bestTranscription.formattedString
+
+                    // On iOS, isFinal triggers when silence is detected
+                    if result.isFinal {
+                        self.finishRecording()
+                        if !finalText.isEmpty {
+                            onTranscript(finalText)
+                            self.state = .done(text: finalText)
+                            // Auto-reset to idle after 1.5s
                             try? await Task.sleep(for: .seconds(1.5))
                             if case .done = self.state { self.state = .idle }
+                        } else {
+                            self.state = .idle
                         }
-                    } else {
-                        self.state = .idle
                     }
                 }
-            }
 
-            if let error {
-                let nsError = error as NSError
-                // Code 1110 = "No speech detected" — not a real error
-                if nsError.code != 1110 {
-                    self.state = .error(message: error.localizedDescription)
-                    self.finishRecording()
+                if let error {
+                    let nsError = error as NSError
+                    // Code 1110 = "No speech detected" — not a real error
+                    if nsError.code != 1110 {
+                        self.state = .error(message: error.localizedDescription)
+                        self.finishRecording()
+                    }
                 }
             }
         }
@@ -360,7 +365,7 @@ struct VitaMicButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(machine.state == .recording ? "Parar gravação" : "Falar")
-        .onChange(of: machine.state) { _, newState in
+        .onChange(of: machine.state) { newState in
             isListening = newState == .recording
             if newState == .recording {
                 withAnimation { pulsePhase = 1 }

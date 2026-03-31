@@ -14,11 +14,12 @@ import SwiftData
 // ensure they pass in a context appropriate for their actor isolation (i.e. the
 // @MainActor context for UI code, or a background context for background saves).
 
+@available(iOS 17, *)
 final class NotebookRepository {
 
     // MARK: Dependencies
 
-    private let context: ModelContext
+    let context: ModelContext
     let strokeStorage: StrokeFileStorage
 
     // MARK: Init

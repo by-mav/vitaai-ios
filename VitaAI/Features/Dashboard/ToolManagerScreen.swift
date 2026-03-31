@@ -8,8 +8,13 @@ struct ToolEntry: Identifiable, Hashable {
     let iconName: String // SF Symbol name
     let route: Route
 
-    func hash(into hasher: inout Hasher) { hasher.combine(id) }
-    static func == (lhs: ToolEntry, rhs: ToolEntry) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
+    static func == (lhs: ToolEntry, rhs: ToolEntry) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 // MARK: - All Available Tools

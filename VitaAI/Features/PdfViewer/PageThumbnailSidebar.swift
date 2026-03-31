@@ -29,7 +29,7 @@ struct PageThumbnailSidebar: View {
                     }
                     .frame(width: 110)
                     .background(VitaColors.surfaceCard.opacity(0.95))
-                    .onChange(of: currentPage) { _, newPage in
+                    .onChange(of: currentPage) { newPage in
                         withAnimation { proxy.scrollTo(newPage, anchor: .center) }
                     }
                 }

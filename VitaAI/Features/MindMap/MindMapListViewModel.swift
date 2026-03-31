@@ -6,6 +6,7 @@ import SwiftUI
 // @Observable replaces Kotlin StateFlow + MutableStateFlow.
 
 @Observable
+@available(iOS 17, *)
 @MainActor
 final class MindMapListViewModel {
 
@@ -31,8 +32,13 @@ final class MindMapListViewModel {
         isLoading = false
     }
 
+    /// Pull-to-refresh: sync with cloud then reload local data.
     func refresh() async {
         isLoading = true
+        // Trigger cloud sync if available, then reload from SwiftData
+        if let sync = store.syncManager {
+            await sync.pull()
+        }
         await store.loadMindMaps()
         mindMaps = store.mindMaps
         isLoading = false

@@ -41,10 +41,14 @@ final class TranscricaoViewModel {
     private(set) var summary: String = ""
     private(set) var flashcards: [TranscriptionFlashcard] = []
     private(set) var errorMessage: String?
+    /// Saved recordings loaded from API
+    private(set) var recordings: [TranscricaoEntry] = []
+    private(set) var recordingsLoading: Bool = false
 
     // MARK: - Private
 
     private let client: TranscricaoClient
+    private var api: VitaAPI?
     private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
@@ -53,11 +57,25 @@ final class TranscricaoViewModel {
     private var timerTask: Task<Void, Never>?
     private var uploadTask: Task<Void, Never>?
 
-    init(client: TranscricaoClient) {
+    init(client: TranscricaoClient, api: VitaAPI? = nil) {
         self.client = client
+        self.api = api
     }
 
     // MARK: - Public API
+
+    /// Load saved recordings from the API
+    func loadRecordings() async {
+        guard let api else { return }
+        recordingsLoading = true
+        do {
+            recordings = try await api.getTranscricoes()
+        } catch {
+            print("[TranscricaoVM] Failed to load recordings: \(error)")
+            // Non-fatal — just show empty list
+        }
+        recordingsLoading = false
+    }
 
     func startRecording() async {
         guard await requestPermissions() else {
@@ -99,6 +117,11 @@ final class TranscricaoViewModel {
         }
     }
 
+    /// Remove a recording from the local list (optimistic delete)
+    func removeRecordingLocally(id: String) {
+        recordings.removeAll { $0.id == id }
+    }
+
     func reset() {
         timerTask?.cancel()
         uploadTask?.cancel()
@@ -122,10 +145,13 @@ final class TranscricaoViewModel {
 
     private func requestPermissions() async -> Bool {
         // Microphone
-        let micStatus = AVAudioApplication.shared.recordPermission
+        let micStatus = AVAudioSession.sharedInstance().recordPermission
         if micStatus == .denied { return false }
         if micStatus == .undetermined {
-            guard await AVAudioApplication.requestRecordPermission() else { return false }
+            let granted = await withCheckedContinuation { cont in
+                AVAudioSession.sharedInstance().requestRecordPermission { granted in cont.resume(returning: granted) }
+            }
+            guard granted else { return false }
         }
         // Speech recognition
         let speechStatus = SFSpeechRecognizer.authorizationStatus()

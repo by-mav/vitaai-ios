@@ -15,6 +15,8 @@ struct UpcomingExam: Identifiable {
     let type: String
     let date: Date
     let daysUntil: Int
+    var conceptCards: Int = 0
+    var practiceCards: Int = 0
 }
 
 struct WeekDay: Identifiable {

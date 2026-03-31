@@ -57,6 +57,7 @@ let assignmentTemplates: [AssignmentTemplate] = [
 
 @MainActor
 @Observable
+@available(iOS 17, *)
 final class TrabalhoEditorViewModel {
 
     // MARK: State
@@ -112,8 +113,10 @@ final class TrabalhoEditorViewModel {
 
         // Create new
         let newId = assignmentId ?? UUID().uuidString
-        let template = assignmentTemplates.first(where: { $0.id == templateId })
-            ?? assignmentTemplates[0]
+        guard let template = assignmentTemplates.first(where: { $0.id == templateId })
+            ?? assignmentTemplates.first else {
+            return
+        }
 
         id = newId
         title = ""

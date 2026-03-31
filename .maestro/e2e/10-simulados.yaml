@@ -1,0 +1,54 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - simulados
+---
+# Wait for dashboard
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+
+- takeScreenshot: "10-dashboard"
+
+# Navigate to Simulados
+- tapOn:
+    id: "tool_simulados"
+    optional: true
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "10-simulados-home"
+
+# Try new simulado
+- tapOn:
+    text: "Novo Simulado"
+    optional: true
+- tapOn:
+    text: "Novo"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "10-simulados-config"
+
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd

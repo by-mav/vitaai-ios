@@ -1,5 +1,18 @@
 import SwiftUI
 
+// MARK: - Gold Theme Colors → VitaColors references
+
+private enum GoldAccent {
+    static let primary     = VitaColors.accentHover      // rgba(255,200,120)
+    static let secondary   = VitaColors.accent           // rgba(200,160,80)
+    static let warm        = VitaColors.glassInnerLight  // rgba(200,155,70)
+    static let textGold    = VitaColors.accentLight      // rgba(255,220,160)
+    static let textGoldDim = VitaColors.textSecondary    // rgba(255,240,215,0.40)
+    static let labelGold   = VitaColors.textSecondary    // rgba(255,241,215,0.40)
+    static let border      = VitaColors.glassBorder      // rgba(255,200,120,0.14)
+    static let amber       = VitaColors.dataAmber        // #f59e0b
+}
+
 // MARK: - EstudosScreen
 
 struct EstudosScreen: View {
@@ -18,6 +31,8 @@ struct EstudosScreen: View {
     /// (courseId, colorIndex) — navigates to CourseDetailScreen
     var onNavigateToCourseDetail:      ((String, Int) -> Void)?
     var onNavigateToProvas:            (() -> Void)?
+    var onNavigateToQBank:             (() -> Void)?
+    var onNavigateToTranscricao:       (() -> Void)?
 
     @State private var viewModel: EstudosViewModel?
 
@@ -36,11 +51,13 @@ struct EstudosScreen: View {
                     onNavigateToOsce:             onNavigateToOsce,
                     onNavigateToAtlas:            onNavigateToAtlas,
                     onNavigateToCourseDetail:     onNavigateToCourseDetail,
-                    onNavigateToProvas:           onNavigateToProvas
+                    onNavigateToProvas:           onNavigateToProvas,
+                    onNavigateToQBank:            onNavigateToQBank,
+                    onNavigateToTranscricao:      onNavigateToTranscricao
                 )
             } else {
                 ProgressView()
-                    .tint(VitaColors.accent)
+                    .tint(GoldAccent.primary)
             }
         }
         .onAppear {
@@ -67,1186 +84,788 @@ private struct EstudosContent: View {
     let onNavigateToAtlas:             (() -> Void)?
     let onNavigateToCourseDetail:      ((String, Int) -> Void)?
     let onNavigateToProvas:            (() -> Void)?
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Canvas Connect Banner — matches Android CanvasConnectBanner
-            if !viewModel.isLoading && !viewModel.canvasConnected {
-                CanvasConnectBanner(onConnect: onNavigateToCanvasConnect)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-
-            // 4-tab bar (Disciplinas | Notebooks | Flashcards | PDFs)
-            EstudosTabBar(selectedTab: $viewModel.selectedTab)
-
-            // Body
-            if let err = viewModel.error,
-               viewModel.courses.isEmpty && viewModel.flashcardDisplayDecks.isEmpty {
-                EstudosErrorView(message: err) {
-                    Task { await viewModel.load() }
-                }
-            } else if viewModel.isLoading && viewModel.courses.isEmpty {
-                EstudosSkeleton(tab: viewModel.selectedTab)
-            } else {
-                tabContent
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: viewModel.canvasConnected)
-    }
-}
-
-private extension EstudosContent {
-    @ViewBuilder
-    var tabContent: some View {
-        switch viewModel.selectedTab {
-        case .disciplinas:
-            DisciplinasTab(
-                viewModel: viewModel,
-                onCourseClick: { courseId, colorIndex in
-                    if let navigate = onNavigateToCourseDetail {
-                        navigate(courseId, colorIndex)
-                    } else {
-                        // Fallback: switch to PDFs tab filtered by course
-                        viewModel.selectCourse(courseId)
-                    }
-                },
-                onNavigateToSimulados: onNavigateToSimulados,
-                onNavigateToOsce: onNavigateToOsce,
-                onNavigateToAtlas: onNavigateToAtlas,
-                onNavigateToProvas: onNavigateToProvas,
-                onRefresh: { await viewModel.load() }
-            )
-
-        case .notebooks:
-            NotebooksTab(
-                onNavigate: onNavigateToNotebooks ?? {}
-            )
-
-        case .mindMaps:
-            MindMapsTab(
-                onNavigate: onNavigateToMindMaps ?? {}
-            )
-
-        case .flashcards:
-            FlashcardsTab(
-                decks: viewModel.flashcardDisplayDecks,
-                isLoading: viewModel.isLoading,
-                onDeckClick: { deckId in onNavigateToFlashcardSession?(deckId) },
-                onStatsClick: onNavigateToFlashcardStats,
-                onRefresh: { await viewModel.load() }
-            )
-
-        case .pdfs:
-            PdfsTab(
-                files: viewModel.files,
-                isLoading: viewModel.isLoading,
-                selectedCourseId: viewModel.selectedCourseId,
-                downloadingFileId: viewModel.downloadingFileId,
-                onFileClick: { file in
-                    Task {
-                        if let url = await viewModel.downloadFile(
-                            fileId: file.id,
-                            fileName: file.displayName
-                        ) {
-                            onNavigateToPdfViewer?(url)
-                        }
-                    }
-                },
-                onClearFilter: { viewModel.clearCourseFilter() },
-                onRefresh: { await viewModel.load() }
-            )
-        }
-    }
-}
-
-// MARK: - Tab Bar
-
-private struct EstudosTabBar: View {
-    @Binding var selectedTab: EstudosTab
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(EstudosTab.allCases, id: \.self) { tab in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTab = tab
-                    }
-                } label: {
-                    VStack(spacing: 6) {
-                        Text(tab.title)
-                            .font(VitaTypography.labelMedium)
-                            .fontWeight(selectedTab == tab ? .semibold : .regular)
-                            .foregroundStyle(
-                                selectedTab == tab
-                                    ? VitaColors.accent
-                                    : VitaColors.textSecondary
-                            )
-
-                        Rectangle()
-                            .fill(selectedTab == tab ? VitaColors.accent : Color.clear)
-                            .frame(height: 2)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .animation(.easeInOut(duration: 0.2), value: selectedTab)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(VitaColors.glassBorder)
-                .frame(height: 1)
-        }
-    }
-}
-
-// MARK: - Canvas Connect Banner
-
-private struct CanvasConnectBanner: View {
-    let onConnect: (() -> Void)?
-
-    var body: some View {
-        VitaGlassCard {
-            HStack(spacing: 12) {
-                Image(systemName: "building.columns")
-                    .font(.system(size: 22))
-                    .foregroundStyle(VitaColors.accent.opacity(0.8))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Conecte o Canvas LMS")
-                        .font(VitaTypography.labelMedium)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text("Sincronize disciplinas, PDFs e tarefas")
-                        .font(VitaTypography.labelSmall)
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
-
-                Spacer()
-
-                if let onConnect {
-                    Button("Conectar") { onConnect() }
-                        .font(VitaTypography.labelMedium)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(VitaColors.accent)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(VitaColors.accent.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-        }
-    }
-}
-
-// MARK: - Skeleton
-
-private struct EstudosSkeleton: View {
-    let tab: EstudosTab
+    let onNavigateToQBank:             (() -> Void)?
+    let onNavigateToTranscricao:       (() -> Void)?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 12) {
-                switch tab {
-                case .disciplinas, .flashcards:
-                    ForEach(0..<5, id: \.self) { _ in
-                        HStack(spacing: 14) {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(VitaColors.surfaceElevated)
-                                .frame(width: 44, height: 44)
-                                .shimmer()
-                            VStack(alignment: .leading, spacing: 6) {
-                                ShimmerText(width: 180, height: 16)
-                                ShimmerText(width: 120, height: 12)
-                            }
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                    }
-
-                case .pdfs:
-                    ForEach(0..<2, id: \.self) { groupIdx in
-                        VStack(alignment: .leading, spacing: 8) {
-                            ShimmerText(width: 140, height: 14)
-                                .padding(.horizontal, 16)
-                            ForEach(0..<3, id: \.self) { _ in
-                                HStack(spacing: 12) {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(VitaColors.surfaceElevated)
-                                        .frame(width: 22, height: 22)
-                                        .shimmer()
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        ShimmerText(width: 200, height: 14)
-                                        ShimmerText(width: 140, height: 12)
-                                    }
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                        }
-                        if groupIdx == 0 { Spacer().frame(height: 8) }
-                    }
-
-                case .notebooks, .mindMaps:
-                    ForEach(0..<5, id: \.self) { _ in
-                        ShimmerBox(height: 76, cornerRadius: 14)
-                            .padding(.horizontal, 16)
-                    }
-                }
-            }
-            .padding(.top, 16)
-            .padding(.bottom, 100)
-        }
-    }
-}
-
-// MARK: - Error View
-
-private struct EstudosErrorView: View {
-    let message: String
-    let onRetry: () -> Void
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(VitaColors.dataAmber)
-            Text("Erro ao carregar")
-                .font(VitaTypography.titleMedium)
-                .foregroundStyle(VitaColors.textPrimary)
-            Text(message)
-                .font(VitaTypography.bodySmall)
-                .foregroundStyle(VitaColors.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            Button("Tentar Novamente", action: onRetry)
-                .font(VitaTypography.labelMedium)
-                .fontWeight(.semibold)
-                .foregroundStyle(VitaColors.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(VitaColors.accent)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            Spacer()
-        }
-    }
-}
-
-// MARK: - Disciplinas Tab
-
-private struct DisciplinasTab: View {
-    @Bindable var viewModel: EstudosViewModel
-    /// (courseId, colorIndex)
-    let onCourseClick: (String, Int) -> Void
-    var onNavigateToSimulados: (() -> Void)?
-    var onNavigateToOsce: (() -> Void)?
-    var onNavigateToAtlas: (() -> Void)?
-    var onNavigateToProvas: (() -> Void)?
-    var onRefresh: (() async -> Void)?
-
-    @State private var isGridView = false
-
-    private let gridColumns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
-
-    var body: some View {
-        if !viewModel.isLoading && viewModel.courses.isEmpty {
-            VitaEmptyState(
-                title: "Nenhuma disciplina",
-                message: "Conecte o Canvas para sincronizar suas disciplinas.",
-                actionText: nil,
-                onAction: nil
-            ) {
-                Image(systemName: "graduationcap.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(VitaColors.accent)
-            }
-        } else {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    // Toolbar: sort menu + grid/list toggle
-                    DisciplinasToolbar(
-                        sortOption: $viewModel.sortOption,
-                        isGridView: $isGridView
+            VStack(spacing: 0) {
+                // Continue studying card
+                if let firstRec = viewModel.studyRecommendations.first {
+                    ContinueStudyingCard(
+                        recommendation: firstRec,
+                        onNavigateToFlashcardSession: onNavigateToFlashcardSession
                     )
-
-                    // Simulados entry card
-                    if let onSimulados = onNavigateToSimulados {
-                        SimuladosEntryCard(onTap: onSimulados)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 8)
-                    }
-
-                    // OSCE entry card
-                    if let onOsce = onNavigateToOsce {
-                        OsceEntryCard(onTap: onOsce)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 8)
-                    }
-
-                    // Atlas 3D entry card
-                    if let onAtlas = onNavigateToAtlas {
-                        AtlasEntryCard(onTap: onAtlas)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 8)
-                    }
-
-                    // Provas entry card
-                    if let onProvas = onNavigateToProvas {
-                        ProvasEntryCard(onTap: onProvas)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 8)
-                    }
-
-                    if isGridView {
-                        // Grid layout
-                        LazyVGrid(columns: gridColumns, spacing: 12) {
-                            ForEach(
-                                Array(viewModel.sortedCourses.enumerated()),
-                                id: \.element.id
-                            ) { index, course in
-                                CourseGridCell(
-                                    course: course,
-                                    colorIndex: index,
-                                    isFavorite: viewModel.isFavorite(course.id),
-                                    onFavoriteToggle: { viewModel.toggleFavorite(course.id) },
-                                    onClick: { onCourseClick(course.id, index) }
-                                )
-                                .transition(.opacity.combined(with: .scale))
-                                .animation(
-                                    .easeOut(duration: 0.3).delay(Double(index) * 0.04),
-                                    value: viewModel.sortedCourses.count
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 100)
-                    } else {
-                        // List layout
-                        LazyVStack(spacing: 12) {
-                            ForEach(
-                                Array(viewModel.sortedCourses.enumerated()),
-                                id: \.element.id
-                            ) { index, course in
-                                CourseRow(
-                                    course: course,
-                                    colorIndex: index,
-                                    isFavorite: viewModel.isFavorite(course.id),
-                                    onFavoriteToggle: { viewModel.toggleFavorite(course.id) },
-                                    onClick: { onCourseClick(course.id, index) }
-                                )
-                                .transition(.opacity.combined(with: .move(edge: .bottom)))
-                                .animation(
-                                    .easeOut(duration: 0.3).delay(Double(index) * 0.06),
-                                    value: viewModel.sortedCourses.count
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 100)
-                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
                 }
-            }
-            .refreshable {
-                await onRefresh?()
-            }
-            .animation(.easeInOut(duration: 0.25), value: isGridView)
-        }
-    }
-}
 
-// MARK: - Simulados Entry Card
-
-private struct SimuladosEntryCard: View {
-    let onTap: () -> Void
-    var body: some View {
-        Button(action: onTap) {
-            VitaGlassCard {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(VitaColors.accent.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "text.badge.checkmark")
-                            .font(.system(size: 20))
-                            .foregroundStyle(VitaColors.accent)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Simulados")
-                            .font(VitaTypography.bodyLarge)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(VitaColors.textPrimary)
-                        Text("Pratique com questões de múltipla escolha")
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
+                // 3 module cards horizontal
+                ModulesRow(
+                    onNavigateToQBank: onNavigateToQBank,
+                    onNavigateToFlashcardStats: onNavigateToFlashcardStats,
+                    onNavigateToSimulados: onNavigateToSimulados
+                )
                 .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                .padding(.bottom, 14)
+
+                // Suas disciplinas
+                EstudosSectionLabel(text: "SUAS DISCIPLINAS")
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
+
+                DisciplinesCarousel(
+                    courses: viewModel.courses,
+                    onCourseClick: onNavigateToCourseDetail
+                )
+                .padding(.bottom, 16)
+
+                // Vita sugere
+                EstudosSectionLabel(text: "VITA SUGERE")
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+
+                MateriaisScroll(recommendations: viewModel.studyRecommendations)
+                    .padding(.bottom, 16)
+
+                // Trabalhos pendentes
+                EstudosSectionLabel(text: "TRABALHOS PENDENTES")
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+
+                TrabalhosSection()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+
+                // Sessoes recentes
+                EstudosSectionLabel(text: "SESSOES RECENTES")
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 10)
+
+                SessoesRecentesSection(activities: viewModel.recentActivity)
+                    .padding(.horizontal, 16)
             }
+            .padding(.bottom, 120)
         }
-        .buttonStyle(.plain)
+        .refreshable {
+            await viewModel.load()
+        }
     }
 }
 
-// MARK: - OSCE Entry Card
+// MARK: - Section Label
 
-private struct OsceEntryCard: View {
-    let onTap: () -> Void
-    var body: some View {
-        Button(action: onTap) {
-            VitaGlassCard {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(VitaColors.accent.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "person.2.wave.2.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(VitaColors.accent)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Caso Clínico OSCE")
-                            .font(VitaTypography.bodyLarge)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(VitaColors.textPrimary)
-                        Text("Pratique com paciente simulado e avaliação por IA")
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Atlas 3D Entry Card
-
-private struct AtlasEntryCard: View {
-    let onTap: () -> Void
-    var body: some View {
-        Button(action: onTap) {
-            VitaGlassCard {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(VitaColors.accent.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "figure.stand")
-                            .font(.system(size: 18))
-                            .foregroundStyle(VitaColors.accent)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Atlas 3D")
-                            .font(VitaTypography.bodyLarge)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(VitaColors.textPrimary)
-                        Text("Anatomia interativa em 3D")
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Provas Entry Card
-
-private struct ProvasEntryCard: View {
-    let onTap: () -> Void
-    var body: some View {
-        Button(action: onTap) {
-            VitaGlassCard {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(VitaColors.dataAmber.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "doc.text.magnifyingglass")
-                            .font(.system(size: 18))
-                            .foregroundStyle(VitaColors.dataAmber)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Provas")
-                            .font(VitaTypography.bodyLarge)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(VitaColors.textPrimary)
-                        Text("Provas de outros alunos com questões extraídas por IA")
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Disciplinas Toolbar (Sort + Grid/List Toggle)
-
-private struct DisciplinasToolbar: View {
-    @Binding var sortOption: CourseSortOption
-    @Binding var isGridView: Bool
+private struct EstudosSectionLabel: View {
+    let text: String
 
     var body: some View {
         HStack {
-            // Sort menu
-            Menu {
-                ForEach(CourseSortOption.allCases, id: \.self) { option in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            sortOption = option
-                        }
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    } label: {
-                        Label(option.label, systemImage: option.iconName)
-                    }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 12, weight: .medium))
-                    Text(sortOption.label)
-                        .font(VitaTypography.labelSmall)
-                        .fontWeight(.medium)
-                }
-                .foregroundStyle(VitaColors.textSecondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(VitaColors.glassBg)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule().stroke(VitaColors.glassBorder, lineWidth: 1)
-                )
-            }
-
+            Text(text)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(GoldAccent.labelGold)
+                .tracking(0.8)
             Spacer()
+        }
+    }
+}
 
-            // Grid / List toggle
-            Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isGridView.toggle()
-                }
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            } label: {
-                Image(systemName: isGridView ? "list.bullet" : "square.grid.2x2")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .frame(width: 32, height: 32)
-                    .background(VitaColors.glassBg)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle().stroke(VitaColors.glassBorder, lineWidth: 1)
+// MARK: - Continue Studying Card (data-driven from API recommendations)
+
+private struct ContinueStudyingCard: View {
+    let recommendation: DashboardRecommendation
+    let onNavigateToFlashcardSession: ((String) -> Void)?
+
+    /// Discipline label derived from deckId first component (e.g. "histologia-xyz" → "Histologia")
+    private var disciplineLabel: String {
+        let raw = recommendation.deckId.split(separator: "-").first.map(String.init) ?? ""
+        return raw.isEmpty ? "Estudo" : raw.capitalized
+    }
+
+    /// Map discipline to hero image asset
+    private var heroImageName: String? {
+        let d = disciplineLabel.lowercased()
+        if d.contains("histolog") { return "hero-histologia" }
+        if d.contains("farmac")   { return "hero-farmacologia" }
+        if d.contains("anatom")   { return "hero-anatomia" }
+        if d.contains("patolog")  { return "hero-patologia" }
+        return nil
+    }
+
+    var body: some View {
+        Button {
+            onNavigateToFlashcardSession?(recommendation.deckId)
+        } label: {
+            ZStack(alignment: .bottom) {
+                // Layer 1 — background: hero image or fallback gradient
+                if let img = heroImageName, UIImage(named: img) != nil {
+                    Image(img)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(height: 180)
+                } else {
+                    LinearGradient(
+                        colors: [
+                            Color(red: 40/255, green: 60/255, blue: 90/255),
+                            Color(red: 20/255, green: 35/255, blue: 55/255),
+                            Color(red: 10/255, green: 15/255, blue: 30/255)
+                        ],
+                        startPoint: .topTrailing,
+                        endPoint: .bottomLeading
                     )
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 4)
-    }
-}
-
-// MARK: - Course Row (List Mode)
-
-private struct CourseRow: View {
-    let course: Course
-    let colorIndex: Int
-    let isFavorite: Bool
-    let onFavoriteToggle: () -> Void
-    let onClick: () -> Void
-
-    private var folderColor: Color {
-        FolderPalette.color(forIndex: colorIndex)
-    }
-
-    var body: some View {
-        Button(action: onClick) {
-            VitaGlassCard {
-                HStack(spacing: 14) {
-                    // Colorful folder icon
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(folderColor.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "folder.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(folderColor)
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(course.name)
-                            .font(VitaTypography.bodyLarge)
-                            .fontWeight(.medium)
-                            .foregroundStyle(VitaColors.textPrimary)
-                            .lineLimit(2)
-                        Text("\(course.filesCount) arquivo\(course.filesCount == 1 ? "" : "s") · \(course.assignmentsCount) tarefa\(course.assignmentsCount == 1 ? "" : "s")")
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
-
-                    Spacer()
-
-                    // Star/Favorite button
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            onFavoriteToggle()
-                        }
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    } label: {
-                        Image(systemName: isFavorite ? "star.fill" : "star")
-                            .font(.system(size: 16))
-                            .foregroundStyle(
-                                isFavorite ? VitaColors.dataAmber : VitaColors.textTertiary
-                            )
-                            .contentTransition(.symbolEffect(.replace))
-                    }
-                    .buttonStyle(.plain)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                        .foregroundStyle(VitaColors.textTertiary)
+                    .frame(height: 180)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
 
-// MARK: - Course Grid Cell (Grid Mode)
+                // Layer 2 — dark bottom overlay (transparent top → dark bottom)
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear,                                            location: 0.0),
+                        .init(color: Color(red: 6/255, green: 4/255, blue: 8/255, opacity: 0.10), location: 0.40),
+                        .init(color: Color(red: 6/255, green: 4/255, blue: 8/255, opacity: 0.50), location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 180)
 
-private struct CourseGridCell: View {
-    let course: Course
-    let colorIndex: Int
-    let isFavorite: Bool
-    let onFavoriteToggle: () -> Void
-    let onClick: () -> Void
-
-    private var folderColor: Color {
-        FolderPalette.color(forIndex: colorIndex)
-    }
-
-    var body: some View {
-        Button(action: onClick) {
-            VitaGlassCard {
-                VStack(spacing: 10) {
-                    // Top row: folder icon + star
-                    HStack {
-                        Spacer()
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                onFavoriteToggle()
-                            }
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        } label: {
-                            Image(systemName: isFavorite ? "star.fill" : "star")
-                                .font(.system(size: 14))
-                                .foregroundStyle(
-                                    isFavorite ? VitaColors.dataAmber : VitaColors.textTertiary
-                                )
-                                .contentTransition(.symbolEffect(.replace))
-                        }
-                        .buttonStyle(.plain)
+                // Layer 3 — glass panel pinned to bottom
+                VStack(alignment: .leading, spacing: 0) {
+                    // Badge — discipline name + monitor icon
+                    HStack(spacing: 5) {
+                        Image(systemName: "display")
+                            .font(.system(size: 10))
+                        Text(disciplineLabel.uppercased())
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(1)
                     }
+                    .foregroundStyle(GoldAccent.textGold.opacity(0.80))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(GoldAccent.warm.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(GoldAccent.primary.opacity(0.18), lineWidth: 1)
+                    )
+                    .padding(.bottom, 10)
 
-                    // Centered folder icon
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(folderColor.opacity(0.15))
-                            .frame(width: 52, height: 52)
-                        Image(systemName: "folder.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(folderColor)
-                    }
-
-                    // Course name
-                    Text(course.name)
-                        .font(VitaTypography.labelMedium)
-                        .fontWeight(.medium)
-                        .foregroundStyle(VitaColors.textPrimary)
+                    // Title
+                    Text(recommendation.title)
+                        .font(.system(size: 17, weight: .bold))
+                        .tracking(-0.5)
+                        .foregroundStyle(Color.white.opacity(0.96))
                         .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                        .frame(minHeight: 30)
+                        .padding(.bottom, 3)
 
-                    // File count
-                    Text("\(course.filesCount) arquivo\(course.filesCount == 1 ? "" : "s")")
-                        .font(VitaTypography.labelSmall)
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
+                    // Meta
+                    Text("\(recommendation.dueCount) pendentes")
+                        .font(.system(size: 11))
+                        .foregroundStyle(GoldAccent.textGoldDim)
+                        .padding(.bottom, 8)
 
-// MARK: - Notebooks Tab
-
-private struct NotebooksTab: View {
-    let onNavigate: () -> Void
-
-    var body: some View {
-        VStack {
-            Spacer()
-            VStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(VitaColors.accent.opacity(0.1))
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "book.pages.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(VitaColors.accent)
-                }
-
-                Text("Meus Notebooks")
-                    .font(VitaTypography.titleMedium)
-                    .fontWeight(.medium)
-                    .foregroundStyle(VitaColors.textPrimary)
-
-                Text("Toque para abrir seus notebooks de estudo")
-                    .font(VitaTypography.bodySmall)
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-
-                Button(action: onNavigate) {
-                    Text("Abrir Notebooks")
-                        .font(VitaTypography.labelMedium)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(VitaColors.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(VitaColors.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-            }
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 100)
-        .contentShape(Rectangle())
-        .onTapGesture { onNavigate() }
-    }
-}
-
-// MARK: - MindMaps Tab
-
-private struct MindMapsTab: View {
-    let onNavigate: () -> Void
-
-    var body: some View {
-        VStack {
-            Spacer()
-            VStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(VitaColors.accent.opacity(0.1))
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 36))
-                        .foregroundStyle(VitaColors.accent)
-                }
-
-                Text("Mapas Mentais")
-                    .font(VitaTypography.titleMedium)
-                    .fontWeight(.medium)
-                    .foregroundStyle(VitaColors.textPrimary)
-
-                Text("Organize ideias e conceitos visualmente")
-                    .font(VitaTypography.bodySmall)
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-
-                Button(action: onNavigate) {
-                    Text("Abrir Mapas Mentais")
-                        .font(VitaTypography.labelMedium)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(VitaColors.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(VitaColors.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-            }
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 100)
-        .contentShape(Rectangle())
-        .onTapGesture { onNavigate() }
-    }
-}
-
-// MARK: - Flashcards Tab
-
-private struct FlashcardsTab: View {
-    let decks: [FlashcardDeckDisplayEntry]
-    var isLoading: Bool = false
-    let onDeckClick: (String) -> Void
-    var onStatsClick: (() -> Void)?
-    var onRefresh: (() async -> Void)?
-
-    var body: some View {
-        if !isLoading && decks.isEmpty {
-            VitaEmptyState(
-                title: "Nenhum flashcard",
-                message: "Crie decks de flashcards para começar a revisar.",
-                actionText: nil,
-                onAction: nil
-            ) {
-                Image(systemName: "rectangle.on.rectangle.angled")
-                    .font(.system(size: 44))
-                    .foregroundStyle(VitaColors.accent)
-            }
-        } else {
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 12) {
-                    // Stats entry button — mirrors Android header pattern
-                    if let onStats = onStatsClick {
-                        Button(action: onStats) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "chart.bar.xaxis")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(VitaColors.accent)
-
-                                Text("Ver Estatísticas")
-                                    .font(VitaTypography.labelLarge)
-                                    .foregroundStyle(VitaColors.accent)
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(VitaColors.textTertiary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(VitaColors.accent.opacity(0.06))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(VitaColors.accent.opacity(0.15), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    ForEach(Array(decks.enumerated()), id: \.element.id) { index, deck in
-                        FlashcardRow(deck: deck, onClick: { onDeckClick(deck.id) })
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                            .animation(
-                                .easeOut(duration: 0.3).delay(Double(index) * 0.06),
-                                value: decks.count
-                            )
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 100)
-            }
-            .refreshable {
-                await onRefresh?()
-            }
-        }
-    }
-}
-
-private struct FlashcardRow: View {
-    let deck: FlashcardDeckDisplayEntry
-    let onClick: () -> Void
-
-    var body: some View {
-        Button(action: onClick) {
-            VitaGlassCard {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(VitaColors.accent.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "rectangle.on.rectangle.angled")
-                            .font(.system(size: 18))
-                            .foregroundStyle(VitaColors.accent)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(deck.name)
-                            .font(VitaTypography.bodyLarge)
-                            .fontWeight(.medium)
-                            .foregroundStyle(VitaColors.textPrimary)
-
-                        if !deck.courseName.isEmpty {
-                            Text(deck.courseName)
-                                .font(VitaTypography.labelSmall)
-                                .foregroundStyle(VitaColors.textSecondary)
-                        }
-
-                        // Progress bar — mirrors Android LinearProgressIndicator
+                    // Progress bar row
+                    HStack(spacing: 8) {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(VitaColors.surfaceElevated)
+                                RoundedRectangle(cornerRadius: 999)
+                                    .fill(Color.white.opacity(0.06))
                                     .frame(height: 4)
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(VitaColors.accent)
-                                    .frame(
-                                        width: geo.size.width * CGFloat(deck.progress),
-                                        height: 4
+                                RoundedRectangle(cornerRadius: 999)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [GoldAccent.warm.opacity(0.70), GoldAccent.primary.opacity(0.50)],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
                                     )
-                                    .animation(.easeOut(duration: 0.4), value: deck.progress)
+                                    .frame(width: geo.size.width * 0.78, height: 4)
                             }
                         }
                         .frame(height: 4)
 
-                        Text("\(deck.masteredCount)/\(deck.cardCount) dominados")
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textTertiary)
+                        Text("78%")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(GoldAccent.textGold.opacity(0.70))
                     }
+                    .padding(.bottom, 12)
 
-                    Spacer(minLength: 4)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                        .foregroundStyle(VitaColors.textTertiary)
+                    // CTA button
+                    Text("Continuar")
+                        .font(.system(size: 12, weight: .semibold))
+                        .tracking(0.02)
+                        .foregroundStyle(GoldAccent.textGold.opacity(0.80))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.04))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(GoldAccent.primary.opacity(0.12), lineWidth: 1)
+                        )
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - PDFs Tab
-
-private struct PdfsTab: View {
-    let files: [CanvasFile]
-    var isLoading: Bool = false
-    var selectedCourseId: String?
-    let downloadingFileId: String?
-    let onFileClick: (CanvasFile) -> Void
-    let onClearFilter: () -> Void
-    var onRefresh: (() async -> Void)?
-
-    private var pdfs: [CanvasFile] {
-        files.filter {
-            $0.contentType?.contains("pdf") == true || $0.displayName.hasSuffix(".pdf")
-        }
-    }
-
-    // Returns ordered groups preserving encounter order (preserves course sort)
-    private var grouped: [(key: String, files: [CanvasFile])] {
-        var dict: [(key: String, files: [CanvasFile])] = []
-        var seen: [String: Int] = [:]
-        for file in pdfs {
-            let key = file.courseName ?? "Outros"
-            if let idx = seen[key] {
-                dict[idx].files.append(file)
-            } else {
-                seen[key] = dict.count
-                dict.append((key: key, files: [file]))
-            }
-        }
-        return dict
-    }
-
-    var body: some View {
-        if !isLoading && pdfs.isEmpty {
-            VitaEmptyState(
-                title: "Nenhum PDF",
-                message: "Conecte o Canvas para sincronizar seus materiais em PDF.",
-                actionText: nil,
-                onAction: nil
-            ) {
-                Image(systemName: "doc.text.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(VitaColors.accent)
-            }
-        } else {
-            ScrollView(showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    // Active filter pill
-                    if selectedCourseId != nil {
-                        Button(action: onClearFilter) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 13))
-                                Text("Limpar filtro de disciplina")
-                                    .font(VitaTypography.labelSmall)
-                            }
-                            .foregroundStyle(VitaColors.accent)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(VitaColors.accent.opacity(0.1))
-                            .clipShape(Capsule())
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                        .padding(.bottom, 4)
-                    }
-
-                    PdfsGroupedList(
-                        grouped: grouped,
-                        downloadingFileId: downloadingFileId,
-                        onFileClick: onFileClick
-                    )
-                }
-                .padding(.bottom, 100)
-            }
-            .refreshable {
-                await onRefresh?()
-            }
-        }
-    }
-}
-
-// Extracted into its own view to compute stagger indexes cleanly.
-private struct PdfsGroupedList: View {
-    let grouped: [(key: String, files: [CanvasFile])]
-    let downloadingFileId: String?
-    let onFileClick: (CanvasFile) -> Void
-
-    // Pre-flatten groups into a typed list to avoid mutable state in @ViewBuilder.
-    private var flatItems: [PdfListItem] {
-        var result: [PdfListItem] = []
-        var fileIndex = 0
-        for group in grouped {
-            result.append(.header(group.key))
-            for file in group.files {
-                result.append(.file(file, staggerIndex: fileIndex))
-                fileIndex += 1
-            }
-        }
-        return result
-    }
-
-    var body: some View {
-        ForEach(Array(flatItems.enumerated()), id: \.offset) { _, item in
-            switch item {
-            case .header(let title):
-                Text(title)
-                    .font(VitaTypography.titleSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(VitaColors.accent)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 4)
-
-            case .file(let file, let idx):
-                FileRow(
-                    file: file,
-                    isDownloading: file.id == downloadingFileId,
-                    onClick: { onFileClick(file) }
-                )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-                .animation(
-                    .easeOut(duration: 0.3).delay(Double(idx) * 0.05),
-                    value: grouped.count
-                )
-            }
-        }
-    }
-
-    private enum PdfListItem {
-        case header(String)
-        case file(CanvasFile, staggerIndex: Int)
-    }
-}
-
-private struct FileRow: View {
-    let file: CanvasFile
-    var isDownloading: Bool = false
-    let onClick: () -> Void
-
-    private var isPdf: Bool {
-        file.contentType?.contains("pdf") == true || file.displayName.hasSuffix(".pdf")
-    }
-
-    var body: some View {
-        Button(action: { if !isDownloading { onClick() } }) {
-            VitaGlassCard {
-                HStack(spacing: 12) {
-                    if isDownloading {
-                        ProgressView()
-                            .tint(VitaColors.accent)
-                            .frame(width: 22, height: 22)
-                    } else {
-                        Image(systemName: isPdf ? "doc.fill" : "doc.text.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(
-                                isPdf ? VitaColors.textSecondary : VitaColors.dataBlue
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    VitaColors.surfaceCard.opacity(0.80),
+                                    VitaColors.surfaceElevated.opacity(0.75)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
                             )
-                    }
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(GoldAccent.primary.opacity(0.12), lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(0.30), radius: 12, y: 6)
+                .padding(10)
+            }
+            .frame(height: 180)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(GoldAccent.primary.opacity(0.16), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.50), radius: 20, y: 10)
+            .shadow(color: GoldAccent.warm.opacity(0.07), radius: 14)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Continuar estudando \(recommendation.title)")
+    }
+}
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(file.displayName)
-                            .font(VitaTypography.bodyMedium)
-                            .fontWeight(.medium)
-                            .foregroundStyle(VitaColors.textPrimary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        if let module = file.moduleName {
-                            Text(module)
-                                .font(VitaTypography.labelSmall)
-                                .foregroundStyle(VitaColors.textSecondary)
-                                .lineLimit(1)
-                        }
-                    }
+// MARK: - Modules Row (3 horizontal cards with images)
 
-                    Spacer()
+private struct ModulesRow: View {
+    let onNavigateToQBank: (() -> Void)?
+    let onNavigateToFlashcardStats: (() -> Void)?
+    let onNavigateToSimulados: (() -> Void)?
 
-                    if !isDownloading {
-                        Image(systemName: "arrow.down.circle")
-                            .font(.system(size: 16))
-                            .foregroundStyle(VitaColors.accent.opacity(0.6))
-                    }
+    var body: some View {
+        HStack(spacing: 8) {
+            ModuleImageCard(
+                imageName: "tool-questoes",
+                fallbackIcon: "questionmark.circle.fill",
+                fallbackLabel: "Questoes",
+                fallbackColor: VitaColors.dataBlue,
+                onTap: { onNavigateToQBank?() }
+            )
+
+            ModuleImageCard(
+                imageName: "tool-flashcards",
+                fallbackIcon: "rectangle.on.rectangle.angled",
+                fallbackLabel: "Flashcards",
+                fallbackColor: VitaColors.dataIndigo,
+                onTap: { onNavigateToFlashcardStats?() }
+            )
+
+            ModuleImageCard(
+                imageName: "tool-simulados",
+                fallbackIcon: "text.badge.checkmark",
+                fallbackLabel: "Simulados",
+                fallbackColor: VitaColors.dataGreen,
+                onTap: { onNavigateToSimulados?() }
+            )
+        }
+    }
+}
+
+private struct ModuleImageCard: View {
+    let imageName: String
+    let fallbackIcon: String
+    let fallbackLabel: String
+    let fallbackColor: Color
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            // Try image first, fallback to icon+label glass card
+            if UIImage(named: imageName) != nil {
+                Image(imageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 110)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .shadow(color: .black.opacity(0.30), radius: 6, y: 4)
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: fallbackIcon)
+                        .font(.system(size: 28))
+                        .foregroundStyle(fallbackColor)
+
+                    Text(fallbackLabel)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.85))
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .frame(height: 110)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    VitaColors.surfaceCard.opacity(0.92),
+                                    VitaColors.surfaceElevated.opacity(0.88)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(GoldAccent.border, lineWidth: 0.5)
+                )
+                .shadow(color: .black.opacity(0.30), radius: 6, y: 4)
             }
         }
         .buttonStyle(.plain)
-        .opacity(isDownloading ? 0.7 : 1.0)
-        .animation(.easeInOut(duration: 0.15), value: isDownloading)
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel(fallbackLabel)
+    }
+}
+
+// MARK: - Disciplines Carousel
+
+private struct DisciplinesCarousel: View {
+    let courses: [Course]
+    let onCourseClick: ((String, Int) -> Void)?
+
+    // Discipline image names matching the web assets
+    private let disciplineImages = [
+        "disc-farmacologia", "disc-anatomia", "disc-histologia",
+        "disc-bioquimica", "disc-fisiologia-1", "disc-patologia-geral",
+        "disc-medicina-legal", "disc-interprofissional"
+    ]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                if courses.isEmpty {
+                    // Show placeholder discipline thumbnails
+                    ForEach(Array(disciplineImages.enumerated()), id: \.offset) { index, name in
+                        DisciplineThumbnail(imageName: name, index: index, onTap: nil)
+                    }
+                } else {
+                    ForEach(Array(courses.enumerated()), id: \.element.id) { index, course in
+                        let imageName = index < disciplineImages.count ? disciplineImages[index] : disciplineImages[index % disciplineImages.count]
+                        DisciplineThumbnail(
+                            imageName: imageName,
+                            index: index,
+                            onTap: { onCourseClick?(course.id, index) }
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .mask(
+            HStack(spacing: 0) {
+                Color.white
+                LinearGradient(
+                    colors: [.white, .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: 40)
+            }
+        )
+    }
+}
+
+private struct DisciplineThumbnail: View {
+    let imageName: String
+    let index: Int
+    let onTap: (() -> Void)?
+
+    var body: some View {
+        Button {
+            onTap?()
+        } label: {
+            if UIImage(named: imageName) != nil {
+                Image(imageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(color: .black.opacity(0.30), radius: 4, y: 2)
+            } else {
+                // Fallback golden placeholder
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                GoldAccent.warm.opacity(0.15),
+                                GoldAccent.warm.opacity(0.05)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 100, height: 130)
+                    .overlay(
+                        VStack(spacing: 4) {
+                            Image(systemName: "graduationcap.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(GoldAccent.primary.opacity(0.50))
+                            Text("Disc. \(index + 1)")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(GoldAccent.textGold.opacity(0.50))
+                        }
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(GoldAccent.border, lineWidth: 0.5)
+                    )
+                    .shadow(color: .black.opacity(0.30), radius: 4, y: 2)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Materiais Scroll (Vita Sugere — data from API)
+
+private struct MateriaisScroll: View {
+    let recommendations: [DashboardRecommendation]
+
+    var body: some View {
+        if recommendations.isEmpty {
+            // Empty state
+            HStack {
+                Text("Nenhuma sugestao no momento")
+                    .font(.system(size: 12))
+                    .foregroundStyle(GoldAccent.textGoldDim)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(recommendations.enumerated()), id: \.element.deckId) { index, rec in
+                        RecommendationCard(recommendation: rec, index: index)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .mask(
+                HStack(spacing: 0) {
+                    Color.white
+                    LinearGradient(
+                        colors: [.white, .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: 40)
+                }
+            )
+        }
+    }
+}
+
+private struct RecommendationCard: View {
+    let recommendation: DashboardRecommendation
+    var index: Int = 0
+
+    private var isVideo: Bool { index % 2 == 0 }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Thumbnail area — purple for video, gold for PDF
+            ZStack {
+                if isVideo {
+                    Rectangle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    VitaColors.dataIndigo.opacity(0.15),
+                                    VitaColors.surface.opacity(0.95)
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 60
+                            )
+                        )
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.10))
+                            .frame(width: 28, height: 28)
+                            .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 1))
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.white.opacity(0.90))
+                    }
+                } else {
+                    Rectangle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    GoldAccent.warm.opacity(0.12),
+                                    VitaColors.surfaceCard.opacity(0.95)
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 60
+                            )
+                        )
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 24))
+                        .foregroundStyle(GoldAccent.primary.opacity(0.70))
+                }
+            }
+            .frame(height: 80)
+
+            // Text area
+            VStack(alignment: .leading, spacing: 2) {
+                Text(recommendation.title)
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.88))
+                    .lineLimit(2)
+
+                Text("\(recommendation.dueCount) cards pendentes")
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(GoldAccent.textGoldDim.opacity(0.88))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        }
+        .frame(width: 180)
+        .background(
+            LinearGradient(
+                colors: [
+                    VitaColors.surfaceCard.opacity(0.92),
+                    VitaColors.surfaceElevated.opacity(0.88)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(VitaColors.surfaceBorder, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.30), radius: 8, y: 4)
+    }
+}
+
+// MARK: - Trabalhos Pendentes Section
+
+private struct TrabalhosItem {
+    let icon: String
+    let title: String
+    let meta: String
+    let dueLabel: String
+}
+
+private let mockTrabalhos: [TrabalhosItem] = [
+    TrabalhosItem(icon: "doc.text",       title: "Relatório Caso Clinico",  meta: "Semiologia · Canvas",              dueLabel: "Sexta"),
+    TrabalhosItem(icon: "checkmark.circle", title: "Mapa Mental — Farmaco", meta: "Farmacologia · Entrega individual", dueLabel: "Dom"),
+    TrabalhosItem(icon: "person.3",        title: "Seminario em grupo",     meta: "Anatomia · Apresentação",           dueLabel: "Seg"),
+]
+
+private struct TrabalhosSection: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(Array(mockTrabalhos.enumerated()), id: \.offset) { _, item in
+                TrabalhoCard(item: item)
+            }
+        }
+    }
+}
+
+private struct TrabalhoCard: View {
+    let item: TrabalhosItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(
+                        LinearGradient(
+                            colors: [GoldAccent.warm.opacity(0.25), GoldAccent.warm.opacity(0.12)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(GoldAccent.primary.opacity(0.16), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.30), radius: 4, y: 2)
+
+                Image(systemName: item.icon)
+                    .font(.system(size: 14))
+                    .foregroundStyle(GoldAccent.textGold.opacity(0.85))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.92))
+                    .lineLimit(1)
+
+                Text(item.meta)
+                    .font(.system(size: 10))
+                    .foregroundStyle(GoldAccent.textGoldDim.opacity(0.90))
+            }
+
+            Spacer()
+
+            Text(item.dueLabel)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(GoldAccent.amber.opacity(0.75))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(GoldAccent.amber.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(GoldAccent.amber.opacity(0.12), lineWidth: 1)
+                )
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            LinearGradient(
+                colors: [
+                    VitaColors.surfaceCard.opacity(0.93),
+                    VitaColors.surfaceElevated.opacity(0.89)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(GoldAccent.primary.opacity(0.12), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.40), radius: 12, y: 4)
+    }
+}
+
+// MARK: - Sessoes Recentes Section (data from API activity feed)
+
+private struct SessoesRecentesSection: View {
+    let activities: [ActivityFeedItem]
+
+    var body: some View {
+        if activities.isEmpty {
+            HStack(spacing: 12) {
+                Image(systemName: "clock")
+                    .font(.system(size: 18))
+                    .foregroundStyle(GoldAccent.textGoldDim.opacity(0.50))
+
+                Text("Nenhuma sessao recente")
+                    .font(.system(size: 12))
+                    .foregroundStyle(GoldAccent.textGoldDim)
+
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(Color.white.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else {
+            VStack(spacing: 6) {
+                ForEach(activities) { activity in
+                    ActivityCard(activity: activity)
+                }
+            }
+        }
+    }
+}
+
+private struct ActivityCard: View {
+    let activity: ActivityFeedItem
+
+    private var icon: String {
+        let a = activity.action.lowercased()
+        if a.contains("flashcard") { return "rectangle.on.rectangle.angled" }
+        if a.contains("qbank") || a.contains("question") { return "checkmark.square" }
+        if a.contains("simulado") { return "text.badge.checkmark" }
+        return "display"
+    }
+
+    private var displayTitle: String {
+        activity.action
+            .replacingOccurrences(of: "_", with: " ")
+            .capitalized
+    }
+
+    private var timeLabel: String {
+        // Parse ISO date and show relative time
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = formatter.date(from: activity.createdAt) else {
+            // Try without fractional seconds
+            formatter.formatOptions = [.withInternetDateTime]
+            guard let date = formatter.date(from: activity.createdAt) else { return "" }
+            return relativeTime(from: date)
+        }
+        return relativeTime(from: date)
+    }
+
+    private func relativeTime(from date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
+        if interval < 3600 { return "\(Int(interval / 60))min atras" }
+        if interval < 86400 { return "\(Int(interval / 3600))h atras" }
+        if interval < 172800 { return "Ontem" }
+        return "\(Int(interval / 86400)) dias atras"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(GoldAccent.warm.opacity(0.08))
+                    .frame(width: 30, height: 30)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(GoldAccent.warm.opacity(0.06), lineWidth: 1)
+                    )
+
+                Image(systemName: icon)
+                    .font(.system(size: 11))
+                    .foregroundStyle(GoldAccent.textGold.opacity(0.60))
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(displayTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.85))
+
+                if activity.xpAwarded > 0 {
+                    Text("+\(activity.xpAwarded) XP")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(GoldAccent.textGoldDim.opacity(0.80))
+                }
+            }
+
+            Spacer()
+
+            Text(timeLabel)
+                .font(.system(size: 9.5))
+                .foregroundStyle(VitaColors.textTertiary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(Color.white.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(VitaColors.surfaceBorder, lineWidth: 1)
+        )
     }
 }

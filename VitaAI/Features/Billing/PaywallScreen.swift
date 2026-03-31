@@ -33,7 +33,7 @@ struct PaywallScreen: View {
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
 
             if let vm = viewModel {
                 mainContent(vm: vm)
@@ -112,8 +112,10 @@ struct PaywallScreen: View {
                     .background(VitaColors.glassBg)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 1))
+                    .frame(minWidth: 44, minHeight: 44)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Fechar")
 
             Spacer()
         }
@@ -167,6 +169,7 @@ struct PaywallScreen: View {
         .padding(.horizontal, 20)
     }
 
+    // Mockup: Premium R$24,90/mes
     private var priceTag: some View {
         HStack(alignment: .bottom, spacing: 2) {
             Text("R$")
@@ -176,8 +179,8 @@ struct PaywallScreen: View {
 
             Spacer().frame(width: 2)
 
-            Text("39")
-                .font(.system(size: 52, weight: .bold))
+            Text("24,90")
+                .font(.system(size: 48, weight: .bold))
                 .foregroundStyle(VitaColors.accent)
 
             Text("/mes")
@@ -279,7 +282,7 @@ struct PaywallScreen: View {
         }
         .buttonStyle(.plain)
         .disabled(vm.state.isLoading)
-        .sensoryFeedback(.impact(weight: .heavy), trigger: vm.state.isLoading)
+        // sensoryFeedback removed (iOS 17+)
         .animation(.easeInOut(duration: VitaTokens.Animation.durationFast), value: vm.state.isLoading)
 
         // Restore purchase ghost button

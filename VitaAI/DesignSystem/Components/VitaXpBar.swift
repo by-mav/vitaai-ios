@@ -36,8 +36,8 @@ struct VitaXpBar: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .onAppear { animate() }
-        .onChange(of: userProgress.currentLevelXp) { _, _ in animateLevel() }
-        .onChange(of: userProgress.dailyXp) { _, _ in animateDaily() }
+        .onChange(of: userProgress.currentLevelXp) { _ in animateLevel() }
+        .onChange(of: userProgress.dailyXp) { _ in animateDaily() }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)
     }
@@ -128,10 +128,10 @@ struct VitaXpBar: View {
         ZStack {
             Circle()
                 .fill(VitaColors.accent.opacity(0.12))
-                .frame(width: 38, height: 38)
+                .frame(width: 44, height: 44)
             Circle()
                 .stroke(VitaColors.accent, lineWidth: 1.5)
-                .frame(width: 38, height: 38)
+                .frame(width: 44, height: 44)
             Text("\(level)")
                 .font(VitaTypography.titleSmall)
                 .foregroundColor(VitaColors.accent)
@@ -143,7 +143,7 @@ struct VitaXpBar: View {
         ZStack {
             Circle()
                 .fill(VitaColors.surfaceBorder)
-                .frame(width: 28, height: 28)
+                .frame(width: 34, height: 34)
             Text("\(level)")
                 .font(VitaTypography.labelSmall)
                 .foregroundColor(VitaColors.textTertiary)

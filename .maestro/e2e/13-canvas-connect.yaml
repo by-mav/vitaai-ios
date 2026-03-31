@@ -1,0 +1,52 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - canvas
+---
+# Wait for dashboard
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+
+- takeScreenshot: "13-dashboard"
+
+# Navigate to Faculdade tab
+- tapOn:
+    id: "tab_faculdade"
+    optional: true
+- tapOn:
+    text: "Faculdade"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "13-faculdade"
+
+# Try canvas connect
+- tapOn:
+    text: "Conectores"
+    optional: true
+- tapOn:
+    text: "Canvas"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "13-canvas"
+
+- pressKey: back
+- waitForAnimationToEnd

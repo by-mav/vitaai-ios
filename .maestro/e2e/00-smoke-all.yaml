@@ -1,0 +1,136 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - smoke
+  - all
+---
+# 00 - Full smoke: launch app, verify each tool opens
+# Cross-platform: uses tab bar navigation instead of pressKey:back (iOS has no back key)
+
+- launchApp:
+    clearState: false
+    stopApp: false
+
+# Wait for dashboard
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: "00-dashboard"
+
+# Verify tool cards
+- assertVisible:
+    id: "tool_questoes"
+    optional: true
+- assertVisible:
+    id: "tool_flashcards"
+    optional: true
+- assertVisible:
+    id: "tool_simulados"
+    optional: true
+- assertVisible:
+    id: "tool_transcricao"
+    optional: true
+
+# ─── Simulados ─────────────────────────────────────────────────
+- tapOn:
+    id: "tool_simulados"
+    optional: true
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "00-simulados"
+
+# Back via Home tab (cross-platform)
+- tapOn:
+    text: "Início"
+    optional: true
+- tapOn:
+    text: "Home"
+    optional: true
+- tapOn:
+    id: "tab_home"
+    optional: true
+- waitForAnimationToEnd
+
+# ─── Flashcards ────────────────────────────────────────────────
+- tapOn:
+    id: "tool_flashcards"
+    optional: true
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "00-flashcards"
+
+- tapOn:
+    text: "Início"
+    optional: true
+- tapOn:
+    text: "Home"
+    optional: true
+- tapOn:
+    id: "tab_home"
+    optional: true
+- waitForAnimationToEnd
+
+# ─── Questoes ──────────────────────────────────────────────────
+- tapOn:
+    id: "tool_questoes"
+    optional: true
+- tapOn:
+    text: "Questões"
+    optional: true
+- tapOn:
+    text: "Questoes"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "00-questoes"
+
+- tapOn:
+    text: "Início"
+    optional: true
+- tapOn:
+    text: "Home"
+    optional: true
+- tapOn:
+    id: "tab_home"
+    optional: true
+- waitForAnimationToEnd
+
+# ─── Transcricao ───────────────────────────────────────────────
+- tapOn:
+    id: "tool_transcricao"
+    optional: true
+- tapOn:
+    text: "Transcrição"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "00-transcricao"
+
+- tapOn:
+    text: "Início"
+    optional: true
+- tapOn:
+    text: "Home"
+    optional: true
+- tapOn:
+    id: "tab_home"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: "00-final"

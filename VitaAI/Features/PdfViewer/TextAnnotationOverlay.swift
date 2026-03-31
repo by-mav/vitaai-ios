@@ -123,7 +123,7 @@ private struct DraggableTextAnnotationView: View {
         .onTapGesture {
             if isActive { onStartEditing() }
         }
-        .onChange(of: isEditing) { _, editing in
+        .onChange(of: isEditing) { editing in
             if editing { focused = true }
         }
     }

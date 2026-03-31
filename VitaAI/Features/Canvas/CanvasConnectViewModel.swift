@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 // MARK: - State
 
@@ -155,6 +156,52 @@ final class CanvasConnectViewModel {
             } catch {
                 state.isDisconnecting = false
                 state.error = "Falha ao desconectar"
+            }
+        }
+    }
+
+    // MARK: - Sync via WebView cookies (universal Vita crawl)
+
+    /// Called after WebView login: send cookies to Vita server-side crawler
+    func syncWithWebView(cookies: String, instanceUrl: String) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            state.isSyncing = true
+            state.error = nil
+            state.successMessage = "Vita iniciando extração..."
+            do {
+                let result = try await api.startVitaCrawl(cookies: cookies, instanceUrl: instanceUrl)
+                guard let syncId = result.syncId, !syncId.isEmpty else {
+                    state.isSyncing = false
+                    state.error = "Erro ao iniciar extração"
+                    return
+                }
+                // Poll progress
+                state.successMessage = "Vita extraindo dados do portal..."
+                for _ in 0..<60 { // max 2 min
+                    try await Task.sleep(for: .seconds(2))
+                    let progress = try await api.getSyncProgress(syncId: syncId)
+                    state.successMessage = progress.label.isEmpty ? "Vita trabalhando..." : progress.label
+                    if progress.isDone {
+                        state.isSyncing = false
+                        state.isConnected = true
+                        state.status = "active"
+                        state.successMessage = progress.label.isEmpty ? "Extração completa!" : progress.label
+                        await loadStatus()
+                        return
+                    }
+                    if progress.isError {
+                        state.isSyncing = false
+                        state.error = progress.label.isEmpty ? "Erro na extração" : progress.label
+                        return
+                    }
+                }
+                // Timeout
+                state.isSyncing = false
+                state.successMessage = "Vita continua extraindo em background..."
+            } catch {
+                state.isSyncing = false
+                state.error = "Erro: \(error.localizedDescription)"
             }
         }
     }

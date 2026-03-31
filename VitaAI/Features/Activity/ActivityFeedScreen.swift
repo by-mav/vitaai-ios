@@ -43,7 +43,9 @@ struct ActivityFeedScreen: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(VitaColors.textPrimary)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
+                .accessibilityLabel("Voltar")
                 Text("Atividade")
                     .font(VitaTypography.titleLarge)
                     .foregroundStyle(VitaColors.textPrimary)
@@ -52,13 +54,31 @@ struct ActivityFeedScreen: View {
                     Image(systemName: "trophy.fill")
                         .font(.system(size: 18))
                         .foregroundStyle(VitaColors.accent)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
+                .accessibilityLabel("Ranking")
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
             .padding(.bottom, 8)
 
-            if let vm, !vm.isLoading {
+            if let vm, !vm.isLoading, let error = vm.errorMessage {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 28))
+                        .foregroundStyle(VitaColors.textTertiary)
+                    Text(error)
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textSecondary)
+                    Button("Tentar novamente") {
+                        Task { await vm.load() }
+                    }
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.accent)
+                }
+                Spacer()
+            } else if let vm, !vm.isLoading {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 16) {
                         // Stats card

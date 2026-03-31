@@ -1,0 +1,139 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - auth
+  - email
+---
+# 09 - Email Auth E2E: sign-up, logout, sign-in via email/password
+# Uses text-based selectors (no testTags needed on EmailAuthSheet)
+
+- launchApp:
+    clearState: true
+
+# Wait for login screen
+- extendedWaitUntil:
+    visible: "Continuar com Google"
+    timeout: 10000
+
+- takeScreenshot: "e2e-email-auth-01-login-screen"
+
+# Open email auth sheet
+- tapOn:
+    id: "login_email_button"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Entrar"
+    timeout: 5000
+
+- takeScreenshot: "e2e-email-auth-02-sheet-open"
+
+# Switch to sign-up tab
+- tapOn: "Criar conta"
+- waitForAnimationToEnd
+- takeScreenshot: "e2e-email-auth-03-signup-tab"
+
+# Fill name field
+- tapOn:
+    text: "Seu nome"
+- inputText: "Teste Maestro"
+
+# Fill email field (first text field with "seu@email.com" placeholder)
+- tapOn:
+    text: "seu@email.com"
+- inputText: "maestro-test@vita-ai.cloud"
+
+# Fill password
+- tapOn:
+    text: "Mínimo 8 caracteres"
+- inputText: "MaestroTest123!"
+- hideKeyboard
+
+- takeScreenshot: "e2e-email-auth-04-signup-filled"
+
+# Submit — button text "Criar conta" (the VitaButton, not the tab)
+# Scroll down to ensure button is visible
+- scroll:
+    direction: DOWN
+- tapOn:
+    text: "Criar conta"
+    index: 1  # second "Criar conta" — the submit button (first is the tab)
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Rafael"
+    timeout: 15000
+
+- takeScreenshot: "e2e-email-auth-05-signup-success"
+
+# Logout via profile screen
+- tapOn:
+    id: "bottom_nav_profile"
+- waitForAnimationToEnd
+- scroll:
+    direction: DOWN
+- tapOn: "Sair da conta"
+- waitForAnimationToEnd
+- takeScreenshot: "e2e-email-auth-06-logged-out"
+
+# ─── Sign-in flow ───────────────────────────────────────────
+- extendedWaitUntil:
+    visible: "Continuar com Google"
+    timeout: 10000
+
+- tapOn:
+    id: "login_email_button"
+- waitForAnimationToEnd
+
+# Should default to "Entrar" tab
+- extendedWaitUntil:
+    visible: "Entrar"
+    timeout: 5000
+
+- tapOn:
+    text: "seu@email.com"
+- inputText: "maestro-test@vita-ai.cloud"
+
+- tapOn:
+    text: "••••••••"
+- inputText: "MaestroTest123!"
+- hideKeyboard
+
+- tapOn: "Entrar"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Rafael"
+    timeout: 15000
+
+- takeScreenshot: "e2e-email-auth-07-signin-success"
+
+# ─── Forgot password flow ────────────────────────────────────
+- tapOn:
+    id: "bottom_nav_profile"
+- waitForAnimationToEnd
+- tapOn: "Sair da conta"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "login_email_button"
+- waitForAnimationToEnd
+
+- tapOn: "Esqueci minha senha"
+- waitForAnimationToEnd
+
+- takeScreenshot: "e2e-email-auth-08-forgot-screen"
+
+- tapOn:
+    text: "seu@email.com"
+- inputText: "maestro-test@vita-ai.cloud"
+- hideKeyboard
+
+- tapOn: "Enviar link"
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible: "Email enviado!"
+    timeout: 10000
+
+- takeScreenshot: "e2e-email-auth-09-forgot-sent"

@@ -14,6 +14,7 @@ import SwiftUI
 // - Drag nodes
 // - Double-tap to edit text
 
+@available(iOS 17, *)
 struct MindMapCanvasView: View {
     let nodes: [MindMapNode]
     let selectedNodeId: String?

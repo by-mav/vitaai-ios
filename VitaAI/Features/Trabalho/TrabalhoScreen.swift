@@ -28,14 +28,25 @@ struct TrabalhoScreen: View {
             }
         }
         .fullScreenCover(isPresented: $showEditor) {
-            TrabalhoEditorView(
-                assignmentId: editorAssignmentId,
-                templateId: editorAssignmentId == nil ? nil : nil,
-                onDismiss: {
-                    showEditor = false
-                    editorAssignmentId = nil
+            if #available(iOS 17, *) {
+                TrabalhoEditorView(
+                    assignmentId: editorAssignmentId,
+                    templateId: editorAssignmentId == nil ? nil : nil,
+                    onDismiss: {
+                        showEditor = false
+                        editorAssignmentId = nil
+                    }
+                )
+            } else {
+                VStack(spacing: 16) {
+                    Text("Recurso indisponivel no iOS 16")
+                        .foregroundColor(.white)
+                    Button("Fechar") { showEditor = false }
+                        .foregroundColor(VitaColors.accent)
                 }
-            )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(VitaColors.surface)
+            }
         }
     }
 
@@ -83,7 +94,7 @@ struct TrabalhoScreen: View {
                 }
                 .padding(.trailing, 20)
                 .padding(.bottom, 24)
-                .sensoryFeedback(.selection, trigger: showEditor)
+                // sensoryFeedback removed (iOS 17+)
                 .transition(.scale.combined(with: .opacity))
                 .animation(.spring(duration: 0.3), value: vm.selectedSegment)
             }
@@ -251,9 +262,9 @@ private struct GradeRow: View {
 
     private var gradeColor: Color {
         let pct = grade.maxValue > 0 ? grade.value / grade.maxValue : 0
-        if pct >= 0.7 { return Color(hex: 0x22C55E) }
-        if pct >= 0.5 { return Color.yellow }
-        return Color.red
+        if pct >= 0.7 { return VitaColors.dataGreen }
+        if pct >= 0.5 { return VitaColors.dataAmber }
+        return VitaColors.dataRed
     }
 
     private var fillFraction: Double {

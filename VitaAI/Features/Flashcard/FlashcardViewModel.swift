@@ -15,6 +15,7 @@ enum FlashcardSessionPhase {
 // MARK: - FlashcardViewModel
 
 @Observable
+@MainActor
 final class FlashcardViewModel {
 
     // MARK: Public state (read by views)
@@ -90,9 +91,7 @@ final class FlashcardViewModel {
                 let deck = try await fetchDeck(deckId: deckId)
                 startSession(deck: deck)
             } catch {
-                // Always fallback to mock so the user is never stuck on a spinner
-                let mock = FlashcardDeck.mockDeck(id: deckId)
-                startSession(deck: mock)
+                phase = .error("Erro ao carregar flashcards: \(error.localizedDescription)")
             }
         }
     }

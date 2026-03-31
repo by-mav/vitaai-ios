@@ -19,14 +19,14 @@ struct ProvasScreen: View {
                     selectedPhotos: $selectedPhotos,
                     onBack: onBack
                 )
-                .onChange(of: selectedPhotos) { _, newItems in
+                .onChange(of: selectedPhotos) { newItems in
                     Task { @MainActor in
                         await loadSelectedPhotos(newItems, vm: vm)
                     }
                 }
             } else {
                 ZStack {
-                    VitaColors.surface.ignoresSafeArea()
+                    VitaScreenBg()
                     ProgressView().tint(VitaColors.accent)
                 }
             }
@@ -67,7 +67,7 @@ private struct ProvasContent: View {
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
 
             VStack(spacing: 0) {
                 // Back bar
@@ -198,7 +198,9 @@ private struct UploadTab: View {
                                     Image(systemName: "xmark")
                                         .font(.system(size: 14))
                                         .foregroundColor(VitaColors.textSecondary)
+                                        .frame(minWidth: 44, minHeight: 44)
                                 }
+                                .accessibilityLabel("Limpar imagens")
                             }
 
                             if let uploadErr = vm.uploadError {
@@ -479,8 +481,8 @@ private struct ExamCard: View {
                         }
 
                         HStack(spacing: 12) {
-                            if !exam.examType.isEmpty {
-                                ProvasTagChip(label: exam.examType)
+                            if !(exam.examType ?? "").isEmpty {
+                                ProvasTagChip(label: exam.examType ?? "")
                             }
                             if let semester = exam.semester {
                                 ProvasTagChip(label: semester)

@@ -6,8 +6,9 @@ import SwiftData
 // All operations are synchronous (ModelContext is thread-safe when used on @MainActor).
 
 @MainActor
+@available(iOS 17, *)
 final class MindMapRepository {
-    private let context: ModelContext
+    let context: ModelContext
 
     init(context: ModelContext) {
         self.context = context

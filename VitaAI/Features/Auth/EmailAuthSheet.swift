@@ -64,11 +64,11 @@ struct EmailAuthSheet: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.showForgot)
-        .scrollBounceBehavior(.basedOnSize)
+ // scrollBounceBehavior iOS 16.4+
         .background(VitaColors.surfaceElevated.ignoresSafeArea())
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .presentationBackground(VitaColors.surfaceElevated)
+        .background(VitaColors.surfaceElevated)
         .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 
@@ -180,7 +180,7 @@ private struct SignInContent: View {
                 onSubmit: { Task { await vm.signIn() } }
             )
             .focused($focus, equals: .password)
-            .onChange(of: vm.signInPassword) { vm.clearError() }
+            .onChange(of: vm.signInPassword) { _ in vm.clearError() }
 
             Spacer().frame(height: 8)
 
@@ -269,7 +269,7 @@ private struct SignUpContent: View {
                 onSubmit: { Task { await vm.signUp() } }
             )
             .focused($focus, equals: .password)
-            .onChange(of: vm.signUpPassword) { vm.clearError() }
+            .onChange(of: vm.signUpPassword) { _ in vm.clearError() }
 
             Spacer().frame(height: 20)
 

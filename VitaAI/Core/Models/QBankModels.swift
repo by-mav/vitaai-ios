@@ -147,6 +147,8 @@ struct QBankSession: Decodable, Identifiable {
 // MARK: - Progress
 
 struct QBankProgressResponse: Decodable {
+    // API returns accuracy as 0-100 (percentage). UI code expects 0.0-1.0 (fraction).
+    var normalizedAccuracy: Double { accuracy > 1.0 ? accuracy / 100.0 : accuracy }
     var totalAvailable: Int = 0
     var totalAnswered: Int = 0
     var totalCorrect: Int = 0

@@ -19,7 +19,7 @@ struct WebAlunoWebViewScreen: View {
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
 
             VStack(spacing: 0) {
                 // Top bar
@@ -75,13 +75,13 @@ struct WebAlunoWebViewScreen: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, 8)
-        .background(VitaColors.surface)
+        .vitaScreenBg()
     }
 }
 
 // MARK: - WebAlunoWebView (UIViewRepresentable)
 
-private struct WebAlunoWebView: UIViewRepresentable {
+struct WebAlunoWebView: UIViewRepresentable {
     let url: URL
     @Binding var isLoading: Bool
     @Binding var loadProgress: Double
@@ -112,15 +112,8 @@ private struct WebAlunoWebView: UIViewRepresentable {
         webView.isOpaque = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
 
-        // Strip WebView marker from user-agent so Google/ULBRA SSO doesn't block us
-        webView.evaluateJavaScript("navigator.userAgent") { result, _ in
-            if let ua = result as? String {
-                let cleanedUA = ua
-                    .replacingOccurrences(of: " wv", with: "")
-                    .replacingOccurrences(of: "(wv)", with: "()")
-                webView.customUserAgent = cleanedUA
-            }
-        }
+        // Strip WebView marker from user-agent BEFORE loading — Google blocks OAuth in WebViews
+        webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
         // Progress binding
         context.coordinator.webView = webView

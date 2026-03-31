@@ -1,0 +1,83 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - chat-ai
+---
+# 13 - Chat AI: smoke test for VitaAI Chat overlay
+#
+# Architecture: Chat is NOT a nav route destination — it is a slide-up overlay
+# driven by chatSheetProgress Animatable in NavGraph.kt. It is opened by tapping
+# the caduceus logo in the center of the bottom navigation bar.
+# The caduceus logo has semantics contentDescription = "Abrir chat VitaAI" (NavGraph.kt line 618).
+#
+# Strings verified against strings.xml (chat_* keys):
+#   - chat_welcome_title = "Olá! Sou a Vita" (line 95)
+#   - chat_welcome_message = "Sua assistente de estudos com IA..." (line 96)
+#   - chat_input_placeholder = "Pergunte algo à Vita..." (line 110)
+#   - chat_quick_study_plan = "Plano de estudo" (line 121)
+#   - chat_new_conversation = "Nova conversa" (line 93)
+#   - chat_conversations = "Conversas" (line 92)
+#
+# testTags verified against VitaChatScreen.kt:
+#   - "chat_menu_button" (hamburger, opens sidebar)
+#   - "chat_new_conversation_button" (top-right new conversation)
+#   - "chat_input_field" (message input field)
+#   - "chat_send_button" (send button)
+#   - "chat_voice_mode_button" (voice mode toggle)
+- launchApp
+
+# Wait for dashboard
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 15000
+
+- takeScreenshot: "13-chat-dashboard"
+
+# Open chat by tapping the caduceus logo (center of bottom nav)
+# contentDescription = "Abrir chat VitaAI" (NavGraph.kt)
+- tapOn:
+    text: "Abrir chat VitaAI"
+    optional: true
+
+- waitForAnimationToEnd
+
+# Wait for chat overlay to appear
+# Welcome state shows "Olá! Sou a Vita" when no messages exist
+- extendedWaitUntil:
+    visible: "Olá! Sou a Vita"
+    timeout: 10000
+
+- takeScreenshot: "13-chat-opened"
+
+# Verify welcome message (chat_welcome_message, strings.xml line 96)
+- assertVisible:
+    text: "Sua assistente de estudos com IA. Faça uma pergunta ou use as sugestões abaixo."
+    optional: true
+
+# Verify quick action chips are visible (chat_quick_study_plan = "Plano de estudo")
+- assertVisible:
+    text: "Plano de estudo"
+    optional: true
+
+# Verify input field is present (testTag = "chat_input_field")
+- assertVisible:
+    id: "chat_input_field"
+    optional: true
+
+# Verify new conversation button is present (testTag = "chat_new_conversation_button")
+- assertVisible:
+    id: "chat_new_conversation_button"
+    optional: true
+
+- takeScreenshot: "13-chat-ui-verified"
+
+# Close chat by pressing back (slide-down gesture)
+- pressKey: Back
+- waitForAnimationToEnd
+
+# Verify we are back on dashboard
+- assertVisible:
+    text: "Home"
+    optional: true
+
+- takeScreenshot: "13-chat-closed"

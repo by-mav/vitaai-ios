@@ -3,9 +3,18 @@ name: VitaAI
 options:
   bundleIdPrefix: com.bymav
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "16.0"
   xcodeVersion: "15"
   createIntermediateGroups: true
+
+packages:
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: "8.40.0"
+  PostHog:
+    url: https://github.com/PostHog/posthog-ios
+    from: "3.15.0"
+
 
 settings:
   base:
@@ -26,16 +35,31 @@ targets:
     info:
       path: VitaAI/Info.plist
       properties:
+        NSAppTransportSecurity:
+          NSExceptionDomains:
+            localhost:
+              NSExceptionAllowsInsecureHTTPLoads: true
+            100.86.55.27:
+              NSExceptionAllowsInsecureHTTPLoads: true
+        NSMicrophoneUsageDescription: "VitaAI precisa do microfone para gravar suas aulas e gerar transcricoes automaticas."
+        NSSpeechRecognitionUsageDescription: "VitaAI usa reconhecimento de fala para transcrever suas aulas em tempo real."
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        CFBundleURLTypes:
+          - CFBundleURLName: com.bymav.vitaai
+            CFBundleURLSchemes:
+              - vitaai
+    dependencies:
+      - package: Sentry
+      - package: PostHog
     settings:
       base:
         PRODUCT_NAME: VitaAI
         PRODUCT_BUNDLE_IDENTIFIER: com.bymav.vitaai
-        DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+        DEVELOPMENT_TEAM: PJ8972D48J
         INFOPLIST_FILE: VitaAI/Info.plist
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
@@ -46,9 +70,23 @@ targets:
           SWIFT_OPTIMIZATION_LEVEL: "-Onone"
           DEBUG_INFORMATION_FORMAT: dwarf
         Release:
-          CODE_SIGN_STYLE: Manual
-          PROVISIONING_PROFILE_SPECIFIER: "match AppStore com.bymav.vitaai"
-          CODE_SIGN_IDENTITY: "Apple Distribution"
+          CODE_SIGN_STYLE: Automatic
           SWIFT_OPTIMIZATION_LEVEL: "-O"
           DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
           VALIDATE_PRODUCT: YES
+    scheme:
+      testTargets:
+        - VitaAIUITests
+  VitaAIUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: VitaAIUITests
+    dependencies:
+      - target: VitaAI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bymav.vitaai.uitests
+        DEVELOPMENT_TEAM: PJ8972D48J
+        TEST_TARGET_NAME: VitaAI
+        GENERATE_INFOPLIST_FILE: YES

@@ -73,7 +73,7 @@ private struct InsightsContentView: View {
                 mainScrollContent(vm: vm)
             }
         }
-        .onChange(of: vm.studyStats == nil ? 0 : 1) { _, newVal in
+        .onChange(of: vm.studyStats == nil ? 0 : 1) { newVal in
             if newVal == 1 {
                 // Data arrived: trigger staggered entrance
                 Task {
@@ -747,7 +747,7 @@ private struct WebalunoGradeRow: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(grade.subjectName)
+                    Text(grade.subjectName ?? "")
                         .font(VitaTypography.bodyMedium)
                         .fontWeight(.medium)
                         .foregroundStyle(VitaColors.textPrimary)
@@ -888,21 +888,28 @@ private struct ExamRow: View {
         return VitaColors.textSecondary
     }
 
+    private static let iso8601Parser: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withFullDate]
+        return f
+    }()
+    private static let displayDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "pt_BR")
+        f.dateStyle = .medium
+        return f
+    }()
+
     private var formattedDate: String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withFullDate]
-        guard let date = formatter.date(from: exam.date) else { return exam.date }
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "pt_BR")
-        df.dateStyle = .medium
-        return df.string(from: date)
+        guard let date = Self.iso8601Parser.date(from: exam.date) else { return exam.date }
+        return Self.displayDateFormatter.string(from: date)
     }
 
     var body: some View {
         VitaGlassCard {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(exam.subjectName)
+                    Text(exam.subjectName ?? "")
                         .font(VitaTypography.labelMedium)
                         .foregroundStyle(VitaColors.textPrimary)
                     Text(formattedDate)

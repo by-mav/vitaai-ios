@@ -1,5 +1,12 @@
 import Foundation
 
+private let shortWeekdayFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "pt_BR")
+    f.dateFormat = "EEE"
+    return f
+}()
+
 extension Date {
     var startOfWeek: Date {
         let calendar = Calendar.current
@@ -12,10 +19,7 @@ extension Date {
     }
 
     var shortWeekday: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "pt_BR")
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: self).capitalized
+        shortWeekdayFormatter.string(from: self).capitalized
     }
 
     var dayOfMonth: Int {

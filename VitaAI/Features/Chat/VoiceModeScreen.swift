@@ -43,8 +43,10 @@ struct VoiceModeScreen: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(VitaColors.textSecondary)
                         }
+                        .frame(minWidth: 44, minHeight: 44)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Fechar")
                 }
                 .padding(.horizontal, VitaTokens.Spacing.xl)
                 .padding(.top, VitaTokens.Spacing.lg)
@@ -90,7 +92,7 @@ struct VoiceModeScreen: View {
         .preferredColorScheme(.dark)
         .task { await viewModel.onAppear() }
         .onDisappear { viewModel.onDisappear() }
-        .sensoryFeedback(.impact(weight: .medium), trigger: viewModel.isListening)
+        // sensoryFeedback removed (iOS 17+)
     }
 
     // MARK: - Status Strings (matches Android string values)

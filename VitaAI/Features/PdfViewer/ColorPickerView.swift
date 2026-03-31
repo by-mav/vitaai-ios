@@ -1,7 +1,7 @@
 import SwiftUI
 
 private let presetColors: [Color] = [
-    Color(hex: 0xC8A050),  // gold accent
+    Color(hex: 0x22D3EE),  // cyan/teal
     Color(hex: 0xEF4444),  // red
     Color(hex: 0x22C55E),  // green
     Color(hex: 0x3B82F6),  // blue
@@ -58,7 +58,7 @@ struct ColorPickerView: View {
             HStack(spacing: 12) {
                 Circle()
                     .fill(currentColor)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 2))
 
                 Button {
@@ -67,8 +67,7 @@ struct ColorPickerView: View {
                     Text("Selecionar")
                         .font(VitaTypography.labelLarge)
                         .foregroundStyle(VitaColors.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .background(VitaColors.accent.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
@@ -80,6 +79,7 @@ struct ColorPickerView: View {
                     Circle()
                         .fill(color)
                         .frame(width: 28, height: 28)
+                        .frame(minWidth: 44, minHeight: 44)
                         .overlay(
                             Circle().stroke(Color.white.opacity(0.2), lineWidth: color.vitaHex == 0x000000 ? 1 : 0)
                         )
@@ -90,7 +90,7 @@ struct ColorPickerView: View {
         }
         .padding(16)
         .background(
-            Color(hex: 0x0A0E14).opacity(0.97)
+            VitaColors.surface.opacity(0.97)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)

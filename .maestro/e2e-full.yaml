@@ -1,0 +1,125 @@
+appId: com.bymav.vitaai
+---
+- launchApp
+
+# === LOGIN ===
+- assertVisible: "Continuar com Email"
+- tapOn: "Continuar com Email"
+- waitForAnimationToEnd
+
+# Fill email
+- tapOn: "seu@email.com"
+- inputText: "test@vitaai.com"
+- tapOn: "••••••••"
+- inputText: "Vita123456!"
+- tapOn:
+    text: "Entrar"
+    index: 1
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# === ONBOARDING ===
+
+# Dismiss password save
+- tapOn:
+    text: "Agora Não"
+    optional: true
+- waitForAnimationToEnd
+
+# Wake Vita
+- tapOn: "Acordar Vita"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Wait for university field
+- extendedWaitUntil:
+    visible: "Digite sua universidade..."
+    timeout: 10000
+
+- takeScreenshot: e2e-welcome
+
+# Search university
+- tapOn: "Digite sua universidade..."
+- inputText: "ulbra"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: e2e-search
+
+# Select ULBRA Porto Alegre
+- tapOn:
+    text: "Porto Alegre"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: e2e-selected
+
+# Hide keyboard and continue
+- pressKey: Enter
+- waitForAnimationToEnd
+- tapOn: "Continuar"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- takeScreenshot: e2e-connectors
+
+# Skip connectors
+- tapOn: "Continuar"
+- waitForAnimationToEnd:
+    timeout: 10000
+
+- takeScreenshot: e2e-syncing
+
+# Wait for sync then continue
+- waitForAnimationToEnd:
+    timeout: 10000
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- takeScreenshot: e2e-subjects
+
+# Skip subjects
+- tapOn: "Continuar"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- takeScreenshot: e2e-notifications
+
+# Notifications - tap the button
+- tapOn:
+    text: "notificações"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# iOS permission dialog
+- tapOn:
+    text: "Allow"
+    optional: true
+- tapOn:
+    text: "Permitir"
+    optional: true
+- waitForAnimationToEnd
+
+- takeScreenshot: e2e-trial
+
+# Trial
+- tapOn:
+    text: "7 dias"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: e2e-done
+
+# Finish
+- tapOn:
+    text: "Bora estudar"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 5000
+
+- takeScreenshot: e2e-final

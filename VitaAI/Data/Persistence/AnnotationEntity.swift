@@ -6,6 +6,7 @@ import SwiftData
 // Table: pdf_annotations — composite index on (pdfFileHash, pageNumber).
 // strokesJson stores serialised stroke data for PDF page ink annotations.
 
+@available(iOS 17, *)
 @Model
 final class AnnotationEntity {
     // Auto-generated integer primary key (mirrors Room autoGenerate = true).

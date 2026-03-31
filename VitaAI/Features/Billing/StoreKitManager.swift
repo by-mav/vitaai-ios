@@ -1,5 +1,6 @@
 import StoreKit
 import Foundation
+import Observation
 
 // MARK: - StoreKitManager
 /// @Observable singleton managing StoreKit 2 subscription lifecycle.

@@ -1,4 +1,36 @@
 import Foundation
+import Observation
+import os
+
+// MARK: - Thread-safe XP snapshot (replaces nonisolated(unsafe) statics)
+// Uses os_unfair_lock for fast, safe concurrent reads/writes.
+private final class XpSnapshot: @unchecked Sendable {
+    private var lock = os_unfair_lock()
+    private var _xpRewards: [String: Int] = GamificationConfig.fallback.xpRewards
+    private var _dailyGoal: Int = GamificationConfig.fallback.dailyGoal
+
+    var xpRewards: [String: Int] {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        return _xpRewards
+    }
+
+    var dailyGoal: Int {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        return _dailyGoal
+    }
+
+    func update(xp: [String: Int], dailyGoal: Int) {
+        os_unfair_lock_lock(&lock)
+        _xpRewards = xp
+        _dailyGoal = dailyGoal
+        os_unfair_lock_unlock(&lock)
+    }
+}
+
+// File-level snapshot instance — outside @MainActor class to avoid isolation mismatch
+private let _appConfigXpSnapshot = XpSnapshot()
 
 // MARK: - AppConfigService
 // Fetches and caches GET /api/config/app.
@@ -21,9 +53,17 @@ final class AppConfigService {
 
     // MARK: - Thread-safe XP snapshot
     // Updated whenever config is loaded. Used by XpSource.xp (non-isolated context).
-    // nonisolated(unsafe) is safe here: reads are idempotent, worst case is a stale value.
-    nonisolated(unsafe) static var xpRewards: [String: Int] = GamificationConfig.fallback.xpRewards
-    nonisolated(unsafe) static var currentDailyGoal: Int = GamificationConfig.fallback.dailyGoal
+    // Using actor-based storage to avoid data races on Dictionary/Int writes.
+    // _snapshot lives outside the class (file-level) to avoid MainActor isolation
+    nonisolated static var xpRewards: [String: Int] {
+        _appConfigXpSnapshot.xpRewards
+    }
+    nonisolated static var currentDailyGoal: Int {
+        _appConfigXpSnapshot.dailyGoal
+    }
+    nonisolated static func updateSnapshot(xp: [String: Int], dailyGoal: Int) {
+        _appConfigXpSnapshot.update(xp: xp, dailyGoal: dailyGoal)
+    }
 
     // MARK: - State
     private(set) var config: AppConfigResponse = AppConfigResponse(
@@ -78,8 +118,7 @@ final class AppConfigService {
             lastError = nil
             saveToCache(fetched)
             // Update thread-safe snapshot
-            AppConfigService.xpRewards = fetched.gamification.xpRewards
-            AppConfigService.currentDailyGoal = fetched.gamification.dailyGoal
+            AppConfigService.updateSnapshot(xp: fetched.gamification.xpRewards, dailyGoal: fetched.gamification.dailyGoal)
         } catch {
             // Keep existing config (cache or fallback) on network error
             lastError = error
@@ -100,8 +139,7 @@ final class AppConfigService {
         config = decoded
         isLoaded = true
         // Sync thread-safe snapshot from cache
-        AppConfigService.xpRewards = decoded.gamification.xpRewards
-        AppConfigService.currentDailyGoal = decoded.gamification.dailyGoal
+        AppConfigService.updateSnapshot(xp: decoded.gamification.xpRewards, dailyGoal: decoded.gamification.dailyGoal)
     }
 
     private func saveToCache(_ config: AppConfigResponse) {

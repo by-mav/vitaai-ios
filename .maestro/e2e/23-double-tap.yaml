@@ -1,0 +1,43 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - edge-case
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Double tap on tool — should not open twice or crash
+- tapOn:
+    id: "tool_flashcards"
+    optional: true
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- tapOn:
+    id: "tool_flashcards"
+    optional: true
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "23-double-tap"
+- pressKey: back
+- waitForAnimationToEnd

@@ -207,40 +207,4 @@ private struct _VitaToastBar: View {
 // MARK: - Preview
 
 #if DEBUG
-#Preview("VitaToast types") {
-    @Previewable @State var toastState = VitaToastState()
-
-    ZStack {
-        VitaColors.surface.ignoresSafeArea()
-
-        VStack(spacing: 12) {
-            VitaButton(text: "Sucesso", action: {
-                toastState.show("Dados salvos com sucesso!", type: .success)
-            }, variant: .primary)
-
-            VitaButton(text: "Erro", action: {
-                toastState.show("Erro ao conectar ao servidor.", type: .error)
-            }, variant: .danger)
-
-            VitaButton(text: "Aviso", action: {
-                toastState.show("Sua sessão vai expirar em 5 min.", type: .warning)
-            }, variant: .secondary)
-
-            VitaButton(text: "Info", action: {
-                toastState.show("Sincronização concluída.", type: .info)
-            }, variant: .ghost)
-
-            VitaButton(text: "Com ação", action: {
-                toastState.show(
-                    "Item excluído.",
-                    type: .info,
-                    actionText: "Desfazer",
-                    onAction: { print("Undo!") }
-                )
-            }, variant: .secondary)
-        }
-        .padding()
-    }
-    .vitaToastHost(toastState)
-}
 #endif

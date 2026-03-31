@@ -52,8 +52,6 @@ final class CourseDetailViewModel {
             assignments = assignmentsResp.assignments
         } catch {
             self.error = error.localizedDescription
-            // Seed mock so UI is not empty
-            loadMock()
         }
         isLoading = false
     }
@@ -118,42 +116,4 @@ final class CourseDetailViewModel {
         }
     }
 
-    // MARK: - Mock Seed
-
-    private func loadMock() {
-        course = Course(
-            id: courseId,
-            name: "Cardiologia Clínica",
-            code: "CM-101",
-            term: "2026/1",
-            filesCount: 3,
-            assignmentsCount: 2
-        )
-
-        files = [
-            CanvasFile(id: "f1", displayName: "Harrison Cap. 12.pdf",
-                       contentType: "application/pdf", size: 2_400_000,
-                       hasText: true, totalPages: 28,
-                       moduleName: "Módulo 1", modulePosition: 1, itemPosition: 0),
-            CanvasFile(id: "f2", displayName: "Diretriz ICC 2024.pdf",
-                       contentType: "application/pdf", size: 1_100_000,
-                       hasText: false, totalPages: 14,
-                       moduleName: "Módulo 1", modulePosition: 1, itemPosition: 1),
-            CanvasFile(id: "f3", displayName: "Slides Aula 3.pptx",
-                       contentType: "application/vnd.ms-powerpoint", size: 800_000,
-                       hasText: false, totalPages: nil,
-                       moduleName: "Módulo 2", modulePosition: 2, itemPosition: 0),
-        ]
-
-        assignments = [
-            Assignment(id: "a1", name: "Resenha: mecanismos de ICC",
-                       description: nil,
-                       dueAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(86400 * 5)),
-                       pointsPossible: 10, courseName: "Cardiologia Clínica", courseId: courseId),
-            Assignment(id: "a2", name: "Prova Teórica — Unidade 2",
-                       description: nil,
-                       dueAt: ISO8601DateFormatter().string(from: Date().addingTimeInterval(86400 * 12)),
-                       pointsPossible: 20, courseName: "Cardiologia Clínica", courseId: courseId),
-        ]
-    }
 }

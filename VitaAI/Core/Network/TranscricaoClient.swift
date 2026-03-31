@@ -8,6 +8,20 @@ struct TranscriptionFlashcard: Identifiable, Sendable {
     let back: String
 }
 
+/// A saved transcription entry returned by GET /api/study/transcricao
+struct TranscricaoEntry: Decodable, Identifiable {
+    var id: String = UUID().uuidString
+    var title: String = ""
+    var duration: String?
+    var detail: String?
+    var date: String?
+    var status: String? // "transcribed", "pending"
+
+    var isTranscribed: Bool {
+        status?.lowercased() == "transcribed"
+    }
+}
+
 enum TranscricaoSSEEvent: Sendable {
     case progress(stage: String, percent: Int)
     case complete(transcript: String, summary: String, flashcards: [TranscriptionFlashcard])
@@ -17,7 +31,7 @@ enum TranscricaoSSEEvent: Sendable {
 // MARK: - TranscricaoClient
 //
 // Actor-based SSE client for audio upload + streaming transcription pipeline.
-// Mirrors Android's TranscricaoSseClient pattern: multipart/form-data POST → SSE response.
+// Mirrors Android's TranscricaoSseClient pattern: multipart/form-data POST -> SSE response.
 //
 // Endpoint: POST /ai/transcribe
 // Events:  { type: "progress", stage, percent }
@@ -26,9 +40,27 @@ enum TranscricaoSSEEvent: Sendable {
 
 actor TranscricaoClient {
     private let tokenStore: TokenStore
+    private let session: URLSession
+    private let tokenRefresher: TokenRefresher
+    private var onUnauthorized: (@Sendable @MainActor () -> Void)?
 
-    init(tokenStore: TokenStore) {
+    private static let maxRetries = 3
+
+    init(tokenStore: TokenStore, tokenRefresher: TokenRefresher? = nil, session: URLSession? = nil) {
         self.tokenStore = tokenStore
+        if let session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 60
+            config.timeoutIntervalForResource = 300
+            self.session = URLSession(configuration: config)
+        }
+        self.tokenRefresher = tokenRefresher ?? TokenRefresher(tokenStore: tokenStore)
+    }
+
+    func setOnUnauthorized(_ handler: @escaping @Sendable @MainActor () -> Void) {
+        self.onUnauthorized = handler
     }
 
     // MARK: - Upload + Stream
@@ -54,58 +86,94 @@ actor TranscricaoClient {
                         return
                     }
 
-                    var request = URLRequest(url: url)
-                    request.httpMethod = "POST"
-                    request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-                    request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                    request.httpBody = body
-                    request.timeoutInterval = 180
+                    var didAttemptRefresh = false
+                    var lastError: Error = APIError.unknown
 
-                    if let token = await tokenStore.token {
-                        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                    }
-
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    guard let httpResponse = response as? HTTPURLResponse else {
-                        continuation.finish(throwing: APIError.unknown)
-                        return
-                    }
-                    guard (200...299).contains(httpResponse.statusCode) else {
-                        if httpResponse.statusCode == 401 {
-                            continuation.finish(throwing: APIError.unauthorized)
-                        } else {
-                            continuation.finish(throwing: APIError.serverError(httpResponse.statusCode))
+                    for attempt in 0..<Self.maxRetries {
+                        if attempt > 0 {
+                            let delay = UInt64(pow(2.0, Double(attempt - 1)) * 1_000_000_000)
+                            try await Task.sleep(nanoseconds: delay)
                         }
-                        return
-                    }
 
-                    var eventType = ""
-                    var dataLines: [String] = []
+                        var request = URLRequest(url: url)
+                        request.httpMethod = "POST"
+                        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+                        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                        request.httpBody = body
+                        request.timeoutInterval = 180
 
-                    for try await line in bytes.lines {
-                        if line.hasPrefix("event:") {
-                            eventType = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
-                        } else if line.hasPrefix("data:") {
-                            let content = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
-                            dataLines.append(content)
-                        } else if line.isEmpty, !dataLines.isEmpty {
-                            let rawJSON = dataLines.joined(separator: "\n")
-                            dataLines = []
-                            if let event = Self.parse(type: eventType, data: rawJSON) {
-                                continuation.yield(event)
-                                switch event {
-                                case .complete, .error:
-                                    continuation.finish()
-                                    return
-                                default:
-                                    break
+                        if let token = await self.tokenStore.token {
+                            request.setValue("__Secure-better-auth.session_token=\(token)", forHTTPHeaderField: "Cookie")
+                        }
+
+                        let bytes: URLSession.AsyncBytes
+                        let response: URLResponse
+                        do {
+                            (bytes, response) = try await self.session.bytes(for: request)
+                        } catch {
+                            lastError = APIError.networkError(error)
+                            continue
+                        }
+
+                        guard let httpResponse = response as? HTTPURLResponse else {
+                            lastError = APIError.unknown
+                            continue
+                        }
+
+                        if httpResponse.statusCode == 401 {
+                            if !didAttemptRefresh {
+                                didAttemptRefresh = true
+                                if await self.tokenRefresher.refreshSession() {
+                                    continue
                                 }
                             }
-                            eventType = ""
+                            if let handler = self.onUnauthorized { await handler() }
+                            continuation.finish(throwing: APIError.unauthorized)
+                            return
                         }
+
+                        guard (200...299).contains(httpResponse.statusCode) else {
+                            if (500...599).contains(httpResponse.statusCode) {
+                                lastError = APIError.serverError(httpResponse.statusCode)
+                                continue
+                            }
+                            continuation.finish(throwing: APIError.serverError(httpResponse.statusCode))
+                            return
+                        }
+
+                        // Connected — stream events (no retry mid-stream)
+                        var eventType = ""
+                        var dataLines: [String] = []
+
+                        for try await line in bytes.lines {
+                            if line.hasPrefix("event:") {
+                                eventType = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+                            } else if line.hasPrefix("data:") {
+                                let content = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+                                dataLines.append(content)
+                            } else if line.isEmpty, !dataLines.isEmpty {
+                                let rawJSON = dataLines.joined(separator: "\n")
+                                dataLines = []
+                                if let event = Self.parse(type: eventType, data: rawJSON) {
+                                    continuation.yield(event)
+                                    switch event {
+                                    case .complete, .error:
+                                        continuation.finish()
+                                        return
+                                    default:
+                                        break
+                                    }
+                                }
+                                eventType = ""
+                            }
+                        }
+
+                        continuation.finish()
+                        return
                     }
 
-                    continuation.finish()
+                    // All retries exhausted
+                    continuation.finish(throwing: lastError)
                 } catch {
                     continuation.finish(throwing: error)
                 }

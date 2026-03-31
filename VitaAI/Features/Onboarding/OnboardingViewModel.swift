@@ -1,71 +1,66 @@
 import Foundation
+import Observation
 
 @MainActor
 @Observable
 final class OnboardingViewModel {
     private let tokenStore: TokenStore
+    var api: VitaAPI?
 
     // MARK: - Navigation
-    var currentStep: Int = 0
-    let totalSteps = 5
     var isSaving = false
 
-    // MARK: - Step 0: Welcome
+    // MARK: - Welcome
     var nickname: String = ""
-
-    // MARK: - Step 1: University
     var universityQuery: String = ""
     var selectedUniversity: University? = nil
     var selectedSemester: Int = 0
+    var allUniversities: [University] = []
 
-    // MARK: - Step 2: Subjects
-    var selectedSubjects: [String] = []
-    var customSubject: String = ""
+    // MARK: - Sync (shared between Connect → Syncing → Subjects → Done)
+    var activeSyncId: String?
+    var syncedSubjects: [SyncedSubject] = []
+    var syncGrades: Int = 0
+    var syncSchedule: Int = 0
+    var syncCourses: Int = 0
 
-    // MARK: - Step 3: Goals
-    var selectedGoals: [String] = []
-
-    // MARK: - Step 4: Time
-    var dailyStudyMinutes: Int = 0
+    // MARK: - Subjects (difficulty selection — data from API)
+    var subjectDifficulties: [String: String] = [:]  // subjectName → "facil"|"medio"|"dificil"
 
     // MARK: - Derived
 
     var filteredUniversities: [University] {
         let query = universityQuery.trimmingCharacters(in: .whitespaces).lowercased()
         guard !query.isEmpty else { return [] }
-        return brazilianMedicalSchools.filter { uni in
+        return allUniversities.filter { uni in
             uni.name.lowercased().contains(query) ||
             uni.shortName.lowercased().contains(query) ||
             uni.city.lowercased().contains(query)
         }
     }
 
-    var semesterSubjects: [String] {
-        guard selectedSemester >= 1 && selectedSemester <= 12 else { return [] }
-        return medicineSubjectsBySemester[selectedSemester] ?? []
-    }
-
-    var canAdvance: Bool {
-        switch currentStep {
-        case 0: return !nickname.trimmingCharacters(in: .whitespaces).isEmpty
-        case 1: return selectedUniversity != nil && selectedSemester > 0
-        case 2: return !selectedSubjects.isEmpty
-        case 3: return !selectedGoals.isEmpty
-        case 4: return dailyStudyMinutes > 0
-        default: return false
+    /// All distinct portal types derived from loaded universities (no hardcoded list)
+    var allPortalTypes: [PortalTypeInfo] {
+        var seen = Set<String>()
+        var result: [PortalTypeInfo] = []
+        for uni in allUniversities {
+            if let portals = uni.portals {
+                for p in portals where !p.portalType.isEmpty && !seen.contains(p.portalType) {
+                    seen.insert(p.portalType)
+                    result.append(PortalTypeInfo(type: p.portalType))
+                }
+            }
+            // Also check single portalType field (from universities table directly)
+            // This handles cases where university has portalType but no portals array
         }
-    }
-
-    /// Steps 1–3 can be skipped (university, subjects, goals)
-    var canSkip: Bool {
-        currentStep >= 1 && currentStep <= 3
+        return result.sorted { $0.displayName < $1.displayName }
     }
 
     // MARK: - Init
 
-    init(tokenStore: TokenStore) {
+    init(tokenStore: TokenStore, api: VitaAPI? = nil) {
         self.tokenStore = tokenStore
-        // Pre-fill nickname from stored name
+        self.api = api
         Task {
             if let name = await tokenStore.userName, !name.isEmpty {
                 self.nickname = name.split(separator: " ").first.map(String.init) ?? name
@@ -73,24 +68,20 @@ final class OnboardingViewModel {
         }
     }
 
-    // MARK: - Navigation
-
-    func advance() {
-        guard currentStep < totalSteps - 1 else { return }
-        currentStep += 1
+    func loadUniversities() async {
+        guard let api else { return }
+        do {
+            let resp = try await api.getUniversities()
+            allUniversities = resp.universities
+        } catch {
+            try? await Task.sleep(for: .seconds(2))
+            if let resp = try? await api.getUniversities() {
+                allUniversities = resp.universities
+            }
+        }
     }
 
-    func skip() {
-        guard canSkip, currentStep < totalSteps - 1 else { return }
-        currentStep += 1
-    }
-
-    func goBack() {
-        guard currentStep > 0 else { return }
-        currentStep -= 1
-    }
-
-    // MARK: - Step mutations
+    // MARK: - University
 
     func selectUniversity(_ university: University) {
         selectedUniversity = university
@@ -104,32 +95,58 @@ final class OnboardingViewModel {
 
     func selectSemester(_ semester: Int) {
         selectedSemester = semester
-        selectedSubjects = []
     }
 
-    func toggleSubject(_ subject: String) {
-        if let idx = selectedSubjects.firstIndex(of: subject) {
-            selectedSubjects.remove(at: idx)
-        } else {
-            selectedSubjects.append(subject)
+    // MARK: - Subjects
+
+    func setDifficulty(_ subject: String, difficulty: String) {
+        subjectDifficulties[subject] = difficulty
+    }
+
+    // MARK: - Sync results
+
+    func setSyncId(_ syncId: String) {
+        activeSyncId = syncId
+    }
+
+    /// Fetch subjects from API after sync (courses from Canvas or grades from WebAluno)
+    func fetchSubjectsFromAPI() async {
+        guard let api else { return }
+
+        // Try Canvas courses first
+        do {
+            let coursesResp = try await api.getCourses()
+            if !coursesResp.courses.isEmpty {
+                syncedSubjects = coursesResp.courses.map { SyncedSubject(name: $0.name, source: "canvas") }
+                syncCourses = coursesResp.courses.count
+                return
+            }
+        } catch {
+            print("[Onboarding] Canvas courses fetch failed: \(error)")
         }
-    }
 
-    func addCustomSubject() {
-        let trimmed = customSubject.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !selectedSubjects.contains(trimmed) else {
-            customSubject = ""
-            return
+        // Fallback: WebAluno grades (subjects come from grade entries)
+        do {
+            let gradesResp = try await api.getWebalunoGrades()
+            let uniqueSubjects = Set(gradesResp.grades.map(\.subjectName).filter { !$0.isEmpty }).sorted()
+            if !uniqueSubjects.isEmpty {
+                syncedSubjects = uniqueSubjects.map { SyncedSubject(name: $0, source: "webaluno") }
+                syncGrades = gradesResp.grades.count
+                return
+            }
+        } catch {
+            print("[Onboarding] WebAluno grades fetch failed: \(error)")
         }
-        selectedSubjects.append(trimmed)
-        customSubject = ""
-    }
 
-    func toggleGoal(_ goal: String) {
-        if let idx = selectedGoals.firstIndex(of: goal) {
-            selectedGoals.remove(at: idx)
-        } else {
-            selectedGoals.append(goal)
+        // Fallback: WebAluno schedule
+        do {
+            let schedule = try await api.getWebalunoSchedule()
+            let uniqueSubjects = Set(schedule.schedule.map(\.subjectName).filter { !$0.isEmpty }).sorted()
+            if !uniqueSubjects.isEmpty {
+                syncedSubjects = uniqueSubjects.map { SyncedSubject(name: $0, source: "webaluno") }
+            }
+        } catch {
+            print("[Onboarding] WebAluno schedule fetch failed: \(error)")
         }
     }
 
@@ -137,55 +154,51 @@ final class OnboardingViewModel {
 
     func complete() async {
         isSaving = true
+        let subjects = syncedSubjects.map(\.name)
         let data = OnboardingData(
             nickname: nickname.trimmingCharacters(in: .whitespaces),
             universityName: selectedUniversity?.shortName ?? "",
             universityState: selectedUniversity?.state ?? "",
             semester: selectedSemester,
-            subjects: selectedSubjects,
-            goals: selectedGoals,
-            dailyStudyMinutes: dailyStudyMinutes
+            subjects: subjects,
+            subjectDifficulties: subjectDifficulties
         )
-        // Persist locally first — always succeeds regardless of network
         await tokenStore.saveOnboardingData(data)
-        // POST to backend — fire-and-forget; local save is source of truth for UX
-        await postOnboardingToBackend(data: data)
+        if !AppConfig.isE2EDemoMode {
+            await postOnboardingToBackend(data: data)
+        }
         isSaving = false
     }
 
     // MARK: - Backend Sync
 
-    /// Maps iOS onboarding fields to the backend POST /api/onboarding schema.
-    /// `moment` is inferred from selectedGoals; falls back to "graduacao".
-    /// Non-fatal: errors are logged but do not block the user.
     private func postOnboardingToBackend(data: OnboardingData) async {
-        guard let token = await tokenStore.token,
-              let url = URL(string: AppConfig.apiBaseURL + "/onboarding") else { return }
-
-        // Derive `moment` from goals: goals may contain "residencia" or "revalida" keywords
-        let lowerGoals = data.goals.map { $0.lowercased() }
-        let moment: String
-        if lowerGoals.contains(where: { $0.contains("residencia") || $0.contains("residência") }) {
-            moment = "residencia"
-        } else if lowerGoals.contains(where: { $0.contains("revalida") || $0.contains("reválida") }) {
-            moment = "revalida"
-        } else {
-            moment = "graduacao"
+        guard let api else {
+            print("[OnboardingVM] No API available to post onboarding data")
+            return
         }
 
-        var body: [String: Any] = [
-            "moment": moment,
-            "studyGoal": data.goals.first ?? "study",
-        ]
-        if data.semester > 0 { body["year"] = data.semester }
-        if !data.subjects.isEmpty { body["selectedSubjects"] = data.subjects }
+        let body = OnboardingPostRequest(
+            moment: "graduacao",
+            year: data.semester > 0 ? data.semester : nil,
+            selectedSubjects: data.subjects.isEmpty ? nil : data.subjects,
+            subjectDifficulties: data.subjectDifficulties.isEmpty ? nil : data.subjectDifficulties
+        )
 
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        _ = try? await URLSession.shared.data(for: req)
+        do {
+            try await api.postOnboarding(body)
+        } catch {
+            // HTTPClient already retries 3x with exponential backoff for 5xx/network errors
+            // and handles 401 with token refresh. If we still fail, log it.
+            print("[OnboardingVM] Failed to post onboarding data: \(error.localizedDescription)")
+        }
     }
+}
+
+// MARK: - Synced Subject (from API)
+
+struct SyncedSubject: Identifiable {
+    var id: String { name }
+    let name: String
+    let source: String  // "canvas" | "webaluno"
 }

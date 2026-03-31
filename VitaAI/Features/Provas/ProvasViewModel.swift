@@ -24,7 +24,11 @@ final class ProvasViewModel {
     private(set) var pendingImageCount: Int = 0  // tracks count for UI display
 
     private let api: VitaAPI
-    private var pollTask: Task<Void, Never>? = nil
+    private nonisolated(unsafe) var pollTask: Task<Void, Never>? = nil
+
+    deinit {
+        pollTask?.cancel()
+    }
 
     init(api: VitaAPI) {
         self.api = api
@@ -172,7 +176,10 @@ final class ProvasViewModel {
 
         pollTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            while !Task.isCancelled {
+            let maxAttempts = 60 // 60 × 3s = 3 minutes max
+            var attempt = 0
+            while !Task.isCancelled && attempt < maxAttempts {
+                attempt += 1
                 try? await Task.sleep(for: .milliseconds(3_000))
                 guard !Task.isCancelled else { break }
                 do {

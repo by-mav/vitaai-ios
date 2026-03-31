@@ -21,8 +21,14 @@ final class StrokeFileStorage {
     private let rootURL: URL
 
     init() {
-        let appSupport = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        guard let appSupport = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            // Fallback to tmp instead of crashing — extremely rare edge case
+            let fallback = FileManager.default.temporaryDirectory.appendingPathComponent("notes", isDirectory: true)
+            rootURL = fallback
+            try? FileManager.default.createDirectory(at: fallback, withIntermediateDirectories: true)
+            return
+        }
         rootURL = appSupport.appendingPathComponent("notes", isDirectory: true)
         try? FileManager.default.createDirectory(
             at: rootURL,

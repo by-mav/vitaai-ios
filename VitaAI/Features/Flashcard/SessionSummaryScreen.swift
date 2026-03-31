@@ -1,5 +1,8 @@
 import SwiftUI
 
+// MARK: - Session Summary accent colors (purple from flashcard-session-v1.html mockup)
+private let summaryAccent = Color(red: 148/255, green: 75/255, blue: 220/255)
+
 // MARK: - SessionSummaryScreen
 
 struct SessionSummaryScreen: View {
@@ -18,7 +21,7 @@ struct SessionSummaryScreen: View {
 
     // Gradient for primary CTA (matches web / Android cyan→blue)
     private let ctaGradient = LinearGradient(
-        colors: [VitaColors.accent, VitaColors.dataBlue],
+        colors: [summaryAccent, VitaColors.dataBlue],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
@@ -67,9 +70,9 @@ struct SessionSummaryScreen: View {
     // MARK: Trophy Icon
 
     private var trophyIcon: some View {
-        let isBg    = result.isPerfect ? VitaColors.accent.opacity(0.12)  : VitaColors.glassBg
-        let iBorder = result.isPerfect ? VitaColors.accent.opacity(0.20)  : VitaColors.glassBorder
-        let iColor  = result.isPerfect ? VitaColors.accent : VitaColors.textSecondary
+        let isBg    = result.isPerfect ? summaryAccent.opacity(0.12)  : VitaColors.glassBg
+        let iBorder = result.isPerfect ? summaryAccent.opacity(0.20)  : VitaColors.glassBorder
+        let iColor  = result.isPerfect ? summaryAccent : VitaColors.textSecondary
 
         return ZStack {
             Circle()

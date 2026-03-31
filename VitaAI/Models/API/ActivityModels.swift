@@ -25,19 +25,24 @@ struct NewBadge: Decodable {
 // MARK: - Gamification Stats
 
 struct GamificationStatsResponse: Decodable {
-    let totalXp: Int
-    let level: Int
-    let currentStreak: Int
-    let longestStreak: Int
-    let streakFreezes: Int
-    let totalCardsReviewed: Int
-    let totalQuestionsAnswered: Int
-    let totalChatMessages: Int
-    let totalNotesCreated: Int
-    let dailyXp: Int
-    let currentLevelXp: Int
-    let xpToNextLevel: Int
-    let badges: [BadgeWithStatus]
+    // Fields that exist in the real API
+    var totalXp: Int = 0
+    var level: Int = 0
+    var currentLevelXp: Int = 0
+    var xpToNextLevel: Int = 0
+    var streakDays: Int = 0
+    var achievements: [BadgeWithStatus] = []
+
+    // Aliases / defaults for fields the API doesn't return but code references
+    var currentStreak: Int { streakDays }
+    var longestStreak: Int { streakDays }
+    var streakFreezes: Int { 0 }
+    var totalCardsReviewed: Int { 0 }
+    var totalQuestionsAnswered: Int { 0 }
+    var totalChatMessages: Int { 0 }
+    var totalNotesCreated: Int { 0 }
+    var dailyXp: Int { 0 }
+    var badges: [BadgeWithStatus] { achievements }
 }
 
 struct BadgeWithStatus: Decodable, Identifiable {
@@ -46,8 +51,18 @@ struct BadgeWithStatus: Decodable, Identifiable {
     let description: String
     let icon: String
     let category: String
-    let earned: Bool
-    let earnedAt: Int?
+    var rarity: String = "common"
+    // API returns "unlocked" not "earned", and "unlockedAt" as ISO string not Int
+    var unlocked: Bool = false
+    var unlockedAt: String?
+
+    var earned: Bool { unlocked }
+    var earnedAt: Int? {
+        guard let str = unlockedAt else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: str).map { Int($0.timeIntervalSince1970 * 1000) }
+    }
 }
 
 // MARK: - Activity Feed
@@ -68,9 +83,10 @@ struct LeaderboardEntry: Decodable, Identifiable {
     let displayName: String
     let xp: Int
     let level: Int?
+    var isMe: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case oderId = "userId"
-        case rank, displayName, xp, level
+        case rank, displayName, xp, level, isMe
     }
 }

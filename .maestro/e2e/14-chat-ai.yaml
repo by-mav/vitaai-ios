@@ -1,0 +1,52 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - chat-ai
+---
+# Wait for dashboard
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+
+- takeScreenshot: "14-dashboard"
+
+# Open AI Coach
+- tapOn:
+    id: "tab_vita"
+    optional: true
+- tapOn:
+    text: "Vita"
+    optional: true
+- tapOn:
+    text: "Coach"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "14-chat-opened"
+
+# Check for input field
+- tapOn:
+    text: ".*(?:Pergunte|Digite|mensagem).*"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "14-chat-input"
+
+- pressKey: back
+- waitForAnimationToEnd

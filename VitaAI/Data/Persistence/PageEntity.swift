@@ -6,6 +6,7 @@ import SwiftData
 // Table: pages — foreign key notebookId with CASCADE on delete.
 // thumbnailPath is nullable, matching the Android entity.
 
+@available(iOS 17, *)
 @Model
 final class PageEntity {
     @Attribute(.unique) var id: String

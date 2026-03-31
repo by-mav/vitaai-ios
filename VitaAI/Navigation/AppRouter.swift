@@ -3,6 +3,8 @@ import SwiftUI
 struct AppRouter: View {
     @ObservedObject var authManager: AuthManager
     @Environment(\.appContainer) private var container
+    @AppStorage("vita_is_onboarded") private var isOnboardedStored = false
+    @AppStorage("vita_onboarding_done") private var legacyOnboardingStored = false
     @State private var router = Router()
 
     var body: some View {
@@ -16,17 +18,32 @@ struct AppRouter: View {
             } else if !authManager.isLoggedIn {
                 LoginScreen(authManager: authManager)
             } else if !isOnboarded {
-                OnboardingScreen {
+                VitaOnboarding {
                 }
             } else {
                 MainTabView(router: router, authManager: authManager)
             }
         }
         .preferredColorScheme(.dark)
+        .onOpenURL { url in
+            let result = DeepLinkHandler.shared.parse(url: url)
+            switch result {
+            case .navigate(let route):
+                switch route {
+                case .home:      router.selectedTab = .home
+                case .estudos:   router.selectedTab = .estudos
+                case .faculdade: router.selectedTab = .faculdade
+                case .progresso: router.selectedTab = .progresso
+                case .profile:   router.selectedTab = .progresso
+                default:         router.navigate(to: route)
+                }
+            default: break
+            }
+        }
     }
 
     private var isOnboarded: Bool {
-        UserDefaults.standard.bool(forKey: "vita_is_onboarded")
+        isOnboardedStored || legacyOnboardingStored
     }
 }
 
@@ -36,25 +53,24 @@ struct MainTabView: View {
     @Environment(\.appContainer) private var container
     @Environment(\.subscriptionStatus) private var subStatus
     @State private var showChat = false
+    @State private var dashboardSubtitle: String = ""
 
     var body: some View {
         // Shell OUTSIDE NavigationStack
         ZStack {
-            // Layer 1: Background edge-to-edge
-            VitaAmbientBackground { Color.clear }
-                .ignoresSafeArea()
-
-            // Layer 2: TopBar + Content
+            // TopBar + Content (respects safe area)
             VStack(spacing: 0) {
                 VitaTopBar(
                     userName: authManager.userName,
                     userImageURL: authManager.userImage.flatMap(URL.init(string:)),
-                    onAvatarTap: { router.selectedTab = .progresso }
+                    subtitle: dashboardSubtitle,
+                    onAvatarTap: { router.selectedTab = .progresso },
+                    onBellTap: { router.navigate(to: .notifications) },
+                    onMenuTap: { router.navigate(to: .configuracoes) }
                 )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
 
-                // NavigationStack wraps ONLY content, not the shell
                 NavigationStack(path: $router.path) {
                     activeTabView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -69,7 +85,7 @@ struct MainTabView: View {
                 .toolbar(.hidden, for: .navigationBar)
             }
 
-            // Layer 3: TabBar always visible at bottom
+            // TabBar always visible at bottom
             VStack {
                 Spacer()
                 VitaTabBar(selectedTab: $router.selectedTab) {
@@ -77,6 +93,16 @@ struct MainTabView: View {
                 }
             }
             .ignoresSafeArea(.keyboard)
+        }
+        .background {
+            VitaAmbientBackground { Color.clear }
+                .ignoresSafeArea()
+        }
+        .onChange(of: router.selectedTab) { _, _ in
+            // When switching tabs, pop all pushed routes so user sees the tab root
+            if !router.path.isEmpty {
+                router.popToRoot()
+            }
         }
         .sheet(isPresented: $showChat) {
             VitaChatScreen()
@@ -111,10 +137,14 @@ struct MainTabView: View {
         switch router.selectedTab {
         case .home:
             DashboardScreen(
-                onNavigateToFlashcards: { router.selectedTab = .estudos },
+                onNavigateToFlashcards: { router.navigate(to: .flashcardHome) },
                 onNavigateToSimulados: { router.navigate(to: .simuladoHome) },
                 onNavigateToPdfs: { router.selectedTab = .estudos },
-                onNavigateToMaterials: { router.selectedTab = .estudos }
+                onNavigateToMaterials: { router.navigate(to: .qbank) },
+                onNavigateToTranscricao: { router.navigate(to: .transcricao) },
+                onNavigateToAtlas3D: { router.navigate(to: .atlas3D) },
+                onNavigateToDisciplineDetail: { id, name in router.navigate(to: .disciplineDetail(disciplineId: id, disciplineName: name)) },
+                onSubtitleLoaded: { subtitle in dashboardSubtitle = subtitle }
             )
         case .estudos:
             EstudosScreen(
@@ -135,16 +165,8 @@ struct MainTabView: View {
         case .progresso:
             ProfileScreen(
                 authManager: authManager,
-                onNavigateToAbout: { router.navigate(to: .about) },
-                onNavigateToAppearance: { router.navigate(to: .appearance) },
-                onNavigateToNotifications: { router.navigate(to: .notifications) },
-                onNavigateToConnections: { router.navigate(to: .connections) },
-                onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) },
-                onNavigateToWebAluno: { router.navigate(to: .webalunoConnect) },
-                onNavigateToInsights: { router.navigate(to: .insights) },
-                onNavigateToTrabalhos: { router.navigate(to: .trabalhos) },
-                onNavigateToPaywall: { router.navigate(to: .paywall) },
-                onNavigateToActivity: { router.navigate(to: .activityFeed) }
+                onNavigateToConfiguracoes: { router.navigate(to: .configuracoes) },
+                onNavigateToAchievements: { router.navigate(to: .achievements) }
             )
         }
     }
@@ -311,6 +333,35 @@ struct MainTabView: View {
             ToolManagerScreen(
                 onBack: { router.goBack() },
                 onSave: { _ in router.goBack() }
+            )
+        case .configuracoes:
+            ConfiguracoesScreen(
+                authManager: container.authManager,
+                onNavigateToPerfil: { router.navigate(to: .profile) },
+                onNavigateToAppearance: { router.navigate(to: .appearance) },
+                onNavigateToNotifications: { router.navigate(to: .notifications) },
+                onNavigateToConnections: { router.navigate(to: .connections) },
+                onNavigateToAbout: { router.navigate(to: .about) },
+                onNavigateToAssinatura: { router.navigate(to: .paywall) },
+                onBack: { router.goBack() }
+            )
+        case .qbank:
+            QBankCoordinatorScreen(onBack: { router.goBack() })
+        case .transcricao:
+            TranscricaoScreen(onBack: { router.goBack() })
+        case .flashcardHome:
+            FlashcardsListScreen(
+                onBack: { router.goBack() },
+                onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) }
+            )
+        case .disciplineDetail(let disciplineId, let disciplineName):
+            DisciplineDetailScreen(
+                disciplineId: disciplineId,
+                disciplineName: disciplineName,
+                onBack: { router.goBack() },
+                onNavigateToFlashcards: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
+                onNavigateToQBank: { router.navigate(to: .qbank) },
+                onNavigateToSimulado: { router.navigate(to: .simuladoHome) }
             )
         default:
             EmptyView()

@@ -5,6 +5,7 @@ import SwiftData
 // Mirrors com.bymav.medcoach.data.local.entity.LocalAssignmentEntity (Android Room).
 // Table: local_assignments — persists locally-authored assignment drafts.
 
+@available(iOS 17, *)
 @Model
 final class LocalAssignmentEntity {
     @Attribute(.unique) var id: String

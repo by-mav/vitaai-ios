@@ -1,0 +1,48 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - interaction
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Transcricao: open page
+- tapOn:
+    id: "tool_transcricao"
+    optional: true
+- tapOn:
+    text: "Transcrição"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "33-transcricao"
+
+# Check for record button
+- tapOn:
+    text: "Gravar"
+    optional: true
+- tapOn:
+    text: "Iniciar"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "33-transcricao-action"
+
+- pressKey: back
+- waitForAnimationToEnd

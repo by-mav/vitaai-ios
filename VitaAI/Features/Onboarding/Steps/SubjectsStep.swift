@@ -1,135 +1,101 @@
 import SwiftUI
 
+// MARK: - Subjects Content (difficulty selection — data from API sync)
+
 struct SubjectsStep: View {
     @Bindable var viewModel: OnboardingViewModel
-    @FocusState private var customFocused: Bool
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                Spacer().frame(height: 24)
-
-                // Header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("O que está cursando?")
-                        .font(VitaTypography.bodyLarge)
-                        .foregroundStyle(VitaColors.textPrimary)
-
-                    Text("Selecione suas matérias atuais")
-                        .font(VitaTypography.bodySmall)
-                        .foregroundStyle(VitaColors.textSecondary)
+        VStack(spacing: 8) {
+            if viewModel.syncedSubjects.isEmpty {
+                // No subjects found — show empty state
+                VStack(spacing: 12) {
+                    Image(systemName: "books.vertical")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.white.opacity(0.15))
+                    Text(String(localized: "onboarding_subjects_empty"))
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.35))
+                    Text(String(localized: "onboarding_subjects_empty_hint"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.2))
+                        .multilineTextAlignment(.center)
                 }
-
-                Spacer().frame(height: 20)
-
-                // Chip flow: semester subjects + any added custom subjects
-                FlowLayout(spacing: 8) {
-                    // Standard semester subjects
-                    ForEach(viewModel.semesterSubjects, id: \.self) { subject in
-                        SubjectChip(
-                            label: subject,
-                            isSelected: viewModel.selectedSubjects.contains(subject)
-                        ) {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            viewModel.toggleSubject(subject)
+                .padding(.vertical, 24)
+            } else {
+                ForEach(viewModel.syncedSubjects) { subject in
+                    let difficulty = viewModel.subjectDifficulties[subject.name]
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(subject.name)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .lineLimit(2)
+                            Text(subject.source == "canvas" ? "Canvas" : "WebAluno")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.white.opacity(0.2))
                         }
-                    }
-                    // Custom subjects not in semester list
-                    ForEach(viewModel.selectedSubjects.filter { !viewModel.semesterSubjects.contains($0) }, id: \.self) { subject in
-                        SubjectChip(
-                            label: subject,
-                            isSelected: true
-                        ) {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            viewModel.toggleSubject(subject)
-                        }
-                    }
-                }
-
-                Spacer().frame(height: 20)
-
-                // Add custom subject
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Adicionar outra")
-                        .font(VitaTypography.bodySmall)
-                        .foregroundStyle(VitaColors.textSecondary)
-
-                    HStack(spacing: 12) {
-                        TextField("Nome da matéria", text: $viewModel.customSubject)
-                            .foregroundStyle(VitaColors.textPrimary)
-                            .font(VitaTypography.bodyLarge)
-                            .tint(VitaColors.accent)
-                            .focused($customFocused)
-                            .submitLabel(.done)
-                            .onSubmit {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                viewModel.addCustomSubject()
-                                customFocused = false
+                        Spacer()
+                        HStack(spacing: 6) {
+                            DifficultyPill(label: "Facil", selected: difficulty == "facil") {
+                                viewModel.setDifficulty(subject.name, difficulty: "facil")
                             }
-
-                        if !viewModel.customSubject.isEmpty {
-                            Button(action: {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                viewModel.addCustomSubject()
-                                customFocused = false
-                            }) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 22))
-                                    .foregroundStyle(VitaColors.accent)
+                            DifficultyPill(label: "Medio", selected: difficulty == "medio") {
+                                viewModel.setDifficulty(subject.name, difficulty: "medio")
                             }
-                            .transition(.opacity.combined(with: .scale(scale: 0.7)))
-                            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: viewModel.customSubject.isEmpty)
+                            DifficultyPill(label: "Dificil", selected: difficulty == "dificil") {
+                                viewModel.setDifficulty(subject.name, difficulty: "dificil")
+                            }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(VitaColors.glassBg)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(
-                                customFocused ? VitaColors.accent.opacity(0.5) : VitaColors.glassBorder,
-                                lineWidth: 1
-                            )
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.06))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
                     )
-                    .animation(.easeInOut(duration: 0.15), value: customFocused)
                 }
-
-                Spacer().frame(height: 24)
             }
-            .padding(.horizontal, 24)
         }
-        .scrollDismissesKeyboard(.interactively)
-        .onTapGesture { customFocused = false }
     }
 }
 
-// MARK: - Subject chip
+// MARK: - Difficulty Pill
 
-private struct SubjectChip: View {
+private struct DifficultyPill: View {
     let label: String
-    let isSelected: Bool
+    let selected: Bool
     let action: () -> Void
 
+    private var activeColor: Color {
+        switch label.lowercased() {
+        case "facil": return Color(red: 0.51, green: 0.78, blue: 0.55)
+        case "medio": return Color(red: 1.0, green: 0.71, blue: 0.31)
+        default: return Color(red: 1.0, green: 0.39, blue: 0.31)
+        }
+    }
+
     var body: some View {
-        Button(action: action) {
+        Button(action: {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            action()
+        }) {
             Text(label)
-                .font(VitaTypography.bodyMedium)
-                .foregroundStyle(isSelected ? VitaColors.accent : VitaColors.textSecondary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(isSelected ? VitaColors.accent.opacity(0.12) : VitaColors.glassBg)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(
-                            isSelected ? VitaColors.accent.opacity(0.6) : VitaColors.glassBorder,
-                            lineWidth: 1
+                .font(.system(size: 9, weight: .bold))
+                .tracking(0.5)
+                .foregroundStyle(selected ? activeColor.opacity(0.85) : .white.opacity(0.25))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(selected ? activeColor.opacity(0.12) : Color.white.opacity(0.06))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(selected ? activeColor.opacity(0.25) : Color.white.opacity(0.06), lineWidth: 1)
                         )
                 )
-                .animation(.easeInOut(duration: 0.15), value: isSelected)
         }
         .buttonStyle(.plain)
     }
 }
-

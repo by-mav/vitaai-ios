@@ -7,6 +7,7 @@ import SwiftData
 // Features: inline title field, Escrever/Visualizar tabs, markdown formatting toolbar,
 // template chooser, AI assistant, auto-save, delete confirmation.
 
+@available(iOS 17, *)
 struct TrabalhoEditorView: View {
     let assignmentId: String?
     let templateId: String?
@@ -43,7 +44,7 @@ struct TrabalhoEditorView: View {
 
     private var loadingView: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
             ProgressView().tint(VitaColors.accent)
         }
     }
@@ -53,7 +54,7 @@ struct TrabalhoEditorView: View {
     @ViewBuilder
     private func editorContent(vm: TrabalhoEditorViewModel) -> some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
 
             VStack(spacing: 0) {
                 editorTopBar(vm: vm)
@@ -214,7 +215,7 @@ struct TrabalhoEditorView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .background(VitaColors.surface)
+        .vitaScreenBg()
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(VitaColors.glassBorder)
@@ -236,7 +237,7 @@ struct TrabalhoEditorView: View {
                 set: { vm.content = $0 }
             ))
             .scrollContentBackground(.hidden)
-            .background(VitaColors.surface)
+            VitaScreenBg()
             .font(.system(size: 15, design: .monospaced))
             .foregroundStyle(VitaColors.textPrimary)
             .tint(VitaColors.accent)
@@ -402,7 +403,7 @@ struct TrabalhoEditorView: View {
                     .foregroundStyle(VitaColors.textSecondary)
                     .frame(width: 36, height: 36)
             }
-            .sensoryFeedback(.selection, trigger: vm.showTemplateChooser)
+            // sensoryFeedback removed (iOS 17+)
 
             // AI Assist button
             Button {
@@ -415,7 +416,7 @@ struct TrabalhoEditorView: View {
                     .background(VitaColors.accent.opacity(0.12))
                     .clipShape(Circle())
             }
-            .sensoryFeedback(.selection, trigger: vm.showAiPanel)
+            // sensoryFeedback removed (iOS 17+)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -462,7 +463,7 @@ struct TrabalhoEditorView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .sensoryFeedback(.selection, trigger: vm.templateType)
+                // sensoryFeedback removed (iOS 17+)
             }
             Spacer().frame(height: 8)
         }
@@ -525,7 +526,7 @@ struct TrabalhoEditorView: View {
                                 .stroke(VitaColors.dataRed.opacity(0.3), lineWidth: 0.5)
                         )
                 }
-                .sensoryFeedback(.warning, trigger: showDeleteConfirm)
+                // sensoryFeedback removed (iOS 17+)
             }
             Spacer().frame(height: 4)
         }

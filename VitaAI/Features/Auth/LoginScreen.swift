@@ -109,7 +109,7 @@ struct LoginScreen: View {
                             icon: AnyView(
                                 Image(systemName: "envelope")
                                     .font(.system(size: 16))
-                                    .foregroundStyle(VitaColors.textSecondary)
+                                    .foregroundColor(VitaColors.textSecondary)
                             ),
                             isLoading: false
                         ) {
@@ -135,14 +135,14 @@ struct LoginScreen: View {
                 // Legal footer — frame(maxWidth) ensures text wraps within screen bounds
                 if showFooter {
                     (Text("Ao continuar voce concorda com os ")
-                        .foregroundStyle(VitaColors.textTertiary) +
+                        .foregroundColor(VitaColors.textTertiary) +
                     Text("Termos de Uso")
-                        .foregroundStyle(VitaColors.textSecondary)
+                        .foregroundColor(VitaColors.textSecondary)
                         .underline() +
                     Text(" e ")
-                        .foregroundStyle(VitaColors.textTertiary) +
+                        .foregroundColor(VitaColors.textTertiary) +
                     Text("Politica de Privacidade")
-                        .foregroundStyle(VitaColors.textSecondary)
+                        .foregroundColor(VitaColors.textSecondary)
                         .underline())
                     .font(VitaTypography.labelSmall)
                     .multilineTextAlignment(.center)

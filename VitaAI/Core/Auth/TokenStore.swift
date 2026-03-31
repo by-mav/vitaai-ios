@@ -12,6 +12,7 @@ actor TokenStore {
         static let userEmail = "vita_user_email"
         static let userImage = "vita_user_image"
         static let isOnboarded = "vita_is_onboarded"
+        static let legacyIsOnboarded = "vita_onboarding_done"
         static let onboardingNickname = "vita_onboarding_nickname"
         static let onboardingUniversity = "vita_onboarding_university"
         static let onboardingState = "vita_onboarding_state"
@@ -26,58 +27,83 @@ actor TokenStore {
 
     var token: String? {
         #if DEBUG
-        // CI mode: xcrun simctl launch --env VITA_CI_TOKEN=xxx injects env var into the process
-        if let ciToken = ProcessInfo.processInfo.environment["VITA_CI_TOKEN"] { return ciToken }
+        if AppConfig.isE2EDemoMode {
+            return nil
+        }
+        if let ciToken = AppConfig.ciToken { return ciToken }
         #endif
         return keychain.read(key: Keys.sessionToken)
     }
 
     var isLoggedIn: Bool {
-        token != nil
+        #if DEBUG
+        if AppConfig.isE2EDemoMode { return true }
+        #endif
+        return token != nil
     }
 
     var isOnboarded: Bool {
         #if DEBUG
-        if ProcessInfo.processInfo.environment["VITA_CI_TOKEN"] != nil { return true }
+        if AppConfig.isE2EDemoMode {
+            return AppConfig.isOnboardingComplete(in: defaults)
+        }
+        if AppConfig.ciToken != nil { return true }
         #endif
-        return defaults.bool(forKey: Keys.isOnboarded)
+        return AppConfig.isOnboardingComplete(in: defaults)
     }
 
-    // MARK: - User Info
+    // MARK: - User Info (Keychain-backed)
 
     var userName: String? {
-        defaults.string(forKey: Keys.userName)
+        keychain.read(key: Keys.userName) ?? defaults.string(forKey: Keys.userName)
     }
 
     var userEmail: String? {
-        defaults.string(forKey: Keys.userEmail)
+        keychain.read(key: Keys.userEmail) ?? defaults.string(forKey: Keys.userEmail)
     }
 
     var userImage: String? {
-        defaults.string(forKey: Keys.userImage)
+        keychain.read(key: Keys.userImage) ?? defaults.string(forKey: Keys.userImage)
     }
 
     // MARK: - Session Management
 
-    func saveSession(token: String, name: String?, email: String?, image: String?) {
+    func updateToken(_ token: String) {
         keychain.save(key: Keys.sessionToken, value: token)
-        if let name { defaults.set(name, forKey: Keys.userName) }
-        if let email { defaults.set(email, forKey: Keys.userEmail) }
-        if let image { defaults.set(image, forKey: Keys.userImage) }
     }
 
+    func saveSession(token: String, name: String?, email: String?, image: String?) {
+        keychain.save(key: Keys.sessionToken, value: token)
+        if let name { keychain.save(key: Keys.userName, value: name) }
+        if let email { keychain.save(key: Keys.userEmail, value: email) }
+        if let image { keychain.save(key: Keys.userImage, value: image) }
+        // Clean up legacy UserDefaults data
+        defaults.removeObject(forKey: Keys.userName)
+        defaults.removeObject(forKey: Keys.userEmail)
+        defaults.removeObject(forKey: Keys.userImage)
+    }
+
+    /// Demo mode no longer persists a fake token — the app handles demo state
+    /// via AuthManager.isLoggedIn without sending invalid tokens to the API.
     func saveDemoUser() {
-        keychain.save(key: Keys.sessionToken, value: "demo")
-        defaults.set("Estudante", forKey: Keys.userName)
-        defaults.set("demo@medcoach.app", forKey: Keys.userEmail)
+        keychain.delete(key: Keys.sessionToken)
+        keychain.save(key: Keys.userName, value: AppConfig.demoUserName)
+        keychain.save(key: Keys.userEmail, value: AppConfig.demoUserEmail)
+        defaults.set(AppConfig.demoUserName, forKey: Keys.userName)
+        defaults.set(AppConfig.demoUserEmail, forKey: Keys.userEmail)
     }
 
     func clearSession() {
         let fcm = defaults.string(forKey: Keys.fcmToken)
+        // Clear Keychain credentials
         keychain.delete(key: Keys.sessionToken)
+        keychain.delete(key: Keys.userName)
+        keychain.delete(key: Keys.userEmail)
+        keychain.delete(key: Keys.userImage)
+        // Clear UserDefaults (onboarding + legacy)
         let keysToRemove = [
             Keys.userName, Keys.userEmail, Keys.userImage,
-            Keys.isOnboarded, Keys.onboardingNickname, Keys.onboardingUniversity,
+            Keys.isOnboarded, Keys.legacyIsOnboarded, Keys.onboardingNickname, Keys.onboardingUniversity,
             Keys.onboardingState, Keys.onboardingSemester, Keys.onboardingSubjects,
             Keys.onboardingGoals, Keys.onboardingDailyMinutes
         ]
@@ -89,7 +115,7 @@ actor TokenStore {
     // MARK: - Onboarding
 
     func saveOnboardingData(_ data: OnboardingData) {
-        defaults.set(true, forKey: Keys.isOnboarded)
+        AppConfig.setOnboardingComplete(true, in: defaults)
         defaults.set(data.nickname, forKey: Keys.onboardingNickname)
         defaults.set(data.universityName, forKey: Keys.onboardingUniversity)
         defaults.set(data.universityState, forKey: Keys.onboardingState)
@@ -97,26 +123,24 @@ actor TokenStore {
         if let subjectsData = try? JSONEncoder().encode(data.subjects) {
             defaults.set(subjectsData, forKey: Keys.onboardingSubjects)
         }
-        if let goalsData = try? JSONEncoder().encode(data.goals) {
-            defaults.set(goalsData, forKey: Keys.onboardingGoals)
+        if let diffData = try? JSONEncoder().encode(data.subjectDifficulties) {
+            defaults.set(diffData, forKey: Keys.onboardingGoals) // reuse key
         }
-        defaults.set(data.dailyStudyMinutes, forKey: Keys.onboardingDailyMinutes)
     }
 
     func getOnboardingData() -> OnboardingData? {
         guard let nickname = defaults.string(forKey: Keys.onboardingNickname) else { return nil }
         let subjects: [String] = (defaults.data(forKey: Keys.onboardingSubjects))
             .flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
-        let goals: [String] = (defaults.data(forKey: Keys.onboardingGoals))
-            .flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
+        let difficulties: [String: String] = (defaults.data(forKey: Keys.onboardingGoals))
+            .flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
         return OnboardingData(
             nickname: nickname,
             universityName: defaults.string(forKey: Keys.onboardingUniversity) ?? "",
             universityState: defaults.string(forKey: Keys.onboardingState) ?? "",
             semester: defaults.integer(forKey: Keys.onboardingSemester),
             subjects: subjects,
-            goals: goals,
-            dailyStudyMinutes: defaults.integer(forKey: Keys.onboardingDailyMinutes)
+            subjectDifficulties: difficulties
         )
     }
 

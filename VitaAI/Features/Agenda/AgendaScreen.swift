@@ -27,17 +27,28 @@ struct AgendaScreen: View {
 
     @ViewBuilder
     private func agendaContent(vm: AgendaViewModel) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                weekDaySelector(vm: vm)
-                dayHeader(vm: vm)
-                timelineSection(vm: vm)
-                aiPlanButton(vm: vm)
-                Spacer().frame(height: 100)
+        Group {
+            if vm.isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                        .tint(VitaColors.accent)
+                    Spacer()
+                }
+            } else {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 16) {
+                        weekDaySelector(vm: vm)
+                        dayHeader(vm: vm)
+                        timelineSection(vm: vm)
+                        aiPlanButton(vm: vm)
+                        Spacer().frame(height: 100)
+                    }
+                    .padding(.top, 8)
+                }
+                .refreshable { await vm.load() }
             }
-            .padding(.top, 8)
         }
-        .refreshable { await vm.load() }
         .sheet(isPresented: Binding(
             get: { vm.showCreateModal },
             set: { vm.showCreateModal = $0 }
@@ -292,7 +303,7 @@ struct AgendaScreen: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(cls.subjectName)
+                    Text(cls.subjectName ?? "")
                         .font(VitaTypography.labelMedium)
                         .foregroundStyle(VitaColors.textPrimary)
                         .lineLimit(1)
@@ -561,12 +572,17 @@ struct AgendaScreen: View {
         return "book.fill"
     }
 
+    private static let iso8601Parser = ISO8601DateFormatter()
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        f.timeZone = TimeZone.current
+        return f
+    }()
+
     private func extractTime(from isoString: String) -> String {
-        guard let date = ISO8601DateFormatter().date(from: isoString) else { return "--:--" }
-        let fmt = DateFormatter()
-        fmt.dateFormat = "HH:mm"
-        fmt.timeZone = TimeZone.current
-        return fmt.string(from: date)
+        guard let date = Self.iso8601Parser.date(from: isoString) else { return "--:--" }
+        return Self.timeFormatter.string(from: date)
     }
 
     private func durationLabel(_ minutes: Int) -> String {

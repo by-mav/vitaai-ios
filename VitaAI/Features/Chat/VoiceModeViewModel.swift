@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 // MARK: - VoiceModeStatus
 // Mirrors Android's VoiceModeStatus enum in VitaChatViewModel.kt
@@ -176,13 +177,11 @@ final class VoiceModeViewModel {
                         streamingConversationId = convId
                     }
 
+                case .toolProgress: break
                 case .error(let msg):
                     errorMessage = msg
                     status = .idle
                     return
-
-                case .toolProgress:
-                    break
                 }
             }
         } catch {

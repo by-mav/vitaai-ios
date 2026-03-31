@@ -58,8 +58,9 @@ struct QBankUiState {
     var sessionAnswers: [Int: QBankAnswerResponse] = [:]   // questionId -> answer
     var sessionDetails: [Int: QBankQuestionDetail] = [:]   // questionId -> detail
 
-    // Error
+    // Error — scoped per concern so filter errors don't leak to home screen
     var error: String? = nil
+    var filterError: String? = nil
 
     // MARK: - Computed
 
@@ -180,14 +181,20 @@ final class QBankViewModel {
     func loadFilters() {
         Task {
             state.filtersLoading = true
+            state.filterError = nil
             do {
                 state.filters = try await api.getQBankFilters()
-                state.error = nil
+                state.filterError = nil
             } catch {
-                state.error = "Erro ao carregar filtros"
+                print("[QBank] loadFilters failed: \(error)")
+                state.filterError = "Erro ao carregar filtros. Toque para tentar novamente."
             }
             state.filtersLoading = false
         }
+    }
+
+    func retryLoadFilters() {
+        loadFilters()
     }
 
     func toggleInstitution(_ id: Int) {

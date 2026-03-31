@@ -1,0 +1,51 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - flashcards
+---
+# Wait for dashboard
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+
+- takeScreenshot: "04-dashboard"
+
+# Navigate to Flashcards
+- tapOn:
+    id: "tool_flashcards"
+    optional: true
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "04-flashcards-home"
+
+# Try tapping first deck
+- tapOn:
+    index: 0
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "04-flashcard-session"
+
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd

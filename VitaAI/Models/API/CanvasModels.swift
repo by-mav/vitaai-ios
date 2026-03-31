@@ -79,3 +79,40 @@ struct Assignment: Codable, Identifiable {
     var courseName: String = ""
     var courseId: String = ""
 }
+
+// MARK: - Sync Progress (from /api/portal/sync-progress)
+
+struct SyncProgressResponse: Codable {
+    var syncId: String?
+    var phase: String = "connecting"
+    var percent: Double = 0
+    var label: String = ""
+    var grades: Int = 0
+    var schedule: Int = 0
+
+    var isDone: Bool { phase == "done" || percent >= 100 }
+    var isError: Bool { phase == "error" }
+}
+
+// MARK: - Vita Crawl (universal portal extraction via Vita LLM)
+
+struct VitaCrawlRequest: Codable {
+    var cookies: String
+    var instanceUrl: String
+}
+
+struct VitaCrawlResponse: Codable {
+    var syncId: String?
+    var status: String?
+    var error: String?
+}
+
+// MARK: - Sync Progress Items (granular progress from Vita crawl)
+
+struct SyncProgressItem: Codable, Identifiable {
+    var id: String { "\(type)-\(name)" }
+    var type: String = ""
+    var name: String = ""
+    var status: String = "pending"
+    var detail: String?
+}

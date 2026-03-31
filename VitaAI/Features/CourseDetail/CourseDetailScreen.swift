@@ -26,7 +26,7 @@ struct CourseDetailScreen: View {
                 )
             } else {
                 ZStack {
-                    VitaColors.surface.ignoresSafeArea()
+                    VitaScreenBg()
                     ProgressView().tint(folderColor)
                 }
             }
@@ -53,7 +53,7 @@ private struct CourseDetailContent: View {
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
 
             VStack(spacing: 0) {
                 // Back bar

@@ -41,8 +41,8 @@ struct VitaBadgeGrid: View {
         .sheet(item: $selectedBadge) { badge in
             _BadgeDetailSheet(badge: badge)
                 .presentationDetents([.medium])
-                .presentationBackground(.ultraThinMaterial)
-                .presentationCornerRadius(24)
+                .background(VitaColors.glassBg)
+                // // .presentationCornerRadius(24)
         }
         .accessibilityIdentifier("vitaBadgeGrid")
     }

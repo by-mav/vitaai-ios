@@ -4,6 +4,7 @@ import SwiftUI
 // Full mind map editor with canvas, toolbar, and dialogs.
 // Mirrors MindMapEditorScreen.kt (Android).
 
+@available(iOS 17, *)
 struct MindMapEditorView: View {
     let mindMapId: String
     let onBack: () -> Void
@@ -24,7 +25,7 @@ struct MindMapEditorView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                VitaColors.surface.ignoresSafeArea()
+                VitaScreenBg()
 
                 if viewModel.isLoading {
                     ProgressView()

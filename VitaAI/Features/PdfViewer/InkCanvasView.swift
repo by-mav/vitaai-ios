@@ -104,7 +104,8 @@ struct InkCanvasView: View {
 
     private func strokePath(from points: [StrokePoint]) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: points[0].x, y: points[0].y))
+        guard points.count >= 2, let first = points.first else { return path }
+        path.move(to: CGPoint(x: first.x, y: first.y))
         for pt in points.dropFirst() {
             path.addLine(to: CGPoint(x: pt.x, y: pt.y))
         }

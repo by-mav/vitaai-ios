@@ -20,9 +20,15 @@ struct SimuladoUiState {
     var selectedFileIds: Set<String> = []
     var selectedSubject = ""
     var selectedDifficulty = "medium"
-    var selectedQuestionCount = 20
+    var selectedQuestionCount = 25
     var selectedMode = "immediate"
     var isGenerating = false
+    // Config redesign
+    var templates: [SimuladoTemplate] = SimuladoTemplate.defaults
+    var disciplines: [SimuladoDiscipline] = SimuladoDiscipline.defaults
+    var disciplinesLoading = false
+    var selectedDisciplineName: String? = nil
+    var timedMode = true
     // Session
     var currentAttemptId: String? = nil
     var questions: [SimuladoQuestionEntry] = []
@@ -159,22 +165,39 @@ final class SimuladoViewModel {
     func setQuestionCount(_ n: Int) { state.selectedQuestionCount = n }
     func setMode(_ m: String) { state.selectedMode = m }
 
+    func loadConfigData() {
+        state.templates = SimuladoTemplate.defaults
+        state.disciplines = SimuladoDiscipline.defaults
+    }
+
+    func selectSimuladoDiscipline(_ name: String?) {
+        state.selectedDisciplineName = name
+    }
+
+    func toggleTimedMode() {
+        state.timedMode.toggle()
+    }
+
+    func applyTemplate(_ template: SimuladoTemplate) {
+        state.selectedQuestionCount = template.count
+        state.timedMode = template.timed
+        state.selectedDisciplineName = template.disciplineName
+        generateSimulado()
+    }
+
     func generateSimulado() {
-        guard !state.selectedSubject.isEmpty else {
-            state.error = "Selecione uma disciplina"
-            return
-        }
+        let subject = state.selectedDisciplineName ?? "Geral"
         Task {
             state.isGenerating = true
             state.error = nil
             do {
                 let response = try await api.generateSimulado(.init(
-                    subject: state.selectedSubject,
+                    subject: subject,
                     difficulty: state.selectedDifficulty,
                     questionCount: state.selectedQuestionCount,
-                    mode: state.selectedMode,
-                    sourceDocumentIds: state.selectedFileIds.isEmpty ? nil : Array(state.selectedFileIds),
-                    courseId: state.selectedCourse?.id
+                    mode: state.timedMode ? "exam" : "immediate",
+                    sourceDocumentIds: nil,
+                    courseId: nil
                 ))
                 let now = Date()
                 state.currentAttemptId = response.id
@@ -258,10 +281,22 @@ final class SimuladoViewModel {
     private func syncAnswerToAPI(questionId: String, chosenIdx: Int, responseTimeMs: Int64) {
         guard let attemptId = state.currentAttemptId else { return }
         Task {
-            _ = try? await api.answerSimuladoQuestion(
-                attemptId: attemptId,
-                body: .init(questionId: questionId, chosenIdx: chosenIdx, responseTimeMs: responseTimeMs)
-            )
+            var lastError: Error?
+            for attempt in 0..<3 {
+                if attempt > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt)) * 1_000_000_000))
+                }
+                do {
+                    _ = try await api.answerSimuladoQuestion(
+                        attemptId: attemptId,
+                        body: .init(questionId: questionId, chosenIdx: chosenIdx, responseTimeMs: responseTimeMs)
+                    )
+                    return
+                } catch {
+                    lastError = error
+                }
+            }
+            print("[SimuladoVM] Failed to sync answer after 3 attempts: \(lastError?.localizedDescription ?? "unknown")")
         }
     }
 

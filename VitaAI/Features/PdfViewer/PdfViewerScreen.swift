@@ -16,7 +16,7 @@ struct PdfViewerScreen: View {
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
 
             if viewModel.isLoading {
                 ProgressView()
@@ -76,7 +76,7 @@ struct PdfViewerScreen: View {
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
-                    .onChange(of: selectedPage) { _, newPage in
+                    .onChange(of: selectedPage) { newPage in
                         viewModel.setCurrentPage(newPage)
                     }
 
@@ -218,13 +218,13 @@ private struct PdfPageView: View {
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
-            .background(VitaColors.surface)
+            VitaScreenBg()
         }
         .task(id: pageIndex) {
             guard pageImage == nil else { return }
             pageImage = await renderPage()
         }
-        .onChange(of: viewModel.isDrawMode) { _, drawing in
+        .onChange(of: viewModel.isDrawMode) { drawing in
             if drawing { scale = 1; offset = .zero }
         }
     }
@@ -253,12 +253,12 @@ private struct PdfPageView: View {
 
     private var magnifyAndPanGesture: some Gesture {
         SimultaneousGesture(
-            MagnifyGesture()
+            MagnificationGesture()
                 .onChanged { value in
-                    scale = max(1, min(5, value.magnification))
+                    scale = max(1, min(5, value))
                 }
                 .onEnded { value in
-                    scale = max(1, min(5, value.magnification))
+                    scale = max(1, min(5, value))
                     if scale == 1 { withAnimation(.spring) { offset = .zero } }
                 },
             DragGesture()

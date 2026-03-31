@@ -1,0 +1,52 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - estudos
+---
+# Wait for dashboard
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+
+- takeScreenshot: "07-dashboard"
+
+# Navigate to Estudos
+- tapOn:
+    id: "tab_estudos"
+    optional: true
+- tapOn:
+    text: "Estudo"
+    optional: true
+- tapOn:
+    text: "Estudos"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "07-estudos"
+
+# Check for study tools
+- tapOn:
+    text: "Trabalhos"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "07-trabalhos"
+
+- pressKey: back
+- waitForAnimationToEnd

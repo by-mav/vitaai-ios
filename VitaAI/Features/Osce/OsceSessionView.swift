@@ -150,12 +150,12 @@ private struct OsceConversationList: View {
                 .padding(.vertical, 10)
                 .padding(.bottom, 8)
             }
-            .onChange(of: exchanges.count) { _, _ in
+            .onChange(of: exchanges.count) { _ in
                 withAnimation(.easeOut(duration: 0.2)) {
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
             }
-            .onChange(of: currentPrompt.count) { _, _ in
+            .onChange(of: currentPrompt.count) { _ in
                 proxy.scrollTo("bottom", anchor: .bottom)
             }
         }

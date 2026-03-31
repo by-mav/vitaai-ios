@@ -71,7 +71,7 @@ struct VitaPaywallScreen: View {
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            VitaScreenBg()
 
             // Ambient cyan glow at top — matches overall app aesthetic
             RadialGradient(
@@ -112,8 +112,10 @@ struct VitaPaywallScreen: View {
                         .background(VitaColors.glassBg)
                         .clipShape(Circle())
                         .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 1))
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Fechar")
             }
         }
         .padding(.horizontal, 20)

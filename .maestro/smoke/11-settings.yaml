@@ -1,0 +1,65 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - settings
+  - profile
+---
+# 11 - Settings/Profile smoke: navigate to Profile tab and verify all sections
+# Assumes user is logged in and on dashboard.
+# Strings verified against strings.xml (profile_* and about_* keys).
+# Bottom nav label = "Perfil" (NavGraph.kt line 203)
+- launchApp
+
+# Wait for dashboard
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 15000
+
+- takeScreenshot: "11-settings-dashboard"
+
+# Navigate to Profile/Settings tab
+- tapOn:
+    text: "Perfil"
+    optional: true
+- waitForAnimationToEnd
+
+# Wait for Profile screen — any main row label confirms the screen is loaded
+# profile_appearance = "Aparência" (strings.xml line 166)
+- extendedWaitUntil:
+    visible: "Aparência"
+    timeout: 10000
+
+- takeScreenshot: "11-settings-profile-loaded"
+
+# Verify all settings sections are present
+# strings.xml profile_canvas_account = "Conta Canvas"
+- assertVisible: "Conta Canvas"
+# strings.xml profile_webaluno = "WebAluno"
+- assertVisible: "WebAluno"
+# strings.xml profile_notifications = "Notificações"
+- assertVisible: "Notificações"
+# strings.xml profile_appearance = "Aparência"
+- assertVisible: "Aparência"
+# strings.xml profile_about = "Sobre"
+- assertVisible: "Sobre"
+# strings.xml profile_logout = "Sair"
+- assertVisible: "Sair"
+
+- takeScreenshot: "11-settings-all-sections"
+
+# Tap Sobre (About) to verify sub-screen navigation
+# about_title = "Sobre" (strings.xml line 173)
+- tapOn: "Sobre"
+- waitForAnimationToEnd
+
+# Verify About screen loaded
+# about_made_with_love = "Feito com amor pela BYMAV"
+- extendedWaitUntil:
+    visible: "Feito com amor pela BYMAV"
+    timeout: 8000
+
+- takeScreenshot: "11-settings-about"
+
+# Go back to profile
+- pressKey: back
+- waitForAnimationToEnd

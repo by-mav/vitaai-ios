@@ -1,17 +1,19 @@
 import Foundation
+import SwiftUI
 
 @MainActor
 @Observable
 final class DashboardViewModel {
     private let api: VitaAPI
 
-    var progress: DashboardProgress?
-    var userProgress: UserProgress?
+    // Data from unified /api/mockup/dashboard endpoint
+    var greeting: String = ""
+    var subtitle: String = ""
     var upcomingExams: [UpcomingExam] = []
-    var weekDays: [WeekDay] = []
-    var studyModules: [StudyModule] = []
-    var studyTip: String = ""
-    var suggestions: [VitaSuggestion] = []
+    var subjects: [DashboardSubject] = []
+    var agenda: [DashboardAgendaItem] = []
+    var flashcardsDueTotal: Int = 0
+    var xpLevel: Int = 1
     var isLoading = true
     var error: String?
 
@@ -23,47 +25,72 @@ final class DashboardViewModel {
         isLoading = true
         error = nil
 
-        // Load mock data first for instant UI
-        loadMockData()
-        isLoading = false
-
-        // Then try real API in background
+        // Load dashboard (greeting, exams, subjects, agenda)
         do {
-            async let progressTask = api.getProgress()
-            async let examsTask = api.getExams(upcoming: true)
+            let resp = try await api.getDashboard()
+            apply(dashboard: resp)
+        } catch {
+            // Silently continue — progress may still work
+        }
 
-            let (progressResp, examsResp) = try await (progressTask, examsTask)
+        // Load progress data (subjects, exams, flashcards)
+        do {
+            let progress = try await api.getProgress()
+            apply(progress: progress, preserveExistingSubjects: true)
+        } catch {
+            // Silently continue — dashboard data may be enough
+        }
 
-            progress = DashboardProgress(
-                progressPercent: Double(progressResp.todayCompleted) / max(Double(progressResp.todayTotal), 1),
-                streak: progressResp.streakDays,
-                flashcardsDue: progressResp.flashcardsDue,
-                accuracy: progressResp.avgAccuracy,
-                studyMinutes: progressResp.todayStudyMinutes
-            )
+        if subjects.isEmpty && upcomingExams.isEmpty && greeting.isEmpty {
+            self.error = "Nao foi possivel carregar o dashboard."
+        }
 
-            upcomingExams = examsResp.exams.map { exam in
+        isLoading = false
+    }
+
+    private func apply(dashboard: DashboardResponse) {
+        greeting = dashboard.greeting
+        subtitle = dashboard.subtitle
+        if dashboard.flashcardsDueTotal > 0 { flashcardsDueTotal = dashboard.flashcardsDueTotal }
+        if let xp = dashboard.xp { xpLevel = xp.level }
+        if !dashboard.subjects.isEmpty { subjects = dashboard.subjects }
+        if !dashboard.agenda.isEmpty { agenda = dashboard.agenda }
+        if !dashboard.exams.isEmpty {
+            upcomingExams = dashboard.exams.map { exam in
                 UpcomingExam(
                     id: exam.id,
-                    subject: exam.subjectName,
-                    type: exam.examType,
-                    date: ISO8601DateFormatter().date(from: exam.date) ?? Date(),
-                    daysUntil: exam.daysUntil
+                    subject: exam.subject,
+                    type: exam.title,
+                    date: Date().addingTimeInterval(TimeInterval(exam.daysUntil * 86400)),
+                    daysUntil: exam.daysUntil,
+                    conceptCards: exam.conceptCards,
+                    practiceCards: exam.practiceCards
                 )
             }
-        } catch {
-            // Keep mock data, silently fail
-            print("Dashboard API error: \(error)")
         }
     }
 
-    private func loadMockData() {
-        progress = MockData.dashboardProgress()
-        userProgress = MockData.userProgress()
-        upcomingExams = MockData.upcomingExams()
-        weekDays = MockData.weekDays()
-        studyModules = MockData.studyModules()
-        studyTip = MockData.studyTip()
-        suggestions = MockData.vitaSuggestions()
+    private func apply(progress: ProgressResponse, preserveExistingSubjects: Bool) {
+        if !progress.subjects.isEmpty && (!preserveExistingSubjects || subjects.isEmpty) {
+            subjects = progress.subjects.map { sp in
+                DashboardSubject(name: sp.subjectId)
+            }
+        }
+        if progress.flashcardsDue > 0 {
+            flashcardsDueTotal = progress.flashcardsDue
+        }
+        if !progress.upcomingExams.isEmpty && upcomingExams.isEmpty {
+            upcomingExams = progress.upcomingExams.map { exam in
+                UpcomingExam(
+                    id: exam.id,
+                    subject: exam.subjectName ?? exam.subjectId ?? "",
+                    type: exam.title,
+                    date: Date().addingTimeInterval(TimeInterval(exam.daysUntil * 86400)),
+                    daysUntil: exam.daysUntil,
+                    conceptCards: exam.conceptCards ?? 0,
+                    practiceCards: exam.practiceCards ?? 0
+                )
+            }
+        }
     }
 }

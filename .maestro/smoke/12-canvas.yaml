@@ -1,0 +1,101 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - canvas
+---
+# 12 - Canvas: smoke test for Canvas LMS connect screen
+#
+# Navigation path: Profile tab -> "Conta Canvas" -> CanvasConnectScreen
+# Strings and testTags verified against:
+#   - CanvasConnectScreen.kt (testTag: canvas_back_button, canvas_url_input,
+#       canvas_token_input, canvas_connect_button, canvas_sync_button,
+#       canvas_disconnect_button)
+#   - strings.xml (canvas_* keys, profile_canvas_account)
+#
+# Two possible states:
+#   - NOT CONNECTED: shows ConnectForm with URL + token inputs + "Conectar Canvas" button
+#   - CONNECTED: shows ConnectedSection with "Sincronizar Agora" button
+# All content asserts use optional: true to handle both states.
+- launchApp
+
+# Wait for dashboard (Home bottom nav label confirmed in NavGraph.kt)
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 15000
+
+- takeScreenshot: "12-canvas-dashboard"
+
+# Navigate to Profile tab (label = "Perfil", NavGraph.kt BottomNavItem)
+- tapOn: "Perfil"
+- waitForAnimationToEnd
+
+# Wait for Profile screen to settle
+- extendedWaitUntil:
+    visible: "Perfil"
+    timeout: 10000
+
+- takeScreenshot: "12-canvas-profile"
+
+# Tap "Conta Canvas" row (profile_canvas_account = "Conta Canvas", strings.xml line 163)
+- tapOn: "Conta Canvas"
+- waitForAnimationToEnd
+
+# Wait for CanvasConnectScreen top bar title
+# canvas_title = "Canvas LMS" (strings.xml line 226)
+- extendedWaitUntil:
+    visible: "Canvas LMS"
+    timeout: 10000
+
+- takeScreenshot: "12-canvas-screen-opened"
+
+# Verify status card is present — shows either "Canvas Conectado" or "Canvas Desconectado"
+# canvas_connected = "Canvas Conectado" (strings.xml line 227)
+# canvas_disconnected = "Canvas Desconectado" (strings.xml line 228)
+- assertVisible:
+    text: "Canvas Conectado"
+    optional: true
+- assertVisible:
+    text: "Canvas Desconectado"
+    optional: true
+
+# --- NOT CONNECTED state: verify form elements ---
+# canvas_connect_button testTag — button "Conectar Canvas" (strings.xml line 245)
+- assertVisible:
+    id: "canvas_connect_button"
+    optional: true
+- assertVisible:
+    text: "Conectar Canvas"
+    optional: true
+
+# canvas_url_input testTag — URL input field
+- assertVisible:
+    id: "canvas_url_input"
+    optional: true
+
+# canvas_token_input testTag — Token input field
+- assertVisible:
+    id: "canvas_token_input"
+    optional: true
+
+# --- CONNECTED state: verify sync button ---
+# canvas_sync_button testTag — "Sincronizar Agora" button (strings.xml line 232)
+- assertVisible:
+    id: "canvas_sync_button"
+    optional: true
+- assertVisible:
+    text: "Sincronizar Agora"
+    optional: true
+
+- takeScreenshot: "12-canvas-status-verified"
+
+# Navigate back via back button (testTag = "canvas_back_button")
+- tapOn:
+    id: "canvas_back_button"
+- waitForAnimationToEnd
+
+# Verify we are back on Profile
+- assertVisible:
+    text: "Perfil"
+    optional: true
+
+- takeScreenshot: "12-canvas-back-to-profile"

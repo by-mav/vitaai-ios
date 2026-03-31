@@ -18,6 +18,7 @@ import SwiftUI
 // but critical errors are propagated via the error property.
 
 @Observable
+@available(iOS 17, *)
 @MainActor
 final class NotebookStore {
 
@@ -28,9 +29,11 @@ final class NotebookStore {
     /// Non-nil when a repository operation fails — consumers may observe this.
     private(set) var lastError: String?
 
-    // MARK: - Dependency
+    // MARK: - Dependencies
 
     private let repository: NotebookRepository
+    /// Optional sync manager — nil when offline or not yet configured.
+    var syncManager: NoteSyncManager?
 
     // MARK: - Init
 
@@ -65,6 +68,12 @@ final class NotebookStore {
             let nb = Notebook(from: entity)
             // Prepend to in-memory list to reflect updatedAt-desc ordering
             notebooks.insert(nb, at: 0)
+            // Push to cloud in background
+            if let sync = syncManager {
+                Task { @MainActor in
+                    await sync.pushNotebook(id: entity.id)
+                }
+            }
             return nb
         } catch {
             lastError = error.localizedDescription
@@ -75,6 +84,12 @@ final class NotebookStore {
 
     /// Deletes a notebook and all its pages and canvas files.
     func deleteNotebook(id: UUID) async {
+        // Capture remoteId before deleting locally
+        let remoteId: String? = {
+            guard let entity = try? repository.fetchNotebook(id: id.uuidString) else { return nil }
+            return entity.remoteId
+        }()
+
         notebooks.removeAll { $0.id == id }
         do {
             try repository.deleteNotebook(id: id.uuidString)
@@ -82,6 +97,13 @@ final class NotebookStore {
             lastError = error.localizedDescription
             // Reload to restore consistent state after failure
             await loadNotebooks()
+        }
+
+        // Delete from cloud in background
+        if let sync = syncManager, let rid = remoteId {
+            Task { @MainActor in
+                await sync.deleteRemoteNote(remoteId: rid)
+            }
         }
     }
 
@@ -93,6 +115,12 @@ final class NotebookStore {
             if let entity = try repository.fetchNotebook(id: id.uuidString),
                let idx = notebooks.firstIndex(where: { $0.id == id }) {
                 notebooks[idx].updatedAt = Date(millisSince1970: entity.updatedAt)
+            }
+            // Sync to cloud in background
+            if let sync = syncManager {
+                Task { @MainActor in
+                    await sync.pushNotebook(id: id.uuidString)
+                }
             }
         } catch {
             lastError = error.localizedDescription
@@ -185,6 +213,7 @@ private extension Date {
 
 // MARK: - Notebook domain ↔ NotebookEntity mapping
 
+@available(iOS 17, *)
 extension Notebook {
     /// Constructs a domain Notebook from a SwiftData NotebookEntity.
     init(from entity: NotebookEntity) {
@@ -201,6 +230,7 @@ extension Notebook {
 
 // MARK: - NotebookPage domain ↔ PageEntity mapping
 
+@available(iOS 17, *)
 extension NotebookPage {
     /// Constructs a domain NotebookPage from a SwiftData PageEntity.
     init(from entity: PageEntity) {

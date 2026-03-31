@@ -110,7 +110,7 @@ private struct _VitaXpToastPill: View {
         .background(
             ZStack {
                 // Material blur base
-                Capsule().fill(.ultraThinMaterial)
+                Capsule().fill(VitaColors.glassBg)
                 // Teal tint overlay (0.15 alpha — mirrors Android)
                 Capsule().fill(VitaColors.accent.opacity(0.15))
             }
@@ -128,31 +128,4 @@ private struct _VitaXpToastPill: View {
 // MARK: - Preview
 
 #if DEBUG
-#Preview("VitaXpToast") {
-    @Previewable @State var xpState = VitaXpToastState()
-
-    ZStack {
-        VitaColors.surface.ignoresSafeArea()
-
-        VStack(spacing: 12) {
-            VitaButton(text: "+25 XP Login", action: {
-                xpState.show(XpEvent(amount: 25, source: .dailyLogin))
-            }, variant: .primary)
-
-            VitaButton(text: "+10 XP Flashcard", action: {
-                xpState.show(XpEvent(amount: 10, source: .flashcardReview))
-            }, variant: .secondary)
-
-            VitaButton(text: "+50 XP Deck!", action: {
-                xpState.show(XpEvent(amount: 50, source: .deckComplete))
-            }, variant: .secondary)
-
-            VitaButton(text: "+5 XP Chat", action: {
-                xpState.show(XpEvent(amount: 5, source: .chatMessage))
-            }, variant: .ghost)
-        }
-        .padding()
-    }
-    .vitaXpToastHost(xpState)
-}
 #endif

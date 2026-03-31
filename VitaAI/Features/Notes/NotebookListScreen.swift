@@ -5,6 +5,7 @@ import SwiftUI
 // Two-column grid with staggered entrance animation, pull-to-refresh,
 // create dialog with color picker, delete via swipe.
 
+@available(iOS 17, *)
 struct NotebookListScreen: View {
 
     let onBack: () -> Void
@@ -31,7 +32,7 @@ struct NotebookListScreen: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                VitaColors.surface.ignoresSafeArea()
+                VitaScreenBg()
 
                 Group {
                     if viewModel.isLoading && viewModel.notebooks.isEmpty {
@@ -94,7 +95,7 @@ struct NotebookListScreen: View {
                         .padding(.trailing, 24)
                         .padding(.bottom, 32)
                         .accessibilityLabel("Criar notebook")
-                        .sensoryFeedback(.selection, trigger: viewModel.showCreateDialog)
+                        // sensoryFeedback removed (iOS 17+)
                     }
                 }
             }
@@ -218,7 +219,7 @@ private struct NotebookCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(notebook.title), \(notebook.pageCount) páginas")
-        .sensoryFeedback(.selection, trigger: false)
+        // sensoryFeedback removed (iOS 17+)
     }
 }
 
@@ -314,7 +315,7 @@ private struct CreateNotebookSheet: View {
                                 .scaleEffect(isSelected ? 1.15 : 1.0)
                                 .animation(.spring(response: 0.2), value: isSelected)
                                 .onTapGesture { selectedColor = color }
-                                .sensoryFeedback(.selection, trigger: isSelected)
+                                // sensoryFeedback removed (iOS 17+)
                         }
                     }
                 }

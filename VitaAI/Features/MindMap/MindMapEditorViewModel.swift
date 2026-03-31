@@ -6,6 +6,7 @@ import SwiftUI
 // Handles nodes CRUD, selection, canvas transform (pan/zoom).
 
 @Observable
+@available(iOS 17, *)
 @MainActor
 final class MindMapEditorViewModel {
 

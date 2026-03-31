@@ -16,7 +16,7 @@ struct OsceScreen: View {
                 ProgressView()
                     .tint(VitaColors.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(VitaColors.surface)
+                    VitaToolScreenBg(accent: .teal)
             }
         }
         .onAppear {
@@ -62,7 +62,7 @@ private struct OsceContent: View {
             }
             .animation(.easeInOut(duration: 0.3), value: viewModel.phase)
         }
-        .background(VitaColors.surface.ignoresSafeArea())
+        .vitaScreenBg()
         .navigationBarHidden(true)
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 @MainActor
 @Observable
@@ -29,8 +30,6 @@ final class AgendaViewModel {
 
     func load() async {
         isLoading = true
-        loadMock()
-        isLoading = false
 
         // Load real study events
         do {
@@ -48,7 +47,7 @@ final class AgendaViewModel {
             )
             studyEvents = eventsResp.events
         } catch {
-            // Keep empty; real data is a bonus on top of mock
+            studyEvents = []
         }
 
         // Load webaluno schedule
@@ -64,8 +63,10 @@ final class AgendaViewModel {
                 )
             }
         } catch {
-            // Keep mock schedule if API fails
+            classSchedule = []
         }
+
+        isLoading = false
     }
 
     func toggleItem(_ item: LocalStudyItem) {
@@ -147,57 +148,6 @@ final class AgendaViewModel {
     }
 
     // MARK: - Private helpers
-
-    private func loadMock() {
-        let todayIdx = Calendar.current.component(.weekday, from: Date()) - 1
-
-        studyItems = [
-            LocalStudyItem(
-                id: "1",
-                title: "Revisar Flashcards Cardio",
-                subject: "Cardiologia",
-                time: "08:00",
-                duration: 45,
-                dayIndex: todayIdx,
-                completed: false
-            ),
-            LocalStudyItem(
-                id: "2",
-                title: "Simulado Clínica Médica",
-                subject: "CM",
-                time: "10:00",
-                duration: 90,
-                dayIndex: todayIdx,
-                completed: true
-            ),
-            LocalStudyItem(
-                id: "3",
-                title: "Leitura Harrison Cap. 13",
-                subject: "Pneumologia",
-                time: "14:00",
-                duration: 60,
-                dayIndex: todayIdx,
-                completed: false
-            ),
-        ]
-
-        classSchedule = [
-            ClassScheduleItem(
-                dayOfWeek: 1,
-                startTime: "08:00",
-                endTime: "10:00",
-                subjectName: "Semiologia",
-                room: "Sala 201"
-            ),
-            ClassScheduleItem(
-                dayOfWeek: 3,
-                startTime: "14:00",
-                endTime: "16:00",
-                subjectName: "Internato Cirurgia",
-                room: "HC"
-            ),
-        ]
-    }
 
     private func minutesBetween(start: String, end: String) -> Int {
         let parts = { (s: String) -> (Int, Int)? in

@@ -10,6 +10,7 @@ import Combine
 // UndoManager (UIKit), so EditorViewModel only tracks metadata state.
 
 @Observable
+@available(iOS 17, *)
 @MainActor
 final class EditorViewModel {
 

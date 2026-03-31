@@ -104,7 +104,7 @@ struct VitaLevelUpOverlay: View {
             }
         }
         .animation(.easeInOut(duration: 0.5), value: visible)
-        .onChange(of: event?.id) { _, _ in
+        .onChange(of: event?.id) { _ in
             guard event != nil else { return }
             ringProgress = 0
             numberScale = 0.3
@@ -183,7 +183,7 @@ struct VitaBadgeUnlockOverlay: View {
             }
         }
         .animation(.easeInOut(duration: 0.5), value: visible)
-        .onChange(of: event?.id) { _, _ in
+        .onChange(of: event?.id) { _ in
             guard event != nil else { return }
             emojiScale = 0
             visible = true

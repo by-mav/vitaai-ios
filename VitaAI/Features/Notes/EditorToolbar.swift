@@ -127,7 +127,7 @@ struct EditorToolbar: View {
                         width: CGFloat(currentSize.clamped(to: 3...16)),
                         height: CGFloat(currentSize.clamped(to: 3...16))
                     )
-                    .frame(width: 36, height: 36) // hit target
+                    .frame(minWidth: 44, minHeight: 44) // hit target
             }
             .background(showSizeSlider ? selectedBg : Color.clear, in: Circle())
             .accessibilityLabel("Tamanho do pincel: \(Int(currentSize))")
@@ -148,6 +148,7 @@ struct EditorToolbar: View {
                                 .strokeBorder(isSelected ? Color.white : Color.clear, lineWidth: 2)
                         )
                         .animation(.spring(response: 0.2), value: isSelected)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .accessibilityLabel(presetInkColorNames[index] + (isSelected ? ", selecionado" : ""))
             }
@@ -160,7 +161,7 @@ struct EditorToolbar: View {
                     .font(.system(size: 16))
                     .foregroundColor(canUndo ? .white : Color.white.opacity(0.15))
             }
-            .frame(width: 36, height: 36)
+            .frame(minWidth: 44, minHeight: 44)
             .disabled(!canUndo)
             .accessibilityLabel("Desfazer")
 
@@ -170,7 +171,7 @@ struct EditorToolbar: View {
                     .font(.system(size: 16))
                     .foregroundColor(canRedo ? .white : Color.white.opacity(0.15))
             }
-            .frame(width: 36, height: 36)
+            .frame(minWidth: 44, minHeight: 44)
             .disabled(!canRedo)
             .accessibilityLabel("Refazer")
         }
@@ -216,11 +217,11 @@ private struct ToolButton<Label: View>: View {
     var body: some View {
         Button(action: action) {
             label()
-                .frame(width: 36, height: 36)
+                .frame(minWidth: 44, minHeight: 44)
         }
         .background(selected ? selectedBg : Color.clear, in: RoundedRectangle(cornerRadius: 10))
         .accessibilityLabel(accessibilityLabel)
-        .sensoryFeedback(.selection, trigger: selected)
+        // sensoryFeedback removed (iOS 17+)
     }
 }
 

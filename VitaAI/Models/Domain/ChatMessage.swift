@@ -6,4 +6,5 @@ struct ChatMessage: Identifiable, Codable {
     var content: String
     var timestamp: Date = Date()
     var feedback: Int = 0 // 0=none, 1=up, -1=down
+    var isError: Bool = false
 }

@@ -1,0 +1,26 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke-local
+  - ios
+  - demo
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    arguments:
+      --vita-e2e-demo: "true"
+
+- extendedWaitUntil:
+    visible: "Ferramentas de Estudo"
+    timeout: 30000
+
+- assertVisible:
+    id: "tool_questoes"
+
+- assertVisible:
+    id: "tool_flashcards"
+
+- assertVisible:
+    id: "tool_simulados"
+
+- takeScreenshot: "smoke-local-home"

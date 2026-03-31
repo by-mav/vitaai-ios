@@ -1,10 +1,7 @@
 import SwiftUI
 
 // MARK: - ConnectionsScreen
-// Android parity: ConnectionsScreen.kt
-// Shows 4 integration cards grouped by status (connected / available).
-// Tapping a connected service opens a bottom sheet with stats + sync/disconnect.
-// Tapping a disconnected service navigates to its dedicated connect screen.
+// Matches conectores-mobile-v1.html mockup
 
 struct ConnectionsScreen: View {
     var onCanvasConnect:         (() -> Void)?
@@ -14,6 +11,10 @@ struct ConnectionsScreen: View {
     var onBack:                  (() -> Void)?
 
     @Environment(\.appContainer) private var container
+
+    // University portals (loaded from profile)
+    @State private var universityPortals: [UniversityPortal] = []
+    @State private var universityName: String = ""
 
     // Per-service status
     @State private var canvasStatus:        ConnectionItemStatus = .loading
@@ -35,6 +36,8 @@ struct ConnectionsScreen: View {
     // WebAluno sheet data
     @State private var webalunoGrades:      Int = 0
     @State private var webalunoSchedule:    Int = 0
+    @State private var webAlunoDisciplines: Int = 0
+    @State private var webalunoNotes:       Int = 0
 
     // Google Calendar sheet data
     @State private var calendarEvents:      Int = 0
@@ -50,257 +53,569 @@ struct ConnectionsScreen: View {
     @State private var showCalendarSheet:   Bool = false
     @State private var showDriveSheet:      Bool = false
 
+    // MARK: - Colors (gold palette)
+    private let goldPrimary  = VitaColors.accentHover   // → VitaColors
+    private let goldAccent   = VitaColors.accent          // → VitaColors.accent
+    private let goldSubtle   = VitaColors.accentLight     // → VitaColors.accentLight
+    private let borderColor  = VitaColors.glassBorder     // → VitaColors.glassBorder
+    private let cardBg       = VitaColors.glassBg         // → VitaColors.glassBg
+    private let bg           = VitaColors.surface          // → VitaColors.surface
+
+    // MARK: - Portal definitions
+    private struct PortalDef {
+        let id: String
+        let letter: String
+        let name: String
+        let iconBg: Color
+        let iconBorder: Color
+        let iconText: Color
+    }
+
+    private var academicPortals: [PortalDef] {
+        [
+            PortalDef(
+                id: "webaluno",
+                letter: "W",
+                name: "WebAluno",
+                iconBg: Color(red: 0.231, green: 0.510, blue: 0.965).opacity(0.22),
+                iconBorder: Color(red: 0.231, green: 0.510, blue: 0.965).opacity(0.18),
+                iconText: Color(red: 0.576, green: 0.773, blue: 0.992).opacity(0.90)
+            ),
+            PortalDef(
+                id: "canvas",
+                letter: "C",
+                name: "Canvas LMS",
+                iconBg: Color(red: 0.937, green: 0.267, blue: 0.267).opacity(0.18),
+                iconBorder: Color(red: 0.937, green: 0.267, blue: 0.267).opacity(0.16),
+                iconText: Color(red: 0.988, green: 0.647, blue: 0.647).opacity(0.90)
+            ),
+            PortalDef(
+                id: "moodle",
+                letter: "M",
+                name: "Moodle",
+                iconBg: Color(red: 0.976, green: 0.451, blue: 0.086).opacity(0.18),
+                iconBorder: Color(red: 0.976, green: 0.451, blue: 0.086).opacity(0.16),
+                iconText: Color(red: 0.992, green: 0.729, blue: 0.455).opacity(0.90)
+            ),
+            PortalDef(
+                id: "sigaa",
+                letter: "S",
+                name: "SIGAA",
+                iconBg: Color(red: 0.133, green: 0.773, blue: 0.369).opacity(0.18),
+                iconBorder: Color(red: 0.133, green: 0.773, blue: 0.369).opacity(0.16),
+                iconText: Color(red: 0.525, green: 0.937, blue: 0.675).opacity(0.90)
+            ),
+        ]
+    }
+
+    // MARK: - Body
+
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                // Header
-                headerBar
+        ZStack(alignment: .top) {
+            bg.ignoresSafeArea()
 
-                Text("Gerencie suas integracoes com plataformas academicas.")
-                    .font(VitaTypography.bodySmall)
-                    .foregroundStyle(VitaColors.textTertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 20)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Top nav spacer
+                    Color.clear.frame(height: 64)
 
-                let connected  = connectedItems
-                let available  = availableItems
+                    // Connected count card
+                    connectedCountCard
+                        .padding(.horizontal, 14)
+                        .padding(.top, 4)
 
-                // Connected section
-                if !connected.isEmpty {
-                    sectionLabel("CONECTADAS")
-                    ForEach(connected, id: \.id) { item in
-                        connectionCard(item)
+                    // Section label
+                    Text("Portais")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(goldSubtle.opacity(0.35))
+                        .tracking(0.5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.top, 18)
+                        .padding(.bottom, 4)
+
+                    // Portal cards
+                    VStack(spacing: 8) {
+                        if universityPortals.isEmpty {
+                            ForEach(academicPortals, id: \.id) { portal in
+                                portalCard(portal)
+                            }
+                        } else {
+                            ForEach(universityPortals, id: \.id) { portal in
+                                let def = academicPortals.first(where: { $0.id == portal.portalType })
+                                    ?? PortalDef(
+                                        id: portal.portalType,
+                                        letter: University.letter(for: portal.portalType),
+                                        name: portal.displayName.isEmpty ? University.displayName(for: portal.portalType) : portal.displayName,
+                                        iconBg: goldAccent.opacity(0.12),
+                                        iconBorder: goldAccent.opacity(0.18),
+                                        iconText: goldPrimary.opacity(0.90)
+                                    )
+                                portalCard(def)
+                            }
+                        }
                     }
-                }
+                    .padding(.horizontal, 14)
 
-                // Available section
-                if !available.isEmpty {
-                    sectionLabel("DISPONIVEIS")
-                    ForEach(available, id: \.id) { item in
-                        connectionCard(item)
-                    }
-                }
+                    // Como funciona — label outside card (matches mockup)
+                    Text("Como funciona")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(goldSubtle.opacity(0.35))
+                        .tracking(0.5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.top, 20)
+                        .padding(.bottom, 4)
 
-                Spacer().frame(height: 60)
+                    comoFunciona
+                        .padding(14)
+                        .background(cardBg)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(borderColor, lineWidth: 1))
+                        .padding(.horizontal, 14)
+
+                    Spacer().frame(height: 120)
+                }
             }
+
+            // Sticky top nav
+            topNav
         }
-        .background(VitaColors.surface.ignoresSafeArea())
         .task { await loadAllStatuses() }
         // Canvas bottom sheet
         .sheet(isPresented: $showCanvasSheet) {
             canvasConnectedSheet
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
-                .presentationBackground(VitaColors.surfaceElevated)
+                .background(Color(red: 0.047, green: 0.035, blue: 0.027))
         }
         // WebAluno bottom sheet
         .sheet(isPresented: $showWebalunoSheet) {
             webalunoConnectedSheet
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
-                .presentationBackground(VitaColors.surfaceElevated)
+                .background(Color(red: 0.047, green: 0.035, blue: 0.027))
         }
         // Google Calendar bottom sheet
         .sheet(isPresented: $showCalendarSheet) {
             googleCalendarConnectedSheet
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
-                .presentationBackground(VitaColors.surfaceElevated)
+                .background(Color(red: 0.047, green: 0.035, blue: 0.027))
         }
         // Google Drive bottom sheet
         .sheet(isPresented: $showDriveSheet) {
             googleDriveConnectedSheet
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
-                .presentationBackground(VitaColors.surfaceElevated)
+                .background(Color(red: 0.047, green: 0.035, blue: 0.027))
         }
     }
 
-    // MARK: - Header
+    // MARK: - Top Nav
 
-    private var headerBar: some View {
-        HStack {
+    private var topNav: some View {
+        HStack(spacing: 10) {
             Button(action: { onBack?() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(VitaColors.textSecondary)
+                navCircle(icon: "chevron.left")
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Conectores")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color.white.opacity(0.90))
+                Text("Portais academicos")
+                    .font(.system(size: 10.5))
+                    .foregroundColor(goldSubtle.opacity(0.35))
+            }
+
+            Spacer()
+
+            Button(action: { Task { await loadAllStatuses() } }) {
+                navCircle(icon: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.141, green: 0.094, blue: 0.071).opacity(0.60),
+                            Color(red: 0.063, green: 0.043, blue: 0.039).opacity(0.68)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+                .overlay(Capsule().stroke(Color(red: 1.0, green: 0.910, blue: 0.761).opacity(0.14), lineWidth: 1))
+                .shadow(color: .black.opacity(0.20), radius: 21, x: 0, y: 10)
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 2)
+    }
+
+    private func navCircle(icon: String) -> some View {
+        Image(systemName: icon)
+            .font(.system(size: 15, weight: .medium))
+            .foregroundColor(goldSubtle.opacity(0.68))
+            .frame(width: 36, height: 36)
+            .background(
+                Circle().fill(
+                    LinearGradient(
+                        colors: [
+                            goldSubtle.opacity(0.075),
+                            goldSubtle.opacity(0.03)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+            )
+            .overlay(Circle().stroke(goldSubtle.opacity(0.16), lineWidth: 1))
+    }
+
+    // MARK: - Connected Count Card
+
+    private var connectedCountCard: some View {
+        let connectedCount = totalConnected
+        let total = totalPortals
+
+        return HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Portais conectados")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(red: 1.0, green: 0.988, blue: 0.973).opacity(0.88))
+                Text("Sincronize notas e horarios automaticamente")
+                    .font(.system(size: 10.5))
+                    .foregroundColor(goldSubtle.opacity(0.35))
             }
             Spacer()
-            Text("Integracoes")
-                .font(VitaTypography.titleMedium)
-                .foregroundStyle(VitaColors.textPrimary)
-            Spacer()
-            // Balance spacer
-            Image(systemName: "chevron.left")
-                .font(.system(size: 16))
-                .opacity(0)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text("\(connectedCount)")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.90))
+                Text("/\(total)")
+                    .font(.system(size: 11))
+                    .foregroundColor(goldSubtle.opacity(0.30))
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
+        .padding(14)
+        .background(cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(borderColor, lineWidth: 1))
     }
 
-    // MARK: - Section label (Android parity: SectionLabel)
-
-    private func sectionLabel(_ text: String) -> some View {
-        Text(text)
-            .font(VitaTypography.labelSmall)
-            .foregroundStyle(VitaColors.textTertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.top, 4)
+    private var totalConnected: Int {
+        var count = 0
+        if webalunoStatus == .connected { count += 1 }
+        if canvasStatus == .connected   { count += 1 }
+        return count
     }
 
-    // MARK: - Connection card (Android parity: ConnectionCard)
+    private var totalPortals: Int {
+        return 4
+    }
 
-    private func connectionCard(_ item: ConnectionListItem) -> some View {
-        Button(action: item.onTap) {
-            VitaGlassCard {
-                HStack(alignment: .center, spacing: 12) {
-                    // Icon container — convex glass metallic style
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.07),
-                                        Color.white.opacity(0.02),
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 48, height: 48)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                            )
-                        Image(systemName: item.icon)
-                            .font(.system(size: 20))
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
+    // MARK: - Portal Card (academic)
 
-                    // Name + description
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 6) {
-                            Text(item.name)
-                                .font(VitaTypography.labelLarge)
-                                .foregroundStyle(VitaColors.textPrimary)
-                            item.status.badge
+    @ViewBuilder
+    private func portalCard(_ portal: PortalDef) -> some View {
+        let (status, lastSync, disc, grades) = statusForPortalId(portal.id)
+        let isConnected = status == .connected
+
+        VStack(spacing: 0) {
+            // Header row
+            HStack(spacing: 12) {
+                // Letter icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(portal.iconBg)
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(portal.iconBorder, lineWidth: 1)
+                        )
+                    Text(portal.letter)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(portal.iconText)
+                }
+
+                // Name + status
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(portal.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(red: 1.0, green: 0.988, blue: 0.973).opacity(0.90))
+                    statusRow(isConnected: isConnected, status: status)
+                }
+
+                Spacer()
+
+                // Action button
+                actionButton(isConnected: isConnected, isMoodle: false) {
+                    if isConnected {
+                        switch portal.id {
+                        case "webaluno": disconnectWebaluno()
+                        case "canvas":   disconnectCanvas()
+                        default: break
                         }
-                        Text(item.description)
-                            .font(VitaTypography.bodySmall)
-                            .foregroundStyle(VitaColors.textTertiary)
-
-                        if let lastSync = item.lastSync {
-                            Text("Sinc: \(lastSync)")
-                                .font(VitaTypography.labelSmall)
-                                .foregroundStyle(VitaColors.textTertiary.opacity(0.7))
-                                .padding(.top, 1)
-                        }
-                    }
-
-                    Spacer()
-
-                    // Trailing indicator
-                    if item.status == .connected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(VitaColors.dataGreen.opacity(0.8))
                     } else {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14))
-                            .foregroundStyle(VitaColors.textTertiary)
+                        switch portal.id {
+                        case "webaluno": onWebAlunoConnect?()
+                        case "canvas":   onCanvasConnect?()
+                        default: break // moodle/sigaa coming soon
+                        }
                     }
                 }
-                .padding(16)
+            }
+            .padding(14)
+
+            // Meta row (when connected)
+            if isConnected {
+                metaRow(lastSync: lastSync, disciplines: disc, grades: grades)
             }
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 20)
+        .background(cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(borderColor, lineWidth: 1))
+        .onTapGesture {
+            if isConnected {
+                switch portal.id {
+                case "webaluno": showWebalunoSheet = true
+                case "canvas":   showCanvasSheet = true
+                default: break
+                }
+            }
+        }
     }
 
-    // MARK: - Items lists
+    // MARK: - Portal Card (Google)
 
-    private var connectedItems: [ConnectionListItem] {
-        [
-            canvasStatus == .connected ? ConnectionListItem(
-                id: "canvas",
-                name: "Canvas LMS",
-                description: "Disciplinas, PDFs, tarefas e calendario",
-                icon: "building.columns",
-                status: canvasStatus,
-                lastSync: canvasLastSync,
-                onTap: { showCanvasSheet = true }
-            ) : nil,
-            webalunoStatus == .connected ? ConnectionListItem(
-                id: "webaluno",
-                name: "WebAluno",
-                description: "Notas, horarios e historico academico",
-                icon: "graduationcap",
-                status: webalunoStatus,
-                lastSync: webalunoLastSync,
-                onTap: { showWebalunoSheet = true }
-            ) : nil,
-            calendarStatus == .connected ? ConnectionListItem(
-                id: "calendar",
-                name: "Google Calendar",
-                description: "Sincronize provas e aulas com sua agenda",
-                icon: "calendar",
-                status: calendarStatus,
-                lastSync: calendarLastSync,
-                onTap: { showCalendarSheet = true }
-            ) : nil,
-            driveStatus == .connected ? ConnectionListItem(
-                id: "drive",
-                name: "Google Drive",
-                description: "Importe PDFs e slides do seu Drive",
-                icon: "externaldrive",
-                status: driveStatus,
-                lastSync: driveLastSync,
-                onTap: { showDriveSheet = true }
-            ) : nil,
-        ].compactMap { $0 }
+    @ViewBuilder
+    private func portalCardGoogle(
+        letter: String, name: String,
+        iconBg: Color, iconBorder: Color, iconText: Color,
+        status: ConnectionItemStatus, lastSync: String?,
+        disciplines: Int, grades: Int,
+        onConnect: @escaping () -> Void,
+        onDisconnect: @escaping () -> Void,
+        onTapConnected: @escaping () -> Void
+    ) -> some View {
+        let isConnected = status == .connected
+
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(iconBg)
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(iconBorder, lineWidth: 1)
+                        )
+                    Text(letter)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(iconText)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(red: 1.0, green: 0.988, blue: 0.973).opacity(0.90))
+                    statusRow(isConnected: isConnected, status: status)
+                }
+
+                Spacer()
+
+                actionButton(isConnected: isConnected, isMoodle: false) {
+                    if isConnected { onDisconnect() }
+                    else           { onConnect() }
+                }
+            }
+            .padding(14)
+
+            if isConnected {
+                metaRow(lastSync: lastSync, disciplines: disciplines, grades: grades)
+            }
+        }
+        .background(cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(borderColor, lineWidth: 1))
+        .onTapGesture {
+            if isConnected { onTapConnected() }
+        }
     }
 
-    private var availableItems: [ConnectionListItem] {
-        [
-            canvasStatus != .connected ? ConnectionListItem(
-                id: "canvas",
-                name: "Canvas LMS",
-                description: "Disciplinas, PDFs, tarefas e calendario",
-                icon: "building.columns",
-                status: canvasStatus,
-                lastSync: nil,
-                onTap: { onCanvasConnect?() }
-            ) : nil,
-            webalunoStatus != .connected ? ConnectionListItem(
-                id: "webaluno",
-                name: "WebAluno",
-                description: "Notas, horarios e historico academico",
-                icon: "graduationcap",
-                status: webalunoStatus,
-                lastSync: nil,
-                onTap: { onWebAlunoConnect?() }
-            ) : nil,
-            calendarStatus != .connected ? ConnectionListItem(
-                id: "calendar",
-                name: "Google Calendar",
-                description: "Sincronize provas e aulas com sua agenda",
-                icon: "calendar",
-                status: calendarStatus,
-                lastSync: nil,
-                onTap: { onGoogleCalendarConnect?() }
-            ) : nil,
-            driveStatus != .connected ? ConnectionListItem(
-                id: "drive",
-                name: "Google Drive",
-                description: "Importe PDFs e slides do seu Drive",
-                icon: "externaldrive",
-                status: driveStatus,
-                lastSync: nil,
-                onTap: { onGoogleDriveConnect?() }
-            ) : nil,
-        ].compactMap { $0 }
+    // MARK: - Card sub-views
+
+    @ViewBuilder
+    private func statusRow(isConnected: Bool, status: ConnectionItemStatus) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(
+                    isConnected
+                        ? Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.75)
+                        : Color.white.opacity(0.12)
+                )
+                .frame(width: 7, height: 7)
+                .shadow(color: isConnected ? Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.30) : .clear, radius: 3)
+            Text(isConnected ? "Conectado" : "Disponivel")
+                .font(.system(size: 10.5))
+                .foregroundColor(
+                    isConnected
+                        ? Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.65)
+                        : goldSubtle.opacity(0.35)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func actionButton(isConnected: Bool, isMoodle: Bool, action: @escaping () -> Void) -> some View {
+        if isMoodle {
+            // Coming soon — disabled style
+            Text("Em breve")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(goldSubtle.opacity(0.25))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(Color.white.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(goldSubtle.opacity(0.06), lineWidth: 1)
+                )
+        } else {
+            Button(action: action) {
+                Text(isConnected ? "Desconectar" : "Conectar")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(
+                        isConnected
+                            ? Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.70)
+                            : Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.80)
+                    )
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(
+                        isConnected
+                            ? Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.06)
+                            : VitaColors.glassInnerLight.opacity(0.12)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8).stroke(
+                            isConnected
+                                ? Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.12)
+                                : Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.16),
+                            lineWidth: 1
+                        )
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func metaRow(lastSync: String?, disciplines: Int, grades: Int) -> some View {
+        let hasDisciplines = disciplines > 0
+        let hasGrades = grades > 0
+        let hasSync = lastSync != nil
+
+        if hasSync || hasDisciplines || hasGrades {
+            Rectangle()
+                .fill(goldSubtle.opacity(0.04))
+                .frame(height: 1)
+
+            HStack(spacing: 8) {
+                if let sync = lastSync {
+                    Text("Ultimo sync: ")
+                        .font(.system(size: 10))
+                        .foregroundColor(goldSubtle.opacity(0.30))
+                    + Text(sync)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55))
+                }
+                if hasSync && (hasDisciplines || hasGrades) {
+                    dot
+                }
+                if hasDisciplines {
+                    Text("\(disciplines)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55))
+                    + Text(" disciplinas")
+                        .font(.system(size: 10))
+                        .foregroundColor(goldSubtle.opacity(0.30))
+                }
+                if hasDisciplines && hasGrades {
+                    dot
+                }
+                if hasGrades {
+                    Text("\(grades)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55))
+                    + Text(" notas")
+                        .font(.system(size: 10))
+                        .foregroundColor(goldSubtle.opacity(0.30))
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var dot: some View {
+        Circle()
+            .fill(goldSubtle.opacity(0.20))
+            .frame(width: 3, height: 3)
+    }
+
+    // MARK: - Como Funciona
+
+    private var comoFunciona: some View {
+        VStack(spacing: 10) {
+            howItWorksStep("1", "Conecte seu portal academico com suas credenciais")
+            howItWorksStep("2", "A Vita importa disciplinas, notas e horarios")
+            howItWorksStep("3", "Dados sincronizados automaticamente a cada 6 horas")
+            howItWorksStep("4", "Desconecte a qualquer momento — seus dados sao excluidos")
+                .padding(.bottom, 0)
+        }
+    }
+
+    private func howItWorksStep(_ number: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(VitaColors.glassInnerLight.opacity(0.12))
+                    .frame(width: 20, height: 20)
+                    .overlay(
+                        Circle().stroke(Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.12), lineWidth: 1)
+                    )
+                Text(number)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.80))
+            }
+            Text(text)
+                .font(.system(size: 12))
+                .foregroundColor(goldSubtle.opacity(0.45))
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+        }
+    }
+
+    // MARK: - Portal helpers
+
+    private func statusForPortalId(_ id: String) -> (ConnectionItemStatus, String?, Int, Int) {
+        switch id {
+        case "canvas":   return (canvasStatus,   canvasLastSync,   canvasCourses,        canvasFiles)
+        case "webaluno": return (webalunoStatus,  webalunoLastSync, webAlunoDisciplines,  webalunoGrades)
+        default:         return (.disconnected, nil, 0, 0)
+        }
+    }
+
+    private func statusForPortal(_ type: String) -> (ConnectionItemStatus, String?, Int, Int) {
+        statusForPortalId(type)
     }
 
     // MARK: - Bottom Sheets
@@ -337,7 +652,7 @@ struct ConnectionsScreen: View {
             ],
             onSync: {
                 showWebalunoSheet = false
-                onWebAlunoConnect?() // opens WebView for re-scrape
+                onWebAlunoConnect?()
             },
             onDisconnect: {
                 showWebalunoSheet = false
@@ -389,11 +704,27 @@ struct ConnectionsScreen: View {
     // MARK: - API: Load all
 
     private func loadAllStatuses() async {
+        await loadUniversityPortals()
         async let canvas   = loadCanvas()
         async let webaluno = loadWebaluno()
         async let calendar = loadCalendar()
         async let drive    = loadDrive()
         _ = await (canvas, webaluno, calendar, drive)
+    }
+
+    private func loadUniversityPortals() async {
+        do {
+            let profile = try await container.api.getProfile()
+            if let uniName = profile.university, !uniName.isEmpty {
+                universityName = uniName
+                let response = try await container.api.getUniversities(query: uniName)
+                if let uni = response.universities.first, let portals = uni.portals, !portals.isEmpty {
+                    universityPortals = portals
+                }
+            }
+        } catch {
+            print("[Connections] University portals load failed: \(error)")
+        }
     }
 
     private func loadCanvas() async {
@@ -417,10 +748,11 @@ struct ConnectionsScreen: View {
         do {
             let data = try await container.api.getWebalunoStatus()
             if data.connected {
-                webalunoStatus   = data.connection?.status == "expired" ? .expired : .connected
-                webalunoLastSync = data.connection?.lastSyncAt.flatMap { formatRelativeTime($0) }
-                webalunoGrades   = data.counts?.grades ?? 0
-                webalunoSchedule = data.counts?.schedule ?? 0
+                webalunoStatus      = data.connection?.status == "expired" ? .expired : .connected
+                webalunoLastSync    = data.connection?.lastSyncAt.flatMap { formatRelativeTime($0) }
+                webalunoGrades      = data.counts?.grades ?? 0
+                webalunoSchedule    = data.counts?.schedule ?? 0
+                webAlunoDisciplines = data.counts?.grades ?? 0
             } else {
                 webalunoStatus = .disconnected
             }
@@ -472,7 +804,7 @@ struct ConnectionsScreen: View {
                 canvasCourses     = 0
                 canvasFiles       = 0
                 canvasAssignments = 0
-            } catch { }
+            } catch { print("[Conectores] error: \(error)") }
         }
     }
 
@@ -480,11 +812,12 @@ struct ConnectionsScreen: View {
         Task {
             do {
                 try await container.api.disconnectWebaluno()
-                webalunoStatus   = .disconnected
-                webalunoLastSync = nil
-                webalunoGrades   = 0
-                webalunoSchedule = 0
-            } catch { }
+                webalunoStatus      = .disconnected
+                webalunoLastSync    = nil
+                webalunoGrades      = 0
+                webalunoSchedule    = 0
+                webAlunoDisciplines = 0
+            } catch { print("[Conectores] error: \(error)") }
         }
     }
 
@@ -496,7 +829,7 @@ struct ConnectionsScreen: View {
                 calendarLastSync = nil
                 calendarEvents   = 0
                 calendarEmail    = nil
-            } catch { }
+            } catch { print("[Conectores] error: \(error)") }
         }
     }
 
@@ -508,7 +841,7 @@ struct ConnectionsScreen: View {
                 driveLastSync = nil
                 driveFiles    = 0
                 driveEmail    = nil
-            } catch { }
+            } catch { print("[Conectores] error: \(error)") }
         }
     }
 
@@ -563,23 +896,14 @@ struct ConnectionsScreen: View {
         if minutes < 60 { return "\(minutes)min atras" }
         let hours = minutes / 60
         if hours < 24   { return "\(hours)h atras" }
-        return "\(hours / 24)d atras"
+        let fmt = DateFormatter()
+        fmt.dateFormat = "dd MMM"
+        fmt.locale = Locale(identifier: "pt_BR")
+        return fmt.string(from: date)
     }
 }
 
-// MARK: - Connection list item model
-
-private struct ConnectionListItem {
-    let id:          String
-    let name:        String
-    let description: String
-    let icon:        String
-    let status:      ConnectionItemStatus
-    let lastSync:    String?
-    let onTap:       () -> Void
-}
-
-// MARK: - Stat item model
+// MARK: - StatItem
 
 private struct StatItem {
     let value: Int
@@ -587,7 +911,6 @@ private struct StatItem {
 }
 
 // MARK: - ConnectedServiceSheet
-// Shared bottom sheet for all 4 connected services (Android parity: CanvasConnectedSheet / WebAlunoConnectedSheet)
 
 private struct ConnectedServiceSheet: View {
     let serviceName: String
@@ -598,92 +921,104 @@ private struct ConnectedServiceSheet: View {
     let onSync:      () -> Void
     let onDisconnect: () -> Void
 
+    private let goldPrimary = VitaColors.accentHover  // → VitaColors
+    private let goldAccent  = VitaColors.accent        // → VitaColors.accent
+    private let goldSubtle  = VitaColors.accentLight   // → VitaColors.accentLight
+
     var body: some View {
         VStack(spacing: 0) {
-            // Pull indicator spacing
             Spacer().frame(height: 8)
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    // Connected badge
                     ZStack {
                         Circle()
-                            .fill(VitaColors.dataGreen.opacity(0.10))
+                            .fill(Color(red: 0.29, green: 0.87, blue: 0.50).opacity(0.10))
                             .frame(width: 56, height: 56)
                             .overlay(
-                                Circle().stroke(VitaColors.dataGreen.opacity(0.25), lineWidth: 1)
+                                Circle().stroke(Color(red: 0.29, green: 0.87, blue: 0.50).opacity(0.25), lineWidth: 1)
                             )
                         Image(systemName: icon)
                             .font(.system(size: 24))
-                            .foregroundStyle(VitaColors.dataGreen)
+                            .foregroundColor(Color(red: 0.29, green: 0.87, blue: 0.50))
                     }
                     .padding(.top, 24)
 
                     Spacer().frame(height: 16)
 
                     Text("\(serviceName) Conectado")
-                        .font(VitaTypography.titleLarge)
-                        .foregroundStyle(VitaColors.textPrimary)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(Color.white.opacity(0.92))
 
                     if let subtitle {
                         Text(subtitle)
-                            .font(VitaTypography.bodySmall)
-                            .foregroundStyle(VitaColors.textTertiary)
+                            .font(.system(size: 12))
+                            .foregroundColor(goldSubtle.opacity(0.35))
                             .padding(.top, 4)
                     }
 
                     if let lastSync {
                         Text("Ultima sincronizacao: \(lastSync)")
-                            .font(VitaTypography.bodySmall)
-                            .foregroundStyle(VitaColors.textTertiary)
+                            .font(.system(size: 12))
+                            .foregroundColor(goldSubtle.opacity(0.30))
                             .padding(.top, 4)
                     }
 
-                    // Stats row
                     if !stats.isEmpty {
                         HStack(spacing: 0) {
                             ForEach(stats.indices, id: \.self) { i in
                                 if i > 0 {
-                                    Divider()
-                                        .frame(height: 32)
-                                        .background(VitaColors.glassBorder)
+                                    Rectangle()
+                                        .fill(goldSubtle.opacity(0.08))
+                                        .frame(width: 1, height: 32)
                                 }
                                 statPill(stats[i])
                             }
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 20)
-                        .background(VitaColors.glassBg)
+                        .background(Color.white.opacity(0.025))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
-                                .stroke(VitaColors.glassBorder, lineWidth: 1)
+                                .stroke(Color.white.opacity(0.04), lineWidth: 1)
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
                         .padding(.horizontal, 24)
                         .padding(.top, 24)
                     }
 
-                    // Sync button
-                    VitaButton(
-                        text: "Sincronizar Agora",
-                        action: onSync,
-                        variant: .primary,
-                        size: .lg,
-                        leadingSystemImage: "arrow.triangle.2.circlepath"
-                    )
+                    Button(action: onSync) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 14, weight: .medium))
+                            Text("Sincronizar Agora")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(Color(red: 0.031, green: 0.024, blue: 0.039))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                colors: [goldPrimary, goldAccent],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                    .buttonStyle(.plain)
                     .padding(.horizontal, 24)
                     .padding(.top, 24)
 
-                    // Disconnect button
                     Button(action: onDisconnect) {
                         HStack(spacing: 6) {
                             Image(systemName: "link.badge.plus")
                                 .font(.system(size: 13))
                                 .rotationEffect(.degrees(45))
                             Text("Desconectar \(serviceName)")
-                                .font(VitaTypography.bodyMedium)
+                                .font(.system(size: 13, weight: .medium))
                         }
-                        .foregroundStyle(VitaColors.dataRed.opacity(0.8))
+                        .foregroundColor(goldSubtle.opacity(0.35))
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 12)
@@ -696,11 +1031,11 @@ private struct ConnectedServiceSheet: View {
     private func statPill(_ item: StatItem) -> some View {
         VStack(spacing: 2) {
             Text("\(item.value)")
-                .font(VitaTypography.headlineSmall)
-                .foregroundStyle(VitaColors.textPrimary)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(Color.white.opacity(0.88))
             Text(item.label)
-                .font(VitaTypography.labelSmall)
-                .foregroundStyle(VitaColors.textTertiary)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(goldSubtle.opacity(0.35))
         }
         .frame(maxWidth: .infinity)
     }
@@ -713,8 +1048,8 @@ enum ConnectionItemStatus: Equatable {
 
     var accentColor: Color {
         switch self {
-        case .connected:             return VitaColors.dataGreen
-        case .expired:               return VitaColors.dataAmber
+        case .connected:              return Color(red: 0.29, green: 0.87, blue: 0.50)
+        case .expired:                return VitaColors.dataAmber
         case .disconnected, .loading: return VitaColors.textTertiary
         }
     }
@@ -723,23 +1058,11 @@ enum ConnectionItemStatus: Equatable {
     var badge: some View {
         switch self {
         case .connected:
-            statusBadge(
-                icon: "checkmark.circle.fill",
-                label: "Conectado",
-                color: VitaColors.dataGreen
-            )
+            statusBadge(icon: "checkmark.circle.fill", label: "Conectado",    color: Color(red: 0.29, green: 0.87, blue: 0.50))
         case .expired:
-            statusBadge(
-                icon: "exclamationmark.triangle.fill",
-                label: "Expirado",
-                color: VitaColors.dataAmber
-            )
+            statusBadge(icon: "exclamationmark.triangle.fill", label: "Expirado", color: VitaColors.dataAmber)
         case .disconnected:
-            statusBadge(
-                icon: "xmark.circle",
-                label: "Desconectado",
-                color: VitaColors.textTertiary
-            )
+            statusBadge(icon: "xmark.circle", label: "Desconectado", color: VitaColors.textTertiary)
         case .loading:
             EmptyView()
         }
@@ -748,12 +1071,10 @@ enum ConnectionItemStatus: Equatable {
     @ViewBuilder
     private func statusBadge(icon: String, label: String, color: Color) -> some View {
         HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 10))
-            Text(label)
-                .font(.system(size: 9, weight: .medium))
+            Image(systemName: icon).font(.system(size: 10))
+            Text(label).font(.system(size: 9, weight: .medium))
         }
-        .foregroundStyle(color)
+        .foregroundColor(color)
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(color.opacity(0.1))

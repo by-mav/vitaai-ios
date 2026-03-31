@@ -1,6 +1,9 @@
 import SwiftUI
 import Charts
 
+// MARK: - Flashcard Stats accent colors (purple from flashcard-session-v1.html mockup)
+private let flashcardStatsAccent = Color(red: 148/255, green: 75/255, blue: 220/255)
+
 // MARK: - FlashcardStatsView
 // Mirrors Android FlashcardStatsScreen. Requires iOS 17+ (Swift Charts, @Observable).
 
@@ -31,7 +34,7 @@ struct FlashcardStatsView: View {
                 }
             } else {
                 ProgressView()
-                    .tint(VitaColors.accent)
+                    .tint(flashcardStatsAccent)
             }
         }
         .onAppear {
@@ -305,19 +308,23 @@ private struct FlashcardHeatmapView: View {
         return calendar.date(byAdding: .day, value: weekOffset * 7 + dayOfWeek, to: startOfGrid) ?? today
     }
 
-    private func isoDate(_ date: Date) -> String {
+    private static let isoDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
+        return f
+    }()
+
+    private func isoDate(_ date: Date) -> String {
+        Self.isoDateFormatter.string(from: date)
     }
 
     private func heatmapColor(count: Int) -> Color {
         switch count {
         case 0:        return VitaColors.surfaceElevated
-        case 1...3:    return VitaColors.accent.opacity(0.25)
-        case 4...7:    return VitaColors.accent.opacity(0.50)
-        case 8...14:   return VitaColors.accent.opacity(0.75)
-        default:       return VitaColors.accent
+        case 1...3:    return flashcardStatsAccent.opacity(0.25)
+        case 4...7:    return flashcardStatsAccent.opacity(0.50)
+        case 8...14:   return flashcardStatsAccent.opacity(0.75)
+        default:       return flashcardStatsAccent
         }
     }
 }
@@ -334,7 +341,7 @@ private struct RetentionLineChartView: View {
                 x: .value("Data", entry.date),
                 y: .value("Retenção", entry.retention)
             )
-            .foregroundStyle(VitaColors.accent)
+            .foregroundStyle(flashcardStatsAccent)
             .lineStyle(StrokeStyle(lineWidth: 2))
             .interpolationMethod(.catmullRom)
 
@@ -345,7 +352,7 @@ private struct RetentionLineChartView: View {
             )
             .foregroundStyle(
                 LinearGradient(
-                    colors: [VitaColors.accent.opacity(0.25), .clear],
+                    colors: [flashcardStatsAccent.opacity(0.25), .clear],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -356,7 +363,7 @@ private struct RetentionLineChartView: View {
                 x: .value("Data", entry.date),
                 y: .value("Retenção", entry.retention)
             )
-            .foregroundStyle(VitaColors.accent)
+            .foregroundStyle(flashcardStatsAccent)
             .symbolSize(20)
         }
         .chartYScale(domain: 0...100)
@@ -392,16 +399,20 @@ private struct RetentionLineChartView: View {
 private struct ForecastBarChartView: View {
     let forecast: [Int]
 
+    private static let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "E"
+        f.locale = Locale(identifier: "pt_BR")
+        return f
+    }()
+
     private var forecastEntries: [(day: String, count: Int)] {
         let calendar = Calendar.current
         let today = Date()
-        let df = DateFormatter()
-        df.dateFormat = "E"  // Short weekday: "Seg", "Ter"
-        df.locale = Locale(identifier: "pt_BR")
 
         return forecast.enumerated().map { (i, count) in
             let date = calendar.date(byAdding: .day, value: i, to: today) ?? today
-            let label = i == 0 ? "Hoje" : df.string(from: date)
+            let label = i == 0 ? "Hoje" : Self.weekdayFormatter.string(from: date)
             return (day: label, count: count)
         }
     }
@@ -414,7 +425,7 @@ private struct ForecastBarChartView: View {
             )
             .foregroundStyle(
                 LinearGradient(
-                    colors: [VitaColors.accent, VitaColors.dataBlue],
+                    colors: [flashcardStatsAccent, VitaColors.dataBlue],
                     startPoint: .bottom,
                     endPoint: .top
                 )
@@ -479,6 +490,7 @@ private struct FlashcardDistributionDonutView: View {
     var body: some View {
         HStack(spacing: 20) {
             // Donut
+            if #available(iOS 17.0, *) {
             Chart(segments) { seg in
                 SectorMark(
                     angle: .value("Cards", seg.count),
@@ -489,7 +501,14 @@ private struct FlashcardDistributionDonutView: View {
                 .cornerRadius(3)
             }
             .frame(width: 120, height: 120)
-            .overlay {
+            } else {
+                // iOS 16 fallback - simple circle
+                Circle()
+                    .stroke(VitaColors.textTertiary.opacity(0.3), lineWidth: 8)
+                    .frame(width: 120, height: 120)
+            }
+            if #available(iOS 17.0, *) { } // placeholder
+            Group {
                 VStack(spacing: 2) {
                     Text("\(total)")
                         .font(.system(size: 20, weight: .bold))
@@ -572,11 +591,14 @@ private struct StatsLoadingSkeleton: View {
 }
 
 #Preview("Charts — Retention") {
+    let isoFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
     let data = (0..<14).map { i -> DailyRetentionEntry in
         let date = Calendar.current.date(byAdding: .day, value: -(14 - i), to: Date())!
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        return DailyRetentionEntry(date: df.string(from: date), count: Int.random(in: 5...20), retention: Double.random(in: 60...95))
+        return DailyRetentionEntry(date: isoFmt.string(from: date), count: Int.random(in: 5...20), retention: Double.random(in: 60...95))
     }
     return GlassStatsSection(title: "Retenção ao Longo do Tempo") {
         RetentionLineChartView(data: data)

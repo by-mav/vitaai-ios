@@ -25,7 +25,18 @@ actor VitaAPI {
         try await client.delete("canvas/connect")
     }
 
+    // MARK: - Portal Sync (universal — Vita crawl)
+
+    /// Start Vita crawl: send cookies from WebView login, server-side Vita extracts everything
+    func startVitaCrawl(cookies: String, instanceUrl: String) async throws -> VitaCrawlResponse {
+        try await client.post("portal/vita-crawl", body: VitaCrawlRequest(cookies: cookies, instanceUrl: instanceUrl))
+    }
+
     // MARK: - Canvas Data
+
+    func getSyncProgress(syncId: String) async throws -> SyncProgressResponse {
+        try await client.get("portal/sync-progress", queryItems: [.init(name: "syncId", value: syncId)])
+    }
 
     func getCourses() async throws -> CoursesResponse {
         try await client.get("canvas/courses")
@@ -47,6 +58,26 @@ actor VitaAPI {
 
     func getProfile() async throws -> ProfileResponse {
         try await client.get("profile")
+    }
+
+    // MARK: - Universities (source of truth: database, 351 entries)
+
+    func getUniversities(query: String? = nil) async throws -> UniversitiesResponse {
+        var items: [URLQueryItem] = [.init(name: "limit", value: "500")]
+        if let query, !query.isEmpty { items.append(.init(name: "q", value: query)) }
+        return try await client.get("universities", queryItems: items)
+    }
+
+    // MARK: - Notifications
+
+    func getNotifications() async throws -> NotificationsResponse {
+        try await client.get("mockup/notifications")
+    }
+
+    // MARK: - Dashboard (unified endpoint — same as web)
+
+    func getDashboard() async throws -> DashboardResponse {
+        try await client.get("mockup/dashboard")
     }
 
     // MARK: - Progress
@@ -72,7 +103,19 @@ actor VitaAPI {
         return try await client.get("study/events", queryItems: items.isEmpty ? nil : items)
     }
 
-    // MARK: - Flashcards
+    // MARK: - Flashcards (mockup unified endpoint)
+
+    func getMockupFlashcards(dueOnly: Bool = false) async throws -> [FlashcardDeckEntry] {
+        var items: [URLQueryItem] = []
+        if dueOnly { items.append(.init(name: "due", value: "true")) }
+        return try await client.get("mockup/flashcards", queryItems: items.isEmpty ? nil : items)
+    }
+
+    func getMockupFlashcardsRecommended() async throws -> [FlashcardRecommended] {
+        try await client.get("mockup/flashcards/recommended")
+    }
+
+    // MARK: - Flashcards (legacy)
 
     func getFlashcardDecks(subjectId: String? = nil, dueOnly: Bool = false) async throws -> [FlashcardDeckEntry] {
         var items: [URLQueryItem] = []
@@ -177,6 +220,12 @@ actor VitaAPI {
 
     func disconnectGoogleDrive() async throws {
         try await client.delete("google/drive/connect")
+    }
+
+    // MARK: - Transcricao (recordings list)
+
+    func getTranscricoes() async throws -> [TranscricaoEntry] {
+        try await client.get("study/transcricao")
     }
 
     // MARK: - OSCE
@@ -357,4 +406,64 @@ actor VitaAPI {
     func getStudyPlan() async throws -> StudyPlanResponse {
         try await client.get("estudos/plan")
     }
+
+    // MARK: - Notes Cloud Sync
+    // Endpoints: GET/POST/PATCH/DELETE /api/notes
+
+    func getNotes(subjectId: String? = nil, limit: Int = 50) async throws -> [RemoteNote] {
+        var items: [URLQueryItem] = [.init(name: "limit", value: String(limit))]
+        if let subjectId { items.append(.init(name: "subjectId", value: subjectId)) }
+        return try await client.get("notes", queryItems: items)
+    }
+
+    func createNote(title: String, content: String, subjectId: String? = nil) async throws -> RemoteNote {
+        try await client.post("notes", body: CreateNoteRequest(title: title, content: content, subjectId: subjectId))
+    }
+
+    func updateNote(id: String, title: String? = nil, content: String? = nil, subjectId: String? = nil) async throws -> RemoteNote {
+        try await client.patch("notes", body: UpdateNoteRequest(id: id, title: title, content: content, subjectId: subjectId))
+    }
+
+    func deleteNote(id: String) async throws {
+        try await client.delete("notes", queryItems: [URLQueryItem(name: "id", value: id)])
+    }
+
+    // MARK: - MindMap Cloud Sync
+    // Endpoint: GET /api/study/mindmaps (read-only — server generates mindmaps via Studio)
+
+    func getMindMaps(limit: Int = 50) async throws -> [RemoteMindMap] {
+        try await client.get("study/mindmaps", queryItems: [
+            URLQueryItem(name: "limit", value: String(limit)),
+        ])
+    }
+
+    // MARK: - Onboarding
+
+    func postOnboarding(_ body: OnboardingPostRequest) async throws {
+        let _: EmptyResponse = try await client.post("onboarding", body: body)
+    }
+
+    func requestUniversity(name: String, city: String, state: String) async throws {
+        let body = UniversityRequestBody(name: name, city: city, state: state)
+        let _: EmptyResponse = try await client.post("universities/request", body: body)
+    }
 }
+
+// MARK: - Onboarding Request
+
+struct OnboardingPostRequest: Encodable {
+    let moment: String
+    var year: Int?
+    var selectedSubjects: [String]?
+    var subjectDifficulties: [String: String]?
+}
+
+
+struct UniversityRequestBody: Encodable {
+    let name: String
+    let city: String
+    let state: String
+}
+
+// UniversitiesResponse defined in OnboardingData.swift
+

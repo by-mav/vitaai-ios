@@ -69,7 +69,7 @@ struct VitaStreakBadge: View {
                 pulseScale = 1.12
             }
         }
-        .onChange(of: isActive) { _, active in
+        .onChange(of: isActive) { active in
             pulseScale = active ? 1.12 : 1.0
         }
     }

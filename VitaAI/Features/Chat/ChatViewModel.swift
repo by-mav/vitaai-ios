@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 // MARK: - ChatViewModel
 // Uses ChatMessage from Models/Domain/ChatMessage.swift:
@@ -83,13 +84,38 @@ final class ChatViewModel {
 
                 case .error:
                     messages[idx].content = "Erro ao gerar resposta."
+                    messages[idx].isError = true
                 }
             }
         } catch {
-            messages[idx].content = "Erro de conexão."
+            messages[idx].content = "Erro de conexao."
+            messages[idx].isError = true
         }
 
         isStreaming = false
+    }
+
+    // MARK: - Retry
+
+    func retryLastMessage() async {
+        // Find the last user message
+        guard let lastUserIndex = messages.lastIndex(where: { $0.role == "user" }) else { return }
+        let userText = messages[lastUserIndex].content
+
+        // Remove the error assistant message (should be right after the user message)
+        let assistantIndex = lastUserIndex + 1
+        if assistantIndex < messages.count,
+           messages[assistantIndex].role == "assistant",
+           messages[assistantIndex].isError {
+            messages.remove(at: assistantIndex)
+        }
+
+        // Also remove the user message — send() will re-append both
+        messages.remove(at: lastUserIndex)
+
+        // Re-send
+        inputText = userText
+        await send()
     }
 
     // MARK: - Send from suggestion chip

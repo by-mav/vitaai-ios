@@ -167,7 +167,7 @@ struct NotificationSettingsScreen: View {
             }
             .padding(.top, 16)
         }
-        .background(VitaColors.surface.ignoresSafeArea())
+        .vitaScreenBg()
         .navigationTitle("Notificações")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
@@ -200,7 +200,7 @@ struct NotificationSettingsScreen: View {
             )
             .presentationDetents([.height(320)])
             .presentationDragIndicator(.visible)
-            .presentationBackground(VitaColors.surfaceCard)
+            .background(VitaColors.surfaceCard)
         }
         .task {
             await checkSystemPermission()
@@ -208,17 +208,20 @@ struct NotificationSettingsScreen: View {
         .onAppear {
             animateEntrance()
         }
-        .onChange(of: studyEnabled) { _, _ in syncToBackend() }
-        .onChange(of: reviewEnabled) { _, _ in syncToBackend() }
-        .onChange(of: deadlineEnabled) { _, _ in syncToBackend() }
+        .onChange(of: studyEnabled) { _ in syncToBackend() }
+        .onChange(of: reviewEnabled) { _ in syncToBackend() }
+        .onChange(of: deadlineEnabled) { _ in syncToBackend() }
     }
 
     // MARK: - Helpers
 
+    // Mockup .label: 11px, bold, uppercase, rgba(255,241,215,0.55)
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
-            .font(VitaTypography.titleLarge)
-            .foregroundStyle(VitaColors.white)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(Color(red: 1.0, green: 0.945, blue: 0.843).opacity(0.55))
+            .textCase(.uppercase)
+            .tracking(0.5)
             .padding(.horizontal, 20)
     }
 
@@ -306,19 +309,37 @@ private struct NotifToggleRow: View {
     @Binding var isOn: Bool
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(isOn ? VitaColors.accent : VitaColors.textTertiary)
-                .frame(width: 26)
+        HStack(spacing: 12) {
+            // Icon in settings-icon container (mockup .settings-icon)
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                VitaColors.glassInnerLight.opacity(0.18),
+                                Color(red: 0.549, green: 0.392, blue: 0.176).opacity(0.08)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.12), lineWidth: 1)
+                    )
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color(red: 1.0, green: 0.824, blue: 0.549).opacity(0.80))
+            }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(label)
-                    .font(VitaTypography.bodyLarge)
-                    .foregroundStyle(VitaColors.textPrimary)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.88))
                 Text(description)
-                    .font(VitaTypography.bodySmall)
-                    .foregroundStyle(VitaColors.textTertiary)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Color(red: 1.0, green: 0.941, blue: 0.843).opacity(0.35))
             }
 
             Spacer()
@@ -327,9 +348,9 @@ private struct NotifToggleRow: View {
                 .labelsHidden()
                 .tint(VitaColors.accent)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .sensoryFeedback(.selection, trigger: isOn)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        // sensoryFeedback removed (iOS 17+)
     }
 }
 
@@ -343,29 +364,47 @@ private struct TimeRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(VitaColors.accent)
-                    .frame(width: 26)
+            HStack(spacing: 12) {
+                // Icon in settings-icon container
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    VitaColors.glassInnerLight.opacity(0.18),
+                                    Color(red: 0.549, green: 0.392, blue: 0.176).opacity(0.08)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 44, height: 44)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.12), lineWidth: 1)
+                        )
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color(red: 1.0, green: 0.824, blue: 0.549).opacity(0.80))
+                }
 
                 Text(label)
-                    .font(VitaTypography.bodyLarge)
-                    .foregroundStyle(VitaColors.textPrimary)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.88))
 
                 Spacer()
 
                 Text(time)
-                    .font(VitaTypography.titleSmall)
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(VitaColors.accent)
                     .monospacedDigit()
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(VitaColors.textTertiary)
+                    .foregroundStyle(Color(red: 1.0, green: 0.941, blue: 0.843).opacity(0.20))
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

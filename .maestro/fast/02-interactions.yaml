@@ -1,0 +1,148 @@
+appId: com.bymav.vitaai
+tags:
+  - fast
+  - interactions
+---
+# FAST INTERACTIONS — Test actual user flows without relaunching
+# Covers: flashcard flip, simulado config, qbank filters, scroll, double tap, rapid nav
+
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar|Google|Email).*"
+    timeout: 25000
+
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# ── Flashcard flip ──
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Revelar"
+    optional: true
+- tapOn:
+    text: "Virar"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-int-01-flashcard-flip"
+- tapOn:
+    text: "Fácil"
+    optional: true
+- tapOn:
+    text: "Bom"
+    optional: true
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── Simulado config ──
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Novo"
+    optional: true
+- tapOn:
+    text: "Novo Simulado"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "10"
+    optional: true
+- tapOn:
+    text: "Fácil"
+    optional: true
+- tapOn:
+    text: "Facil"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-int-02-sim-config"
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── QBank browse ──
+- tapOn:
+    text: "Questões"
+    optional: true
+- tapOn:
+    text: "Questoes"
+    optional: true
+- waitForAnimationToEnd
+- scroll
+- takeScreenshot: "fast-int-03-qbank"
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── Rapid tab switching ──
+- tapOn:
+    text: "Estudos"
+    optional: true
+- tapOn:
+    text: "Estudo"
+    optional: true
+- tapOn:
+    text: "Faculdade"
+    optional: true
+- tapOn:
+    text: "Progresso"
+    optional: true
+- tapOn:
+    text: "Home"
+    optional: true
+- tapOn:
+    text: "Início"
+    optional: true
+- tapOn:
+    id: "tab_home"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-int-04-rapid-nav"
+
+# ── Double tap tool ──
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- tapOn:
+    text: "Flashcards"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: "fast-int-05-double-tap"
+- pressKey: back
+- waitForAnimationToEnd
+
+# ── Deep back stack ──
+- tapOn:
+    text: "Simulados"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Novo"
+    optional: true
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+- pressKey: back
+- waitForAnimationToEnd
+- takeScreenshot: "fast-int-06-back-stack"

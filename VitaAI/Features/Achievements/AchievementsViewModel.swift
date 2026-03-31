@@ -1,9 +1,8 @@
 import SwiftUI
 
 // MARK: - AchievementsViewModel
-// Drives AchievementsScreen: loads badges from API (GET /api/activity/stats),
-// maps to VitaDomain.allBadges for source-of-truth names/descriptions.
-// Uses VitaDomain for badge definitions — NEVER hardcodes badge data.
+// Drives AchievementsScreen: loads badges from API (GET /api/activity/stats).
+// The API is the source of truth for badge definitions.
 
 @MainActor
 @Observable
@@ -44,28 +43,17 @@ final class AchievementsViewModel {
             currentStreak = stats.currentStreak
             longestStreak = stats.longestStreak
 
-            // Build badge list from VitaDomain (source of truth) + API earned status
-            let earnedIds = Set(stats.badges.filter { $0.earned }.map { $0.id })
-            let earnedAtMap = Dictionary(
-                uniqueKeysWithValues: stats.badges.compactMap { b -> (String, Int)? in
-                    guard let ts = b.earnedAt else { return nil }
-                    return (b.id, ts)
-                }
-            )
-
-            var allBadges: [AchievementBadge] = VitaDomain.allBadges.map { domainBadge in
-                let isEarned = earnedIds.contains(domainBadge.id)
-                let earnedTimestamp = earnedAtMap[domainBadge.id]
-                let xpReward = VitaDomain.badgeXp[domainBadge.id] ?? 0
-                return AchievementBadge(
-                    id: domainBadge.id,
-                    name: domainBadge.name,
-                    description: domainBadge.description,
-                    icon: sfSymbol(for: domainBadge.icon, category: domainBadge.category),
-                    category: domainBadge.category,
-                    isEarned: isEarned,
-                    earnedAt: earnedTimestamp.flatMap { Date(timeIntervalSince1970: TimeInterval($0) / 1000) },
-                    xpReward: xpReward
+            // Build badge list directly from API response (source of truth)
+            var allBadges: [AchievementBadge] = stats.badges.map { badge in
+                AchievementBadge(
+                    id: badge.id,
+                    name: badge.name,
+                    description: badge.description,
+                    icon: sfSymbol(for: badge.icon, category: badge.category),
+                    category: badge.category,
+                    isEarned: badge.earned,
+                    earnedAt: badge.earnedAt.flatMap { Date(timeIntervalSince1970: TimeInterval($0) / 1000) },
+                    xpReward: 0
                 )
             }
 
@@ -95,7 +83,6 @@ final class AchievementsViewModel {
 
         } catch {
             errorMessage = NSLocalizedString("Erro ao carregar conquistas", comment: "")
-            loadMockData()
         }
 
         isLoading = false
@@ -163,41 +150,6 @@ final class AchievementsViewModel {
         }
     }
 
-    // MARK: - Mock Fallback
-    private func loadMockData() {
-        earnedCount = 6
-        totalCount = VitaDomain.allBadges.count
-
-        let mockEarned = Set(["first_review", "cards_50", "streak_3", "streak_7", "first_note", "first_chat"])
-        let allBadges: [AchievementBadge] = VitaDomain.allBadges.map { b in
-            AchievementBadge(
-                id: b.id,
-                name: b.name,
-                description: b.description,
-                icon: sfSymbol(for: b.icon, category: b.category),
-                category: b.category,
-                isEarned: mockEarned.contains(b.id),
-                earnedAt: mockEarned.contains(b.id) ? Date().addingTimeInterval(-Double.random(in: 86400...604800)) : nil,
-                xpReward: VitaDomain.badgeXp[b.id] ?? 0
-            )
-        }
-
-        let grouped = Dictionary(grouping: allBadges, by: { $0.category })
-        let order = ["streak", "cards", "milestone", "study", "social"]
-        categories = order.compactMap { cat in
-            guard let badges = grouped[cat] else { return nil }
-            return BadgeCategoryGroup(
-                category: cat,
-                displayName: categoryDisplayName(cat),
-                icon: categoryIcon(cat),
-                color: categoryColor(cat),
-                badges: badges.sorted { a, b in
-                    if a.isEarned != b.isEarned { return a.isEarned }
-                    return false
-                }
-            )
-        }
-    }
 }
 
 // MARK: - Data Models

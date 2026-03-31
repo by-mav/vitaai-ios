@@ -49,6 +49,38 @@ private struct PlannerContent: View {
                 ProgressView()
                     .tint(VitaColors.accent)
                 Spacer()
+            } else if let error = vm.errorMessage {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 28))
+                        .foregroundStyle(VitaColors.textTertiary)
+                    Text(error)
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                    Button("Tentar novamente") {
+                        Task { await vm.load() }
+                    }
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.accent)
+                }
+                .padding(.horizontal, 32)
+                Spacer()
+            } else if vm.tasks.isEmpty {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 32))
+                        .foregroundStyle(VitaColors.accent.opacity(0.5))
+                    Text("Nenhuma tarefa para hoje")
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textSecondary)
+                    Text("Aproveite para revisar ou adicionar metas")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                Spacer()
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {

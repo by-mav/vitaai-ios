@@ -5,6 +5,7 @@ import SwiftUI
 final class Router {
     var path = NavigationPath()
     var selectedTab: TabItem = .home
+    var activeScreen: Route?
 
     func navigate(to route: Route) {
         path.append(route)

@@ -1,0 +1,34 @@
+appId: com.bymav.vitaai
+---
+- launchApp
+
+# Wait for login screen
+- assertVisible: "Continuar com Email"
+- takeScreenshot: e2e-01-login
+
+# Tap "Continuar com Email"
+- tapOn: "Continuar com Email"
+- waitForAnimationToEnd
+
+# Wait for email sheet
+- assertVisible: "Entrar"
+- takeScreenshot: e2e-02-email-sheet
+
+# Type email
+- tapOn: "seu@email.com"
+- inputText: "test@vitaai.com"
+
+# Tab to password
+- tapOn: "••••••••"
+- inputText: "Vita123456!"
+
+- takeScreenshot: e2e-03-filled
+
+# Tap "Entrar"
+- tapOn:
+    text: "Entrar"
+    index: 1
+- waitForAnimationToEnd:
+    timeout: 10000
+
+- takeScreenshot: e2e-04-after-login

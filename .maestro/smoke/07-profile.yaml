@@ -1,0 +1,57 @@
+appId: com.bymav.vitaai
+tags:
+  - smoke
+  - profile
+---
+# 07 - Profile: verify profile screen loads with all settings rows
+# Assumes user is logged in.
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      anyOf:
+        - "dias de streak"
+        - "Home"
+        - "ESTUDOS"
+    timeout: 15000
+
+# Navigate to Profile tab
+- tapOn:
+    text: "Perfil"
+    optional: true
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      anyOf:
+        - "Estudante"
+        - "Aparência"
+        - "Sobre"
+    timeout: 8000
+
+- takeScreenshot: "07-profile-loaded"
+
+# Verify all settings rows are present
+- assertVisible: "Conta Canvas"
+- assertVisible: "WebAluno"
+- assertVisible: "Aparência"
+- assertVisible: "Sobre"
+- assertVisible: "Sair"
+
+# Verify version info
+- assertVisible:
+    text: "VitaAI v0.1.0"
+    optional: true
+
+- takeScreenshot: "07-profile-settings"
+
+# Tap on Sobre (About) to verify sub-screen navigation
+- tapOn: "Sobre"
+- waitForAnimationToEnd
+- takeScreenshot: "07-profile-about"
+
+# Go back
+- tapOn:
+    text: "Voltar"
+    optional: true
+- waitForAnimationToEnd

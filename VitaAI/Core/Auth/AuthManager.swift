@@ -4,30 +4,44 @@ import Foundation
 @MainActor
 final class AuthManager: ObservableObject {
     private let tokenStore: TokenStore
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
+        return URLSession(configuration: config)
+    }()
 
-    @Published var isLoggedIn: Bool = true // DEV BYPASS
-    @Published var isLoading: Bool = false // DEV BYPASS
+    @Published var isLoggedIn: Bool = false
+    @Published var isLoading: Bool = true
     @Published var error: String?
-    @Published var userName: String? = "Atlas Dev" // DEV BYPASS
+    @Published var userName: String?
+    @Published var userEmail: String?
     @Published var userImage: String?
 
     init(tokenStore: TokenStore) {
         self.tokenStore = tokenStore
-        // Task { await checkLoginStatus() } // DEV BYPASS
+        Task { await checkLoginStatus() }
     }
 
     private func checkLoginStatus() async {
-        // DEV BYPASS - force login
-        if !(await tokenStore.isLoggedIn) {
-            await tokenStore.saveDemoUser()
-        }
         let loggedIn = await tokenStore.isLoggedIn
         let name = await tokenStore.userName
+        let email = await tokenStore.userEmail
         let image = await tokenStore.userImage
         isLoggedIn = loggedIn
         userName = name
+        userEmail = email
         userImage = image
         isLoading = false
+
+        // Set monitoring user context if already logged in
+        if loggedIn, let email {
+            SentryConfig.setUser(id: email, email: email)
+            VitaPostHogConfig.identify(userId: email, properties: [
+                "name": name ?? "",
+                "platform": "ios",
+            ])
+        }
     }
 
     func signIn(provider: String) {
@@ -67,11 +81,9 @@ final class AuthManager: ObservableObject {
     func signInWithApple() { signIn(provider: "apple") }
 
     func signInWithEmail(email: String, password: String) async {
-        isLoading = true
         error = nil
-        defer { isLoading = false }
 
-        guard let url = URL(string: "\(AppConfig.authBaseURL)/api/auth/mobile-email-login") else {
+        guard let url = URL(string: "\(AppConfig.authBaseURL)/api/auth/sign-in/email") else {
             error = "URL inválida"; return
         }
         var req = URLRequest(url: url)
@@ -83,9 +95,7 @@ final class AuthManager: ObservableObject {
     }
 
     func signUpWithEmail(email: String, password: String, name: String) async {
-        isLoading = true
         error = nil
-        defer { isLoading = false }
 
         guard let url = URL(string: "\(AppConfig.authBaseURL)/api/auth/sign-up/email") else {
             error = "URL inválida"; return
@@ -107,18 +117,28 @@ final class AuthManager: ObservableObject {
             "email": email,
             "redirectTo": "\(AppConfig.authBaseURL)/reset-password"
         ])
-        _ = try? await URLSession.shared.data(for: req)
+        _ = try? await session.data(for: req)
     }
 
     private func performEmailAuthRequest(_ request: URLRequest, email: String) async {
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else {
                 error = "Resposta inválida"; return
             }
             let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
             if (200...299).contains(http.statusCode) {
-                let token = json?["token"] as? String
+                // Better Auth sends the real session token in Set-Cookie header, not in JSON body
+                // Extract from Set-Cookie: better-auth.session_token=VALUE;...
+                var token: String?
+                if let setCookies = http.allHeaderFields["Set-Cookie"] as? String {
+                    token = extractSessionToken(from: setCookies)
+                }
+                // Fallback: try JSON body token
+                if token == nil {
+                    token = json?["token"] as? String
+                }
+
                 let user = json?["user"] as? [String: Any]
                 let name = user?["name"] as? String ?? json?["name"] as? String
                 let image = user?["image"] as? String
@@ -127,14 +147,37 @@ final class AuthManager: ObservableObject {
                 }
                 await tokenStore.saveSession(token: token, name: name, email: email, image: image)
                 userName = name
+                userEmail = email
                 userImage = image
                 isLoggedIn = true
+                SentryConfig.setUser(id: email, email: email)
+                VitaPostHogConfig.identify(userId: email, properties: [
+                    "name": name ?? "",
+                    "platform": "ios",
+                ])
+                VitaPostHogConfig.capture(event: "login", properties: ["method": "email"])
             } else {
                 error = json?["message"] as? String ?? "Email ou senha incorretos"
             }
         } catch {
             self.error = "Erro de conexão"
         }
+    }
+
+    private func extractSessionToken(from setCookie: String) -> String? {
+        // Parse: better-auth.session_token=VALUE; Max-Age=...
+        for part in setCookie.components(separatedBy: ",") {
+            let trimmed = part.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("better-auth.session_token=") {
+                if let range = trimmed.range(of: "better-auth.session_token=") {
+                    let afterPrefix = trimmed[range.upperBound...]
+                    let value = afterPrefix.components(separatedBy: ";").first ?? ""
+                    let decoded = value.removingPercentEncoding ?? String(value)
+                    if !decoded.isEmpty { return decoded }
+                }
+            }
+        }
+        return nil
     }
 
     private func handleCallback(url: URL) async {
@@ -144,7 +187,7 @@ final class AuthManager: ObservableObject {
         }
 
         let params = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).compactMap { item in
-            item.value.map { (item.name, $0) }
+            item.value.map { (item.name, $0.replacingOccurrences(of: "+", with: " ")) }
         })
 
         guard let token = params["token"] else {
@@ -160,11 +203,22 @@ final class AuthManager: ObservableObject {
         )
 
         userName = params["name"]
+        userEmail = params["email"]
         userImage = params["image"]
         isLoggedIn = true
+
+        if let email = params["email"] {
+            SentryConfig.setUser(id: email, email: email)
+            VitaPostHogConfig.identify(userId: email, properties: [
+                "name": params["name"] ?? "",
+                "platform": "ios",
+            ])
+        }
+        VitaPostHogConfig.capture(event: "login", properties: ["method": "oauth"])
     }
 
     func enterDemoMode() {
+        // Already @MainActor — no need for Task wrapper which causes race conditions
         Task {
             await tokenStore.saveDemoUser()
             userName = "Estudante"
@@ -173,11 +227,16 @@ final class AuthManager: ObservableObject {
     }
 
     func logout() {
+        // Already @MainActor — no need for Task wrapper which causes race conditions
         Task {
             await tokenStore.clearSession()
             userName = nil
+            userEmail = nil
             userImage = nil
             isLoggedIn = false
+            SentryConfig.clearUser()
+            VitaPostHogConfig.capture(event: "logout")
+            VitaPostHogConfig.reset()
         }
     }
 }

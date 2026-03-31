@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SafariServices
 import UIKit
 

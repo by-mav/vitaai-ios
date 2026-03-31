@@ -21,7 +21,7 @@ struct AnnotationToolbar: View {
     @State private var showColorPicker: Bool = false
     @State private var showShapeMenu: Bool = false
 
-    private let surfaceBg = Color(hex: 0x1A1A2E).opacity(0.97)
+    private let surfaceBg = VitaColors.surfaceElevated.opacity(0.97)
     private let borderColor = Color.white.opacity(0.08)
 
     var body: some View {
@@ -99,9 +99,10 @@ struct AnnotationToolbar: View {
                                         .font(.system(size: 9))
                                         .foregroundStyle(Color.white.opacity(0.7))
                                 }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
+                                .frame(minWidth: 44, minHeight: 44)
+                                .padding(.horizontal, 4)
                             }
+                            .accessibilityLabel("Selecionar cor")
 
                             ToolbarDivider()
 
@@ -170,8 +171,10 @@ private struct ToolButton: View {
             ToolButtonLabel(systemImage: systemImage, label: label, isSelected: isSelected,
                             accentColor: accentColor, enabled: enabled)
         }
+        .accessibilityLabel(label)
         .disabled(!enabled)
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: isSelected)
+        // sensoryFeedback removed (iOS 17+)
+            // .impact(flexibility: .soft), trigger: isSelected)
     }
 }
 
@@ -193,6 +196,7 @@ private struct ToolButtonLabel: View {
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(tint)
                 .frame(width: 22, height: 22)
+                .frame(minWidth: 44, minHeight: 44)
             Text(label)
                 .font(.system(size: 9, weight: isSelected ? .bold : .regular))
                 .foregroundStyle(tint.opacity(0.85))
@@ -229,7 +233,10 @@ private struct StrokeWidthButton: View {
             .background(isSelected ? VitaColors.accent.opacity(0.2) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: isSelected)
+        .accessibilityLabel(label)
+        .frame(minWidth: 44, minHeight: 44)
+        // sensoryFeedback removed (iOS 17+)
+            // .impact(flexibility: .soft), trigger: isSelected)
     }
 }
 

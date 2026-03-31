@@ -1,0 +1,31 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - performance
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible: ".*(?:Simulados|Acordar|Continuar).*"
+    timeout: 25000
+
+# Dismiss "Acordar Vita" splash if present
+- tapOn:
+    text: "Acordar Vita"
+    optional: true
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Continuar"
+    optional: true
+- waitForAnimationToEnd
+
+# Scroll dashboard 3x fast — no jank
+- scroll
+- scroll
+- scroll
+- takeScreenshot: "43-perf-scrolled"
