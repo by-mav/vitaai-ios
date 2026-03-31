@@ -47,7 +47,7 @@ private struct TranscricaoContent: View {
     @State private var selectedRecording: TranscricaoEntry? = nil
 
     // Default disciplines shown before API subjects load
-    private let fallbackDisciplines = ["Geral", "Anatomia", "Farmacologia", "Patologia", "Bioquimica"]
+    private let fallbackDisciplines = ["Geral", "Anatomia", "Farmacologia", "Patologia", "Bioquímica"]
 
     /// Whether the pipeline is actively processing (upload/transcribe/summarize/flashcards)
     private var isProcessing: Bool {

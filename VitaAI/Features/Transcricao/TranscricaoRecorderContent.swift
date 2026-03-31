@@ -236,21 +236,26 @@ struct TranscricaoRecordingsListSection: View {
                     .padding(.vertical, 20)
             } else if recordings.isEmpty {
                 // Empty state
-                VStack(spacing: 8) {
-                    Image(systemName: "mic.slash")
-                        .font(.system(size: 24))
-                        .foregroundStyle(TealColors.accent.opacity(0.35))
+                VStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(TealColors.accent.opacity(0.06))
+                            .frame(width: 64, height: 64)
+                        Image(systemName: "mic.slash")
+                            .font(.system(size: 26))
+                            .foregroundStyle(TealColors.accent.opacity(0.45))
+                    }
 
                     Text("Nenhuma gravação ainda")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.white.opacity(0.45))
+                        .font(VitaTypography.labelMedium)
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.55))
 
                     Text("Grave sua primeira aula para transcrever")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color.white.opacity(0.25))
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.30))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
+                .padding(.vertical, 32)
             } else {
                 List {
                     ForEach(recordings) { rec in
@@ -359,15 +364,13 @@ struct TealGlassRecordingCard: View {
 
                 Image(systemName: "mic.fill")
                     .font(.system(size: 16))
-                    .foregroundStyle(
-                        Color(red: 255/255, green: 215/255, blue: 150/255, opacity: 0.92)
-                    )
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.92))
             }
             .opacity(displayStatus == .pending ? 0.5 : 1.0)
 
             // Text block
             VStack(alignment: .leading, spacing: 3) {
-                Text(recording.title.isEmpty ? "Gravacao" : recording.title)
+                Text(recording.title.isEmpty ? "Gravação" : recording.title)
                     .font(.system(size: 14.5, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.96))
                     .lineLimit(1)
@@ -408,16 +411,7 @@ struct TealGlassRecordingCard: View {
         .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: 18)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 8/255, green: 12/255, blue: 11/255, opacity: 0.94),
-                            Color(red: 10/255, green: 14/255, blue: 12/255, opacity: 0.90)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(TealColors.cardBg)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18)

@@ -33,28 +33,42 @@ struct TealBackground: View {
         ZStack {
             TealColors.screenBg.ignoresSafeArea()
 
-            // Teal radial glows
+            // Warm brown undertone (subtle, gives depth)
             RadialGradient(
-                colors: [TealColors.accent.opacity(0.05), .clear],
+                colors: [
+                    Color(red: 0.18, green: 0.10, blue: 0.05).opacity(0.35),
+                    .clear
+                ],
+                center: UnitPoint(x: 0.5, y: 0.85),
+                startRadius: 0,
+                endRadius: 350
+            )
+            .ignoresSafeArea()
+
+            // Central teal glow
+            RadialGradient(
+                colors: [TealColors.accent.opacity(0.08), .clear],
                 center: .center,
                 startRadius: 0,
-                endRadius: 200
+                endRadius: 250
             )
             .ignoresSafeArea()
 
+            // Top-left teal accent
             RadialGradient(
-                colors: [TealColors.accent.opacity(0.10), .clear],
+                colors: [TealColors.accent.opacity(0.12), .clear],
                 center: UnitPoint(x: 0.08, y: 0.14),
                 startRadius: 0,
-                endRadius: 120
+                endRadius: 140
             )
             .ignoresSafeArea()
 
+            // Top-right teal accent
             RadialGradient(
-                colors: [TealColors.accent.opacity(0.10), .clear],
+                colors: [TealColors.accent.opacity(0.12), .clear],
                 center: UnitPoint(x: 0.92, y: 0.14),
                 startRadius: 0,
-                endRadius: 120
+                endRadius: 140
             )
             .ignoresSafeArea()
         }
@@ -91,7 +105,7 @@ struct TranscricaoStatusBadge: View {
     private var label: String {
         switch status {
         case .transcribed: return "Transcrito"
-        case .pending:     return "Nao transcrito"
+        case .pending:     return "Não transcrito"
         case .recording:   return "Gravando"
         }
     }
@@ -183,7 +197,7 @@ struct TranscricaoProcessingToast: View {
 
     private var label: String {
         switch phase {
-        case .uploading:            return "Enviando audio..."
+        case .uploading:            return "Enviando áudio..."
         case .transcribing:         return "Transcrevendo..."
         case .summarizing:          return "Gerando resumo..."
         case .generatingFlashcards: return "Criando flashcards..."

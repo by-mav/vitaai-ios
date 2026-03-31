@@ -195,19 +195,41 @@ struct AgendaScreen: View {
 
     @ViewBuilder
     private func emptyDayState() -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.system(size: 36))
-                .foregroundStyle(VitaColors.textTertiary)
+        VStack(spacing: 20) {
+            // Calendar illustration with sparkle
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [VitaColors.accent.opacity(0.12), VitaColors.accent.opacity(0.02)],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 50
+                        )
+                    )
+                    .frame(width: 96, height: 96)
 
-            Text("Nenhuma atividade programada")
-                .font(VitaTypography.titleMedium)
-                .foregroundStyle(VitaColors.textSecondary)
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(VitaColors.accent.opacity(0.6))
 
-            Text("Toque em + para adicionar uma atividade de estudo")
-                .font(VitaTypography.bodySmall)
-                .foregroundStyle(VitaColors.textTertiary)
-                .multilineTextAlignment(.center)
+                // Sparkle accent
+                Image(systemName: "sparkle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(VitaColors.accent.opacity(0.8))
+                    .offset(x: 32, y: -28)
+            }
+
+            VStack(spacing: 6) {
+                Text("Sua semana está livre!")
+                    .font(VitaTypography.titleMedium)
+                    .foregroundStyle(VitaColors.textPrimary)
+
+                Text("Toque em + para programar atividades de estudo")
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 48)
@@ -396,48 +418,76 @@ struct AgendaScreen: View {
         Button {
             // Phase 2: open AI plan generation flow
         } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(VitaColors.accent.opacity(0.12))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(VitaColors.accent)
+            VStack(spacing: 0) {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [VitaColors.accent.opacity(0.25), VitaColors.accent.opacity(0.10)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                Circle()
+                                    .stroke(VitaColors.accent.opacity(0.3), lineWidth: 1)
+                            )
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(VitaColors.accent)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Gerar Plano com IA")
+                            .font(VitaTypography.titleSmall)
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Text("Deixa a VitaAI montar sua semana de estudos")
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(VitaColors.accent.opacity(0.7))
                 }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Gerar Plano com IA")
-                        .font(VitaTypography.labelMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text("Deixa a VitaAI montar sua semana de estudos")
-                        .font(VitaTypography.labelSmall)
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(VitaColors.textTertiary)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
             .background(
-                LinearGradient(
-                    colors: [
-                        VitaColors.accent.opacity(0.08),
-                        VitaColors.glassBg
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    VitaColors.accent.opacity(0.10),
+                                    VitaColors.accent.opacity(0.04),
+                                    VitaColors.glassBg
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    // Subtle gold glow
+                    RadialGradient(
+                        colors: [VitaColors.accent.opacity(0.08), .clear],
+                        center: UnitPoint(x: 0.15, y: 0.3),
+                        startRadius: 0,
+                        endRadius: 120
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                }
             )
-            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
             .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(VitaColors.accent.opacity(0.18), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(VitaColors.accent.opacity(0.22), lineWidth: 1)
             )
+            .shadow(color: VitaColors.accent.opacity(0.08), radius: 12, y: 4)
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 16)
