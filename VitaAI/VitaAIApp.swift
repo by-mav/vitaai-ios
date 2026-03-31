@@ -49,6 +49,9 @@ struct VitaAIApp: App {
     @StateObject private var container = AppContainer()
 
     init() {
+        // Make scroll views transparent so VitaAmbientBackground shows through content gaps
+        UIScrollView.appearance().backgroundColor = .clear
+
         // Initialize Sentry for crash reporting and performance monitoring.
         // No-op in DEBUG builds. Requires SENTRY_DSN in Info.plist.
         SentryConfig.initialize()

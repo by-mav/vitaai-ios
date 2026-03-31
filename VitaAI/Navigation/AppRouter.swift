@@ -1,5 +1,29 @@
 import SwiftUI
 
+// Clears ONLY the UINavigationController and its child view controllers' backgrounds.
+// Applied as a zero-size overlay inside NavigationStack content so the outer
+// VitaAmbientBackground (full screen) shows through seamlessly.
+private struct NavControllerBackgroundClearer: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.isHidden = true
+        DispatchQueue.main.async {
+            var responder: UIResponder? = view
+            while let next = responder?.next {
+                if let nc = next as? UINavigationController {
+                    nc.view.backgroundColor = .clear
+                    nc.viewControllers.forEach { $0.view.backgroundColor = .clear }
+                    return
+                }
+                responder = next
+            }
+        }
+        return view
+    }
+    func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
 struct AppRouter: View {
     @ObservedObject var authManager: AuthManager
     @Environment(\.appContainer) private var container
@@ -77,6 +101,10 @@ struct MainTabView: View {
                     activeTabView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
+                        .overlay(alignment: .topLeading) {
+                            NavControllerBackgroundClearer()
+                                .frame(width: 0, height: 0)
+                        }
                         .safeAreaInset(edge: .bottom, spacing: 0) {
                             Color.clear.frame(height: 80)
                         }
