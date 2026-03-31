@@ -389,23 +389,25 @@ struct DashboardScreen: View {
     @ViewBuilder
     private func toolsGrid() -> some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-            toolImage("tool-questoes", identifier: "tool_questoes") { onNavigateToMaterials?() }
-            toolImage("tool-flashcards", identifier: "tool_flashcards") { onNavigateToFlashcards?() }
-            toolImage("tool-simulados", identifier: "tool_simulados") { onNavigateToSimulados?() }
-            toolImage("tool-transcricao", identifier: "tool_transcricao") { onNavigateToTranscricao?() }
+            toolImage("tool-questoes", identifier: "tool_questoes", bg: Color(red: 0.18, green: 0.10, blue: 0.02)) { onNavigateToMaterials?() }
+            toolImage("tool-flashcards", identifier: "tool_flashcards", bg: Color(red: 0.10, green: 0.05, blue: 0.18)) { onNavigateToFlashcards?() }
+            toolImage("tool-simulados", identifier: "tool_simulados", bg: Color(red: 0.02, green: 0.10, blue: 0.22)) { onNavigateToSimulados?() }
+            toolImage("tool-transcricao", identifier: "tool_transcricao", bg: Color(red: 0.02, green: 0.14, blue: 0.14)) { onNavigateToTranscricao?() }
         }
+        .padding(.top, 4)
     }
 
     // Mockup tool card shadows:
     //   0 20px 50px rgba(0,0,0,0.50), 0 6px 16px rgba(0,0,0,0.35)
     //   0 0 0 0.5px rgba(255,200,120,0.16), 0 0 28px rgba(180,140,60,0.07)
     @ViewBuilder
-    private func toolImage(_ name: String, identifier: String, action: @escaping () -> Void) -> some View {
+    private func toolImage(_ name: String, identifier: String, bg: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(name)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(height: 100)
+                .background(bg)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18)
