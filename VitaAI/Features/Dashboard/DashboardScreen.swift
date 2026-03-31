@@ -74,11 +74,12 @@ struct DashboardScreen: View {
                     .padding(.top, 12)
 
                 // ═══ "Ferramentas de Estudo" ═══
+                // Mockup: font-size 10px, font-weight 600, letter-spacing 0.8px, color rgba(255,241,215,0.55)
                 Text("Ferramentas de Estudo")
-                    .font(.system(size: 11, weight: .semibold))
-                    .kerning(0.5)
+                    .font(.system(size: 10, weight: .semibold))
+                    .kerning(0.8)
                     .textCase(.uppercase)
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.35))
+                    .foregroundStyle(VitaColors.sectionLabel)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 6)
                     .padding(.bottom, 6)
@@ -90,10 +91,10 @@ struct DashboardScreen: View {
 
                 // ═══ "Minhas Disciplinas" ═══
                 Text("Minhas Disciplinas")
-                    .font(.system(size: 11, weight: .semibold))
-                    .kerning(0.5)
+                    .font(.system(size: 10, weight: .semibold))
+                    .kerning(0.8)
                     .textCase(.uppercase)
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.35))
+                    .foregroundStyle(VitaColors.sectionLabel)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 14)
                     .padding(.bottom, 6)
@@ -395,6 +396,9 @@ struct DashboardScreen: View {
         }
     }
 
+    // Mockup tool card shadows:
+    //   0 20px 50px rgba(0,0,0,0.50), 0 6px 16px rgba(0,0,0,0.35)
+    //   0 0 0 0.5px rgba(255,200,120,0.16), 0 0 28px rgba(180,140,60,0.07)
     @ViewBuilder
     private func toolImage(_ name: String, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -403,7 +407,16 @@ struct DashboardScreen: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(height: 100)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
-                .shadow(color: .black.opacity(0.30), radius: 12, x: 0, y: 4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(
+                            Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.16),
+                            lineWidth: 0.5
+                        )
+                )
+                .shadow(color: .black.opacity(0.50), radius: 25, x: 0, y: 10)
+                .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 3)
+                .shadow(color: Color(red: 0.706, green: 0.549, blue: 0.235).opacity(0.07), radius: 14, x: 0, y: 0)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
@@ -523,9 +536,9 @@ struct DashboardScreen: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text("Agenda")
                     .font(.system(size: 10, weight: .semibold))
-                    .kerning(0.5)
+                    .kerning(0.8)
                     .textCase(.uppercase)
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.35))
+                    .foregroundStyle(VitaColors.sectionLabel)
 
                 if viewModel.isLoading {
                     agendaSkeleton()

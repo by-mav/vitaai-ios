@@ -91,7 +91,7 @@ private struct EstudosContent: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                // Continue studying card
+                // Continue studying card (API data or mock fallback)
                 if let firstRec = viewModel.studyRecommendations.first {
                     ContinueStudyingCard(
                         recommendation: firstRec,
@@ -100,6 +100,11 @@ private struct EstudosContent: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
                     .padding(.bottom, 12)
+                } else {
+                    MockContinueStudyingHero()
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(.bottom, 12)
                 }
 
                 // 3 module cards horizontal
@@ -128,8 +133,13 @@ private struct EstudosContent: View {
                     .padding(.top, 8)
                     .padding(.bottom, 10)
 
-                MateriaisScroll(recommendations: viewModel.studyRecommendations)
-                    .padding(.bottom, 16)
+                if viewModel.studyRecommendations.isEmpty {
+                    MockMateriaisScroll()
+                        .padding(.bottom, 16)
+                } else {
+                    MateriaisScroll(recommendations: viewModel.studyRecommendations)
+                        .padding(.bottom, 16)
+                }
 
                 // Trabalhos pendentes
                 EstudosSectionLabel(text: "TRABALHOS PENDENTES")
@@ -147,8 +157,13 @@ private struct EstudosContent: View {
                     .padding(.top, 4)
                     .padding(.bottom, 10)
 
-                SessoesRecentesSection(activities: viewModel.recentActivity)
-                    .padding(.horizontal, 16)
+                if viewModel.recentActivity.isEmpty {
+                    MockSessoesRecentesSection()
+                        .padding(.horizontal, 16)
+                } else {
+                    SessoesRecentesSection(activities: viewModel.recentActivity)
+                        .padding(.horizontal, 16)
+                }
             }
             .padding(.bottom, 120)
         }
@@ -167,7 +182,7 @@ private struct EstudosSectionLabel: View {
         HStack {
             Text(text)
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(GoldAccent.labelGold)
+                .foregroundStyle(VitaColors.sectionLabel)
                 .tracking(0.8)
             Spacer()
         }
@@ -433,6 +448,7 @@ private struct ModuleImageCard: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+        .clipped()
         .accessibilityLabel(fallbackLabel)
     }
 }
@@ -757,7 +773,7 @@ private struct SessoesRecentesSection: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
-            .background(Color.white.opacity(0.08))
+            .background(Color.white.opacity(0.02))
             .clipShape(RoundedRectangle(cornerRadius: 12))
         } else {
             VStack(spacing: 6) {
@@ -843,11 +859,320 @@ private struct ActivityCard: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
-        .background(Color.white.opacity(0.08))
+        .background(Color.white.opacity(0.02))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(VitaColors.surfaceBorder, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Mock Continue Studying Hero (shown when no API data, matches mockup exactly)
+
+private struct MockContinueStudyingHero: View {
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            // Background
+            if UIImage(named: "hero-histologia") != nil {
+                Color.clear
+                    .frame(height: 180)
+                    .overlay {
+                        Image("hero-histologia")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    }
+                    .clipped()
+            } else {
+                LinearGradient(
+                    colors: [VitaColors.surfaceCard, VitaColors.surface],
+                    startPoint: .topTrailing,
+                    endPoint: .bottomLeading
+                )
+                .frame(height: 180)
+            }
+
+            // Dark bottom overlay
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.0),
+                    .init(color: VitaColors.surface.opacity(0.10), location: 0.40),
+                    .init(color: VitaColors.surface.opacity(0.50), location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 180)
+
+            // Glass panel
+            VStack(alignment: .leading, spacing: 0) {
+                // Badge
+                HStack(spacing: 5) {
+                    Image(systemName: "display")
+                        .font(.system(size: 10))
+                    Text("HISTOLOGIA")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(1)
+                }
+                .foregroundStyle(GoldAccent.textGold.opacity(0.80))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(GoldAccent.warm.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(GoldAccent.primary.opacity(0.18), lineWidth: 1)
+                )
+                .padding(.bottom, 10)
+
+                // Title
+                Text("Tecido Epitelial \u{2014} Revis\u{e3}o")
+                    .font(.system(size: 17, weight: .bold))
+                    .tracking(-0.5)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .lineLimit(2)
+                    .padding(.bottom, 3)
+
+                // Meta
+                Text("32 respondidas \u{b7} 8 restantes")
+                    .font(.system(size: 11))
+                    .foregroundStyle(GoldAccent.textGoldDim)
+                    .padding(.bottom, 8)
+
+                // Progress bar
+                HStack(spacing: 8) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 999)
+                                .fill(Color.white.opacity(0.06))
+                                .frame(height: 4)
+                            RoundedRectangle(cornerRadius: 999)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [GoldAccent.warm.opacity(0.70), GoldAccent.primary.opacity(0.50)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geo.size.width * 0.78, height: 4)
+                        }
+                    }
+                    .frame(height: 4)
+
+                    Text("78%")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(GoldAccent.textGold.opacity(0.70))
+                }
+                .padding(.bottom, 12)
+
+                // CTA
+                Text("Continuar")
+                    .font(.system(size: 12, weight: .semibold))
+                    .tracking(0.02)
+                    .foregroundStyle(GoldAccent.textGold.opacity(0.80))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.white.opacity(0.04))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(GoldAccent.primary.opacity(0.12), lineWidth: 1)
+                    )
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                VitaColors.surfaceCard.opacity(0.80),
+                                VitaColors.surfaceElevated.opacity(0.75)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(GoldAccent.primary.opacity(0.12), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(0.30), radius: 12, y: 6)
+            .padding(10)
+        }
+        .frame(height: 180)
+        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(GoldAccent.primary.opacity(0.16), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.50), radius: 20, y: 10)
+        .shadow(color: GoldAccent.warm.opacity(0.07), radius: 14)
+    }
+}
+
+// MARK: - Mock Materiais Scroll (Vita Sugere fallback with mockup data)
+
+private struct MockSuggestionItem: Identifiable {
+    let id: Int
+    let title: String
+    let meta: String
+    let isVideo: Bool
+}
+
+private let mockSuggestionItems: [MockSuggestionItem] = [
+    MockSuggestionItem(id: 0, title: "Tecido epitelial \u{2014} aula completa", meta: "YouTube \u{b7} Baseado no seu erro recente", isVideo: true),
+    MockSuggestionItem(id: 1, title: "Resumo gerado pelo Vita", meta: "Histologia \u{b7} Pra sua prova de quinta", isVideo: false),
+    MockSuggestionItem(id: 2, title: "Farmaco \u{2014} SNA em 8 min", meta: "YouTube \u{b7} Voc\u{ea} errou 5x nesse tema", isVideo: true),
+]
+
+private struct MockMateriaisScroll: View {
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(mockSuggestionItems) { item in
+                    VStack(spacing: 0) {
+                        ZStack {
+                            if item.isVideo {
+                                Rectangle()
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                VitaColors.dataIndigo.opacity(0.15),
+                                                VitaColors.surface.opacity(0.95)
+                                            ],
+                                            center: .center,
+                                            startRadius: 0,
+                                            endRadius: 60
+                                        )
+                                    )
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white.opacity(0.10))
+                                        .frame(width: 28, height: 28)
+                                        .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 1))
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(Color.white.opacity(0.90))
+                                }
+                            } else {
+                                Rectangle()
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [
+                                                GoldAccent.warm.opacity(0.12),
+                                                VitaColors.surfaceCard.opacity(0.95)
+                                            ],
+                                            center: .center,
+                                            startRadius: 0,
+                                            endRadius: 60
+                                        )
+                                    )
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(GoldAccent.primary.opacity(0.70))
+                            }
+                        }
+                        .frame(height: 80)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.title)
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.88))
+                                .lineLimit(2)
+
+                            Text(item.meta)
+                                .font(.system(size: 9.5))
+                                .foregroundStyle(GoldAccent.textGoldDim.opacity(0.88))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                    }
+                    .frame(width: 180)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                VitaColors.surfaceCard.opacity(0.92),
+                                VitaColors.surfaceElevated.opacity(0.88)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(VitaColors.surfaceBorder, lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.30), radius: 8, y: 4)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+}
+
+// MARK: - Mock Sessoes Recentes (shown when no API activity, matches mockup)
+
+private struct MockSessionItem: Identifiable {
+    let id: Int
+    let icon: String
+    let title: String
+    let meta: String
+    let time: String
+}
+
+private let mockSessionItems: [MockSessionItem] = [
+    MockSessionItem(id: 0, icon: "display", title: "Farmacologia \u{b7} Flashcards", meta: "47 respondidas em 15 min", time: "Hoje, 9:30"),
+    MockSessionItem(id: 1, icon: "checkmark.square", title: "Anatomia \u{b7} Quest\u{f5}es", meta: "23 quest\u{f5}es \u{b7} 78% acerto", time: "Ontem"),
+]
+
+private struct MockSessoesRecentesSection: View {
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach(mockSessionItems) { session in
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(GoldAccent.warm.opacity(0.08))
+                            .frame(width: 30, height: 30)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(GoldAccent.warm.opacity(0.06), lineWidth: 1)
+                            )
+
+                        Image(systemName: session.icon)
+                            .font(.system(size: 11))
+                            .foregroundStyle(GoldAccent.textGold.opacity(0.60))
+                    }
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(session.title)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.85))
+
+                        Text(session.meta)
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(GoldAccent.textGoldDim.opacity(0.80))
+                    }
+
+                    Spacer()
+
+                    Text(session.time)
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 11)
+                .background(Color.white.opacity(0.02))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(VitaColors.surfaceBorder, lineWidth: 1)
+                )
+            }
+        }
     }
 }

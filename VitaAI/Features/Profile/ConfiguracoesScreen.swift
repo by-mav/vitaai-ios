@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - ConfiguracoesScreen
 // Matches configuracoes-mobile-v1.html mockup exactly.
 // Sections: User Card, Conta, Preferencias, Seguranca, Privacidade & Dados, Logout.
-// Portuguese accents: Configuracoes->Configurações, Preferencias->Preferências, etc.
+// Pushed via NavigationStack from ProfileScreen gear icon / edit button.
 
 struct ConfiguracoesScreen: View {
     let authManager: AuthManager
@@ -18,10 +18,7 @@ struct ConfiguracoesScreen: View {
 
     @State private var aiConsent: Bool = true
 
-    // Gold mockup colors
-    private let goldText = VitaColors.accentLight       // → VitaColors.accentLight
-    private let goldBorder = VitaColors.accentHover     // → VitaColors.accentHover
-    private let subtleText = VitaColors.textWarm
+    // Mockup-specific colors not in design system
     private let logoutColor = Color(red: 1.0, green: 0.47, blue: 0.31) // rgba(255,120,80)
     private let greenToggle = Color(red: 0.51, green: 0.78, blue: 0.55) // rgba(130,200,140)
 
@@ -31,7 +28,6 @@ struct ConfiguracoesScreen: View {
                 // MARK: - Header
                 headerBar
                     .padding(.top, 8)
-
 
                 // MARK: - User Card
                 userCard
@@ -58,20 +54,20 @@ struct ConfiguracoesScreen: View {
                 }
                 .padding(.horizontal, 14)
 
-                // MARK: - Preferências
-                settingsSectionLabel("Preferências")
+                // MARK: - Preferencias
+                settingsSectionLabel("Preferencias")
                 VitaGlassCard {
                     VStack(spacing: 0) {
                         settingsRow(
                             icon: "sun.max",
-                            label: "Aparência",
+                            label: "Aparencia",
                             desc: "Tema, cores, tamanho de fonte",
                             action: { onNavigateToAppearance?() }
                         )
                         settingsDivider
                         settingsRow(
                             icon: "bell",
-                            label: "Notificações",
+                            label: "Notificacoes",
                             desc: "Push, email, lembretes de estudo",
                             action: { onNavigateToNotifications?() }
                         )
@@ -79,21 +75,21 @@ struct ConfiguracoesScreen: View {
                         settingsRow(
                             icon: "globe",
                             label: "Idioma",
-                            desc: "Português (BR)",
+                            desc: "Portugues (BR)",
                             action: { }
                         )
                     }
                 }
                 .padding(.horizontal, 14)
 
-                // MARK: - Segurança
-                settingsSectionLabel("Segurança")
+                // MARK: - Seguranca
+                settingsSectionLabel("Seguranca")
                 VitaGlassCard {
                     VStack(spacing: 0) {
                         settingsRow(
                             icon: "shield",
                             label: "Privacidade",
-                            desc: "Política de privacidade e dados",
+                            desc: "Politica de privacidade e dados",
                             action: { }
                         )
                         settingsDivider
@@ -111,13 +107,12 @@ struct ConfiguracoesScreen: View {
                 settingsSectionLabel("Privacidade & Dados")
                 VitaGlassCard {
                     VStack(spacing: 0) {
-                        // AI Consent with toggle
                         aiConsentRow
                         settingsDivider
                         settingsRow(
                             icon: "circle.grid.2x2",
                             label: "Gerenciar cookies",
-                            desc: "Redefinir preferências de cookies",
+                            desc: "Redefinir preferencias de cookies",
                             action: { }
                         )
                     }
@@ -132,13 +127,13 @@ struct ConfiguracoesScreen: View {
                 // Version
                 Text("VitaAI v1.0.0 - Build 2026.03")
                     .font(.system(size: 10))
-                    .foregroundStyle(subtleText.opacity(0.18))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.18))
                     .padding(.top, 14)
 
                 Spacer().frame(height: 120)
             }
         }
-        .vitaScreenBg()
+        .background(VitaColors.surface.ignoresSafeArea())
     }
 
     // MARK: - Header
@@ -149,11 +144,12 @@ struct ConfiguracoesScreen: View {
                 Button(action: { onBack?() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(subtleText.opacity(0.75))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.75))
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
 
-                Text("Configurações")
+                Text("Configuracoes")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.88))
             }
@@ -162,7 +158,7 @@ struct ConfiguracoesScreen: View {
 
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(subtleText.opacity(0.40))
+                .foregroundStyle(VitaColors.textWarm.opacity(0.40))
         }
         .padding(.horizontal, 20)
     }
@@ -173,14 +169,13 @@ struct ConfiguracoesScreen: View {
         Button(action: { onNavigateToPerfil?() }) {
             VitaGlassCard {
                 HStack(spacing: 12) {
-                    // Avatar circle
                     ZStack {
                         Circle()
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color(red: 0.78, green: 0.63, blue: 0.31).opacity(0.30),
-                                        Color(red: 0.63, green: 0.47, blue: 0.24).opacity(0.18)
+                                        VitaColors.accent.opacity(0.30),
+                                        VitaColors.accentDark.opacity(0.18)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -188,11 +183,11 @@ struct ConfiguracoesScreen: View {
                             )
                             .frame(width: 44, height: 44)
                             .overlay(
-                                Circle().stroke(goldBorder.opacity(0.14), lineWidth: 1)
+                                Circle().stroke(VitaColors.accentHover.opacity(0.14), lineWidth: 1)
                             )
                         Text(String((authManager.userName ?? "R").prefix(2)).uppercased())
                             .font(.system(size: 17, weight: .bold))
-                            .foregroundStyle(subtleText.opacity(0.75))
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.75))
                     }
 
                     VStack(alignment: .leading, spacing: 1) {
@@ -201,14 +196,14 @@ struct ConfiguracoesScreen: View {
                             .foregroundStyle(Color.white.opacity(0.88))
                         Text(authManager.userEmail ?? "")
                             .font(.system(size: 10.5))
-                            .foregroundStyle(subtleText.opacity(0.35))
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.35))
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(subtleText.opacity(0.20))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.20))
                 }
                 .padding(14)
             }
@@ -222,14 +217,14 @@ struct ConfiguracoesScreen: View {
     private func settingsRow(icon: String, label: String, desc: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                // Icon container
+                // Icon container 34x34 rounded rect with gold gradient
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(
                             LinearGradient(
                                 colors: [
                                     VitaColors.accentHover.opacity(0.18),
-                                    Color(red: 0.55, green: 0.39, blue: 0.18).opacity(0.08)
+                                    VitaColors.accentDark.opacity(0.08)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -238,11 +233,11 @@ struct ConfiguracoesScreen: View {
                         .frame(width: 34, height: 34)
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(goldBorder.opacity(0.12), lineWidth: 1)
+                                .stroke(VitaColors.accentHover.opacity(0.12), lineWidth: 1)
                         )
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(goldText.opacity(0.80))
+                        .foregroundStyle(VitaColors.accentLight.opacity(0.80))
                 }
 
                 VStack(alignment: .leading, spacing: 1) {
@@ -251,7 +246,7 @@ struct ConfiguracoesScreen: View {
                         .foregroundStyle(Color.white.opacity(0.88))
                     Text(desc)
                         .font(.system(size: 10.5))
-                        .foregroundStyle(subtleText.opacity(0.35))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.35))
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
@@ -260,7 +255,7 @@ struct ConfiguracoesScreen: View {
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(subtleText.opacity(0.20))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.20))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 13)
@@ -273,14 +268,13 @@ struct ConfiguracoesScreen: View {
 
     private var aiConsentRow: some View {
         HStack(spacing: 12) {
-            // Icon container
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(
                         LinearGradient(
                             colors: [
                                 VitaColors.accentHover.opacity(0.18),
-                                Color(red: 0.55, green: 0.39, blue: 0.18).opacity(0.08)
+                                VitaColors.accentDark.opacity(0.08)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -289,11 +283,11 @@ struct ConfiguracoesScreen: View {
                     .frame(width: 34, height: 34)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(goldBorder.opacity(0.12), lineWidth: 1)
+                            .stroke(VitaColors.accentHover.opacity(0.12), lineWidth: 1)
                     )
                 Image(systemName: "message")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(goldText.opacity(0.80))
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.80))
             }
 
             VStack(alignment: .leading, spacing: 1) {
@@ -302,14 +296,13 @@ struct ConfiguracoesScreen: View {
                     .foregroundStyle(Color.white.opacity(0.88))
                 Text(aiConsent ? "Concedido" : "Negado")
                     .font(.system(size: 10.5))
-                    .foregroundStyle(aiConsent ? greenToggle.opacity(0.65) : subtleText.opacity(0.35))
+                    .foregroundStyle(aiConsent ? greenToggle.opacity(0.65) : VitaColors.textWarm.opacity(0.35))
             }
 
             Spacer()
 
-            // Custom toggle matching mockup
             Toggle("", isOn: $aiConsent)
-                .toggleStyle(GoldToggleStyle())
+                .toggleStyle(ConfigGoldToggleStyle())
                 .labelsHidden()
         }
         .padding(.horizontal, 14)
@@ -321,7 +314,7 @@ struct ConfiguracoesScreen: View {
     private func settingsSectionLabel(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(subtleText.opacity(0.35))
+            .foregroundStyle(VitaColors.textWarm.opacity(0.35))
             .textCase(.uppercase)
             .tracking(0.5)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -334,7 +327,7 @@ struct ConfiguracoesScreen: View {
 
     private var settingsDivider: some View {
         Rectangle()
-            .fill(subtleText.opacity(0.04))
+            .fill(VitaColors.textWarm.opacity(0.04))
             .frame(height: 1)
     }
 
@@ -364,7 +357,7 @@ struct ConfiguracoesScreen: View {
 
 // MARK: - Gold Toggle Style (matches mockup)
 
-private struct GoldToggleStyle: ToggleStyle {
+private struct ConfigGoldToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(action: { configuration.isOn.toggle() }) {
             ZStack(alignment: configuration.isOn ? .trailing : .leading) {

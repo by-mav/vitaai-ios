@@ -377,6 +377,12 @@ struct MainTabView: View {
                 onBack: { router.goBack() },
                 onSave: { _ in router.goBack() }
             )
+        case .profile:
+            ProfileScreen(
+                authManager: authManager,
+                onNavigateToConfiguracoes: { router.navigate(to: .configuracoes) },
+                onNavigateToAchievements: { router.navigate(to: .achievements) }
+            )
         case .configuracoes:
             ConfiguracoesScreen(
                 authManager: container.authManager,
