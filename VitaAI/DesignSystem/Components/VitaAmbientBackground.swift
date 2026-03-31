@@ -13,7 +13,8 @@ struct VitaAmbientBackground<Content: View>: View {
             VitaColors.surface
                 .ignoresSafeArea()
 
-            // Layer 1: background image with dark gradient overlay
+            // Layer 1: background image with subtle dark gradient overlay
+            // Stars/nebula should be visible across the ENTIRE screen
             Image("fundo-dashboard")
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -22,8 +23,9 @@ struct VitaAmbientBackground<Content: View>: View {
                 .overlay(
                     LinearGradient(
                         colors: [
-                            Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.46),
-                            Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.68)
+                            Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.20),
+                            Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.35),
+                            Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.30)
                         ],
                         startPoint: .top,
                         endPoint: .bottom

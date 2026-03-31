@@ -84,6 +84,8 @@ struct MainTabView: View {
                             routeDestination(for: route)
                         }
                 }
+                .background(.clear)
+                .scrollContentBackground(.hidden)
                 .toolbar(.hidden, for: .navigationBar)
             }
 

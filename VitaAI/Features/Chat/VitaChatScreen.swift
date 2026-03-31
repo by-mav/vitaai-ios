@@ -17,7 +17,7 @@ struct VitaChatScreen: View {
                 ProgressView()
                     .tint(VitaColors.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    VitaScreenBg()
+                    .vitaScreenBg()
             }
         }
         .onAppear {

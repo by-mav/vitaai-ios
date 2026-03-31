@@ -60,7 +60,6 @@ struct DashboardScreen: View {
                 }
             }
         }
-        .vitaScreenBg()
         .vitaXpToastHost(xpToastState)
     }
 
