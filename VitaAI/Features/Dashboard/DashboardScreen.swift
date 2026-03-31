@@ -388,13 +388,16 @@ struct DashboardScreen: View {
 
     @ViewBuilder
     private func toolsGrid() -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-            toolImage("tool-questoes", identifier: "tool_questoes", bg: Color(red: 0.18, green: 0.10, blue: 0.02)) { onNavigateToMaterials?() }
-            toolImage("tool-flashcards", identifier: "tool_flashcards", bg: Color(red: 0.10, green: 0.05, blue: 0.18)) { onNavigateToFlashcards?() }
-            toolImage("tool-simulados", identifier: "tool_simulados", bg: Color(red: 0.02, green: 0.10, blue: 0.22)) { onNavigateToSimulados?() }
-            toolImage("tool-transcricao", identifier: "tool_transcricao", bg: Color(red: 0.02, green: 0.14, blue: 0.14)) { onNavigateToTranscricao?() }
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                toolImage("tool-questoes", identifier: "tool_questoes", bg: Color(red: 0.18, green: 0.10, blue: 0.02)) { onNavigateToMaterials?() }
+                toolImage("tool-flashcards", identifier: "tool_flashcards", bg: Color(red: 0.10, green: 0.05, blue: 0.18)) { onNavigateToFlashcards?() }
+            }
+            HStack(spacing: 8) {
+                toolImage("tool-simulados", identifier: "tool_simulados", bg: Color(red: 0.02, green: 0.10, blue: 0.22)) { onNavigateToSimulados?() }
+                toolImage("tool-transcricao", identifier: "tool_transcricao", bg: Color(red: 0.02, green: 0.14, blue: 0.14)) { onNavigateToTranscricao?() }
+            }
         }
-        .padding(.top, 4)
     }
 
     // Mockup tool card shadows:
@@ -406,6 +409,7 @@ struct DashboardScreen: View {
             Image(name)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
+                .frame(maxWidth: .infinity)
                 .frame(height: 100)
                 .background(bg)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
