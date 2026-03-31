@@ -47,11 +47,11 @@ struct VitaScreenBg: View {
                 .blur(radius: 4)
                 .saturation(0.96)
 
-            // Dark overlay — matches mockup CSS: rgba(6,4,4,0.46) top → rgba(6,4,4,0.68) bottom
+            // Dark overlay — warm tint, low opacity so stars/nebula show through
             LinearGradient(
                 colors: [
-                    Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.46),
-                    Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.68)
+                    Color(red: 20/255, green: 14/255, blue: 8/255).opacity(0.18),
+                    Color(red: 12/255, green: 8/255, blue: 6/255).opacity(0.38)
                 ],
                 startPoint: .top, endPoint: .bottom
             )
