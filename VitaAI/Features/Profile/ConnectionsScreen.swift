@@ -53,6 +53,12 @@ struct ConnectionsScreen: View {
     @State private var showCalendarSheet:   Bool = false
     @State private var showDriveSheet:      Bool = false
 
+    // Direct WebView for WebAluno connect/sync (skip intermediate screen)
+    @State private var showWebalunoWebView: Bool = false
+    @State private var isExtractingWebaluno: Bool = false
+    @State private var capturedSessionCookie: String?
+    @State private var toastState = VitaToastState()
+
     // MARK: - Colors (gold palette)
     private let goldPrimary  = VitaColors.accentHover   // → VitaColors
     private let goldAccent   = VitaColors.accent          // → VitaColors.accent
@@ -209,6 +215,21 @@ struct ConnectionsScreen: View {
                 .presentationDragIndicator(.visible)
                 .background(Color(red: 0.047, green: 0.035, blue: 0.027))
         }
+        // Direct WebAluno WebView (skip intermediate screen)
+        .fullScreenCover(isPresented: $showWebalunoWebView) {
+            WebAlunoWebViewScreen(
+                onBack: { showWebalunoWebView = false },
+                onPagesCaptured: { pages in
+                    showWebalunoWebView = false
+                    handleWebalunoPagesCaptured(pages)
+                },
+                onSessionCaptured: { cookie in
+                    capturedSessionCookie = "PHPSESSID=\(cookie)"
+                },
+                userEmail: container.tokenStore.userEmail
+            )
+        }
+        .vitaToastHost(toastState)
     }
 
     // MARK: - Top Nav
@@ -321,7 +342,7 @@ struct ConnectionsScreen: View {
 
     @ViewBuilder
     private func portalCard(_ portal: PortalDef) -> some View {
-        let (status, lastSync, disc, grades) = statusForPortalId(portal.id)
+        let (status, lastSync, disc, grades, schedule) = statusForPortalId(portal.id)
         let isConnected = status == .connected
 
         VStack(spacing: 0) {
@@ -361,7 +382,7 @@ struct ConnectionsScreen: View {
                         }
                     } else {
                         switch portal.id {
-                        case "webaluno": onWebAlunoConnect?()
+                        case "webaluno": showWebalunoWebView = true
                         case "canvas":   onCanvasConnect?()
                         default: break // moodle/sigaa coming soon
                         }
@@ -372,7 +393,7 @@ struct ConnectionsScreen: View {
 
             // Meta row (when connected)
             if isConnected {
-                metaRow(lastSync: lastSync, disciplines: disc, grades: grades)
+                metaRow(lastSync: lastSync, disciplines: disc, grades: grades, schedule: schedule, portalId: portal.id)
             }
         }
         .background(cardBg)
@@ -515,51 +536,54 @@ struct ConnectionsScreen: View {
     }
 
     @ViewBuilder
-    private func metaRow(lastSync: String?, disciplines: Int, grades: Int) -> some View {
-        let hasDisciplines = disciplines > 0
-        let hasGrades = grades > 0
+    private func metaRow(lastSync: String?, disciplines: Int, grades: Int, schedule: Int = 0, portalId: String? = nil) -> some View {
+        let hasData = disciplines > 0 || grades > 0 || schedule > 0
         let hasSync = lastSync != nil
 
-        if hasSync || hasDisciplines || hasGrades {
+        if hasSync || hasData {
             Rectangle()
                 .fill(goldSubtle.opacity(0.04))
                 .frame(height: 1)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 if let sync = lastSync {
-                    Text("Ultimo sync: ")
-                        .font(.system(size: 10))
-                        .foregroundColor(goldSubtle.opacity(0.30))
-                    + Text(sync)
+                    Image(systemName: "clock")
+                        .font(.system(size: 8))
+                        .foregroundColor(goldSubtle.opacity(0.25))
+                    Text(sync)
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55))
                 }
-                if hasSync && (hasDisciplines || hasGrades) {
+
+                if hasSync && hasData {
                     dot
                 }
-                if hasDisciplines {
-                    Text("\(disciplines)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55))
-                    + Text(" disciplinas")
-                        .font(.system(size: 10))
-                        .foregroundColor(goldSubtle.opacity(0.30))
+
+                if disciplines > 0 {
+                    metaChip("\(disciplines)", "disciplinas")
                 }
-                if hasDisciplines && hasGrades {
-                    dot
+                if grades > 0 {
+                    metaChip("\(grades)", "notas")
                 }
-                if hasGrades {
-                    Text("\(grades)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55))
-                    + Text(" notas")
-                        .font(.system(size: 10))
-                        .foregroundColor(goldSubtle.opacity(0.30))
+                if schedule > 0 {
+                    metaChip("\(schedule)", "aulas")
                 }
+
                 Spacer()
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
+        }
+    }
+
+    private func metaChip(_ value: String, _ label: String) -> some View {
+        HStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55))
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundColor(goldSubtle.opacity(0.30))
         }
     }
 
@@ -575,7 +599,7 @@ struct ConnectionsScreen: View {
         VStack(spacing: 10) {
             howItWorksStep("1", "Conecte seu portal academico com suas credenciais")
             howItWorksStep("2", "A Vita importa disciplinas, notas e horarios")
-            howItWorksStep("3", "Dados sincronizados automaticamente a cada 6 horas")
+            howItWorksStep("3", "Dados sincronizados automaticamente a cada 15 minutos")
             howItWorksStep("4", "Desconecte a qualquer momento — seus dados sao excluidos")
                 .padding(.bottom, 0)
         }
@@ -605,15 +629,15 @@ struct ConnectionsScreen: View {
 
     // MARK: - Portal helpers
 
-    private func statusForPortalId(_ id: String) -> (ConnectionItemStatus, String?, Int, Int) {
+    private func statusForPortalId(_ id: String) -> (ConnectionItemStatus, String?, Int, Int, Int) {
         switch id {
-        case "canvas":   return (canvasStatus,   canvasLastSync,   canvasCourses,        canvasFiles)
-        case "webaluno": return (webalunoStatus,  webalunoLastSync, webAlunoDisciplines,  webalunoGrades)
-        default:         return (.disconnected, nil, 0, 0)
+        case "canvas":   return (canvasStatus,   canvasLastSync,   canvasCourses,        canvasFiles,       0)
+        case "webaluno": return (webalunoStatus,  webalunoLastSync, webAlunoDisciplines,  webalunoGrades,    webalunoSchedule)
+        default:         return (.disconnected, nil, 0, 0, 0)
         }
     }
 
-    private func statusForPortal(_ type: String) -> (ConnectionItemStatus, String?, Int, Int) {
+    private func statusForPortal(_ type: String) -> (ConnectionItemStatus, String?, Int, Int, Int) {
         statusForPortalId(type)
     }
 
@@ -646,12 +670,14 @@ struct ConnectionsScreen: View {
             icon: "graduationcap",
             lastSync: webalunoLastSync,
             stats: [
+                StatItem(value: webAlunoDisciplines, label: "Disciplinas"),
                 StatItem(value: webalunoGrades, label: "Notas"),
                 StatItem(value: webalunoSchedule, label: "Aulas"),
             ],
+            syncNote: "Sincroniza automaticamente a cada 15 min",
             onSync: {
                 showWebalunoSheet = false
-                onWebAlunoConnect?()
+                showWebalunoWebView = true
             },
             onDisconnect: {
                 showWebalunoSheet = false
@@ -747,11 +773,23 @@ struct ConnectionsScreen: View {
         do {
             let data = try await container.api.getWebalunoStatus()
             if data.connected {
-                webalunoStatus      = data.connection?.status == "expired" ? .expired : .connected
-                webalunoLastSync    = data.connection?.lastSyncAt.flatMap { formatRelativeTime($0) }
-                webalunoGrades      = data.counts?.grades ?? 0
-                webalunoSchedule    = data.counts?.schedule ?? 0
-                webAlunoDisciplines = data.counts?.grades ?? 0
+                // New unified format: connections[] + totals{}
+                if let first = data.connections?.first {
+                    webalunoStatus      = first.status == "expired" ? .expired : .connected
+                    webalunoLastSync    = first.lastSyncAt.flatMap { formatRelativeTime($0) }
+                    webalunoGrades      = data.totals?.grades ?? first.counts?.grades ?? 0
+                    webalunoSchedule    = data.totals?.schedule ?? first.counts?.schedule ?? 0
+                    webAlunoDisciplines = data.totals?.subjects ?? first.counts?.subjects ?? 0
+                } else if let conn = data.connection {
+                    // Legacy fallback
+                    webalunoStatus      = conn.status == "expired" ? .expired : .connected
+                    webalunoLastSync    = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
+                    webalunoGrades      = data.counts?.grades ?? 0
+                    webalunoSchedule    = data.counts?.schedule ?? 0
+                    webAlunoDisciplines = data.counts?.subjects ?? 0
+                } else {
+                    webalunoStatus = .connected
+                }
             } else {
                 webalunoStatus = .disconnected
             }
@@ -844,6 +882,46 @@ struct ConnectionsScreen: View {
         }
     }
 
+    // MARK: - WebAluno: Handle captured pages from WebView
+
+    private func handleWebalunoPagesCaptured(_ capturedPages: [CapturedPortalPage]) {
+        Task {
+            isExtractingWebaluno = true
+            let pages = capturedPages.map { page in
+                PortalExtractRequestPagesInner(type: page.type, html: page.html, linkText: page.linkText)
+            }
+            guard !pages.isEmpty else {
+                isExtractingWebaluno = false
+                toastState.show("Nenhuma pagina capturada do portal.", type: .error)
+                return
+            }
+            do {
+                let result = try await container.api.extractPortalPages(
+                    pages: pages,
+                    instanceUrl: "https://ac3949.mannesoftprime.com.br",
+                    university: "ULBRA",
+                    sessionCookie: capturedSessionCookie
+                )
+                isExtractingWebaluno = false
+                if result.success == true {
+                    let grades = result.grades ?? 0
+                    let schedule = result.schedule ?? 0
+                    if grades > 0 || schedule > 0 {
+                        toastState.show("Pronto! \(grades) notas, \(schedule) aulas importadas", type: .success)
+                    } else {
+                        toastState.show("Conectado! Dados serao sincronizados em background.", type: .success)
+                    }
+                    await loadWebaluno()
+                } else {
+                    toastState.show("Falha na extracao. Tente novamente.", type: .error)
+                }
+            } catch {
+                isExtractingWebaluno = false
+                toastState.show("Erro de conexao. Verifique sua internet.", type: .error)
+            }
+        }
+    }
+
     // MARK: - API: Sync
 
     private func syncCanvas() {
@@ -917,6 +995,7 @@ private struct ConnectedServiceSheet: View {
     var subtitle:    String?
     let lastSync:    String?
     let stats:       [StatItem]
+    var syncNote:    String?
     let onSync:      () -> Void
     let onDisconnect: () -> Void
 
@@ -961,6 +1040,17 @@ private struct ConnectedServiceSheet: View {
                             .font(.system(size: 12))
                             .foregroundColor(goldSubtle.opacity(0.30))
                             .padding(.top, 4)
+                    }
+
+                    if let syncNote {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 9))
+                            Text(syncNote)
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(Color(red: 0.29, green: 0.87, blue: 0.50).opacity(0.60))
+                        .padding(.top, 6)
                     }
 
                     if !stats.isEmpty {

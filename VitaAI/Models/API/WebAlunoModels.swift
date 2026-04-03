@@ -2,8 +2,43 @@ import Foundation
 
 struct WebalunoStatusResponse: Codable {
     var connected: Bool = false
+    // New unified format
+    var connections: [PortalConnectionInfo]?
+    var totals: PortalTotals?
+    // Legacy format (kept for backwards compat)
     var connection: WebalunoConnectionInfo?
     var counts: WebalunoCounts?
+}
+
+struct PortalConnectionInfo: Codable {
+    var id: String?
+    var instanceUrl: String?
+    var portalName: String?
+    var portalType: String?
+    var status: String?
+    var lastSyncAt: String?
+    var counts: WebalunoCounts?
+}
+
+struct PortalTotals: Codable {
+    var grades: Int
+    var subjects: Int
+    var schedule: Int
+    var documents: Int
+    var semesters: Int
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        grades = (try? c.decode(Int.self, forKey: .grades)) ?? 0
+        subjects = (try? c.decode(Int.self, forKey: .subjects)) ?? 0
+        schedule = (try? c.decode(Int.self, forKey: .schedule)) ?? 0
+        documents = (try? c.decode(Int.self, forKey: .documents)) ?? 0
+        semesters = (try? c.decode(Int.self, forKey: .semesters)) ?? 0
+    }
+
+    init(grades: Int = 0, subjects: Int = 0, schedule: Int = 0, documents: Int = 0, semesters: Int = 0) {
+        self.grades = grades; self.subjects = subjects; self.schedule = schedule; self.documents = documents; self.semesters = semesters
+    }
 }
 
 struct WebalunoConnectionInfo: Codable {
@@ -13,10 +48,27 @@ struct WebalunoConnectionInfo: Codable {
 }
 
 struct WebalunoCounts: Codable {
-    var grades: Int = 0
-    var schedule: Int = 0
-    var semesters: Int = 0
-    var completed: Int = 0
+    var grades: Int
+    var subjects: Int
+    var schedule: Int
+    var semesters: Int
+    var completed: Int
+    var documents: Int
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        grades = (try? c.decode(Int.self, forKey: .grades)) ?? 0
+        subjects = (try? c.decode(Int.self, forKey: .subjects)) ?? 0
+        schedule = (try? c.decode(Int.self, forKey: .schedule)) ?? 0
+        semesters = (try? c.decode(Int.self, forKey: .semesters)) ?? 0
+        completed = (try? c.decode(Int.self, forKey: .completed)) ?? 0
+        documents = (try? c.decode(Int.self, forKey: .documents)) ?? 0
+    }
+
+    init(grades: Int = 0, subjects: Int = 0, schedule: Int = 0, semesters: Int = 0, completed: Int = 0, documents: Int = 0) {
+        self.grades = grades; self.subjects = subjects; self.schedule = schedule; self.semesters = semesters
+        self.completed = completed; self.documents = documents
+    }
 }
 
 struct WebalunoConnectRequest: Codable {

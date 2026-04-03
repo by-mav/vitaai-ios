@@ -32,11 +32,57 @@ actor VitaAPI {
         try await client.post("portal/vita-crawl", body: VitaCrawlRequest(cookies: cookies, instanceUrl: instanceUrl))
     }
 
+    /// Fetches the bridge.js script from the backend (single source of truth for portal capture logic).
+    func fetchPortalBridgeScript() async throws -> String {
+        try await client.downloadText("portal/bridge")
+    }
+
+    /// Extract portal data from client-captured HTML pages (bypasses WAF — no server-side fetch needed)
+    /// Base64-encodes HTML to prevent Cloudflare WAF from stripping HTML/script tags in POST body.
+    func extractPortalPages(pages: [PortalExtractRequestPagesInner], instanceUrl: String, university: String, sessionCookie: String? = nil) async throws -> PortalExtract200Response {
+        // Base64-encode HTML content to bypass Cloudflare WAF XSS protection
+        let encodedPages = pages.map { page -> [String: String] in
+            let encodedHtml = page.html.flatMap { html in
+                Data(html.utf8).base64EncodedString()
+            }
+            var dict: [String: String] = ["type": page.type ?? "unknown"]
+            if let html = encodedHtml { dict["html"] = html }
+            if let linkText = page.linkText { dict["linkText"] = linkText }
+            return dict
+        }
+        // Send with explicit camelCase keys (HTTPClient uses convertToSnakeCase which
+        // the production backend doesn't handle for this endpoint)
+        var body: [String: Any] = [
+            "pages": encodedPages,
+            "instanceUrl": instanceUrl,
+            "university": university,
+        ]
+        if let sessionCookie { body["sessionCookie"] = sessionCookie }
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+        let result: PortalExtract200Response = try await client.postRaw("portal/extract", body: jsonData, timeoutInterval: 120)
+        return result
+    }
+
     // MARK: - Canvas Data
 
     func getSyncProgress(syncId: String) async throws -> SyncProgressResponse {
         try await client.get("portal/sync-progress", queryItems: [.init(name: "syncId", value: syncId)])
     }
+
+    // MARK: - Subjects (SOURCE OF TRUTH for disciplines)
+
+    func getSubjects(status: String? = nil) async throws -> SubjectsResponse {
+        var items: [URLQueryItem] = []
+        if let status { items.append(.init(name: "status", value: status)) }
+        return try await client.get("subjects", queryItems: items.isEmpty ? nil : items)
+    }
+
+    func createManualSubject(name: String, difficulty: String? = nil) async throws -> AcademicSubject {
+        struct Body: Encodable { let name: String; let difficulty: String? }
+        return try await client.post("subjects/manual", body: Body(name: name, difficulty: difficulty))
+    }
+
+    // MARK: - Canvas (legacy — use getSubjects() for discipline lists)
 
     func getCourses() async throws -> CoursesResponse {
         try await client.get("canvas/courses")
@@ -191,7 +237,7 @@ actor VitaAPI {
     // MARK: - WebAluno
 
     func getWebalunoStatus() async throws -> WebalunoStatusResponse {
-        try await client.get("webaluno/status")
+        try await client.get("portal/status")
     }
 
     func connectWebaluno(cpf: String, password: String, instanceUrl: String = "https://ac3949.mannesoftprime.com.br") async throws -> WebalunoConnectResponse {
@@ -207,7 +253,7 @@ actor VitaAPI {
     }
 
     func disconnectWebaluno() async throws {
-        try await client.delete("webaluno/connect")
+        try await client.delete("portal/disconnect?portalType=mannesoft")
     }
 
     func getWebalunoGrades() async throws -> WebalunoGradesResponse {
@@ -291,10 +337,10 @@ actor VitaAPI {
     }
 
     func generateSimulado(_ body: GenerateSimuladoRequest) async throws -> GenerateSimuladoResponse {
-        if let response: GenerateSimuladoResponse = try? await client.post("mockup/simulados/generate", body: body) {
+        if let response: GenerateSimuladoResponse = try? await client.post("simulados/generate", body: body) {
             return response
         }
-        return try await client.post("simulados/generate", body: body)
+        return try await client.post("mockup/simulados/generate", body: body)
     }
 
     func answerSimuladoQuestion(attemptId: String, body: AnswerSimuladoRequest) async throws -> AnswerSimuladoResponse {
@@ -359,6 +405,10 @@ actor VitaAPI {
         try await client.get("qbank/sessions", queryItems: [
             URLQueryItem(name: "limit", value: String(limit)),
         ])
+    }
+
+    func getQBankSessionDetail(id: String) async throws -> QBankSession {
+        try await client.get("qbank/sessions/\(id)")
     }
 
     /// Fetch questions list (page=1, limit=1) to get total available count for current filters.
