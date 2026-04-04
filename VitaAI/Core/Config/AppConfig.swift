@@ -19,8 +19,13 @@ enum AppConfig {
     static let demoUserEmail = "qa@vita-ai.cloud"
     static let demoUserImage = ""
 
+    #if DEBUG
+    private static let defaultAPIBaseURL = "http://192.168.0.152:3110/api"
+    private static let defaultAuthBaseURL = "http://192.168.0.152:3110"
+    #else
     private static let defaultAPIBaseURL = "https://vita-ai.cloud/api"
     private static let defaultAuthBaseURL = "https://vita-ai.cloud"
+    #endif
 
     struct InjectedSession {
         let token: String
@@ -164,6 +169,13 @@ enum AppConfig {
         defaults.set(value, forKey: legacyOnboardingKey)
     }
 
+    static var sessionCookieName: String {
+        // __Secure- prefix only works over HTTPS
+        if authBaseURL.hasPrefix("https") {
+            return "__Secure-better-auth.session_token"
+        }
+        return "better-auth.session_token"
+    }
     static let deepLinkScheme = "vitaai"
     static let appName = "VitaAI"
     static let bundleId = "com.bymav.vitaai"

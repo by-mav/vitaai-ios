@@ -168,12 +168,17 @@ final class QBankViewModel {
 
     var state = QBankUiState()
     private let api: VitaAPI
+    private let gamificationEvents: GamificationEventManager
 
     /// Debounce task for dynamic count refresh
     private var countTask: Task<Void, Never>?
 
-    init(api: VitaAPI) {
+    /// Track session start for duration calculation
+    private var sessionStartDate = Date()
+
+    init(api: VitaAPI, gamificationEvents: GamificationEventManager) {
         self.api = api
+        self.gamificationEvents = gamificationEvents
     }
 
     // MARK: - Home
@@ -226,6 +231,7 @@ final class QBankViewModel {
                 state.questionStartDate = Date()
                 state.elapsedSeconds = 0
                 state.activeScreen = .session
+                sessionStartDate = Date()
                 await loadCurrentQuestion()
             } catch {
                 state.error = "Erro ao criar sessao inteligente: \(error.localizedDescription)"
@@ -473,6 +479,7 @@ final class QBankViewModel {
                 state.questionStartDate = Date()
                 state.elapsedSeconds = 0
                 state.activeScreen = .session
+                sessionStartDate = Date()
                 await loadCurrentQuestion()
             } catch {
                 let msg = "\(error)".contains("404") || "\(error)".contains("No questions")
@@ -530,6 +537,14 @@ final class QBankViewModel {
                 state.answerResult = result
                 state.sessionAnswers[question.id] = result
                 state.showFeedback = true
+
+                // Track activity for gamification
+                let action = result.isCorrect ? "question_answered" : "question_answered_wrong"
+                Task { [api, gamificationEvents] in
+                    if let actResult = try? await api.logActivity(action: action) {
+                        gamificationEvents.handleActivityResponse(actResult, previousLevel: nil)
+                    }
+                }
             } catch {
                 let isCorrect = question.alternatives.first(where: { $0.id == alternativeId })?.isCorrect ?? false
                 let fallback = QBankAnswerResponse(isCorrect: isCorrect, answerId: 0)
@@ -545,6 +560,7 @@ final class QBankViewModel {
         let next = state.currentQuestionIndex + 1
         if next >= session.questionIds.count {
             state.activeScreen = .result
+            logSessionComplete()
             return
         }
         state.currentQuestionIndex = next
@@ -558,6 +574,19 @@ final class QBankViewModel {
 
     func finishSession() {
         state.activeScreen = .result
+        logSessionComplete()
+    }
+
+    private func logSessionComplete() {
+        let durationMinutes = Int(Date().timeIntervalSince(sessionStartDate) / 60)
+        Task { [api, gamificationEvents] in
+            if let result = try? await api.logActivity(
+                action: "qbank_session_complete",
+                metadata: ["durationMinutes": String(durationMinutes)]
+            ) {
+                gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+            }
+        }
     }
 
     // MARK: - Result navigation

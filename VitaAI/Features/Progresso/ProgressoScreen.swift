@@ -1,7 +1,6 @@
 import SwiftUI
 
-// MARK: - ProgressoScreen (matches progresso-mobile-v1.html mockup pixel-perfect)
-// Uses MOCK DATA matching exact mockup values. Real API data will replace later.
+// MARK: - ProgressoScreen (connected to real API via ProgressoViewModel)
 
 struct ProgressoScreen: View {
     @Environment(\.appContainer) private var container
@@ -12,82 +11,84 @@ struct ProgressoScreen: View {
     private let textPrimary = VitaColors.textPrimary
     private let textSec     = VitaColors.textSecondary
     private let textDim     = VitaColors.textTertiary
-    private let greenStat   = Color(red: 0.51, green: 0.784, blue: 0.549) // rgba(130,200,140)
+    private let greenStat   = Color(red: 0.51, green: 0.784, blue: 0.549)
     private let glassBg     = VitaColors.glassBg
     private let glassBorder = VitaColors.glassBorder
 
     @State private var vm: ProgressoViewModel?
     @State private var selectedLeaderboardTab = 0
 
-    // ── MOCK DATA (matches mockup exactly) ──
-    private let mockLevel = 7
-    private let mockCurrentXp = 740
-    private let mockTotalXp = 1000
-    private let mockStreakDays = 4
-    private let mockTodayWeekdayIdx = 3 // Thursday (0=Mon)
-    private let mockStudyHours = "23h"
-    private let mockAccuracy = "78%"
-    private let mockFlashcards = "324"
-    private let mockWeeklyActual = 8.5
-    private let mockWeeklyGoal = 14.0
-    private let mockWeeklyBars: [Double] = [0.50, 0.70, 0.35, 0.85, 0, 0, 0]
-
-    private let mockWeakAreas: [(name: String, image: String, meta: String, pct: Int, color: Color)] = [
-        ("Farmacologia", "disc-farmacologia", "47 questoes \u{00B7} 12h estudo", 52,
-         Color(red: 1.0, green: 0.471, blue: 0.314)), // rgba(255,120,80)
-        ("Patologia", "disc-patologia-geral", "23 questoes \u{00B7} 8h estudo", 61,
-         Color(red: 1.0, green: 0.784, blue: 0.392)), // rgba(255,200,100)
-        ("Histologia", "disc-histologia", "35 questoes \u{00B7} 6h estudo", 68,
-         Color(red: 1.0, green: 0.784, blue: 0.392))  // rgba(255,200,100)
-    ]
-
-    private let mockLeaderboard: [(rank: Int, initials: String, name: String, xp: String, isMe: Bool)] = [
-        (1, "MG", "Maria Garcia",   "2.340 XP", false),
-        (2, "JS", "Joao Santos",    "1.890 XP", false),
-        (3, "CP", "Camila Pereira", "1.120 XP", false),
-        (4, "AL", "Ana Lima",       "980 XP",   false),
-        (5, "LM", "Lucas Martins",  "820 XP",   false)
-    ]
-    private let mockMyEntry = (rank: 8, initials: "RF", name: "Rafael Freitas", xp: "740 XP")
-
-    // Heatmap mock: 91 cells matching mockup pattern
-    private let mockHeatmap: [Int] = [
-        0,1,0,2,1,0,3,1,0,2,4,2,1,
-        1,0,1,3,2,1,0,2,3,1,2,3,4,
-        0,2,1,0,1,2,3,1,4,2,3,4,3,
-        1,0,2,1,3,2,1,3,2,4,3,2,4,
-        0,1,0,2,1,3,2,4,3,2,4,3,4,
-        1,2,1,3,2,4,3,2,4,3,2,4,3,
-        2,1,3,2,4,3,4,3,4,2,3,4,3
-    ]
-
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 14) {
-                heroCard
-                statsGrid
-                weeklyChart
-                weakAreasSection
-                leaderboardSection
-                heatmapSection
+        Group {
+            if let vm {
+                if vm.isLoading {
+                    ProgressView()
+                        .tint(goldMuted)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error = vm.error {
+                    VStack(spacing: 12) {
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 32))
+                            .foregroundStyle(textDim)
+                        Text(error)
+                            .font(.system(size: 13))
+                            .foregroundStyle(textSec)
+                            .multilineTextAlignment(.center)
+                        Button("Tentar novamente") {
+                            Task { await vm.load() }
+                        }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(goldMuted)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    content(vm: vm)
+                }
+            } else {
+                ProgressView()
+                    .tint(goldMuted)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 120)
         }
         .refreshable {
             if let vm { await vm.load() }
         }
         .task {
             if vm == nil {
-                vm = ProgressoViewModel(api: container.api)
+                let viewModel = ProgressoViewModel(api: container.api)
+                vm = viewModel
+                await viewModel.load()
             }
+        }
+    }
+
+    private func content(vm: ProgressoViewModel) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 14) {
+                heroCard(vm: vm)
+                statsGrid(vm: vm)
+                weeklyChart(vm: vm)
+                if !vm.subjects.isEmpty {
+                    weakAreasSection(vm: vm)
+                }
+                leaderboardSection(vm: vm)
+                if !vm.heatmap.isEmpty {
+                    heatmapSection(vm: vm)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 120)
         }
     }
 
     // MARK: - Hero Card (XP ring + name + XP bar + streak)
 
-    private var heroCard: some View {
-        let levelRatio = Double(mockCurrentXp) / Double(mockTotalXp)
+    private func heroCard(vm: ProgressoViewModel) -> some View {
+        let level = vm.userProgress?.level ?? 1
+        let currentXp = vm.userProgress?.currentLevelXp ?? vm.userProgress?.totalXp ?? 0
+        let xpToNext = vm.userProgress?.xpToNextLevel ?? 100
+        let totalXp = vm.userProgress?.totalXp ?? 0
+        let levelRatio = xpToNext > 0 ? Double(currentXp) / Double(xpToNext) : 0
 
         return glassCard {
             HStack(spacing: 16) {
@@ -98,7 +99,7 @@ struct ProgressoScreen: View {
                         .frame(width: 72, height: 72)
 
                     Circle()
-                        .trim(from: 0, to: levelRatio)
+                        .trim(from: 0, to: min(levelRatio, 1.0))
                         .stroke(
                             LinearGradient(
                                 colors: [
@@ -114,13 +115,13 @@ struct ProgressoScreen: View {
                         .rotationEffect(.degrees(-90))
                         .shadow(color: Color(red: 0.784, green: 0.627, blue: 0.314).opacity(0.20), radius: 6)
 
-                    Text("\(mockLevel)")
+                    Text("\(level)")
                         .font(.system(size: 22, weight: .heavy))
                         .foregroundStyle(goldMuted.opacity(0.95))
                         .tracking(-0.5)
 
                     // XP badge below ring
-                    Text("\(mockCurrentXp) XP")
+                    Text("\(totalXp) XP")
                         .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(goldMuted.opacity(0.95))
                         .padding(.horizontal, 8)
@@ -148,12 +149,12 @@ struct ProgressoScreen: View {
 
                 // Info column
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(container.authManager.userName ?? "Rafael Freitas")
+                    Text(container.authManager.userName ?? "Estudante")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(textPrimary)
                         .tracking(-0.3)
 
-                    Text("\(mockCurrentXp) / \(mockTotalXp) XP para nivel \(mockLevel + 1)")
+                    Text("\(currentXp) / \(xpToNext) XP para nivel \(level + 1)")
                         .font(.system(size: 11))
                         .foregroundStyle(textSec)
 
@@ -174,14 +175,14 @@ struct ProgressoScreen: View {
                                         endPoint: .trailing
                                     )
                                 )
-                                .frame(width: geo.size.width * levelRatio, height: 4)
+                                .frame(width: geo.size.width * min(levelRatio, 1.0), height: 4)
                         }
                     }
                     .frame(height: 4)
                     .padding(.top, 6)
 
                     // Streak dots
-                    streakRow
+                    streakRow(vm: vm)
                         .padding(.top, 10)
                 }
             }
@@ -191,13 +192,16 @@ struct ProgressoScreen: View {
 
     // MARK: - Streak Row
 
-    private var streakRow: some View {
+    private func streakRow(vm: ProgressoViewModel) -> some View {
         let labels = ["S", "T", "Q", "Q", "S", "S", "D"]
-        let todayIdx = mockTodayWeekdayIdx
+        let calendar = Calendar.current
+        // weekday: 1=Sunday, convert to 0=Monday index
+        let rawWeekday = calendar.component(.weekday, from: Date())
+        let todayIdx = (rawWeekday + 5) % 7 // Mon=0, Tue=1, ..., Sun=6
 
         return HStack(spacing: 4) {
             ForEach(0..<7, id: \.self) { idx in
-                let isOn = idx < todayIdx
+                let isOn = idx < min(vm.streakDays, todayIdx)
                 let isNow = idx == todayIdx
                 streakDay(labels[idx], isOn: isOn, isNow: isNow)
             }
@@ -205,54 +209,40 @@ struct ProgressoScreen: View {
     }
 
     private func streakDay(_ label: String, isOn: Bool, isNow: Bool) -> some View {
-        Text(label)
+        let fgColor: Color = isNow ? goldMuted.opacity(0.95) : isOn ? goldMuted.opacity(0.90) : VitaColors.textWarm.opacity(0.25)
+        let bgColor: Color = isNow ? VitaColors.glassInnerLight.opacity(0.25) : isOn ? VitaColors.glassInnerLight.opacity(0.12) : Color.white.opacity(0.02)
+        let borderColor: Color = isNow ? goldPrimary.opacity(0.30) : isOn ? goldPrimary.opacity(0.18) : VitaColors.textWarm.opacity(0.04)
+        let shadowColor: Color = isNow ? VitaColors.glassInnerLight.opacity(0.15) : .clear
+
+        return Text(label)
             .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(
-                isNow
-                    ? goldMuted.opacity(0.95)
-                    : isOn
-                        ? goldMuted.opacity(0.90)
-                        : VitaColors.textWarm.opacity(0.25)
-            )
+            .foregroundStyle(fgColor)
             .frame(width: 28, height: 28)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(
-                        isNow
-                            ? VitaColors.glassInnerLight.opacity(0.25)
-                            : isOn
-                                ? VitaColors.glassInnerLight.opacity(0.12)
-                                : Color.white.opacity(0.02)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(
-                        isNow
-                            ? goldPrimary.opacity(0.30)
-                            : isOn
-                                ? goldPrimary.opacity(0.18)
-                                : VitaColors.textWarm.opacity(0.04),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: isNow ? VitaColors.glassInnerLight.opacity(0.15) : .clear, radius: 4)
+            .background(RoundedRectangle(cornerRadius: 8).fill(bgColor))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(borderColor, lineWidth: 1))
+            .shadow(color: shadowColor, radius: 4)
     }
 
     // MARK: - Stats Grid 2x2
 
-    private var statsGrid: some View {
-        LazyVGrid(
+    private func statsGrid(vm: ProgressoViewModel) -> some View {
+        let studyHoursText = vm.totalStudyHours < 1
+            ? "\(Int(vm.totalStudyHours * 60))min"
+            : String(format: "%.0fh", vm.totalStudyHours)
+        let accuracyText = "\(Int(vm.avgAccuracy * 100))%"
+        let flashcardsText = "\(vm.totalQuestions)" // totalAnswered from API
+
+        return LazyVGrid(
             columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
             spacing: 8
         ) {
-            statCard(icon: "chart.bar.fill", value: "\(mockStreakDays)", label: "Dias streak",
+            statCard(icon: "chart.bar.fill", value: "\(vm.streakDays)", label: "Dias streak",
                      valueColor: goldMuted.opacity(0.90))
-            statCard(icon: "clock.fill", value: mockStudyHours, label: "Estudo total",
+            statCard(icon: "clock.fill", value: studyHoursText, label: "Estudo total",
                      valueColor: goldMuted.opacity(0.90))
-            statCard(icon: "checkmark.square.fill", value: mockAccuracy, label: "Acerto medio",
+            statCard(icon: "checkmark.square.fill", value: accuracyText, label: "Acerto medio",
                      valueColor: greenStat.opacity(0.85))
-            statCard(icon: "rectangle.stack.fill", value: mockFlashcards, label: "Flashcards",
+            statCard(icon: "text.badge.checkmark", value: flashcardsText, label: "Respondidas",
                      valueColor: goldMuted.opacity(0.90))
         }
     }
@@ -301,15 +291,20 @@ struct ProgressoScreen: View {
 
     // MARK: - Weekly Chart
 
-    private var weeklyChart: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private func weeklyChart(vm: ProgressoViewModel) -> some View {
+        let maxHour = vm.weeklyHours.max() ?? 1
+        let normalizedBars = vm.weeklyHours.map { maxHour > 0 ? $0 / maxHour : 0 }
+        let calendar = Calendar.current
+        let rawWeekday = calendar.component(.weekday, from: Date())
+        let todayIdx = (rawWeekday + 5) % 7
+
+        return VStack(alignment: .leading, spacing: 10) {
             sectionLabel("Esta semana")
 
             glassCard {
                 VStack(spacing: 12) {
-                    // Header: "8.5h de 14h" + "Meta semanal"
                     HStack {
-                        Text(String(format: "%.1f", mockWeeklyActual) + "h de \(Int(mockWeeklyGoal))h")
+                        Text(String(format: "%.1f", vm.weeklyActualHours) + "h de \(Int(vm.weeklyGoalHours))h")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(Color.white.opacity(0.88))
                         Spacer()
@@ -318,14 +313,13 @@ struct ProgressoScreen: View {
                             .foregroundStyle(VitaColors.textWarm.opacity(0.35))
                     }
 
-                    // Bar chart
                     HStack(alignment: .bottom, spacing: 8) {
                         let labels = ["S", "T", "Q", "Q", "S", "S", "D"]
                         ForEach(0..<7, id: \.self) { idx in
                             barColumn(
                                 label: labels[idx],
-                                heightFraction: mockWeeklyBars[idx],
-                                isToday: idx == mockTodayWeekdayIdx
+                                heightFraction: normalizedBars[idx],
+                                isToday: idx == todayIdx
                             )
                         }
                     }
@@ -340,7 +334,6 @@ struct ProgressoScreen: View {
         VStack(spacing: 6) {
             Spacer(minLength: 0)
 
-            // Bar with top-rounded, bottom-less-rounded corners (6,6,2,2)
             UnevenRoundedRectangle(
                 topLeadingRadius: 6,
                 bottomLeadingRadius: 2,
@@ -350,57 +343,47 @@ struct ProgressoScreen: View {
             .fill(
                 isToday
                     ? LinearGradient(
-                        colors: [
-                            VitaColors.accent.opacity(0.70),
-                            goldPrimary.opacity(0.50)
-                        ],
-                        startPoint: .bottom,
-                        endPoint: .top
+                        colors: [VitaColors.accent.opacity(0.70), goldPrimary.opacity(0.50)],
+                        startPoint: .bottom, endPoint: .top
                       )
                     : LinearGradient(
-                        colors: [
-                            VitaColors.accent.opacity(0.35),
-                            VitaColors.accent.opacity(0.15)
-                        ],
-                        startPoint: .bottom,
-                        endPoint: .top
+                        colors: [VitaColors.accent.opacity(0.35), VitaColors.accent.opacity(0.15)],
+                        startPoint: .bottom, endPoint: .top
                       )
             )
             .frame(height: max(heightFraction * 76, heightFraction > 0 ? 4 : 0))
-            .shadow(
-                color: isToday ? VitaColors.accent.opacity(0.18) : .clear,
-                radius: 6,
-                y: -2
-            )
+            .shadow(color: isToday ? VitaColors.accent.opacity(0.18) : .clear, radius: 6, y: -2)
 
             Text(label)
                 .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(
-                    isToday
-                        ? goldMuted.opacity(0.70)
-                        : VitaColors.textWarm.opacity(0.28)
-                )
+                .foregroundStyle(isToday ? goldMuted.opacity(0.70) : VitaColors.textWarm.opacity(0.28))
         }
         .frame(maxWidth: .infinity)
     }
 
     // MARK: - Weak Areas ("Onde melhorar")
 
-    private var weakAreasSection: some View {
+    private func weakAreasSection(vm: ProgressoViewModel) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionLabel("Onde melhorar")
 
             glassCard {
                 VStack(spacing: 0) {
-                    ForEach(Array(mockWeakAreas.enumerated()), id: \.offset) { idx, area in
+                    ForEach(Array(vm.subjects.sorted(by: { $0.accuracy < $1.accuracy }).prefix(5).enumerated()), id: \.offset) { idx, subject in
+                        let pct = Int(subject.accuracy * 100)
+                        let color = pct < 60
+                            ? Color(red: 1.0, green: 0.471, blue: 0.314)
+                            : Color(red: 1.0, green: 0.784, blue: 0.392)
+                        let hoursText = subject.hoursSpent < 1
+                            ? "\(Int(subject.hoursSpent * 60))min"
+                            : String(format: "%.0fh", subject.hoursSpent)
                         weakAreaRow(
-                            image: area.image,
-                            name: area.name,
-                            meta: area.meta,
-                            pct: area.pct,
-                            color: area.color
+                            name: subject.subjectId,
+                            meta: "\(subject.questionCount) questoes · \(hoursText) estudo",
+                            pct: pct,
+                            color: color
                         )
-                        if idx < mockWeakAreas.count - 1 {
+                        if idx < min(vm.subjects.count, 5) - 1 {
                             dividerLine
                         }
                     }
@@ -409,13 +392,17 @@ struct ProgressoScreen: View {
         }
     }
 
-    private func weakAreaRow(image: String, name: String, meta: String, pct: Int, color: Color) -> some View {
+    private func weakAreaRow(name: String, meta: String, pct: Int, color: Color) -> some View {
         HStack(spacing: 10) {
-            Image(image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+            // Subject initial in circle instead of hardcoded image
+            Text(String(name.prefix(2)).uppercased())
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(goldMuted.opacity(0.85))
                 .frame(width: 32, height: 32)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(VitaColors.glassInnerLight.opacity(0.15))
+                )
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(name)
@@ -428,7 +415,6 @@ struct ProgressoScreen: View {
 
             Spacer()
 
-            // Mini progress bar
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(Color.white.opacity(0.06))
@@ -437,8 +423,7 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [color.opacity(0.65), color.opacity(0.40)],
-                            startPoint: .leading,
-                            endPoint: .trailing
+                            startPoint: .leading, endPoint: .trailing
                         )
                     )
                     .frame(width: 48 * CGFloat(pct) / 100.0, height: 4)
@@ -462,7 +447,7 @@ struct ProgressoScreen: View {
 
     // MARK: - Leaderboard
 
-    private var leaderboardSection: some View {
+    private func leaderboardSection(vm: ProgressoViewModel) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionLabel("Ranking")
 
@@ -478,68 +463,58 @@ struct ProgressoScreen: View {
                     .padding(.horizontal, 14)
                     .padding(.top, 12)
 
-                    // Top 5
-                    ForEach(Array(mockLeaderboard.enumerated()), id: \.offset) { idx, entry in
-                        lbRow(
-                            rank: entry.rank,
-                            initials: entry.initials,
-                            name: entry.name,
-                            xp: entry.xp,
-                            rankColor: rankColorForPosition(entry.rank),
-                            avatarBg: avatarColorForPosition(entry.rank),
-                            isMe: entry.isMe
-                        )
-                        if idx < mockLeaderboard.count - 1 {
-                            lbDivider
+                    if vm.leaderboard.isEmpty {
+                        Text("Nenhum dado de ranking ainda")
+                            .font(.system(size: 12))
+                            .foregroundStyle(textSec)
+                            .padding(.vertical, 20)
+                    } else {
+                        // Other users (not me)
+                        let others = vm.leaderboard.filter { !$0.isMe }.prefix(5)
+                        ForEach(Array(others.enumerated()), id: \.offset) { idx, entry in
+                            lbRow(
+                                rank: entry.rank,
+                                initials: entry.initials,
+                                name: entry.name,
+                                xp: "\(entry.xp) XP",
+                                rankColor: rankColorForPosition(entry.rank),
+                                avatarBg: avatarColorForPosition(entry.rank),
+                                isMe: false
+                            )
+                            if idx < others.count - 1 {
+                                lbDivider
+                            }
+                        }
+
+                        // My entry
+                        if let me = vm.myLeaderboardEntry {
+                            Rectangle()
+                                .fill(goldPrimary.opacity(0.08))
+                                .frame(height: 1)
+                                .padding(.horizontal, 14)
+                                .padding(.top, 6)
+
+                            HStack {
+                                Text("SUA POSICAO")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(VitaColors.textWarm.opacity(0.25))
+                                    .tracking(0.5)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.top, 2)
+
+                            lbRow(
+                                rank: me.rank,
+                                initials: me.initials,
+                                name: me.name,
+                                xp: "\(me.xp) XP",
+                                rankColor: goldMuted.opacity(0.80),
+                                avatarBg: goldPrimary,
+                                isMe: true
+                            )
                         }
                     }
-
-                    // Gold separator
-                    Rectangle()
-                        .fill(goldPrimary.opacity(0.08))
-                        .frame(height: 1)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 6)
-
-                    // "Sua posicao" label
-                    HStack {
-                        Text("SUA POSICAO")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(VitaColors.textWarm.opacity(0.25))
-                            .tracking(0.5)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.top, 2)
-
-                    // My entry
-                    lbRow(
-                        rank: mockMyEntry.rank,
-                        initials: mockMyEntry.initials,
-                        name: mockMyEntry.name,
-                        xp: mockMyEntry.xp,
-                        rankColor: goldMuted.opacity(0.80),
-                        avatarBg: goldPrimary,
-                        isMe: true
-                    )
-
-                    // "Ver ranking completo" button
-                    Button {
-                        // Navigation to full leaderboard
-                    } label: {
-                        Text("Ver ranking completo")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(goldMuted.opacity(0.55))
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 7)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(goldPrimary.opacity(0.10), lineWidth: 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
                 }
                 .padding(.bottom, 4)
             }
@@ -596,19 +571,14 @@ struct ProgressoScreen: View {
                         .fill(
                             LinearGradient(
                                 colors: [avatarBg.opacity(0.30), avatarBg.opacity(0.15)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                                startPoint: .topLeading, endPoint: .bottomTrailing
                             )
                         )
                 )
 
             Text(name)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(
-                    isMe
-                        ? goldMuted.opacity(0.90)
-                        : Color.white.opacity(0.85)
-                )
+                .foregroundStyle(isMe ? goldMuted.opacity(0.90) : Color.white.opacity(0.85))
 
             Spacer()
 
@@ -618,11 +588,7 @@ struct ProgressoScreen: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            isMe
-                ? AnyShapeStyle(VitaColors.glassInnerLight.opacity(0.06))
-                : AnyShapeStyle(.clear)
-        )
+        .background(isMe ? AnyShapeStyle(VitaColors.glassInnerLight.opacity(0.06)) : AnyShapeStyle(.clear))
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
@@ -635,17 +601,17 @@ struct ProgressoScreen: View {
 
     // MARK: - Heatmap
 
-    private var heatmapSection: some View {
+    private func heatmapSection(vm: ProgressoViewModel) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Ultimos 91 dias")
+            sectionLabel("Ultimos \(vm.heatmap.count) dias")
 
             glassCard {
                 let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 13)
 
                 LazyVGrid(columns: columns, spacing: 2) {
-                    ForEach(0..<mockHeatmap.count, id: \.self) { i in
+                    ForEach(0..<vm.heatmap.count, id: \.self) { i in
                         Rectangle()
-                            .fill(heatmapColor(mockHeatmap[i]))
+                            .fill(heatmapColor(vm.heatmap[i]))
                             .aspectRatio(1, contentMode: .fit)
                             .clipShape(RoundedRectangle(cornerRadius: 3))
                     }

@@ -69,7 +69,7 @@ struct SimuladoHomeScreen: View {
             }
         }
         .onAppear {
-            if vm == nil { vm = SimuladoViewModel(api: container.api) }
+            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents) }
             vm?.loadAttempts()
         }
     }

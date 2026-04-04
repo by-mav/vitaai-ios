@@ -39,6 +39,7 @@ final class FlashcardViewModel {
     // MARK: Private
 
     private let api: VitaAPI
+    private let gamificationEvents: GamificationEventManager
     private let scheduler = FsrsScheduler()
 
     // MARK: Computed helpers
@@ -70,8 +71,9 @@ final class FlashcardViewModel {
 
     // MARK: - Init
 
-    init(api: VitaAPI) {
+    init(api: VitaAPI, gamificationEvents: GamificationEventManager) {
         self.api = api
+        self.gamificationEvents = gamificationEvents
     }
 
     // MARK: - Load
@@ -120,12 +122,20 @@ final class FlashcardViewModel {
         // Fire-and-forget API review — session always advances even on failure
         let cardId = card.id
         let responseTimeMs = Int64(Date().timeIntervalSince(cardStartDate) * 1000)
+        let action = rating.isCorrect ? "flashcard_easy" : "flashcard_review"
         Task.detached { [api = self.api] in
             _ = try? await api.reviewFlashcard(
                 cardId: cardId,
                 rating: rating.rawValue,
                 responseTimeMs: responseTimeMs
             )
+        }
+
+        // Track activity for gamification (XP, streak, study time)
+        Task { [api, gamificationEvents] in
+            if let result = try? await api.logActivity(action: action) {
+                gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+            }
         }
 
         // Brief pause for reviewing state visual feedback, then advance
@@ -204,6 +214,17 @@ final class FlashcardViewModel {
                 streakCount: correctCount
             )
             phase = .finished
+
+            // Log deck completion with study duration
+            let durationMinutes = Int(elapsed / 60_000)
+            Task { [api, gamificationEvents] in
+                if let result = try? await api.logActivity(
+                    action: "deck_completed",
+                    metadata: ["durationMinutes": String(durationMinutes)]
+                ) {
+                    gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+                }
+            }
         } else {
             currentIndex = nextIndex
             isFlipped = false

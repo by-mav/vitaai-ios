@@ -28,7 +28,7 @@ struct SimuladoReviewScreen: View {
         .background(simuladoBg.ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
-            if vm == nil { vm = SimuladoViewModel(api: container.api) }
+            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents) }
             guard let vm else { return }
             if vm.state.currentAttemptId != attemptId {
                 vm.loadSession(attemptId)

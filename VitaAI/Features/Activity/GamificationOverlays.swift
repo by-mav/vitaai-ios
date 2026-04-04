@@ -22,6 +22,12 @@ final class GamificationEventManager {
         let name: String
         let description: String
         let icon: String
+
+        init(name: String, description: String = "", icon: String = "medal") {
+            self.name = name
+            self.description = description
+            self.icon = icon
+        }
     }
 
     /// Process the response from POST /api/activity
@@ -42,7 +48,7 @@ final class GamificationEventManager {
             Task {
                 let delay: Double = (previousLevel != nil && data.level > previousLevel!) ? 5.5 : 2.2
                 try? await Task.sleep(for: .seconds(delay))
-                badgeEvent = BadgeUnlockEvent(name: badge.name, description: badge.description, icon: badge.icon)
+                badgeEvent = BadgeUnlockEvent(name: badge.name)
             }
         }
     }

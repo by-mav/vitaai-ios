@@ -6,6 +6,8 @@ struct ProgressResponse: Codable {
     var avgAccuracy: Double = 0.0
     var flashcardsDue: Int = 0
     var totalCards: Int = 0
+    var learnedCards: Int = 0
+    var totalAnswered: Int = 0
     var todayCompleted: Int = 0
     var todayTotal: Int = 0
     var todayStudyMinutes: Int = 0

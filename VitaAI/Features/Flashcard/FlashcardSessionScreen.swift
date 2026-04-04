@@ -110,7 +110,7 @@ struct FlashcardSessionScreen: View {
         }
         .onAppear {
             if viewModel == nil {
-                let vm = FlashcardViewModel(api: container.api)
+                let vm = FlashcardViewModel(api: container.api, gamificationEvents: container.gamificationEvents)
                 viewModel = vm
                 vm.loadDeck(deckId)
             }

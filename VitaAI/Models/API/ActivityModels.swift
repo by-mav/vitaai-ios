@@ -8,18 +8,23 @@ struct LogActivityRequest: Encodable {
 }
 
 struct LogActivityResponse: Decodable {
-    let xpAwarded: Int
-    let totalXp: Int
-    let level: Int
-    let newBadges: [NewBadge]
-    let streakUpdated: Bool
+    var xpAwarded: Int = 0
+    var totalXp: Int = 0
+    var level: Int = 0
+    var currentLevelXp: Int = 0
+    var xpToNextLevel: Int = 0
+    var newBadges: [NewBadge] = []
+    var tier: String = ""
+    var cycle: String = ""
+    var iconPath: String = ""
+    var streakDays: Int = 0
+    var streakUpdated: Bool = false
+    var totalStudyHours: Double = 0
 }
 
 struct NewBadge: Decodable {
-    let id: String
-    let name: String
-    let description: String
-    let icon: String
+    var id: String = ""
+    var name: String = ""
 }
 
 // MARK: - Gamification Stats
@@ -77,16 +82,22 @@ struct ActivityFeedItem: Decodable, Identifiable {
 // MARK: - Leaderboard
 
 struct LeaderboardEntry: Decodable, Identifiable {
-    var id: String { oderId }
-    let oderId: String
-    let rank: Int
-    let displayName: String
-    let xp: Int
-    let level: Int?
-    var isMe: Bool = false
+    var id: String { oderId ?? "\(rank)-\(name)" }
+    var oderId: String?
+    var rank: Int = 0
+    var name: String = ""
+    var xp: Int = 0
+    var streak: Int = 0
+    var level: Int?
+    var isCurrentUser: Bool = false
+    var initials: String = ""
+
+    // Compat
+    var displayName: String { name }
+    var isMe: Bool { isCurrentUser }
 
     private enum CodingKeys: String, CodingKey {
         case oderId = "userId"
-        case rank, displayName, xp, level, isMe
+        case rank, name, xp, streak, level, isCurrentUser, initials
     }
 }

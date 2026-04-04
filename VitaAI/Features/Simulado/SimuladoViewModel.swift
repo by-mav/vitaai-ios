@@ -81,9 +81,11 @@ final class SimuladoViewModel {
 
     var state = SimuladoUiState()
     private let api: VitaAPI
+    private let gamificationEvents: GamificationEventManager
 
-    init(api: VitaAPI) {
+    init(api: VitaAPI, gamificationEvents: GamificationEventManager) {
         self.api = api
+        self.gamificationEvents = gamificationEvents
     }
 
     // MARK: - Home
@@ -368,6 +370,17 @@ final class SimuladoViewModel {
                 let response = try await api.finishSimulado(attemptId: attemptId, timeTakenMs: ms)
                 state.result = response
                 state.error = nil
+
+                // Log simulado completion with study duration
+                let durationMinutes = Int(ms / 60_000)
+                Task { [api, gamificationEvents] in
+                    if let actResult = try? await api.logActivity(
+                        action: "simulado_complete",
+                        metadata: ["durationMinutes": String(durationMinutes)]
+                    ) {
+                        gamificationEvents.handleActivityResponse(actResult, previousLevel: nil)
+                    }
+                }
             } catch {
                 state.error = "Erro ao finalizar simulado"
             }

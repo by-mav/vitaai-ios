@@ -33,7 +33,7 @@ struct SimuladoDiagnosticsScreen: View {
         .background(simuladoBg.ignoresSafeArea())
         .navigationBarHidden(true)
         .onAppear {
-            if vm == nil { vm = SimuladoViewModel(api: container.api) }
+            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents) }
             vm?.loadDiagnostics(period: selectedPeriod)
         }
     }
