@@ -75,6 +75,7 @@ final class DeepLinkHandler {
         case "agenda":     return .navigate(.agenda)
         case "insights":   return .navigate(.insights)
         case "profile":    return .navigate(.profile)
+        case "progresso":  return .navigate(.progresso)
         case "notebooks":  return .navigate(.notebookList)
 
         // Chat with optional prompt

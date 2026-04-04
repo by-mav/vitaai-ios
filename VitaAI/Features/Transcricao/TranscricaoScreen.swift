@@ -24,7 +24,7 @@ struct TranscricaoScreen: View {
         }
         .onAppear {
             if viewModel == nil {
-                viewModel = TranscricaoViewModel(client: container.transcricaoClient, api: container.api)
+                viewModel = TranscricaoViewModel(client: container.transcricaoClient, api: container.api, gamificationEvents: container.gamificationEvents)
                 Task { await viewModel?.loadRecordings() }
             }
         }

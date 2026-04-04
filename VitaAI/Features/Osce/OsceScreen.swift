@@ -21,7 +21,7 @@ struct OsceScreen: View {
         }
         .onAppear {
             if viewModel == nil {
-                viewModel = OsceViewModel(api: container.api, sseClient: container.osceSseClient)
+                viewModel = OsceViewModel(api: container.api, sseClient: container.osceSseClient, gamificationEvents: container.gamificationEvents)
             }
         }
     }

@@ -49,6 +49,7 @@ final class TranscricaoViewModel {
 
     private let client: TranscricaoClient
     private var api: VitaAPI?
+    private var gamificationEvents: GamificationEventManager?
     private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
@@ -56,10 +57,12 @@ final class TranscricaoViewModel {
     private var recordingURL: URL?
     private var timerTask: Task<Void, Never>?
     private var uploadTask: Task<Void, Never>?
+    private var recordingStartDate = Date()
 
-    init(client: TranscricaoClient, api: VitaAPI? = nil) {
+    init(client: TranscricaoClient, api: VitaAPI? = nil, gamificationEvents: GamificationEventManager? = nil) {
         self.client = client
         self.api = api
+        self.gamificationEvents = gamificationEvents
     }
 
     // MARK: - Public API
@@ -84,6 +87,7 @@ final class TranscricaoViewModel {
             return
         }
 
+        recordingStartDate = Date()
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("vita_audio_\(Int(Date().timeIntervalSince1970)).m4a")
         recordingURL = url
@@ -252,6 +256,19 @@ final class TranscricaoViewModel {
                     progressPercent = 100
                     phase = .done
                     try? FileManager.default.removeItem(at: fileURL)
+
+                    // Log study session for gamification
+                    let durationMinutes = Int(Date().timeIntervalSince(recordingStartDate) / 60)
+                    if let api, let gamificationEvents {
+                        Task {
+                            if let result = try? await api.logActivity(
+                                action: "study_session_end",
+                                metadata: ["durationMinutes": String(durationMinutes)]
+                            ) {
+                                await gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+                            }
+                        }
+                    }
                 case .error(let msg):
                     setError(msg)
                 }

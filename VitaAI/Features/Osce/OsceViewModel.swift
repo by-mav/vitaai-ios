@@ -64,10 +64,13 @@ final class OsceViewModel {
 
     private let api: VitaAPI
     private let sseClient: OsceSseClient
+    private let gamificationEvents: GamificationEventManager
+    private var caseStartDate = Date()
 
-    init(api: VitaAPI, sseClient: OsceSseClient) {
+    init(api: VitaAPI, sseClient: OsceSseClient, gamificationEvents: GamificationEventManager) {
         self.api = api
         self.sseClient = sseClient
+        self.gamificationEvents = gamificationEvents
     }
 
     // MARK: - Start case
@@ -82,6 +85,7 @@ final class OsceViewModel {
                 let resp = try await api.startOsceCase(specialty: specialty)
                 isLoading = false
                 phase = .caseActive
+                caseStartDate = Date()
                 attemptId = resp.attemptId
                 currentStep = resp.currentStep
                 patientContext = resp.patientContext
@@ -149,6 +153,17 @@ final class OsceViewModel {
                     feedback = aiText
                     isStreaming = false
                     phase = .completed
+
+                    // Log OSCE completion for gamification
+                    let durationMinutes = Int(Date().timeIntervalSince(caseStartDate) / 60)
+                    Task { [api, gamificationEvents] in
+                        if let result = try? await api.logActivity(
+                            action: "osce_complete",
+                            metadata: ["durationMinutes": String(durationMinutes)]
+                        ) {
+                            gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+                        }
+                    }
                 } else {
                     exchanges.append(exchange)
                     currentStep = completedStep
