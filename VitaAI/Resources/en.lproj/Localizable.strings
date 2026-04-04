@@ -15,3 +15,26 @@
 "tool_manager_agenda" = "Calendar";
 "tool_manager_provas" = "Exams";
 "tool_manager_cadernos" = "Notebooks";
+
+/* Faculdade Page */
+"faculdade_empty_title" = "No academic data";
+"faculdade_empty_message" = "Connect your academic portal to view your courses, grades, and attendance.";
+"faculdade_empty_action" = "Connect Portal";
+"faculdade_error_title" = "Failed to load";
+"faculdade_summary_title" = "Academic Summary";
+"faculdade_semester" = "Semester";
+"faculdade_disciplines" = "Courses";
+"faculdade_avg_grade" = "Average Grade";
+"faculdade_avg_attendance" = "Avg. Attendance";
+"faculdade_risk_banner %lld" = "%lld course(s) at risk of failing due to absences";
+"faculdade_agenda_title" = "Academic Calendar";
+"faculdade_days_until %lld" = "in %lld days";
+"faculdade_today" = "Today";
+"faculdade_disciplines_title" = "Current Courses";
+"faculdade_final" = "Final";
+"faculdade_absences %lld" = "%lld absence(s)";
+"faculdade_risk_critical" = "Critical";
+"faculdade_risk_high" = "High";
+"faculdade_risk_medium" = "Medium";
+"faculdade_evaluations_title" = "Evaluations";
+"faculdade_history_title" = "History";

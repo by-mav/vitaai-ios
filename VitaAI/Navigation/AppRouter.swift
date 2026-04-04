@@ -85,8 +85,8 @@ struct MainTabView: View {
                             )
                             .tag(TabItem.estudos)
 
-                            AgendaScreen()
-                                .tag(TabItem.agenda)
+                            FaculdadeScreen()
+                                .tag(TabItem.faculdade)
 
                             ProfileScreen(
                                 authManager: authManager,

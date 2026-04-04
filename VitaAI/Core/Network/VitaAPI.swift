@@ -121,6 +121,12 @@ actor VitaAPI {
         try await client.downloadRaw("canvas/files/\(fileId)/download")
     }
 
+    // MARK: - Portal Data (Faculdade)
+
+    func getPortalData() async throws -> PortalData200Response {
+        try await client.get("portal/data")
+    }
+
     // MARK: - WebAluno
 
     func getWebalunoStatus() async throws -> WebalunoStatusResponse {

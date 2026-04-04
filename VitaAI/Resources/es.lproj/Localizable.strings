@@ -15,3 +15,26 @@
 "tool_manager_agenda" = "Agenda";
 "tool_manager_provas" = "Exámenes";
 "tool_manager_cadernos" = "Cuadernos";
+
+/* Faculdade Page */
+"faculdade_empty_title" = "Sin datos academicos";
+"faculdade_empty_message" = "Conecta tu portal academico para ver tus materias, notas y asistencia.";
+"faculdade_empty_action" = "Conectar Portal";
+"faculdade_error_title" = "Error al cargar";
+"faculdade_summary_title" = "Resumen Academico";
+"faculdade_semester" = "Semestre";
+"faculdade_disciplines" = "Materias";
+"faculdade_avg_grade" = "Promedio General";
+"faculdade_avg_attendance" = "Asistencia Promedio";
+"faculdade_risk_banner %lld" = "%lld materia(s) en riesgo de reprobacion por faltas";
+"faculdade_agenda_title" = "Agenda Academica";
+"faculdade_days_until %lld" = "en %lld dias";
+"faculdade_today" = "Hoy";
+"faculdade_disciplines_title" = "Materias del Semestre";
+"faculdade_final" = "Final";
+"faculdade_absences %lld" = "%lld falta(s)";
+"faculdade_risk_critical" = "Critico";
+"faculdade_risk_high" = "Alto";
+"faculdade_risk_medium" = "Medio";
+"faculdade_evaluations_title" = "Evaluaciones";
+"faculdade_history_title" = "Historial";

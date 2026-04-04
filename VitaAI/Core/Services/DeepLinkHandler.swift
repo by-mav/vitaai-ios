@@ -73,6 +73,7 @@ final class DeepLinkHandler {
         case "estudos":    return .navigate(.estudos)
         case "trabalhos":  return .navigate(.trabalhos)
         case "agenda":     return .navigate(.agenda)
+        case "faculdade":  return .navigate(.faculdade)
         case "insights":   return .navigate(.insights)
         case "profile":    return .navigate(.profile)
         case "notebooks":  return .navigate(.notebookList)

@@ -7,6 +7,7 @@ enum Route: Hashable {
     case estudos
     case trabalhos
     case agenda
+    case faculdade
     case insights
     case profile
     case canvasConnect
@@ -67,9 +68,9 @@ enum Route: Hashable {
     // MARK: - Transcricao (audio recording + AI transcription)
     case transcricao
 
-    // MARK: - Achievements (full badges page — BYM-1135)
+    // MARK: - Achievements (full badges page -- BYM-1135)
     case achievements
 
-    // MARK: - Planner (daily study plan — BYM-1152)
+    // MARK: - Planner (daily study plan -- BYM-1152)
     case planner
 }

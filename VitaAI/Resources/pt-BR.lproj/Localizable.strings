@@ -15,3 +15,26 @@
 "tool_manager_agenda" = "Agenda";
 "tool_manager_provas" = "Provas";
 "tool_manager_cadernos" = "Cadernos";
+
+/* Faculdade Page */
+"faculdade_empty_title" = "Sem dados academicos";
+"faculdade_empty_message" = "Conecte seu portal academico para ver suas disciplinas, notas e frequencia.";
+"faculdade_empty_action" = "Conectar Portal";
+"faculdade_error_title" = "Erro ao carregar";
+"faculdade_summary_title" = "Resumo Academico";
+"faculdade_semester" = "Semestre";
+"faculdade_disciplines" = "Disciplinas";
+"faculdade_avg_grade" = "Media Geral";
+"faculdade_avg_attendance" = "Frequencia Media";
+"faculdade_risk_banner %lld" = "%lld disciplina(s) com risco de reprovacao por falta";
+"faculdade_agenda_title" = "Agenda Academica";
+"faculdade_days_until %lld" = "em %lld dias";
+"faculdade_today" = "Hoje";
+"faculdade_disciplines_title" = "Disciplinas do Semestre";
+"faculdade_final" = "Final";
+"faculdade_absences %lld" = "%lld falta(s)";
+"faculdade_risk_critical" = "Critico";
+"faculdade_risk_high" = "Alto";
+"faculdade_risk_medium" = "Medio";
+"faculdade_evaluations_title" = "Avaliacoes";
+"faculdade_history_title" = "Historico";

@@ -3,14 +3,14 @@ import SwiftUI
 enum TabItem: String, CaseIterable {
     case home = "Home"
     case estudos = "Estudo"
-    case agenda = "Agenda"
+    case faculdade = "Faculdade"
     case profile = "Perfil"
 
     var icon: String {
         switch self {
         case .home: return "house"
         case .estudos: return "book"
-        case .agenda: return "calendar"
+        case .faculdade: return "graduationcap"
         case .profile: return "person"
         }
     }
@@ -19,7 +19,7 @@ enum TabItem: String, CaseIterable {
         switch self {
         case .home: return "house.fill"
         case .estudos: return "book.fill"
-        case .agenda: return "calendar.fill"
+        case .faculdade: return "graduationcap.fill"
         case .profile: return "person.fill"
         }
     }
@@ -65,8 +65,8 @@ struct VitaTabBar: View {
                 .offset(y: -10)
                 .frame(maxWidth: .infinity)
 
-                // Right side: Agenda, Perfil
-                tabButton(.agenda)
+                // Right side: Faculdade, Perfil
+                tabButton(.faculdade)
                 tabButton(.profile)
             }
             .padding(.horizontal, 8)
