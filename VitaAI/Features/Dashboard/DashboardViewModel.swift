@@ -49,24 +49,24 @@ final class DashboardViewModel {
     }
 
     private func apply(dashboard: DashboardResponse) {
-        greeting = dashboard.greeting
-        subtitle = dashboard.subtitle
-        if dashboard.flashcardsDueTotal > 0 { flashcardsDueTotal = dashboard.flashcardsDueTotal }
-        if let xp = dashboard.xp { xpLevel = xp.level }
-        if !dashboard.subjects.isEmpty { subjects = dashboard.subjects }
-        if !dashboard.agenda.isEmpty { agenda = dashboard.agenda }
+        greeting = dashboard.greeting ?? ""
+        subtitle = dashboard.subtitle ?? ""
+        if let fc = dashboard.flashcardsDueTotal, fc > 0 { flashcardsDueTotal = fc }
+        if let xp = dashboard.xp, let lvl = xp.level { xpLevel = lvl }
+        if let subs = dashboard.subjects, !subs.isEmpty { subjects = subs }
+        if let ag = dashboard.agenda, !ag.isEmpty { agenda = ag }
         // Map hero cards (new API) to upcoming exams
-        let examHeroes = dashboard.hero.filter { $0.type == "exam" }
+        let examHeroes = (dashboard.hero ?? []).filter { $0.type == .exam }
         if !examHeroes.isEmpty {
             upcomingExams = examHeroes.map { card in
-                let daysText = card.pills.first(where: { $0.icon == "calendar" })?.text
+                let daysText = card.pills.first(where: { $0.icon == "calendar" })?.text?
                     .replacingOccurrences(of: "Em ", with: "")
                     .replacingOccurrences(of: " dias", with: "")
                     .trimmingCharacters(in: .whitespaces)
                 let days = daysText.flatMap { Int($0) } ?? 0
                 return UpcomingExam(
                     id: card.id,
-                    subject: card.subtitle ?? "",
+                    subject: card.subtitle,
                     type: card.title,
                     date: Date().addingTimeInterval(TimeInterval(days * 86400)),
                     daysUntil: days,
@@ -75,20 +75,7 @@ final class DashboardViewModel {
                 )
             }
         }
-        // Legacy exams fallback
-        if let exams = dashboard.exams, !exams.isEmpty, upcomingExams.isEmpty {
-            upcomingExams = exams.map { exam in
-                UpcomingExam(
-                    id: exam.id,
-                    subject: exam.subject,
-                    type: exam.title,
-                    date: Date().addingTimeInterval(TimeInterval(exam.daysUntil * 86400)),
-                    daysUntil: exam.daysUntil,
-                    conceptCards: exam.conceptCards,
-                    practiceCards: exam.practiceCards
-                )
-            }
-        }
+        // Legacy exams fallback removed — Dashboard generated type has no exams field
     }
 
     private func apply(progress: ProgressResponse, preserveExistingSubjects: Bool) {

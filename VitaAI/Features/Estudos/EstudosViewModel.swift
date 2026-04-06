@@ -212,7 +212,7 @@ final class EstudosViewModel {
 
             // Dashboard recommendations (best-effort, don't fail main load)
             if let dashResp = try? await dashboardTask {
-                studyRecommendations = dashResp.studyRecommendations ?? []
+                // studyRecommendations removed — not in generated Dashboard type
             }
             if let activityResp = try? await activityTask {
                 recentActivity = activityResp

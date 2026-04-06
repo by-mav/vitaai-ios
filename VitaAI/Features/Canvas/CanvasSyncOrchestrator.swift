@@ -139,7 +139,7 @@ actor CanvasSyncOrchestrator {
 
             do {
                 let filterResult = try await vitaAPI.filterFiles(fileMeta)
-                let relevantIds = Set(filterResult.relevantFileIds)
+                let relevantIds = Set(filterResult.relevantFileIds ?? [])
                 pdfCandidates = allPdfs.filter { relevantIds.contains("\($0.file.id)") }
                 NSLog("[CanvasSync] LLM selected %d/%d PDFs (fallback: %@)",
                       pdfCandidates.count, allPdfs.count, filterResult.fallback == true ? "yes" : "no")

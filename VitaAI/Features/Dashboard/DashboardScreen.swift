@@ -483,9 +483,9 @@ struct DashboardScreen: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(viewModel.subjects) { subject in
-                        let img = disciplineImage(for: subject.name)
+                        let img = disciplineImage(for: subject.name ?? "")
                         Button {
-                            onNavigateToDisciplineDetail?(subject.id, subject.name)
+                            onNavigateToDisciplineDetail?(subject.id, subject.name ?? "")
                         } label: {
                             Image(img)
                                 .resizable()
@@ -608,7 +608,7 @@ struct DashboardScreen: View {
         VStack(spacing: 4) {
             if !viewModel.agenda.isEmpty {
                 ForEach(viewModel.agenda.prefix(5), id: \.title) { item in
-                    agendaItemRow(title: item.title, dateStr: item.date, daysUntil: item.daysUntil)
+                    agendaItemRow(title: item.title ?? "", dateStr: item.date ?? "", daysUntil: item.daysUntil ?? 0)
                 }
             } else {
                 ForEach(viewModel.upcomingExams.prefix(5)) { exam in

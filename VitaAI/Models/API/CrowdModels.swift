@@ -1,5 +1,8 @@
 import Foundation
 
+// MIGRATION: No generated OpenAPI equivalents for Crowd models.
+// These endpoints are not yet in the OpenAPI spec. Kept manual.
+
 // MARK: - Crowd Models
 // Mirrors Android: data/model/CrowdModels.kt
 

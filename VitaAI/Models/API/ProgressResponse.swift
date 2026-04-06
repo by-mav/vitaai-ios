@@ -1,5 +1,10 @@
 import Foundation
 
+// MIGRATION: Progress/Flashcard models kept manual.
+// Generated UserProgress has only 6 of 18 fields in ProgressResponse.
+// Generated Grade, Exam, FlashcardStats, FlashcardDeck, Flashcard all lack significant fields.
+// Manual types match actual API responses more closely than OpenAPI spec.
+
 struct ProgressResponse: Codable {
     var streakDays: Int = 0
     var totalStudyHours: Double = 0.0

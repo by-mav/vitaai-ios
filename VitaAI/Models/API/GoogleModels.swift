@@ -1,5 +1,8 @@
 import Foundation
 
+// MIGRATION: No generated OpenAPI equivalents for Google Calendar/Drive models.
+// These endpoints are not yet in the OpenAPI spec. Kept manual.
+
 // MARK: - Google Calendar
 
 struct GoogleCalendarCountsResponse: Codable {

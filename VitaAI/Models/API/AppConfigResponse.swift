@@ -1,5 +1,8 @@
 import Foundation
 
+// MIGRATION: No generated OpenAPI equivalents for AppConfig models.
+// App config endpoint not in OpenAPI spec. Kept manual.
+
 // MARK: - AppConfigResponse
 // Port of GET /api/config/app — single source of truth for all app configuration.
 // All platforms (Web, Android, iOS) consume this endpoint.

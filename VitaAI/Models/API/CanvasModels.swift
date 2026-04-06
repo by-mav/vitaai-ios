@@ -1,15 +1,23 @@
 import Foundation
 
-// MARK: - Filter Files (LLM classification)
+// MIGRATION: Partial migration to OpenAPI generated types.
+// SyncProgressResponse -> SyncProgress (generated) with extension for computed isDone/isError
+// FilterFilesResponse -> PortalFilterFiles200Response (generated)
+// Canvas API client types (CanvasAPIUser, etc.) are for direct Canvas REST, not in OpenAPI spec.
+// CanvasStatusResponse, CanvasConnectRequest/Response, CoursesResponse, etc. kept manual --
+// generated Portal* types have different field shapes.
 
-struct FilterFilesResponse: Codable {
-    let relevantFileIds: [String]
-    let fallback: Bool?
+typealias SyncProgressResponse = SyncProgress
+typealias FilterFilesResponse = PortalFilterFiles200Response
+
+extension SyncProgress {
+    var isDone: Bool { (phase == "done") || (percent ?? 0) >= 100 }
+    var isError: Bool { phase == "error" }
 }
 
 // MARK: - Backend Status / Connect / Disconnect responses
 
-/// Response from GET /api/portal/status — all portal connections + counts
+/// Response from GET /api/portal/status -- all portal connections + counts
 struct CanvasStatusResponse: Codable {
     var connected: Bool = false
     var connections: [PortalConnectionDetail]?
@@ -118,24 +126,7 @@ struct Assignment: Codable, Identifiable {
     var courseId: String = ""
 }
 
-// MARK: - Sync Progress (from /api/portal/sync-progress)
-
-struct SyncProgressResponse: Codable {
-    var syncId: String?
-    var phase: String = "connecting"
-    var percent: Double = 0
-    var label: String = ""
-    var grades: Int = 0
-    var schedule: Int = 0
-
-    var isDone: Bool { phase == "done" || percent >= 100 }
-    var isError: Bool { phase == "error" }
-}
-
 // MARK: - Vita Crawl (universal portal extraction via Vita LLM)
-
-// VitaCrawlRequest removed — uses JSONSerialization directly in VitaAPI.startVitaCrawl
-// to bypass HTTPClient's .convertToSnakeCase encoder (instanceUrl must stay camelCase)
 
 struct VitaCrawlResponse: Codable {
     var syncId: String?
@@ -278,6 +269,8 @@ struct CanvasAPICalendarEvent: Decodable {
 }
 
 // MARK: - Ingest Payload (sent to POST /api/portal/ingest, matches openapi.yaml CanvasIngestPayload)
+// Uses [String: Any] arrays + JSONSerialization because the data comes from Canvas REST API
+// in dynamic shapes. The generated CanvasIngestPayload uses typed arrays which don't match.
 
 struct CanvasIngestPayload {
     let instanceUrl: String

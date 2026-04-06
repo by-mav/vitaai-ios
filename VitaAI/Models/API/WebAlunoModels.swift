@@ -1,5 +1,13 @@
 import Foundation
 
+// MIGRATION: Partial migration to OpenAPI generated types.
+// PortalExtractRequestPagesInner -> generated (identical fields)
+// PortalExtract200Response -> generated (superset of manual fields)
+// WebalunoGrade: generated WebAlunoGrade uses String for grades, manual uses Double. Kept manual.
+// WebalunoScheduleBlock: generated WebAlunoSchedule lacks slots field. Kept manual.
+// PortalTotals, WebalunoCounts: custom init(from:) for safe defaults. Kept manual.
+// ScreenResponse/ScreenBlock: generated uses different field names (sections vs blocks). Kept manual.
+
 struct WebalunoStatusResponse: Codable {
     var connected: Bool = false
     // New unified format
@@ -142,21 +150,6 @@ struct WebalunoScheduleSummary: Codable {
     var daysWithClasses: Int = 0
 }
 
-// MARK: - Portal Extract (client-side HTML capture)
-
-struct PortalExtractRequestPagesInner: Codable {
-    var type: String?
-    var html: String?
-    var linkText: String?
-}
-
-struct PortalExtract200Response: Codable {
-    var success: Bool?
-    var grades: Int?
-    var schedule: Int?
-    var error: String?
-}
-
 // MARK: - Subjects
 
 struct SubjectsResponse: Codable {
@@ -171,7 +164,7 @@ struct AcademicSubject: Codable, Identifiable {
     var difficulty: String?
 }
 
-// MARK: - Server-Driven UI
+// MARK: - Server-Driven UI (manual — generated uses different field names)
 
 struct ScreenResponse: Codable {
     var screenId: String?
@@ -182,4 +175,3 @@ struct ScreenBlock: Codable {
     var type: String?
     var data: [String: String]?
 }
-

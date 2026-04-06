@@ -82,16 +82,16 @@ final class WebAlunoConnectViewModel {
                     for _ in 0..<60 {
                         try await Task.sleep(for: .seconds(2))
                         let progress = try await api.getSyncProgress(syncId: syncId)
-                        state.successMessage = progress.label.isEmpty ? "Vita trabalhando..." : progress.label
+                        state.successMessage = (progress.label ?? "").isEmpty ? "Vita trabalhando..." : (progress.label ?? "")
                         if progress.isDone {
-                            state.gradesCount = progress.grades
-                            state.scheduleCount = progress.schedule
-                            state.successMessage = "Extração completa! \(progress.grades) notas, \(progress.schedule) aulas"
+                            state.gradesCount = progress.grades ?? 0
+                            state.scheduleCount = progress.schedule ?? 0
+                            state.successMessage = "Extração completa! \(progress.grades ?? 0) notas, \(progress.schedule ?? 0) aulas"
                             await loadStatus()
                             return
                         }
                         if progress.isError {
-                            state.error = progress.label.isEmpty ? "Erro na extração" : progress.label
+                            state.error = (progress.label ?? "").isEmpty ? "Erro na extração" : (progress.label ?? "")
                             return
                         }
                     }

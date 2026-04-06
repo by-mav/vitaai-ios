@@ -373,13 +373,13 @@ struct OnboardingConnectSheet: View {
                     for _ in 0..<60 {
                         try? await Task.sleep(for: .seconds(2))
                         if let progress = try? await api.getSyncProgress(syncId: syncId) {
-                            statusMessage = progress.label.isEmpty ? "Vita trabalhando..." : progress.label
+                            statusMessage = (progress.label ?? "").isEmpty ? "Vita trabalhando..." : (progress.label ?? "")
                             if progress.isDone {
                                 statusMessage = "Extração completa!"
                                 break
                             }
                             if progress.isError {
-                                statusMessage = progress.label.isEmpty ? "Erro na extração" : progress.label
+                                statusMessage = (progress.label ?? "").isEmpty ? "Erro na extração" : (progress.label ?? "")
                                 break
                             }
                         }

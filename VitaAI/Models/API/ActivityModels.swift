@@ -1,5 +1,9 @@
 import Foundation
 
+// MIGRATION: No compatible generated equivalents for Activity models.
+// Generated types use JSONValue instead of typed fields and Date instead of String.
+// Generated LeaderboardEntry lacks Identifiable/computed id. Kept manual.
+
 // MARK: - Activity Log
 
 struct LogActivityRequest: Encodable {

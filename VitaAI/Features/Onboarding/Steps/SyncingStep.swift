@@ -182,10 +182,10 @@ struct SyncingStep: View {
 
                 await MainActor.run {
                     withAnimation {
-                        percent = max(percent, progress.percent)
-                        if !progress.label.isEmpty { label = progress.label }
-                        viewModel.syncGrades = max(viewModel.syncGrades, progress.grades)
-                        viewModel.syncSchedule = max(viewModel.syncSchedule, progress.schedule)
+                        percent = max(percent, progress.percent ?? 0)
+                        if let lbl = progress.label, !lbl.isEmpty { label = lbl }
+                        viewModel.syncGrades = max(viewModel.syncGrades, progress.grades ?? 0)
+                        viewModel.syncSchedule = max(viewModel.syncSchedule, progress.schedule ?? 0)
                     }
                 }
 
@@ -195,7 +195,7 @@ struct SyncingStep: View {
                 }
 
                 if progress.isError {
-                    await update(label: progress.label.isEmpty ? String(localized: "sync_error") : progress.label, percent: percent)
+                    await update(label: (progress.label ?? "").isEmpty ? String(localized: "sync_error") : (progress.label ?? ""), percent: percent)
                     hasError = true
                     return
                 }

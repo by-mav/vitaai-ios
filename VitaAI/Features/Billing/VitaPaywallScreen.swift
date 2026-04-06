@@ -666,7 +666,7 @@ struct VitaPaywallScreen: View {
         defer { isLoadingStripe = false }
         do {
             let response = try await api.getCheckoutUrl(plan: plan)
-            guard let url = URL(string: response.url) else {
+            guard let urlStr = response.url, let url = URL(string: urlStr) else {
                 stripeError = "URL de checkout invalida."
                 return
             }

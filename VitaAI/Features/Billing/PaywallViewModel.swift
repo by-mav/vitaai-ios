@@ -51,7 +51,7 @@ final class PaywallViewModel {
         defer { state.isLoading = false }
         do {
             let response = try await api.getCheckoutUrl(plan: "pro")
-            openCheckoutURL(response.url)
+            if let url = response.url { openCheckoutURL(url) }
         } catch {
             state.error = "Nao foi possivel iniciar a assinatura. Tente novamente."
         }

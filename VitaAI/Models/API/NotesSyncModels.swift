@@ -1,5 +1,10 @@
 import Foundation
 
+// MIGRATION: Notes/MindMap models kept manual.
+// Generated Note uses Date fields, manual uses String + computed Date helpers.
+// Generated Note lacks userId, deletedAt. Generated Mindmap uses JSONValue for nodes.
+// CreateNoteRequest and UpdateNoteRequest could migrate but kept manual for consistency.
+
 // MARK: - Notes Cloud Sync DTOs
 // Matches the backend schema: vita.notes table
 // Endpoints: GET /api/notes, POST /api/notes, PATCH /api/notes, DELETE /api/notes?id=

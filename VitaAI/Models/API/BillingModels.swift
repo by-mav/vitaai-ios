@@ -1,8 +1,14 @@
 import Foundation
 
-// MARK: - Billing API Models
-// Mirrors Android: com.bymav.medcoach.data.model.ApiModels
-// Endpoints: GET billing/status, POST billing/checkout
+// MIGRATION: Billing models — partial migration to OpenAPI generated types
+// CheckoutResponse → CreateCheckoutSession200Response (generated)
+// CheckoutRequest → CreateCheckoutSessionRequest (generated)
+// BillingStatus and VerifyApple* have no generated equivalents — kept manual
+
+typealias CheckoutResponse = CreateCheckoutSession200Response
+typealias CheckoutRequest = CreateCheckoutSessionRequest
+
+// MARK: - Billing Status (no generated equivalent)
 
 struct BillingStatus: Decodable {
     let plan: String
@@ -10,15 +16,7 @@ struct BillingStatus: Decodable {
     let periodEnd: String?
 }
 
-struct CheckoutResponse: Decodable {
-    let url: String
-}
-
-struct CheckoutRequest: Encodable {
-    let plan: String
-}
-
-// MARK: - Apple IAP Verification Models
+// MARK: - Apple IAP Verification Models (no generated equivalent)
 
 struct VerifyAppleReceiptRequest: Codable {
     let transactionId: String
