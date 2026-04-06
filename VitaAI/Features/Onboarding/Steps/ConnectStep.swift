@@ -28,20 +28,20 @@ struct ConnectStep: View {
                         ConnectorCard(
                             letter: University.letter(for: portal.portalType),
                             name: portal.displayName.isEmpty ? University.displayName(for: portal.portalType) : portal.displayName,
-                            status: String(localized: "onboarding_connect_detected"),
+                            status: .disconnected,
                             color: University.color(for: portal.portalType),
                             isPrimary: portal.isPrimary,
-                            onTap: { onConnect?(portal.portalType) }
+                            onConnect: { onConnect?(portal.portalType) }
                         )
                     }
                     ForEach(uni.lmsPortals) { portal in
                         ConnectorCard(
                             letter: University.letter(for: portal.portalType),
                             name: portal.displayName.isEmpty ? University.displayName(for: portal.portalType) : portal.displayName,
-                            status: String(localized: "onboarding_connect_detected"),
+                            status: .disconnected,
                             color: University.color(for: portal.portalType),
                             isPrimary: portal.isPrimary,
-                            onTap: { onConnect?(portal.portalType) }
+                            onConnect: { onConnect?(portal.portalType) }
                         )
                     }
                 }
@@ -49,14 +49,16 @@ struct ConnectStep: View {
 
             // Google connectors
             ConnectorCard(
-                letter: "G", name: "Google Calendar", status: String(localized: "onboarding_connect_available"),
-                color: Color(red: 0.26, green: 0.52, blue: 0.96), isPrimary: false,
-                onTap: { onConnect?("google_calendar") }
+                letter: "G", name: "Google Calendar",
+                status: .disconnected,
+                color: Color(red: 0.26, green: 0.52, blue: 0.96),
+                onConnect: { onConnect?("google_calendar") }
             )
             ConnectorCard(
-                letter: "G", name: "Google Drive", status: String(localized: "onboarding_connect_available"),
-                color: Color(red: 0.13, green: 0.59, blue: 0.33), isPrimary: false,
-                onTap: { onConnect?("google_drive") }
+                letter: "G", name: "Google Drive",
+                status: .disconnected,
+                color: Color(red: 0.13, green: 0.59, blue: 0.33),
+                onConnect: { onConnect?("google_drive") }
             )
 
             // Show all connectors button (other portal types from API)
@@ -82,10 +84,9 @@ struct ConnectStep: View {
                     ConnectorCard(
                         letter: portal.letter,
                         name: portal.displayName,
-                        status: String(localized: "onboarding_connect_available"),
+                        status: .disconnected,
                         color: portal.color,
-                        isPrimary: false,
-                        onTap: { onConnect?(portal.type) }
+                        onConnect: { onConnect?(portal.type) }
                     )
                 }
             }
@@ -108,56 +109,5 @@ struct PortalTypeInfo: Identifiable {
         self.displayName = University.displayName(for: type)
         self.letter = University.letter(for: type)
         self.color = University.color(for: type)
-    }
-}
-
-// MARK: - Connector Card (tappable)
-
-private struct ConnectorCard: View {
-    let letter: String
-    let name: String
-    let status: String
-    let color: Color
-    var isPrimary: Bool = false
-    var onTap: (() -> Void)?
-
-    var body: some View {
-        Button(action: { onTap?() }) {
-            HStack(spacing: 14) {
-                Text(letter)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(color.opacity(0.2)))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.9))
-                    HStack(spacing: 4) {
-                        Circle().fill(isPrimary ? color : .white.opacity(0.3)).frame(width: 5, height: 5)
-                        Text(status)
-                            .font(.system(size: 11))
-                            .foregroundStyle(isPrimary ? color.opacity(0.8) : .white.opacity(0.4))
-                    }
-                }
-
-                Spacer()
-
-                Text(String(localized: "onboarding_connect_button"))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(isPrimary ? color : VitaColors.accent)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 10).stroke((isPrimary ? color : VitaColors.accent).opacity(0.3), lineWidth: 1))
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isPrimary ? color.opacity(0.04) : Color.white.opacity(0.03))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(isPrimary ? color.opacity(0.12) : Color.white.opacity(0.06), lineWidth: 1))
-            )
-        }
-        .buttonStyle(.plain)
     }
 }
