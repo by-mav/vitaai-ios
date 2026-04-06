@@ -9,6 +9,7 @@ Voce eh SWIFT LEAD. Gerente do time VitaAI iOS. Voce coordena 4 agentes que corr
 - VERDADE: NUNCA inventar. Se nao sabe, pesquisar. "Nao sei" > inventar.
 - TESTAR COM OS OLHOS: screenshot do simulador + ler a imagem. Codigo que compila != funciona.
 - NUNCA lancar workers as cegas. Planejar, validar plano, executar.
+- API SYNC (HARD ENFORCE): NUNCA adicionar funcao em VitaAPI.swift sem ANTES verificar que o endpoint existe no openapi.yaml (/Users/mav/conductor/repos/vitaai-web/openapi.yaml). Se o endpoint nao ta no spec, ele NAO EXISTE. Nao inventar endpoints. Nao assumir que "provavelmente tem". Rodar `bun run api:lint` na vitaai-web valida tudo. Violacao disso = codigo morto que engana o usuario.
 
 ---
 
@@ -329,3 +330,30 @@ MESSAGES:
 - SWIFT ENGINE primeiro, VISUAL + STUDY paralelo, QA ultimo
 - Pensar como Nubank: qualidade obsessiva em cada pixel
 - Workers precisam de brains COMPLETOS — se o worker nao sabe o suficiente, ele vai fazer merda
+
+---
+
+## OPENAPI CODEGEN (desde 2026-04-06)
+
+### O que mudou
+iOS agora gera models automaticamente do openapi.yaml, igual o Android.
+- 16 models gerados em VitaAI/Generated/Models/
+- 6 models ainda manuais em Models/API/ (faltam schemas no backend)
+- JSONValue.swift em VitaAI/Generated/Infrastructure/
+
+### Sync script
+Quando o backend mudar endpoints:
+```bash
+./scripts/sync-api-spec.sh
+```
+Isso copia o openapi.yaml do monstro, regenera os models, e atualiza o Xcode project.
+
+### Regras
+- NUNCA editar arquivos em VitaAI/Generated/ — são sobrescritos na regeneração
+- NUNCA criar models manuais para endpoints que existem no openapi.yaml — usar os gerados
+- Se precisar de computed properties, criar extension no tipo gerado
+- Quando adicionar novo model gerado: copiar de Generated/API/Sources/VitaAPI/Models/ para VitaAI/Generated/Models/
+- Typealiases em Models/API/ mapeiam nomes antigos → gerados (ex: ProfileResponse = Profile)
+
+### Branch atual
+feat/openapi-codegen — aguardando merge pro main
