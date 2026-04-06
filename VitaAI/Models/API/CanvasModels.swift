@@ -1,13 +1,51 @@
 import Foundation
 
+// MARK: - Filter Files (LLM classification)
+
+struct FilterFilesResponse: Codable {
+    let relevantFileIds: [String]
+    let fallback: Bool?
+}
+
+// MARK: - Backend Status / Connect / Disconnect responses
+
+/// Response from GET /api/portal/status — all portal connections + counts
 struct CanvasStatusResponse: Codable {
     var connected: Bool = false
-    var status: String?
-    var instanceUrl: String?
-    var lastSyncAt: String?
-    var courses: Int = 0
-    var files: Int = 0
-    var assignments: Int = 0
+    var connections: [PortalConnectionDetail]?
+    var totals: PortalTotals?
+
+    struct PortalConnectionDetail: Codable {
+        var id: String?
+        var instanceUrl: String?
+        var portalName: String?
+        var portalType: String?
+        var status: String?
+        var lastSyncAt: String?
+        var lastPingAt: String?
+        var counts: PortalCounts?
+    }
+
+    struct PortalCounts: Codable {
+        var subjects: Int = 0
+        var evaluations: Int = 0
+        var schedule: Int = 0
+        var documents: Int = 0
+        var semesters: Int = 0
+    }
+
+    struct PortalTotals: Codable {
+        var subjects: Int = 0
+        var evaluations: Int = 0
+        var schedule: Int = 0
+        var documents: Int = 0
+        var semesters: Int = 0
+    }
+
+    /// Convenience: find the canvas connection
+    var canvasConnection: PortalConnectionDetail? {
+        connections?.first { $0.portalType == "canvas" }
+    }
 }
 
 struct CanvasConnectRequest: Codable {
@@ -96,10 +134,8 @@ struct SyncProgressResponse: Codable {
 
 // MARK: - Vita Crawl (universal portal extraction via Vita LLM)
 
-struct VitaCrawlRequest: Codable {
-    var cookies: String
-    var instanceUrl: String
-}
+// VitaCrawlRequest removed — uses JSONSerialization directly in VitaAPI.startVitaCrawl
+// to bypass HTTPClient's .convertToSnakeCase encoder (instanceUrl must stay camelCase)
 
 struct VitaCrawlResponse: Codable {
     var syncId: String?
@@ -115,4 +151,171 @@ struct SyncProgressItem: Codable, Identifiable {
     var name: String = ""
     var status: String = "pending"
     var detail: String?
+}
+
+// MARK: - Canvas REST API Response Models (decoded from Canvas directly on device)
+
+/// User from /api/v1/users/self
+struct CanvasAPIUser: Decodable {
+    let id: Int
+    let name: String
+    let shortName: String?
+    let loginId: String?
+    let avatarUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case shortName = "short_name"
+        case loginId = "login_id"
+        case avatarUrl = "avatar_url"
+    }
+}
+
+/// Course from /api/v1/courses?include[]=total_scores&include[]=teachers&include[]=term
+struct CanvasAPICourse: Decodable {
+    let id: Int
+    let name: String
+    let courseCode: String?
+    let enrollments: [CanvasAPIEnrollment]?
+    let teachers: [CanvasAPITeacher]?
+    let term: CanvasAPITerm?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, enrollments, teachers, term
+        case courseCode = "course_code"
+    }
+}
+
+struct CanvasAPIEnrollment: Decodable {
+    let type: String?
+    let enrollmentState: String?
+    let computedCurrentScore: Double?
+    let computedFinalScore: Double?
+    let computedCurrentGrade: String?
+    let computedFinalGrade: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case enrollmentState = "enrollment_state"
+        case computedCurrentScore = "computed_current_score"
+        case computedFinalScore = "computed_final_score"
+        case computedCurrentGrade = "computed_current_grade"
+        case computedFinalGrade = "computed_final_grade"
+    }
+}
+
+struct CanvasAPITeacher: Decodable {
+    let id: Int?
+    let displayName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case displayName = "display_name"
+    }
+}
+
+struct CanvasAPITerm: Decodable {
+    let id: Int?
+    let name: String?
+}
+
+/// File from /api/v1/courses/:id/files
+struct CanvasAPIFile: Decodable {
+    let id: Int
+    let displayName: String
+    let contentType: String?
+    let size: Int
+    let url: String? // direct download URL (authenticated)
+
+    enum CodingKeys: String, CodingKey {
+        case id, size, url
+        case displayName = "display_name"
+        case contentType = "content-type"
+    }
+}
+
+/// Assignment from /api/v1/courses/:id/assignments?include[]=submission
+struct CanvasAPIAssignment: Decodable {
+    let id: Int
+    let name: String
+    let description: String?
+    let dueAt: String?
+    let pointsPossible: Double?
+    let submission: CanvasAPISubmission?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, submission
+        case dueAt = "due_at"
+        case pointsPossible = "points_possible"
+    }
+}
+
+struct CanvasAPISubmission: Decodable {
+    let score: Double?
+    let grade: String?
+    let submittedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case score, grade
+        case submittedAt = "submitted_at"
+    }
+}
+
+/// Calendar event from /api/v1/calendar_events
+struct CanvasAPICalendarEvent: Decodable {
+    let id: Int
+    let title: String?
+    let startAt: String?
+    let endAt: String?
+    let contextType: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title
+        case startAt = "start_at"
+        case endAt = "end_at"
+        case contextType = "context_type"
+    }
+}
+
+// MARK: - Ingest Payload (sent to POST /api/portal/ingest, matches openapi.yaml CanvasIngestPayload)
+
+struct CanvasIngestPayload {
+    let instanceUrl: String
+    let user: [String: Any]?
+    let courses: [[String: Any]]
+    let assignments: [[String: Any]]
+    let files: [[String: Any]]
+    let calendarEvents: [[String: Any]]
+    let errors: [[String: Any]]
+    let pdfContents: [[String: Any]]
+    let sessionCookies: String?
+
+    func toJSONData() throws -> Data {
+        var dict: [String: Any] = [
+            "instanceUrl": instanceUrl,
+            "courses": courses,
+            "assignments": assignments,
+            "files": files,
+            "calendarEvents": calendarEvents,
+            "errors": errors,
+            "pdfContents": pdfContents,
+        ]
+        if let user { dict["user"] = user }
+        if let sessionCookies { dict["sessionCookies"] = sessionCookies }
+        return try JSONSerialization.data(withJSONObject: dict)
+    }
+}
+
+// MARK: - Ingest Response
+
+struct CanvasIngestResponse: Decodable {
+    let ok: Bool?
+    let success: Bool?
+    let traceId: String?
+    let courses: Int?
+    let assignments: Int?
+    let files: Int?
+    let calendarEvents: Int?
+    let pdfExtracted: Int?
+    let errors: [String]?
 }

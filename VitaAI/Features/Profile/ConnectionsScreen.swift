@@ -1,5 +1,12 @@
 import SwiftUI
 
+// Stub type for portal page capture (used by SilentPortalSync)
+struct CapturedPortalPage {
+    let type: String
+    let html: String
+    let linkText: String?
+}
+
 // MARK: - ConnectionsScreen
 // Matches conectores-mobile-v1.html mockup
 
@@ -111,6 +118,46 @@ struct ConnectionsScreen: View {
                 iconBorder: Color(red: 0.133, green: 0.773, blue: 0.369).opacity(0.16),
                 iconText: Color(red: 0.525, green: 0.937, blue: 0.675).opacity(0.90)
             ),
+            PortalDef(
+                id: "totvs",
+                letter: "T",
+                name: "TOTVS RM",
+                iconBg: Color(red: 0.408, green: 0.200, blue: 0.835).opacity(0.18),
+                iconBorder: Color(red: 0.408, green: 0.200, blue: 0.835).opacity(0.16),
+                iconText: Color(red: 0.690, green: 0.525, blue: 0.965).opacity(0.90)
+            ),
+            PortalDef(
+                id: "lyceum",
+                letter: "L",
+                name: "Lyceum",
+                iconBg: Color(red: 0.114, green: 0.631, blue: 0.667).opacity(0.18),
+                iconBorder: Color(red: 0.114, green: 0.631, blue: 0.667).opacity(0.16),
+                iconText: Color(red: 0.400, green: 0.855, blue: 0.878).opacity(0.90)
+            ),
+            PortalDef(
+                id: "sagres",
+                letter: "Sa",
+                name: "Sagres",
+                iconBg: Color(red: 0.820, green: 0.557, blue: 0.102).opacity(0.18),
+                iconBorder: Color(red: 0.820, green: 0.557, blue: 0.102).opacity(0.16),
+                iconText: Color(red: 0.945, green: 0.776, blue: 0.396).opacity(0.90)
+            ),
+            PortalDef(
+                id: "blackboard",
+                letter: "Bb",
+                name: "Blackboard",
+                iconBg: Color(red: 0.267, green: 0.267, blue: 0.267).opacity(0.18),
+                iconBorder: Color(red: 0.267, green: 0.267, blue: 0.267).opacity(0.16),
+                iconText: Color(red: 0.680, green: 0.680, blue: 0.680).opacity(0.90)
+            ),
+            PortalDef(
+                id: "platos",
+                letter: "P",
+                name: "Platos",
+                iconBg: Color(red: 0.827, green: 0.184, blue: 0.463).opacity(0.18),
+                iconBorder: Color(red: 0.827, green: 0.184, blue: 0.463).opacity(0.16),
+                iconText: Color(red: 0.937, green: 0.533, blue: 0.706).opacity(0.90)
+            ),
         ]
     }
 
@@ -187,6 +234,13 @@ struct ConnectionsScreen: View {
             // topNav removed — VitaTopBar is persistent shell
         }
         .task { await loadAllStatuses() }
+        .task(id: "refresh-timer") {
+            // Refresh portal status every 30s for live timestamps
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
+                await loadPortalConnections()
+            }
+        }
         // Canvas bottom sheet
         .sheet(isPresented: $showCanvasSheet) {
             canvasConnectedSheet
@@ -219,14 +273,9 @@ struct ConnectionsScreen: View {
         .fullScreenCover(isPresented: $showWebalunoWebView) {
             WebAlunoWebViewScreen(
                 onBack: { showWebalunoWebView = false },
-                onPagesCaptured: { pages in
-                    showWebalunoWebView = false
-                    handleWebalunoPagesCaptured(pages)
-                },
                 onSessionCaptured: { cookie in
                     capturedSessionCookie = "PHPSESSID=\(cookie)"
-                },
-                userEmail: container.tokenStore.userEmail
+                }
             )
         }
         .vitaToastHost(toastState)
@@ -631,7 +680,7 @@ struct ConnectionsScreen: View {
 
     private func statusForPortalId(_ id: String) -> (ConnectionItemStatus, String?, Int, Int, Int) {
         switch id {
-        case "canvas":   return (canvasStatus,   canvasLastSync,   canvasCourses,        canvasFiles,       0)
+        case "canvas":   return (canvasStatus,   canvasLastSync,   canvasCourses,        canvasAssignments, 0)
         case "webaluno": return (webalunoStatus,  webalunoLastSync, webAlunoDisciplines,  webalunoGrades,    webalunoSchedule)
         default:         return (.disconnected, nil, 0, 0, 0)
         }
@@ -650,8 +699,8 @@ struct ConnectionsScreen: View {
             lastSync: canvasLastSync,
             stats: [
                 StatItem(value: canvasCourses, label: "Disciplinas"),
+                StatItem(value: canvasAssignments, label: "Avaliações"),
                 StatItem(value: canvasFiles, label: "Arquivos"),
-                StatItem(value: canvasAssignments, label: "Tarefas"),
             ],
             onSync: {
                 showCanvasSheet = false
@@ -730,11 +779,10 @@ struct ConnectionsScreen: View {
 
     private func loadAllStatuses() async {
         await loadUniversityPortals()
-        async let canvas   = loadCanvas()
-        async let webaluno = loadWebaluno()
+        await loadPortalConnections()
         async let calendar = loadCalendar()
         async let drive    = loadDrive()
-        _ = await (canvas, webaluno, calendar, drive)
+        _ = await (calendar, drive)
     }
 
     private func loadUniversityPortals() async {
@@ -752,51 +800,46 @@ struct ConnectionsScreen: View {
         }
     }
 
-    private func loadCanvas() async {
+    /// Single call to GET /api/portal/status — parses all connectors from connections[]
+    private func loadPortalConnections() async {
         do {
             let data = try await container.api.getCanvasStatus()
-            if data.connected {
-                canvasStatus      = data.status == "expired" ? .expired : .connected
-                canvasLastSync    = data.lastSyncAt.flatMap { formatRelativeTime($0) }
-                canvasCourses     = data.courses
-                canvasFiles       = data.files
-                canvasAssignments = data.assignments
-            } else {
+            guard data.connected, let connections = data.connections else {
                 canvasStatus = .disconnected
+                webalunoStatus = .disconnected
+                return
+            }
+
+            for conn in connections {
+                let status: ConnectionItemStatus = conn.status == "expired" ? .expired : .connected
+                // Use lastPingAt for "session alive" indicator, lastSyncAt for "data freshness"
+                let syncTime = conn.lastPingAt ?? conn.lastSyncAt
+
+                switch conn.portalType {
+                case "canvas":
+                    canvasStatus      = status
+                    canvasLastSync    = syncTime.flatMap { formatRelativeTime($0) }
+                    canvasCourses     = conn.counts?.subjects ?? 0
+                    canvasFiles       = conn.counts?.documents ?? 0
+                    canvasAssignments = conn.counts?.evaluations ?? 0
+                case "mannesoft":
+                    webalunoStatus      = status
+                    webalunoLastSync    = syncTime.flatMap { formatRelativeTime($0) }
+                    webalunoGrades      = conn.counts?.evaluations ?? 0
+                    webalunoSchedule    = conn.counts?.schedule ?? 0
+                    webAlunoDisciplines = conn.counts?.subjects ?? 0
+                default:
+                    break
+                }
             }
         } catch {
-            canvasStatus = .disconnected
+            print("[Connections] Portal status load failed: \(error)")
         }
     }
 
-    private func loadWebaluno() async {
-        do {
-            let data = try await container.api.getWebalunoStatus()
-            if data.connected {
-                // New unified format: connections[] + totals{}
-                if let first = data.connections?.first {
-                    webalunoStatus      = first.status == "expired" ? .expired : .connected
-                    webalunoLastSync    = first.lastSyncAt.flatMap { formatRelativeTime($0) }
-                    webalunoGrades      = data.totals?.grades ?? first.counts?.grades ?? 0
-                    webalunoSchedule    = data.totals?.schedule ?? first.counts?.schedule ?? 0
-                    webAlunoDisciplines = data.totals?.subjects ?? first.counts?.subjects ?? 0
-                } else if let conn = data.connection {
-                    // Legacy fallback
-                    webalunoStatus      = conn.status == "expired" ? .expired : .connected
-                    webalunoLastSync    = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
-                    webalunoGrades      = data.counts?.grades ?? 0
-                    webalunoSchedule    = data.counts?.schedule ?? 0
-                    webAlunoDisciplines = data.counts?.subjects ?? 0
-                } else {
-                    webalunoStatus = .connected
-                }
-            } else {
-                webalunoStatus = .disconnected
-            }
-        } catch {
-            webalunoStatus = .disconnected
-        }
-    }
+    // Legacy compat — these now just call loadPortalConnections()
+    private func loadCanvas() async { await loadPortalConnections() }
+    private func loadWebaluno() async { /* handled by loadPortalConnections */ }
 
     private func loadCalendar() async {
         do {
