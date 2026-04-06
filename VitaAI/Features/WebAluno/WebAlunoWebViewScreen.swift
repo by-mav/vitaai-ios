@@ -3,7 +3,7 @@ import WebKit
 
 // MARK: - Constants
 
-private let webalunoURL = "https://ac3949.mannesoftprime.com.br"
+private let webalunoURL = "https://ac3949.mannesoftprime.com.br/webaluno/"
 
 // MARK: - WebAlunoWebViewScreen
 
@@ -92,12 +92,14 @@ struct WebAlunoWebView: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> WKWebView {
-        // Clear any stale cookies before starting a fresh login
-        WKWebsiteDataStore.default().removeData(
-            ofTypes: [WKWebsiteDataTypeCookies],
-            modifiedSince: .distantPast,
-            completionHandler: {}
-        )
+        // Only clear PHPSESSID for fresh login — NEVER clear all cookies.
+        // Cloudflare uses __cf_bm and cf_clearance for bot detection;
+        // wiping them triggers "You have been blocked".
+        WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
+            for cookie in cookies where cookie.name.lowercased() == "phpsessid" {
+                WKWebsiteDataStore.default().httpCookieStore.delete(cookie)
+            }
+        }
 
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
@@ -112,8 +114,8 @@ struct WebAlunoWebView: UIViewRepresentable {
         webView.isOpaque = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
 
-        // Strip WebView marker from user-agent BEFORE loading — Google blocks OAuth in WebViews
-        webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        // DO NOT set customUserAgent — WKWebView's default UA is a real Safari UA.
+        // Hardcoded UA mismatches TLS fingerprint and triggers Cloudflare bot detection.
 
         // Progress binding
         context.coordinator.webView = webView
@@ -176,11 +178,11 @@ struct WebAlunoWebView: UIViewRepresentable {
                 guard let self else { return }
                 if let phpSession = self.extractPhpSessionId(from: cookies, for: currentURL) {
                     // Only fire after the user has successfully logged in (URL changed past login page)
-                    let isLoginPage = currentURL.hasSuffix("/")
-                        || currentURL.contains("/login")
-                        || currentURL.hasSuffix(".br")
+                    // Detect login page — don't fire session callback until user is past login
+                    let isLoginPage = currentURL.contains("/login")
+                        || currentURL.hasSuffix("/webaluno/")
+                        || currentURL.hasSuffix("/webaluno")
                         || currentURL == webalunoURL
-                        || currentURL == webalunoURL + "/"
                     guard !isLoginPage else { return }
 
                     self.sessionFound = true
