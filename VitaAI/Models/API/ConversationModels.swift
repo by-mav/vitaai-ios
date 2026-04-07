@@ -44,3 +44,29 @@ struct ChatRequest: Codable {
     var conversationId: String?
     var voiceMode: Bool?
 }
+
+// MARK: - Notification Preferences (from GET /api/notifications/preferences)
+
+struct NotificationPreferencesChannel: Codable {
+    var push: Bool?
+    var email: Bool?
+    var whatsapp: Bool?
+}
+
+struct NotificationPreferencesType: Codable {
+    var key: String?
+    var label: String?
+    var channels: NotificationPreferencesChannel?
+}
+
+struct NotificationPreferencesTiming: Codable {
+    var digestTime: String?
+    var briefingHoursBefore: Int?
+    var quietStart: String?
+    var quietEnd: String?
+}
+
+struct NotificationPreferencesResponse: Codable {
+    var types: [NotificationPreferencesType]?
+    var timing: NotificationPreferencesTiming?
+}

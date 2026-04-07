@@ -433,8 +433,9 @@ struct PortalWebView: UIViewRepresentable {
 
         switch portalType {
         case "canvas":
-            // Canvas LMS: /login/google goes directly to Google SSO (bypasses native form)
-            return "https://\(portalURL)/login/google"
+            // Canvas LMS: /login/google goes directly to Google SSO
+            let canvasBase = base.hasSuffix("/") ? String(base.dropLast()) : base
+            return "\(canvasBase)/login/google"
         case "webaluno":
             // WebAluno: append /webaluno/ if not already
             return base.hasSuffix("/webaluno/") ? base : "\(base)/webaluno/"
@@ -514,6 +515,221 @@ struct PortalWebView: UIViewRepresentable {
                 DispatchQueue.main.async {
                     self.onSessionCaptured(cookieString)
                 }
+            }
+        }
+    }
+}
+import SwiftUI
+
+/// Portal connect flow for onboarding.
+/// Reuses PortalWebView (login) and ConnectorSyncView (progress) from Connectors.
+/// No nav bar, no disconnect, no status card — just login → sync → done.
+struct OnboardingPortalFlow: View {
+    let portalType: String
+    let university: University?
+    let api: VitaAPI
+    let onBack: () -> Void
+    let onConnected: () -> Void
+
+    @State private var phase: FlowPhase = .login
+    @State private var syncVM: PortalConnectViewModel?
+
+    private enum FlowPhase {
+        case login
+        case syncing
+        case done
+    }
+
+    private var portalURL: String {
+        if let portals = university?.portals,
+           let match = portals.first(where: { $0.portalType == portalType }) {
+            return match.instanceUrl ?? ""
+        }
+        return ""
+    }
+
+    private var portalName: String {
+        University.displayName(for: portalType)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Minimal top bar: back + portal name
+            HStack {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onBack()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.4))
+                        .frame(width: 32, height: 32)
+                        .background(Color.white.opacity(0.04))
+                        .overlay(Circle().stroke(Color.white.opacity(0.06), lineWidth: 1))
+                        .clipShape(Circle())
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Text(portalName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+
+                Spacer()
+
+                Color.clear.frame(width: 44, height: 44)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            switch phase {
+            case .login:
+                loginPhase
+
+            case .syncing:
+                if let vm = syncVM {
+                    if portalType == "canvas" {
+                        ConnectorSyncView(
+                            connectorName: "Canvas",
+                            steps: SyncStep.canvasSteps(phase: vm.canvasSyncPhase),
+                            message: vm.canvasSyncMessage,
+                            progress: vm.canvasSyncProgress
+                        )
+                    } else {
+                        // WebAluno and others use vita-crawl polling
+                        ConnectorSyncView(
+                            connectorName: portalName,
+                            steps: SyncStep.webalunoSteps(phase: "login"),
+                            message: "Vita extraindo dados..."
+                        )
+                    }
+                } else {
+                    ProgressView().tint(VitaColors.accent)
+                }
+
+            case .done:
+                donePhase
+            }
+        }
+        .onAppear {
+            let vm = PortalConnectViewModel(portalType: portalType, api: api)
+            syncVM = vm
+        }
+    }
+
+    // MARK: - Login Phase (WebView)
+
+    private var loginPhase: some View {
+        VStack(spacing: 0) {
+            // URL bar
+            HStack(spacing: 8) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.white.opacity(0.3))
+                Text(portalURL.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: ""))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.35))
+                    .lineLimit(1)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.white.opacity(0.03))
+
+            PortalWebView(
+                portalType: portalType,
+                portalURL: portalURL,
+                onSessionCaptured: { cookie in
+                    handleSessionCaptured(cookie)
+                }
+            )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Done Phase
+
+    private var donePhase: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Color.green)
+            }
+
+            Text("\(portalName) conectado!")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.white.opacity(0.9))
+
+            Text("Seus dados foram importados com sucesso.")
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.5))
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                onConnected()
+            } label: {
+                Text("Continuar")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(VitaColors.surface)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(.white))
+            }
+            .padding(.horizontal, 32)
+
+            Spacer()
+            Spacer()
+        }
+    }
+
+    // MARK: - Session Handler
+
+    private func handleSessionCaptured(_ cookie: String) {
+        guard let vm = syncVM else { return }
+
+        withAnimation { phase = .syncing }
+
+        if portalType == "canvas" {
+            let instanceUrl = portalURL.hasPrefix("http") ? portalURL : "https://\(portalURL)"
+            vm.connectCanvas(cookies: cookie, instanceUrl: instanceUrl)
+
+            // Watch for completion
+            Task {
+                while vm.canvasSyncPhase != .done && vm.canvasSyncPhase != .error {
+                    try? await Task.sleep(for: .seconds(0.5))
+                }
+                withAnimation { phase = .done }
+            }
+        } else {
+            // WebAluno / others: use vita-crawl
+            Task {
+                do {
+                    let instanceUrl = portalURL.hasPrefix("http") ? portalURL : "https://\(portalURL)"
+                    let result = try await api.startVitaCrawl(cookies: cookie, instanceUrl: instanceUrl)
+                    if let syncId = result.syncId {
+                        for _ in 0..<60 {
+                            try? await Task.sleep(for: .seconds(2))
+                            if let progress = try? await api.getSyncProgress(syncId: syncId) {
+                                if progress.isDone || progress.isError { break }
+                            }
+                        }
+                    }
+                } catch {}
+                withAnimation { phase = .done }
             }
         }
     }

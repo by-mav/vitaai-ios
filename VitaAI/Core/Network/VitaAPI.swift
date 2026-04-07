@@ -554,6 +554,10 @@ actor VitaAPI {
         ])
     }
 
+    func getNotificationPreferences() async throws -> NotificationPreferencesResponse {
+        try await client.get("notifications/preferences")
+    }
+
     func syncPushPreferences(_ prefs: PushPreferencesRequest) async throws {
         let _: EmptyResponse = try await client.post("push/preferences", body: prefs)
     }

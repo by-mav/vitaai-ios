@@ -62,7 +62,7 @@ struct EstudosScreen: View {
         }
         .onAppear {
             if viewModel == nil {
-                viewModel = EstudosViewModel(api: container.api)
+                viewModel = EstudosViewModel(api: container.api, userEmail: container.authManager.userEmail)
                 Task { await viewModel?.load() }
             }
         }

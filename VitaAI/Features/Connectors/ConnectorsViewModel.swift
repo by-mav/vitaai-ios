@@ -63,16 +63,22 @@ final class ConnectorsViewModel {
     private func loadUniversityPortals() async {
         do {
             let profile = try await api.getProfile()
-            if let uniName = profile.university, !uniName.isEmpty {
-                universityName = uniName
-                let response = try await api.getUniversities(query: uniName)
-                if let uni = response.universities.first {
-                    universityName = uni.shortName.isEmpty ? uni.name : uni.shortName
-                    universityCity = uni.city
-                    if let portals = uni.portals, !portals.isEmpty {
-                        universityPortals = portals
-                    }
+            let uniId = profile.universityId
+            let uniName = profile.university
+            guard let uniId, !uniId.isEmpty else { return }
+
+            // Search universities, match by exact ID from profile
+            let query = uniName ?? ""
+            let response = try await api.getUniversities(query: query)
+            if let uni = response.universities.first(where: { $0.id == uniId }) {
+                universityName = uni.shortName.isEmpty ? uni.name : uni.shortName
+                universityCity = uni.city
+                if let portals = uni.portals, !portals.isEmpty {
+                    universityPortals = portals
                 }
+            } else if let uniName, !uniName.isEmpty {
+                // Fallback: profile has name but university not found in search
+                universityName = uniName
             }
         } catch {
             print("[Connectors] University portals load failed: \(error)")

@@ -100,21 +100,26 @@ let defaultToolIds: Set<String> = [
     "qbank", "flashcards", "simulados", "atlas", "resumos", "mapas", "osce",
 ]
 
-// MARK: - UserDefaults Key
+// MARK: - UserDefaults Key (scoped to user)
 
-private let toolManagerSelectedKey = "vita_tool_manager_selected_ids"
+private func toolManagerKey(for userEmail: String?) -> String {
+    let scope = userEmail ?? "default"
+    return "vita_tool_manager_selected_ids_\(scope)"
+}
 
 // MARK: - Persistence Helpers
 
-func loadSelectedToolIds() -> Set<String> {
-    guard let stored = UserDefaults.standard.array(forKey: toolManagerSelectedKey) as? [String] else {
+func loadSelectedToolIds(userEmail: String? = nil) -> Set<String> {
+    let key = toolManagerKey(for: userEmail)
+    guard let stored = UserDefaults.standard.array(forKey: key) as? [String] else {
         return defaultToolIds
     }
     return Set(stored)
 }
 
-func saveSelectedToolIds(_ ids: Set<String>) {
-    UserDefaults.standard.set(Array(ids), forKey: toolManagerSelectedKey)
+func saveSelectedToolIds(_ ids: Set<String>, userEmail: String? = nil) {
+    let key = toolManagerKey(for: userEmail)
+    UserDefaults.standard.set(Array(ids), forKey: key)
 }
 
 // MARK: - ToolManagerScreen
@@ -123,6 +128,7 @@ struct ToolManagerScreen: View {
     let onBack: () -> Void
     let onSave: (Set<String>) -> Void
 
+    @Environment(\.appContainer) private var container
     @State private var selectedIds: Set<String>
 
     private let columns = [
@@ -135,7 +141,7 @@ struct ToolManagerScreen: View {
     init(onBack: @escaping () -> Void, onSave: @escaping (Set<String>) -> Void) {
         self.onBack = onBack
         self.onSave = onSave
-        _selectedIds = State(initialValue: loadSelectedToolIds())
+        _selectedIds = State(initialValue: defaultToolIds)
     }
 
     var body: some View {
@@ -182,6 +188,9 @@ struct ToolManagerScreen: View {
             }
         }
         .navigationBarHidden(true)
+        .onAppear {
+            selectedIds = loadSelectedToolIds(userEmail: container.authManager.userEmail)
+        }
     }
 
     // MARK: - Top Bar
@@ -237,7 +246,7 @@ struct ToolManagerScreen: View {
 
     private var saveButton: some View {
         Button(action: {
-            saveSelectedToolIds(selectedIds)
+            saveSelectedToolIds(selectedIds, userEmail: container.authManager.userEmail)
             onSave(selectedIds)
         }) {
             Text(LocalizedStringKey("tool_manager_save"))

@@ -50,7 +50,7 @@ struct WelcomeStep: View {
                                         Text(uni.shortName)
                                             .font(.system(size: 13, weight: .medium))
                                             .foregroundStyle(.white.opacity(0.85))
-                                        if let enamed = uni.enamScore, enamed > 0 {
+                                        if let enamed = uni.enameConcept, enamed > 0 {
                                             ENAMEDBadge(score: Int(enamed))
                                         }
                                     }
@@ -141,7 +141,7 @@ struct WelcomeStep: View {
                     Text(selected.shortName)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(VitaColors.accent)
-                    if let enamed = selected.enamScore, enamed > 0 {
+                    if let enamed = selected.enameConcept, enamed > 0 {
                         ENAMEDBadge(score: Int(enamed))
                     }
                 }

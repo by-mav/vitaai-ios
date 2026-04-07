@@ -105,11 +105,11 @@ struct VitaTopBar: View {
 
             Spacer()
 
-            HStack(spacing: 8) {
-                navCircleButton(icon: "bell", badgeCount: notificationCount) { onBellTap?() }
+            HStack(spacing: 6) {
+                navButton(icon: "bell", badgeCount: notificationCount) { onBellTap?() }
                     .accessibilityLabel("Notificações")
                     .accessibilityIdentifier("bellButton")
-                navCircleButton(icon: "line.3.horizontal") { onMenuTap?() }
+                navButton(icon: "line.3.horizontal") { onMenuTap?() }
                     .accessibilityLabel("Menu")
                     .accessibilityIdentifier("menuButton")
             }
@@ -205,31 +205,13 @@ struct VitaTopBar: View {
     //   bg: linear-gradient(180deg, rgba(255,248,236,0.075), rgba(255,248,236,0.03))
     //   border: rgba(255,224,176,0.16)
     //   shadows: inset 0 1px 0 rgba(255,247,234,0.05), 0 10px 24px rgba(0,0,0,0.2)
-    private func navCircleButton(icon: String, badgeCount: Int = 0, action: @escaping () -> Void) -> some View {
+    private func navButton(icon: String, badgeCount: Int = 0, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: icon)
-                    .font(.system(size: 18))
-                    .foregroundStyle(Color(red: 1.0, green: 0.957, blue: 0.886).opacity(0.68))
-                    .frame(width: 42, height: 42)
-                    .background(
-                        Circle().fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 1.0, green: 0.973, blue: 0.925).opacity(0.075),
-                                    Color(red: 1.0, green: 0.973, blue: 0.925).opacity(0.03)
-                                ],
-                                startPoint: .top, endPoint: .bottom
-                            )
-                        )
-                    )
-                    .overlay(
-                        Circle().stroke(
-                            Color(red: 1.0, green: 0.878, blue: 0.690).opacity(0.16),
-                            lineWidth: 1
-                        )
-                    )
-                    .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 5)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Color(red: 1.0, green: 0.957, blue: 0.886).opacity(0.50))
+                    .frame(width: 36, height: 36)
 
                 // Badge
                 if badgeCount > 0 {
@@ -238,7 +220,7 @@ struct VitaTopBar: View {
                         .foregroundStyle(.white)
                         .frame(minWidth: 16, minHeight: 16)
                         .background(Circle().fill(VitaColors.dataRed))
-                        .offset(x: 2, y: -2)
+                        .offset(x: 4, y: -2)
                 }
             }
         }

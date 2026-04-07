@@ -162,8 +162,8 @@ struct ProfileScreen: View {
                         .padding(.top, 2)
                 }
 
-                let uni = UserDefaults.standard.string(forKey: "vita_onboarding_university") ?? ""
-                let semester = UserDefaults.standard.integer(forKey: "vita_onboarding_semester")
+                let uni = profile?.university ?? ""
+                let semester = profile?.semester ?? 0
                 if !uni.isEmpty {
                     Text("\(uni)\(semester > 0 ? " - \(semester)o Periodo" : "")")
                         .font(.system(size: 11))

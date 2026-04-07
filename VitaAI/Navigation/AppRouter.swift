@@ -30,6 +30,8 @@ struct AppRouter: View {
     @AppStorage("vita_is_onboarded") private var isOnboardedStored = false
     @AppStorage("vita_onboarding_done") private var legacyOnboardingStored = false
     @State private var router = Router()
+    @State private var profileChecked = false
+    @State private var needsOnboarding = false
 
     var body: some View {
         Group {
@@ -42,11 +44,39 @@ struct AppRouter: View {
             } else if !authManager.isLoggedIn {
                 LoginScreen(authManager: authManager)
             } else if !isOnboarded {
-                VitaOnboarding {
+                VitaOnboarding(onLogout: {
+                    Task { await authManager.logout() }
+                }) {
+                    isOnboardedStored = true
+                    legacyOnboardingStored = true
+                    needsOnboarding = false
                 }
             } else {
                 MainTabView(router: router, authManager: authManager)
             }
+        }
+        .task(id: authManager.isLoggedIn) {
+            guard authManager.isLoggedIn else {
+                profileChecked = false
+                return
+            }
+            do {
+                let profile = try await container.api.getProfile()
+                if profile.onboardingCompleted != true {
+                    needsOnboarding = true
+                    isOnboardedStored = false
+                    legacyOnboardingStored = false
+                } else {
+                    needsOnboarding = false
+                    isOnboardedStored = true
+                }
+            } catch {
+                // 404 = no profile = needs onboarding
+                needsOnboarding = true
+                isOnboardedStored = false
+                legacyOnboardingStored = false
+            }
+            profileChecked = true
         }
         .preferredColorScheme(.dark)
         .onOpenURL { url in
@@ -66,8 +96,11 @@ struct AppRouter: View {
         }
     }
 
+
     private var isOnboarded: Bool {
-        isOnboardedStored || legacyOnboardingStored
+        if !profileChecked { return true } // show loading, not onboarding flash
+        if needsOnboarding { return false }
+        return isOnboardedStored || legacyOnboardingStored
     }
 }
 

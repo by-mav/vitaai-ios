@@ -203,6 +203,7 @@ struct NotificationSettingsScreen: View {
         }
         .task {
             await checkSystemPermission()
+            await loadPreferencesFromBackend()
         }
         .onAppear {
             animateEntrance()
@@ -250,6 +251,33 @@ struct NotificationSettingsScreen: View {
     private func checkSystemPermission() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         systemAuthDenied = settings.authorizationStatus == .denied
+    }
+
+    /// Load notification preferences from backend and update local state.
+    @MainActor
+    private func loadPreferencesFromBackend() async {
+        guard let prefs = try? await container.api.getNotificationPreferences() else { return }
+
+        // Map backend notification types to local toggles
+        if let types = prefs.types {
+            for t in types {
+                let enabled = t.channels?.push ?? true
+                switch t.key {
+                case "studyPlan":    studyEnabled = enabled
+                case "flashcardDue": reviewEnabled = enabled
+                case "deadline":     deadlineEnabled = enabled
+                case "streak":       updatesEnabled = enabled
+                default: break
+                }
+            }
+        }
+
+        // Map timing settings
+        if let timing = prefs.timing {
+            if let dt = timing.digestTime { studyTime = dt }
+            if let qs = timing.quietStart { quietStart = qs }
+            if let qe = timing.quietEnd   { quietEnd = qe }
+        }
     }
 
     /// Sync current push preferences to the backend (mirrors Android syncToBackend).

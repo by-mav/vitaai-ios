@@ -25,8 +25,9 @@ public struct Profile: Sendable, Codable, Hashable {
     public var universityLms: String?
     public var subjects: [JSONValue]?
     public var stats: JSONValue?
+    public var onboardingCompleted: Bool?
 
-    public init(id: String? = nil, displayName: String? = nil, email: String? = nil, image: String? = nil, moment: String? = nil, year: Int? = nil, semester: Int? = nil, highSchoolYear: Int? = nil, examBoard: String? = nil, studyGoalId: String? = nil, university: String? = nil, universityState: String? = nil, universityId: String? = nil, universityLms: String? = nil, subjects: [JSONValue]? = nil, stats: JSONValue? = nil) {
+    public init(id: String? = nil, displayName: String? = nil, email: String? = nil, image: String? = nil, moment: String? = nil, year: Int? = nil, semester: Int? = nil, highSchoolYear: Int? = nil, examBoard: String? = nil, studyGoalId: String? = nil, university: String? = nil, universityState: String? = nil, universityId: String? = nil, universityLms: String? = nil, subjects: [JSONValue]? = nil, stats: JSONValue? = nil, onboardingCompleted: Bool? = nil) {
         self.id = id
         self.displayName = displayName
         self.email = email
@@ -43,6 +44,7 @@ public struct Profile: Sendable, Codable, Hashable {
         self.universityLms = universityLms
         self.subjects = subjects
         self.stats = stats
+        self.onboardingCompleted = onboardingCompleted
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -62,6 +64,7 @@ public struct Profile: Sendable, Codable, Hashable {
         case universityLms
         case subjects
         case stats
+        case onboardingCompleted
     }
 
     // Encodable protocol methods
@@ -84,6 +87,7 @@ public struct Profile: Sendable, Codable, Hashable {
         try container.encodeIfPresent(universityLms, forKey: .universityLms)
         try container.encodeIfPresent(subjects, forKey: .subjects)
         try container.encodeIfPresent(stats, forKey: .stats)
+        try container.encodeIfPresent(onboardingCompleted, forKey: .onboardingCompleted)
     }
 }
 

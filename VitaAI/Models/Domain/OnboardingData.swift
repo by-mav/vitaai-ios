@@ -29,7 +29,7 @@ struct University: Identifiable, Decodable {
     let shortName: String
     let city: String
     let state: String
-    let enamScore: Double?
+    let enameConcept: Int?
     let portals: [UniversityPortal]?
 
     var allDetectedPortals: [UniversityPortal] { portals ?? [] }
@@ -68,7 +68,7 @@ struct University: Identifiable, Decodable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, shortName, city, state, enamScore, portals
+        case id, name, shortName, city, state, enameConcept, portals
     }
 }
 

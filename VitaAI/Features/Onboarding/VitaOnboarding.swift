@@ -25,6 +25,7 @@ struct VitaOnboarding: View {
     @State private var showManualEntry = false
     @State private var typeTextId: UUID = UUID()
     var userName: String = ""
+    var onLogout: (() -> Void)?
     var onComplete: () -> Void
 
     var body: some View {
@@ -68,6 +69,23 @@ struct VitaOnboarding: View {
                                 .accessibilityLabel(String(localized: "onboarding_a11y_back"))
                             }
                             Spacer()
+                            if let onLogout {
+                                Button {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    onLogout()
+                                } label: {
+                                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.4))
+                                        .frame(width: 32, height: 32)
+                                        .background(Color.white.opacity(0.04))
+                                        .overlay(Circle().stroke(Color.white.opacity(0.06), lineWidth: 1))
+                                        .clipShape(Circle())
+                                        .frame(minWidth: 44, minHeight: 44)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Sair")
+                            }
                         }
                         // Progress dots: centered (exclude sleep, count visible steps)
                         let visibleSteps = OnboardingStep.allCases.filter { $0 != .sleep && !shouldSkipStep($0) }
@@ -80,17 +98,19 @@ struct VitaOnboarding: View {
                     .transition(.opacity)
                 }
 
-                // Mascot (tap to wake on sleep step)
-                VitaMascot(state: mascotState, size: step == .sleep ? 120 : 100)
-                    .scaleEffect(mascotScale)
-                    .padding(.top, step == .sleep ? 60 : 16)
-                    .padding(.bottom, step == .sleep ? 0 : 8)
-                    .onTapGesture {
-                        if step == .sleep {
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            wakeUp()
+                // Mascot (tap to wake on sleep step, hidden during inline portal connect)
+                if !(step == .connect && inlineConnectPortal != nil) {
+                    VitaMascot(state: mascotState, size: step == .sleep ? 120 : 100)
+                        .scaleEffect(mascotScale)
+                        .padding(.top, step == .sleep ? 60 : 16)
+                        .padding(.bottom, step == .sleep ? 0 : 8)
+                        .onTapGesture {
+                            if step == .sleep {
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                wakeUp()
+                            }
                         }
-                    }
+                }
 
                 // Speech bubble + content
                 if step == .sleep {
@@ -161,12 +181,14 @@ struct VitaOnboarding: View {
 
         case .connect:
             if let activePortal = inlineConnectPortal {
-                InlinePortalWebView(
+                OnboardingPortalFlow(
                     portalType: activePortal,
                     university: viewModel?.selectedUniversity,
                     api: container.api,
-                    onClose: { withAnimation { inlineConnectPortal = nil } },
-                    onSyncStarted: { syncId in viewModel?.setSyncId(syncId) }
+                    onBack: { withAnimation { inlineConnectPortal = nil } },
+                    onConnected: {
+                        withAnimation { inlineConnectPortal = nil }
+                    }
                 )
             } else {
                 ConnectStep(university: viewModel?.selectedUniversity, allPortalTypes: viewModel?.allPortalTypes ?? []) { portalType in
@@ -304,8 +326,9 @@ struct VitaOnboarding: View {
         guard let vm = viewModel else { return false }
         switch step {
         case .syncing:
-            // Skip syncing if no portal was connected (no syncId and no connector status)
-            return vm.activeSyncId == nil && vm.selectedUniversity?.portals?.isEmpty != false
+            // Skip syncing if no portal was actually connected during onboarding.
+            // Having portals listed for the university doesn't mean the user connected them.
+            return vm.activeSyncId == nil
         case .subjects:
             // Skip subjects if sync didn't find any
             return vm.syncedSubjects.isEmpty

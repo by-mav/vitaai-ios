@@ -175,21 +175,23 @@ final class EstudosViewModel {
         saveFavorites()
     }
 
-    // MARK: - Favorites Persistence (UserDefaults)
+    // MARK: - Favorites Persistence (UserDefaults, scoped to user)
 
-    private static let favoritesKey = "estudos_favorite_course_ids"
+    private let userScopedFavoritesKey: String
 
     private func loadFavorites() {
-        let stored = UserDefaults.standard.stringArray(forKey: Self.favoritesKey) ?? []
+        let stored = UserDefaults.standard.stringArray(forKey: userScopedFavoritesKey) ?? []
         favoriteCourseIds = Set(stored)
     }
 
     private func saveFavorites() {
-        UserDefaults.standard.set(Array(favoriteCourseIds), forKey: Self.favoritesKey)
+        UserDefaults.standard.set(Array(favoriteCourseIds), forKey: userScopedFavoritesKey)
     }
 
-    init(api: VitaAPI) {
+    init(api: VitaAPI, userEmail: String? = nil) {
         self.api = api
+        let scope = userEmail ?? "default"
+        self.userScopedFavoritesKey = "estudos_favorite_course_ids_\(scope)"
         loadFavorites()
     }
 

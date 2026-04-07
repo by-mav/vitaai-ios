@@ -50,8 +50,7 @@ final class OnboardingViewModel {
                     result.append(PortalTypeInfo(type: p.portalType))
                 }
             }
-            // Also check single portalType field (from universities table directly)
-            // This handles cases where university has portalType but no portals array
+            // portals array from API is the source of truth
         }
         return result.sorted { $0.displayName < $1.displayName }
     }
