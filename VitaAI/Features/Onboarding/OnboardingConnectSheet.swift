@@ -423,7 +423,10 @@ struct PortalWebView: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(portalType: portalType, onSessionCaptured: onSessionCaptured)
+        // Extract the portal's base host so the coordinator only captures cookies
+        // when navigated back to the portal domain (not on Google/Microsoft SSO pages)
+        let portalHost = URL(string: portalURL.hasPrefix("http") ? portalURL : "https://\(portalURL)")?.host ?? portalURL
+        return Coordinator(portalType: portalType, portalBaseHost: portalHost, onSessionCaptured: onSessionCaptured)
     }
 
     /// Build the login URL for each portal type
@@ -462,12 +465,14 @@ struct PortalWebView: UIViewRepresentable {
 
     class Coordinator: NSObject, WKNavigationDelegate {
         let portalType: String
+        let portalBaseHost: String
         let onSessionCaptured: (String) -> Void
         private var capturedSession = false
         private var navigationCount = 0
 
-        init(portalType: String, onSessionCaptured: @escaping (String) -> Void) {
+        init(portalType: String, portalBaseHost: String, onSessionCaptured: @escaping (String) -> Void) {
             self.portalType = portalType
+            self.portalBaseHost = portalBaseHost
             self.onSessionCaptured = onSessionCaptured
         }
 
@@ -479,37 +484,44 @@ struct PortalWebView: UIViewRepresentable {
             let currentHost = webView.url?.host ?? ""
             let currentPath = webView.url?.path ?? ""
 
-            // Detect successful login by checking if we're on the portal dashboard
-            // (not on a login/auth page anymore)
-            let isLoginPage = currentPath.contains("/login") || currentPath.contains("/auth")
-                || currentURL.contains("accounts.google.com")
-                || currentURL.contains("signin")
-            let isPortalDashboard = !currentHost.isEmpty && !isLoginPage && navigationCount >= 1
+            NSLog("[PortalWebView] %@: didFinish nav #%d → %@ (portalHost: %@)", portalType, navigationCount, currentURL, portalBaseHost)
 
-            // For first navigation: only capture if we landed on the dashboard (cached session)
-            // For 2+ navigations: always capture (user completed login flow)
-            guard navigationCount >= 2 || isPortalDashboard else { return }
+            // CRITICAL: Only capture when on the portal's own domain.
+            // During SSO (Google, Microsoft), the WebView navigates through third-party auth pages.
+            // We must wait until the redirect back to the portal completes.
+            let isOnPortalDomain = !currentHost.isEmpty && (
+                currentHost == portalBaseHost
+                || currentHost.hasSuffix(".\(portalBaseHost)")
+                || portalBaseHost.hasSuffix(".\(currentHost)")
+            )
+            guard isOnPortalDomain else { return }
+
+            // On portal domain: check if we're past the login page
+            let isLoginPage = currentPath.contains("/login") || currentPath.contains("/auth")
+            let isPortalDashboard = !isLoginPage
+
+            // Capture if: on portal dashboard (login complete) OR 2+ navs on portal domain
+            guard isPortalDashboard || navigationCount >= 3 else { return }
 
             // Capture ALL cookies from the portal domain — backend decides which ones matter
             webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
                 guard let self, !self.capturedSession else { return }
 
-                // Get cookies from the portal's domain only (not third-party)
-                let portalHost = webView.url?.host ?? ""
+                // Get cookies from the portal's domain only (not third-party like Google)
                 let relevantCookies = cookies.filter { cookie in
-                    // Include cookies from portal domain and subdomains
-                    portalHost.hasSuffix(cookie.domain.trimmingCharacters(in: CharacterSet(charactersIn: ".")))
-                    || cookie.domain.trimmingCharacters(in: CharacterSet(charactersIn: ".")) == portalHost
+                    let cookieDomain = cookie.domain.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                    return currentHost.hasSuffix(cookieDomain) || cookieDomain == currentHost
                 }
 
-                guard !relevantCookies.isEmpty else { return }
+                guard !relevantCookies.isEmpty else {
+                    NSLog("[PortalWebView] %@: on portal domain but no portal cookies found", self.portalType)
+                    return
+                }
 
-                // Send ALL cookies as "name=value; name2=value2" — backend picks what it needs
                 let cookieString = relevantCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
 
                 NSLog("[PortalWebView] %@: captured %d cookies (%d bytes) after nav to %@", self.portalType, relevantCookies.count, cookieString.count, currentURL)
                 NSLog("[PortalWebView] Cookie names: %@", relevantCookies.map(\.name).joined(separator: ", "))
-                NSLog("[PortalWebView] Cookie domains: %@", relevantCookies.map { "\($0.name)@\($0.domain)" }.joined(separator: ", "))
 
                 self.capturedSession = true
                 DispatchQueue.main.async {

@@ -363,7 +363,7 @@ actor VitaAPI {
     }
 
     func disconnectCanvas() async throws {
-        try await client.delete("canvas/connect")
+        try await client.delete("portal/disconnect?portalType=canvas")
     }
 
     func getCourses() async throws -> CoursesResponse {
