@@ -306,7 +306,7 @@ struct PortalConnectScreen: View {
             steps: SyncStep.canvasSteps(phase: vm.canvasSyncPhase),
             message: vm.canvasSyncMessage,
             progress: vm.isSyncing ? vm.canvasSyncProgress : nil,
-            showRetry: !vm.isSyncing && cookiesCaptured,
+            showRetry: !vm.isSyncing && vm.canvasSyncPhase == .error,
             errorMessage: vm.error,
             onRetry: { cookiesCaptured = false }
         )
