@@ -214,13 +214,9 @@ final class ConnectorsViewModel {
     // MARK: - Sync
 
     func syncCanvas() async {
-        canvas.status = .loading
-        do {
-            _ = try await api.syncCanvas()
-            await loadPortalConnections()
-        } catch {
-            canvas.status = .connected
-        }
+        // Canvas re-sync requires fresh on-device cookies — use reconnect flow
+        toastMessage = "Para re-sincronizar, reconecte ao Canvas"
+        toastType = .success
     }
 
     func syncCalendar() async {

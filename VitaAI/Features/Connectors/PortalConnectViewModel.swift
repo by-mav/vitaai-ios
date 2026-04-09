@@ -72,15 +72,22 @@ final class PortalConnectViewModel {
                 }
 
             case "webaluno", "mannesoft":
-                let resp = try await api.getWebalunoStatus()
-                isConnected = resp.connected
-                instanceUrl = resp.connection?.instanceUrl ?? ""
-                lastSync = resp.connection?.lastSyncAt.flatMap { formatRelativeTime($0) }
-                stats = [
-                    (resp.counts?.grades ?? 0, "notas"),
-                    (resp.counts?.schedule ?? 0, "aulas"),
-                    (resp.counts?.semesters ?? 0, "semestres"),
-                ]
+                // Use the same unified endpoint as Canvas — find the mannesoft connection specifically
+                let status = try await api.getCanvasStatus()
+                let conn = status.connections?.first { $0.portalType == "mannesoft" || $0.portalType == "webaluno" }
+                if let conn, conn.status == "active" {
+                    isConnected = true
+                    instanceUrl = conn.instanceUrl ?? ""
+                    lastSync = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
+                    stats = [
+                        (conn.counts?.subjects ?? 0, "disciplinas"),
+                        (conn.counts?.evaluations ?? 0, "notas"),
+                        (conn.counts?.schedule ?? 0, "aulas"),
+                    ]
+                } else {
+                    isConnected = false
+                    instanceUrl = ""
+                }
 
             case "google_calendar":
                 let data = try await api.getGoogleCalendarStatus()
@@ -205,15 +212,15 @@ final class PortalConnectViewModel {
             do {
                 switch portalType {
                 case "canvas":
-                    _ = try await api.syncCanvas()
+                    // Canvas sync needs fresh on-device cookies — handled by reconnect flow
+                    isSyncing = false
+                    error = "Para re-sincronizar, reconecte ao Canvas"
+                    return
                 case "webaluno", "mannesoft":
-                    let result = try await api.syncWebaluno()
-                    if !result.success {
-                        isSyncing = false
-                        error = result.error ?? "Falha na sincronizacao"
-                        return
-                    }
-                    successMessage = "Sincronizado: \(result.grades) notas, \(result.schedule) aulas"
+                    // WebAluno syncs automatically via server cron every 10 min
+                    isSyncing = false
+                    successMessage = "WebAluno sincroniza automaticamente a cada 10 minutos"
+                    return
                 case "google_calendar":
                     let result = try await api.syncGoogleCalendar()
                     let count = result.events > 0 ? result.events : result.synced
