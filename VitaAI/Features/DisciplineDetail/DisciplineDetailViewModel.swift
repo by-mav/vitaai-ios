@@ -117,7 +117,7 @@ final class DisciplineDetailViewModel {
             ("farmacologia",  "disc-farmacologia"),
             ("patologia",     "disc-patologia-geral"),
             ("legal",         "disc-medicina-legal"),
-            ("etica",         "disc-etica-medica"),
+            ("ética",         "disc-etica-medica"),
             ("familia",       "disc-mfc"),
             ("comunidade",    "disc-mfc"),
             ("histologia",    "disc-histologia"),
@@ -169,7 +169,7 @@ final class DisciplineDetailViewModel {
         let normA = normalize(a)
         let normB = normalize(b)
         if normA == normB || normA.contains(normB) || normB.contains(normA) { return true }
-        let ignore = Set(["medica","medico","medicina","saude","educacao","geral","especial","basica","clinica","aplicada","praticas","comunidade"])
+        let ignore = Set(["médica","médico","medicina","saúde","educação","geral","especial","básica","clínica","aplicada","práticas","comunidade"])
         let wordsA = normA.split(separator: " ").map(String.init).filter { $0.count > 4 && !ignore.contains($0) }
         let wordsB = normB.split(separator: " ").map(String.init).filter { $0.count > 4 && !ignore.contains($0) }
         guard !wordsA.isEmpty, !wordsB.isEmpty else { return false }

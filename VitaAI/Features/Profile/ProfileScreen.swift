@@ -89,7 +89,7 @@ struct ProfileScreen: View {
                     Text("Perfil")
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(VitaColors.textPrimary)
-                    Text("Suas informacoes")
+                    Text("Suas informações")
                         .font(.system(size: 11))
                         .foregroundStyle(VitaColors.textSecondary)
                 }
@@ -379,7 +379,7 @@ struct ProfileScreen: View {
             GridItem(.flexible(), spacing: 8),
             GridItem(.flexible(), spacing: 8)
         ], spacing: 8) {
-            statCard(value: formatNumber(questions), label: "Questoes")
+            statCard(value: formatNumber(questions), label: "Questões")
             statCard(value: formatNumber(flashcards), label: "Flashcards")
             statCard(value: "\(studyHours)h", label: "Horas estudo")
             statCard(

@@ -55,7 +55,7 @@ struct SyncingStep: View {
                                     if viewModel.syncCourses > 0 || viewModel.syncGrades > 0 {
                                         Text("\u{00B7}").font(.system(size: 11)).foregroundStyle(.white.opacity(0.2))
                                     }
-                                    Text("\(viewModel.syncSchedule) horarios")
+                                    Text("\(viewModel.syncSchedule) horários")
                                         .font(.system(size: 11))
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
@@ -240,7 +240,7 @@ struct SyncingStep: View {
                         viewModel.syncGrades = max(viewModel.syncGrades, g)
                         viewModel.syncSchedule = max(viewModel.syncSchedule, s)
                         if g > 0 || s > 0 {
-                            label = "\(viewModel.syncGrades) notas, \(viewModel.syncSchedule) horarios"
+                            label = "\(viewModel.syncGrades) notas, \(viewModel.syncSchedule) horários"
                             percent = 85
                         }
                     }
@@ -264,7 +264,7 @@ struct SyncingStep: View {
                 let parts: [String] = [
                     viewModel.syncCourses > 0 ? "\(viewModel.syncCourses) disciplinas" : nil,
                     viewModel.syncGrades > 0 ? "\(viewModel.syncGrades) notas" : nil,
-                    viewModel.syncSchedule > 0 ? "\(viewModel.syncSchedule) horarios" : nil,
+                    viewModel.syncSchedule > 0 ? "\(viewModel.syncSchedule) horários" : nil,
                 ].compactMap { $0 }
 
                 label = parts.isEmpty ? String(localized: "sync_done") : parts.joined(separator: " \u{00B7} ")

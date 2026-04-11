@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - DisciplineDetailScreen
 // Matches disciplina-detalhe-mobile-v1.html mockup.
 // Sections: Hero (image+overlay+back), Badge, Prova Alert, Study Grid,
-//           Conteudo da prova, Materiais (PDFs), Videos recomendados, Vita sugere.
+//           Conteúdo da prova, Materiais (PDFs), Videos recomendados, Vita sugere.
 
 struct DisciplineDetailScreen: View {
     let disciplineId: String
@@ -58,7 +58,7 @@ struct DisciplineDetailScreen: View {
                 studyGrid
                     .padding(.horizontal, 14)
 
-                // MARK: - Conteudo da prova
+                // MARK: - Conteúdo da prova
                 sectionLabel("Conteúdo da prova")
                     .padding(.top, 18)
                 contentSection
@@ -133,7 +133,7 @@ struct DisciplineDetailScreen: View {
                         Circle()
                             .stroke(goldText.opacity(0.80), lineWidth: 1.5)
                             .frame(width: 10, height: 10)
-                        Text("3o Periodo")
+                        Text("3o Período")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(goldText.opacity(0.80))
                     }

@@ -71,7 +71,7 @@ enum Route: Hashable {
     // MARK: - Discipline Detail
     case disciplineDetail(disciplineId: String, disciplineName: String)
 
-    // MARK: - Transcricao (audio recording + AI transcription)
+    // MARK: - Transcrição (audio recording + AI transcription)
     case transcricao
 
     // MARK: - Achievements (full badges page — BYM-1135)

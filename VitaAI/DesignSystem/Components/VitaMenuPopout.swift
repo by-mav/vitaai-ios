@@ -45,7 +45,7 @@ struct VitaMenuPopout: View {
                 onLogout()
             }
         } message: {
-            Text("Voce sera desconectado do VitaAI.")
+            Text("Você será desconectado do VitaAI.")
         }
     }
 
@@ -80,7 +80,7 @@ struct VitaMenuPopout: View {
             menuItem(icon: "person.crop.circle", label: "Perfil", identifier: "menu_perfil") {
                 dismiss(); onProfile()
             }
-            menuItem(icon: "bell", label: "Notificacoes", identifier: "menu_notificacoes") {
+            menuItem(icon: "bell", label: "Notificações", identifier: "menu_notificacoes") {
                 dismiss(); onNotifications()
             }
             menuItem(icon: "calendar", label: "Agenda", identifier: "menu_agenda") {
@@ -89,10 +89,10 @@ struct VitaMenuPopout: View {
 
             menuDivider
 
-            menuItem(icon: "gearshape", label: "Configuracoes", identifier: "menu_config") {
+            menuItem(icon: "gearshape", label: "Configurações", identifier: "menu_config") {
                 dismiss(); onConfiguracoes()
             }
-            menuItem(icon: "paintpalette", label: "Aparencia", identifier: "menu_aparencia") {
+            menuItem(icon: "paintpalette", label: "Aparência", identifier: "menu_aparencia") {
                 dismiss(); onAppearance()
             }
             menuItem(icon: "square.3.layers.3d", label: "Conectores", identifier: "menu_conectores") {

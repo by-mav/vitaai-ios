@@ -155,7 +155,7 @@ extension SyncStep {
             SyncStep("Login detectado", done: true),
             SyncStep("Buscando disciplinas", done: phaseIndex > 1, active: phaseIndex == 1),
             SyncStep("Buscando notas", done: phaseIndex > 2, active: phaseIndex == 2),
-            SyncStep("Buscando horarios", done: phaseIndex > 3, active: phaseIndex == 3),
+            SyncStep("Buscando horários", done: phaseIndex > 3, active: phaseIndex == 3),
             SyncStep("Extraindo dados", done: phaseIndex > 4, active: phaseIndex == 4),
             SyncStep("Extracao completa", done: phaseIndex >= 5),
         ]

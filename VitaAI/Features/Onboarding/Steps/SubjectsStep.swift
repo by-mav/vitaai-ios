@@ -37,13 +37,13 @@ struct SubjectsStep: View {
                         }
                         Spacer()
                         HStack(spacing: 6) {
-                            DifficultyPill(label: "Facil", selected: difficulty == "facil") {
+                            DifficultyPill(label: "Fácil", selected: difficulty == "facil") {
                                 viewModel.setDifficulty(subject.name, difficulty: "facil")
                             }
                             DifficultyPill(label: "Medio", selected: difficulty == "medio") {
                                 viewModel.setDifficulty(subject.name, difficulty: "medio")
                             }
-                            DifficultyPill(label: "Dificil", selected: difficulty == "dificil") {
+                            DifficultyPill(label: "Difícil", selected: difficulty == "dificil") {
                                 viewModel.setDifficulty(subject.name, difficulty: "dificil")
                             }
                         }

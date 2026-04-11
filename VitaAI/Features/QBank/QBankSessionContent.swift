@@ -17,7 +17,7 @@ struct QBankSessionContent: View {
 
     var body: some View {
         ZStack {
-            VitaColors.surface.ignoresSafeArea()
+            Color.clear.ignoresSafeArea()
             if vm.state.questionLoading || vm.state.currentQuestionDetail == nil {
                 VStack(spacing: 12) {
                     ProgressView().tint(VitaColors.accent)
@@ -159,7 +159,7 @@ struct QBankSessionContent: View {
                                             Image(systemName: "photo.badge.exclamationmark")
                                                 .font(.system(size: 14))
                                                 .foregroundStyle(VitaColors.textTertiary)
-                                            Text("Imagem indisponivel")
+                                            Text("Imagem indisponível")
                                                 .font(.system(size: 12))
                                                 .foregroundStyle(VitaColors.textTertiary)
                                         }

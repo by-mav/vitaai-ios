@@ -41,7 +41,7 @@ final class PaywallViewModel {
             state.periodEnd = status.periodEnd
             state.isActive = status.isActive
         } catch {
-            state.error = "Nao foi possivel carregar o status de assinatura"
+            state.error = "Não foi possível carregar o status de assinatura"
         }
     }
 
@@ -53,7 +53,7 @@ final class PaywallViewModel {
             let response = try await api.getCheckoutUrl(plan: "pro")
             if let url = response.url { openCheckoutURL(url) }
         } catch {
-            state.error = "Nao foi possivel iniciar a assinatura. Tente novamente."
+            state.error = "Não foi possível iniciar a assinatura. Tente novamente."
         }
     }
 

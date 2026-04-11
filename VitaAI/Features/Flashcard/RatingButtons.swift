@@ -22,7 +22,7 @@ struct RatingButtonsView: View {
     var onRate: (ReviewRating) -> Void
 
     // Data colors — match mockup flashcard-session-v1.html rating buttons
-    // Errei=red, Dificil=amber, Bom=purple, Facil=green
+    // Errei=red, Difícil=amber, Bom=purple, Fácil=green
     private let colorAgain = Color(red: 255/255, green: 120/255, blue: 80/255)    // rgba(255,120,80)
     private let colorHard  = Color(red: 245/255, green: 180/255, blue: 60/255)    // rgba(245,180,60)
     private let colorGood  = Color(red: 180/255, green: 120/255, blue: 255/255)   // rgba(180,120,255) — purple!

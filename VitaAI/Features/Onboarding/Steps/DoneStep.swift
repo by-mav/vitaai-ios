@@ -38,13 +38,13 @@ struct DoneStep: View {
                 let semester = viewModel.selectedSemester
 
                 if subjectsCount > 0 {
-                    DoneStat(value: "\(subjectsCount)", label: "Materias")
+                    DoneStat(value: "\(subjectsCount)", label: "Matérias")
                 }
                 if gradesCount > 0 {
                     DoneStat(value: "\(gradesCount)", label: "Notas")
                 }
                 if viewModel.syncSchedule > 0 {
-                    DoneStat(value: "\(viewModel.syncSchedule)", label: "Horarios")
+                    DoneStat(value: "\(viewModel.syncSchedule)", label: "Horários")
                 }
                 if semester > 0 {
                     DoneStat(value: "\(semester)\u{00BA}", label: "Semestre")

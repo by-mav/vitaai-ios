@@ -122,7 +122,7 @@ final class AuthManager: ObservableObject {
     private func handleAppleCredential(_ credential: ASAuthorizationAppleIDCredential) async {
         guard let tokenData = credential.identityToken,
               let identityToken = String(data: tokenData, encoding: .utf8) else {
-            error = "Token Apple nao recebido"
+            error = "Token Apple não recebido"
             isLoading = false
             return
         }
@@ -181,7 +181,7 @@ final class AuthManager: ObservableObject {
                 error = json?["error"] as? String ?? "Erro no login com Apple"
             }
         } catch {
-            self.error = "Erro de conexao"
+            self.error = "Erro de conexão"
         }
         isLoading = false
     }
@@ -265,7 +265,7 @@ final class AuthManager: ObservableObject {
                 error = json?["message"] as? String ?? "Email ou senha incorretos"
             }
         } catch {
-            self.error = "Erro de conexao"
+            self.error = "Erro de conexão"
         }
     }
 
@@ -297,7 +297,7 @@ final class AuthManager: ObservableObject {
         })
 
         guard let token = params["token"] else {
-            error = "Token nao recebido"
+            error = "Token não recebido"
             return
         }
 

@@ -335,7 +335,7 @@ struct ConnectionsScreen: View {
                 Text("Portais conectados")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(Color(red: 1.0, green: 0.988, blue: 0.973).opacity(0.88))
-                Text("Sincronize notas e horarios automaticamente")
+                Text("Sincronize notas e horários automaticamente")
                     .font(.system(size: 10.5))
                     .foregroundColor(goldSubtle.opacity(0.35))
             }
@@ -371,8 +371,8 @@ struct ConnectionsScreen: View {
 
     private var comoFunciona: some View {
         VStack(alignment: .leading, spacing: 12) {
-            howItWorksRow("1", "Conecte seu portal academico com suas credenciais")
-            howItWorksRow("2", "Disciplinas, notas e horarios sao importados")
+            howItWorksRow("1", "Conecte seu portal acadêmico com suas credenciais")
+            howItWorksRow("2", "Disciplinas, notas e horários sao importados")
             howItWorksRow("3", "Dados sincronizam automaticamente a cada 15 minutos")
             howItWorksRow("4", "Desconecte a qualquer momento — seus dados sao excluidos")
         }

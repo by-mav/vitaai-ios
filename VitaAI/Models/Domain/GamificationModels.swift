@@ -112,8 +112,8 @@ enum XpSource {
         switch self {
         case .flashcardReview:       return "Flashcard"
         case .flashcardEasy:         return "Flashcard"
-        case .questionAnswered:      return "Questao"
-        case .questionAnsweredWrong: return "Questao"
+        case .questionAnswered:      return "Questão"
+        case .questionAnsweredWrong: return "Questão"
         case .chatMessage:           return "Chat"
         case .noteCreated:           return "Nota"
         case .pdfAnnotated:          return "PDF"
@@ -122,7 +122,7 @@ enum XpSource {
         case .simuladoComplete:      return "Simulado"
         case .qbankSessionComplete:  return "QBank"
         case .osceCompleted:         return "OSCE"
-        case .studySessionEnd:       return "Sessao"
+        case .studySessionEnd:       return "Sessão"
         }
     }
 

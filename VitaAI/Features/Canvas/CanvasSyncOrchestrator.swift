@@ -37,7 +37,7 @@ actor CanvasSyncOrchestrator {
     private static let maxPdfCount = 10
 
     /// Regex patterns for plano de ensino filenames (applied after accent stripping).
-    /// Only matches actual planos — NOT cronogramas, horarios, calendarios, etc.
+    /// Only matches actual planos — NOT cronogramas, horários, calendarios, etc.
     private static let planoPatterns: [String] = [
         "plano",
         "ementa",

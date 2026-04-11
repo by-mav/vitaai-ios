@@ -24,15 +24,15 @@ private struct PlanFeature {
 
 private let freePlanFeatures: [PlanFeature] = [
     .init(text: "5 mensagens/dia com Vita", enabled: true),
-    .init(text: "50 questoes/mes", enabled: true),
-    .init(text: "Flashcards basicos", enabled: true),
+    .init(text: "50 questões/mês", enabled: true),
+    .init(text: "Flashcards básicos", enabled: true),
     .init(text: "Entrada por voz", enabled: false),
     .init(text: "Upload de PDFs", enabled: false),
 ]
 
 private let premiumPlanFeatures: [PlanFeature] = [
     .init(text: "Mensagens ilimitadas", enabled: true),
-    .init(text: "Questoes ilimitadas", enabled: true),
+    .init(text: "Questões ilimitadas", enabled: true),
     .init(text: "Entrada por voz", enabled: true),
     .init(text: "Upload de PDFs", enabled: true),
     .init(text: "Simulados OSCE", enabled: false),
@@ -56,7 +56,7 @@ private struct CompareRow {
 
 private let compareData: [CompareRow] = [
     .init(feature: "Mensagens IA", free: "5/dia", premium: "check", pro: "check"),
-    .init(feature: "Questoes", free: "50/mes", premium: "check", pro: "check"),
+    .init(feature: "Questões", free: "50/mês", premium: "check", pro: "check"),
     .init(feature: "Voz", free: "cross", premium: "check", pro: "check"),
     .init(feature: "PDFs", free: "cross", premium: "check", pro: "check"),
     .init(feature: "OSCE", free: "cross", premium: "cross", pro: "check"),
@@ -314,7 +314,7 @@ struct VitaPaywallScreen: View {
                         .font(.system(size: 26, weight: .bold))
                         .foregroundStyle(VitaColors.accentLight.opacity(0.90))
                         .kerning(-0.78)
-                    Text("/mes")
+                    Text("/mês")
                         .font(.system(size: 11))
                         .foregroundStyle(VitaColors.textTertiary)
                 }
@@ -433,7 +433,7 @@ struct VitaPaywallScreen: View {
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(purpleLight.opacity(0.90))
                     .kerning(-0.78)
-                Text("/mes")
+                Text("/mês")
                     .font(.system(size: 11))
                     .foregroundStyle(VitaColors.textTertiary)
             }
@@ -658,7 +658,7 @@ struct VitaPaywallScreen: View {
     /// Fetch Stripe checkout URL from backend and present via SFSafariViewController.
     private func openStripeCheckout(plan: String) async {
         guard let api else {
-            stripeError = "Checkout via web nao disponivel."
+            stripeError = "Checkout via web não disponível."
             return
         }
         isLoadingStripe = true
@@ -680,7 +680,7 @@ struct VitaPaywallScreen: View {
             safari.dismissButtonStyle = .close
             root.present(safari, animated: true)
         } catch {
-            stripeError = "Nao foi possivel abrir o checkout. Tente novamente."
+            stripeError = "Não foi possível abrir o checkout. Tente novamente."
         }
     }
 }

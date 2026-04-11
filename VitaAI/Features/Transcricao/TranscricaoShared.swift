@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Teal Theme Colors (Transcricao-specific)
+// MARK: - Teal Theme Colors (Transcrição-specific)
 // The transcription screen uses a teal accent instead of the app-wide gold/cyan.
 
 enum TealColors {

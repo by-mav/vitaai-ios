@@ -19,7 +19,7 @@ struct QBankHomeContent: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
 
-                        // -- CTA: Nova Sessao
+                        // -- CTA: Nova Sessão
                         Button {
                             vm.goToDisciplines()
                         } label: {
@@ -50,7 +50,7 @@ struct QBankHomeContent: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 16)
 
-                        Text("Os filtros reais aparecem ao criar uma nova sessao.")
+                        Text("Os filtros reais aparecem ao criar uma nova sessão.")
                             .font(.system(size: 11))
                             .foregroundStyle(VitaColors.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,7 +89,7 @@ struct QBankHomeContent: View {
                         if vm.state.progress.byTopic.isEmpty {
                             QBankInfoCard(
                                 icon: "chart.bar",
-                                message: "Ainda nao recebemos desempenho por topico para montar este resumo."
+                                message: "Ainda não recebemos desempenho por tópico para montar este resumo."
                             )
                             .padding(.horizontal, 16)
                             .padding(.top, 12)
@@ -121,7 +121,7 @@ struct QBankHomeContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { QBankBackground() }
+        .background(Color.clear)
         .onAppear { vm.loadHomeData() }
     }
 }

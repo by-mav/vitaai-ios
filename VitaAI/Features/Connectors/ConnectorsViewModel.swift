@@ -110,7 +110,7 @@ final class ConnectorsViewModel {
                     canvas.lastSync = syncTime.flatMap { formatRelativeTime($0) }
                     canvas.stats = [
                         (conn.counts?.subjects ?? 0, "disciplinas"),
-                        (conn.counts?.evaluations ?? 0, "avaliacoes"),
+                        (conn.counts?.evaluations ?? 0, "avaliações"),
                         (conn.counts?.documents ?? 0, "arquivos"),
                     ]
                 case "mannesoft":

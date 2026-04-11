@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - AppearanceScreen
-// Matches aparencia-mobile-v1.html mockup.
+// Matches aparência-mobile-v1.html mockup.
 // Sections: Preview, Theme (Sistema/Escuro/Claro), Color Accent, Font Size Slider.
 
 struct AppearanceScreen: View {

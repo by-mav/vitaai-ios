@@ -23,7 +23,7 @@ struct QBankConfigContent: View {
                         .frame(width: 44, height: 44)
                 }
                 .accessibilityIdentifier("backButton")
-                Text("Configurar Sessao")
+                Text("Configurar Sessão")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(VitaColors.textPrimary)
                 Spacer()
@@ -106,19 +106,19 @@ struct QBankConfigContent: View {
                         }
 
                         // [8] Toggles
-                        configGlassSection(title: "OPCOES") {
+                        configGlassSection(title: "OPÇÕES") {
                             VStack(spacing: 10) {
                                 QBankConfigToggleRow(
                                     icon: "graduationcap",
-                                    title: "Apenas Residencia Medica",
-                                    description: "Filtra somente questoes de prova de residencia",
+                                    title: "Apenas Residência Médica",
+                                    description: "Filtra somente questões de prova de residência",
                                     isOn: vm.state.onlyResidence
                                 ) { vm.setOnlyResidence(!vm.state.onlyResidence) }
 
                                 QBankConfigToggleRow(
                                     icon: "circle.dotted",
-                                    title: "Apenas Nao Respondidas",
-                                    description: "Exclui questoes que voce ja respondeu",
+                                    title: "Apenas Não Respondidas",
+                                    description: "Exclui questões que você já respondeu",
                                     isOn: vm.state.onlyUnanswered
                                 ) { vm.setOnlyUnanswered(!vm.state.onlyUnanswered) }
                             }
@@ -219,7 +219,7 @@ struct QBankConfigContent: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(VitaColors.textSecondary)
             } else {
-                Text("\(formatNumber(vm.state.displayAvailableCount)) questoes disponiveis")
+                Text("\(formatNumber(vm.state.displayAvailableCount)) questões disponíveis")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(VitaColors.accentLight)
             }
@@ -236,7 +236,7 @@ struct QBankConfigContent: View {
     }
 
     private var questionCountSection: some View {
-        configGlassSection(title: "NUMERO DE QUESTOES") {
+        configGlassSection(title: "NÚMERO DE QUESTOES") {
             VStack(alignment: .leading, spacing: 10) {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -259,7 +259,7 @@ struct QBankConfigContent: View {
                 }
 
                 if showCustomSlider {
-                    Text("\(vm.state.questionCount) questoes")
+                    Text("\(vm.state.questionCount) questões")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(VitaColors.accentLight)
                         .padding(.top, 4)
@@ -297,7 +297,7 @@ struct QBankConfigContent: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         QBankStatusChip(
-                            label: "Nao respondidas",
+                            label: "Não respondidas",
                             isSelected: vm.state.selectedStatus == "unanswered",
                             color: VitaColors.accent
                         ) { vm.setStatus("unanswered") }
@@ -331,9 +331,9 @@ struct QBankConfigContent: View {
                     ForEach(vm.state.filters.difficulties) { dc in
                         let label: String = {
                             switch dc.difficulty {
-                            case "easy":   return "Facil (\(dc.count))"
+                            case "easy":   return "Fácil (\(dc.count))"
                             case "medium": return "Medio (\(dc.count))"
-                            case "hard":   return "Dificil (\(dc.count))"
+                            case "hard":   return "Difícil (\(dc.count))"
                             default:       return "\(dc.difficulty) (\(dc.count))"
                             }
                         }()
@@ -460,7 +460,7 @@ struct QBankConfigContent: View {
             if vm.state.sessionLoading {
                 VStack(spacing: 10) {
                     ProgressView().tint(VitaColors.accent)
-                    Text("Montando sua sessao...")
+                    Text("Montando sua sessão...")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(VitaColors.accent)
                 }
@@ -473,7 +473,7 @@ struct QBankConfigContent: View {
                             .tint(VitaColors.accent)
                             .scaleEffect(0.6)
                     } else {
-                        Text("\(formatNumber(vm.state.displayAvailableCount)) disponiveis")
+                        Text("\(formatNumber(vm.state.displayAvailableCount)) disponíveis")
                             .font(.system(size: 11))
                             .foregroundStyle(VitaColors.textSecondary)
                     }
@@ -482,7 +482,7 @@ struct QBankConfigContent: View {
                 .padding(.horizontal, 16)
 
                 VitaButton(
-                    text: "Iniciar Sessao (\(vm.state.questionCount) questoes)",
+                    text: "Iniciar Sessão (\(vm.state.questionCount) questões)",
                     action: { vm.createSession() }
                 )
                 .padding(.horizontal, 16)
@@ -697,7 +697,7 @@ private struct QBankInstitutionSheet: View {
                                 }
                                 Spacer()
                                 if inst.isResidence {
-                                    QBankBadge(text: "Residencia", color: VitaColors.accent)
+                                    QBankBadge(text: "Residência", color: VitaColors.accent)
                                 }
                             }
                             .padding(.horizontal, 16)

@@ -183,7 +183,7 @@ private struct AchievementsHero: View {
                 AchievementStatPill(
                     icon: "arrow.up.right",
                     value: "Nv. \(vm.level)",
-                    label: NSLocalizedString("Nivel", comment: ""),
+                    label: NSLocalizedString("Nível", comment: ""),
                     color: VitaColors.accent
                 )
                 AchievementStatPill(
@@ -402,7 +402,7 @@ private struct AchievementDetailSheet: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.30))
             } else {
-                Text(NSLocalizedString("Ainda nao conquistado", comment: "Badge not earned"))
+                Text(NSLocalizedString("Ainda não conquistado", comment: "Badge not earned"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.20))
             }

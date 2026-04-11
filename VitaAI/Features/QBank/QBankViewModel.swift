@@ -234,7 +234,7 @@ final class QBankViewModel {
                 sessionStartDate = Date()
                 await loadCurrentQuestion()
             } catch {
-                state.error = "Erro ao criar sessao inteligente: \(error.localizedDescription)"
+                state.error = "Erro ao criar sessão inteligente: \(error.localizedDescription)"
             }
             state.isCreatingSmartSession = false
         }
@@ -483,8 +483,8 @@ final class QBankViewModel {
                 await loadCurrentQuestion()
             } catch {
                 let msg = "\(error)".contains("404") || "\(error)".contains("No questions")
-                    ? "Nenhuma questao encontrada com esses filtros. Tente ampliar os criterios."
-                    : "Erro ao criar sessao. Tente novamente."
+                    ? "Nenhuma questão encontrada com esses filtros. Tente ampliar os criterios."
+                    : "Erro ao criar sessão. Tente novamente."
                 state.error = msg
             }
             state.sessionLoading = false
@@ -507,7 +507,7 @@ final class QBankViewModel {
             state.sessionDetails[questionId] = detail
             state.currentQuestionDetail = detail
         } catch {
-            state.error = "Erro ao carregar questao"
+            state.error = "Erro ao carregar questão"
         }
         state.questionLoading = false
     }
@@ -722,9 +722,9 @@ final class QBankViewModel {
 extension String {
     var difficultyLabel: String {
         switch self {
-        case "easy":   return "Facil"
+        case "easy":   return "Fácil"
         case "medium": return "Medio"
-        case "hard":   return "Dificil"
+        case "hard":   return "Difícil"
         default:       return self.capitalized
         }
     }

@@ -92,7 +92,7 @@ struct ConnectorCard: View {
         switch status {
         case .connected: "Conectado"
         case .expired: "Expirado"
-        case .disconnected: isPrimary ? "Detectado" : "Disponivel"
+        case .disconnected: isPrimary ? "Detectado" : "Disponível"
         case .loading: "Carregando..."
         }
     }

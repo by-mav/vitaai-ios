@@ -133,7 +133,7 @@ actor VitaAPI {
         try await client.post("ai/osce", body: OsceStartRequest(specialty: specialty))
     }
 
-    // MARK: - Transcricao
+    // MARK: - Transcrição
 
     func getTranscricoes() async throws -> [TranscricaoEntry] {
         try await client.get("study/transcricao")

@@ -131,7 +131,7 @@ private struct EmptyState: View {
 
     private let suggestions = [
         "O que estudar hoje?",
-        "Analise meu progresso",
+        "Análise meu progresso",
     ]
 
     var body: some View {

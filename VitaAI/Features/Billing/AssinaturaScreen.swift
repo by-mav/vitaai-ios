@@ -138,8 +138,8 @@ struct AssinaturaScreen: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 featureRow(text: "5 mensagens/dia com Vita", enabled: true, color: goldText)
-                featureRow(text: "50 questoes/mes", enabled: true, color: goldText)
-                featureRow(text: "Flashcards basicos", enabled: true, color: goldText)
+                featureRow(text: "50 questões/mês", enabled: true, color: goldText)
+                featureRow(text: "Flashcards básicos", enabled: true, color: goldText)
                 featureRow(text: "Entrada por voz", enabled: false, color: goldText)
                 featureRow(text: "Upload de PDFs", enabled: false, color: goldText)
             }
@@ -197,7 +197,7 @@ struct AssinaturaScreen: View {
                         .font(.system(size: 26, weight: .bold))
                         .foregroundStyle(goldText.opacity(0.90))
                         .tracking(-0.5)
-                    Text("/mes")
+                    Text("/mês")
                         .font(.system(size: 11))
                         .foregroundStyle(subtleText.opacity(0.35))
                 }
@@ -205,7 +205,7 @@ struct AssinaturaScreen: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     featureRow(text: "Mensagens ilimitadas", enabled: true, color: goldText)
-                    featureRow(text: "Questoes ilimitadas", enabled: true, color: goldText)
+                    featureRow(text: "Questões ilimitadas", enabled: true, color: goldText)
                     featureRow(text: "Entrada por voz", enabled: true, color: goldText)
                     featureRow(text: "Upload de PDFs", enabled: true, color: goldText)
                     featureRow(text: "Simulados OSCE", enabled: false, color: goldText)
@@ -292,7 +292,7 @@ struct AssinaturaScreen: View {
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(purpleLight.opacity(0.90))
                     .tracking(-0.5)
-                Text("/mes")
+                Text("/mês")
                     .font(.system(size: 11))
                     .foregroundStyle(subtleText.opacity(0.35))
             }
@@ -391,7 +391,7 @@ struct AssinaturaScreen: View {
                 )
 
                 compareDataRow(feature: "Mensagens IA", free: "5/dia", premiumCheck: true, proCheck: true)
-                compareDataRow(feature: "Questoes", free: "50/mes", premiumCheck: true, proCheck: true)
+                compareDataRow(feature: "Questões", free: "50/mês", premiumCheck: true, proCheck: true)
                 compareDataRow(feature: "Voz", free: nil, premiumCheck: true, proCheck: true)
                 compareDataRow(feature: "PDFs", free: nil, premiumCheck: true, proCheck: true)
                 compareDataRow(feature: "OSCE", free: nil, premiumCheck: false, proCheck: true)

@@ -69,7 +69,7 @@ private let allTools: [ToolEntry] = [
         route: .trabalhos
     ),
     ToolEntry(
-        id: "transcricao",
+        id: "transcrição",
         label: LocalizedStringKey("tool_manager_transcricao"),
         iconName: "mic",
         route: .transcricao

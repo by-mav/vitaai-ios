@@ -108,10 +108,10 @@ struct VoiceModeScreen: View {
 
     private func statusSubtitle(_ status: VoiceModeStatus) -> String {
         switch status {
-        case .idle:      return "Toque no microfone para comecar"
+        case .idle:      return "Toque no microfone para começar"
         case .listening: return "Pode falar"
         case .thinking:  return "Aguarde a resposta"
-        case .speaking:  return "A Vita esta falando"
+        case .speaking:  return "A Vita está falando"
         }
     }
 }

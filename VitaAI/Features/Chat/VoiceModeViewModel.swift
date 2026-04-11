@@ -185,7 +185,7 @@ final class VoiceModeViewModel {
                 }
             }
         } catch {
-            errorMessage = "Nao foi possivel conectar. Verifique sua conexao."
+            errorMessage = "Não foi possível conectar. Verifique sua conexão."
             status = .idle
             return
         }

@@ -52,7 +52,7 @@ struct ConnectorStatusSheet: View {
                     }
 
                     if let lastSync {
-                        Text("Ultima sincronizacao: \(lastSync)")
+                        Text("Última sincronização: \(lastSync)")
                             .font(.system(size: 12))
                             .foregroundColor(goldSubtle.opacity(0.30))
                             .padding(.top, 4)

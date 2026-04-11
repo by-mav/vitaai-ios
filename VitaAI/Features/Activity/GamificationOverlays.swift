@@ -102,7 +102,7 @@ struct VitaLevelUpOverlay: View {
                             .foregroundStyle(VitaColors.accent)
                             .tracking(3)
 
-                        Text("Nivel \(ev.newLevel) alcancado")
+                        Text("Nível \(ev.newLevel) alcançado")
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(.white)
                     }

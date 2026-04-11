@@ -109,7 +109,7 @@ final class SpeechRecognitionManager {
             return
         }
         guard let recognizer, recognizer.isAvailable else {
-            errorMessage = "Reconhecimento de voz nao disponivel neste dispositivo"
+            errorMessage = "Reconhecimento de voz não disponível neste dispositivo"
             return
         }
 

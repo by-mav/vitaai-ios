@@ -304,7 +304,7 @@ private struct ResultBodyView: View {
             if wrongQs.isEmpty {
                 // All correct card
                 HStack {
-                    Text("Parabens! Voce acertou todas as questoes.")
+                    Text("Parabens! Você acertou todas as questões.")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Color(red: 130/255, green: 220/255, blue: 140/255).opacity(0.90))
                 }
@@ -329,7 +329,7 @@ private struct ResultBodyView: View {
                 )
             } else {
                 // Section label
-                Text("Questoes para revisar")
+                Text("Questões para revisar")
                     .font(.system(size: 10, weight: .bold))
                     .kerning(0.5)
                     .textCase(.uppercase)

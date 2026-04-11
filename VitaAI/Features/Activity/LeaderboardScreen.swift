@@ -85,7 +85,7 @@ struct LeaderboardScreen: View {
             } else if let vm, !vm.isLoading {
                 if vm.entries.isEmpty {
                     Spacer()
-                    Text("Nenhum dado para este periodo")
+                    Text("Nenhum dado para este período")
                         .font(VitaTypography.bodyMedium)
                         .foregroundStyle(VitaColors.textTertiary)
                     Spacer()
@@ -157,7 +157,7 @@ private struct LeaderboardRow: View {
                         .foregroundStyle(VitaColors.textPrimary)
                         .lineLimit(1)
                     if let level = entry.level {
-                        Text("Nivel \(level)")
+                        Text("Nível \(level)")
                             .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textTertiary)
                     }

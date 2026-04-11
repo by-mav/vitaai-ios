@@ -39,7 +39,7 @@ struct TrabalhoScreen: View {
                 )
             } else {
                 VStack(spacing: 16) {
-                    Text("Recurso indisponivel no iOS 16")
+                    Text("Recurso indisponível no iOS 16")
                         .foregroundColor(.white)
                     Button("Fechar") { showEditor = false }
                         .foregroundColor(VitaColors.accent)

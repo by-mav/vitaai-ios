@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Entry point for Transcricao feature. Owns the ViewModel, routes between phases.
+/// Entry point for Transcrição feature. Owns the ViewModel, routes between phases.
 ///
 /// Sub-screens live in separate files:
 ///   - TranscricaoShared.swift          (TealColors, TealBackground, StatusBadge, ModeToggle, ProcessingToast, ErrorPhase)

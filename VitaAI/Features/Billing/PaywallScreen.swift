@@ -5,10 +5,10 @@ import SwiftUI
 
 private let proFeatures: [(icon: String, text: String)] = [
     ("mic.fill",           "Voice Tutor — converse com a Vita por voz"),
-    ("stethoscope",        "OSCE — simulacoes de exame clinico"),
-    ("waveform",           "Transcricao de aulas em tempo real"),
-    ("photo.on.rectangle", "Analise de imagens medicas"),
-    ("bubble.left.and.bubble.right.fill", "Historico ilimitado de conversas"),
+    ("stethoscope",        "OSCE — simulações de exame clínico"),
+    ("waveform",           "Transcrição de aulas em tempo real"),
+    ("photo.on.rectangle", "Análise de imagens médicas"),
+    ("bubble.left.and.bubble.right.fill", "Histórico ilimitado de conversas"),
     ("calendar.badge.clock", "Plano de estudos personalizado com IA"),
 ]
 
@@ -154,7 +154,7 @@ struct PaywallScreen: View {
 
             Spacer().frame(height: 8)
 
-            Text("Estude mais rapido com IA avancada")
+            Text("Estude mais rápido com IA avançada")
                 .font(VitaTypography.bodyLarge)
                 .foregroundStyle(VitaColors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -167,7 +167,7 @@ struct PaywallScreen: View {
         .padding(.horizontal, 20)
     }
 
-    // Mockup: Premium R$24,90/mes
+    // Mockup: Premium R$24,90/mês
     private var priceTag: some View {
         HStack(alignment: .bottom, spacing: 2) {
             Text("R$")
@@ -181,7 +181,7 @@ struct PaywallScreen: View {
                 .font(.system(size: 48, weight: .bold))
                 .foregroundStyle(VitaColors.accent)
 
-            Text("/mes")
+            Text("/mês")
                 .font(VitaTypography.titleMedium)
                 .foregroundStyle(VitaColors.textSecondary)
                 .padding(.bottom, 10)
@@ -193,7 +193,7 @@ struct PaywallScreen: View {
     private var featuresCard: some View {
         VitaGlassCard {
             VStack(alignment: .leading, spacing: 20) {
-                Text("O que esta incluido")
+                Text("O que está incluído")
                     .font(VitaTypography.titleSmall)
                     .foregroundStyle(VitaColors.textSecondary)
                     .padding(.horizontal, 20)
@@ -235,12 +235,12 @@ struct PaywallScreen: View {
     private func alreadyProCard(periodEnd: String?) -> some View {
         VitaGlassCard {
             VStack(spacing: 8) {
-                Text("Voce ja e Pro!")
+                Text("Você já e Pro!")
                     .font(VitaTypography.titleMedium)
                     .foregroundStyle(VitaColors.accent)
 
                 if let end = periodEnd {
-                    Text("Valido ate \(end)")
+                    Text("Valido até \(end)")
                         .font(VitaTypography.bodySmall)
                         .foregroundStyle(VitaColors.textSecondary)
                 }

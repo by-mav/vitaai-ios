@@ -204,7 +204,7 @@ struct TranscricaoPendingContent: View {
                 }
                 .buttonStyle(.plain)
 
-                Text("A transcricao gera automaticamente resumo, flashcards e questoes.")
+                Text("A transcrição gera automaticamente resumo, flashcards e questões.")
                     .font(.system(size: 10))
                     .foregroundStyle(Color.white.opacity(0.28))
                     .multilineTextAlignment(.center)
@@ -224,7 +224,7 @@ struct TranscricaoTranscribedContent: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("Transcricao")
+                    Text("Transcrição")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(VitaColors.textWarm.opacity(0.45))
                         .tracking(0.5)
@@ -284,9 +284,9 @@ struct TranscricaoActionsMenu: View {
     private let actions: [ActionDef] = [
         ActionDef(id: "resumo", icon: "doc.text", name: "Gerar resumo", desc: "Resumo estruturado da aula"),
         ActionDef(id: "flashcards", icon: "rectangle.stack", name: "Gerar flashcards", desc: "Cards de memorizacao automaticos"),
-        ActionDef(id: "questoes", icon: "questionmark.circle", name: "Gerar questoes", desc: "Questoes de prova baseadas na aula"),
+        ActionDef(id: "questões", icon: "questionmark.circle", name: "Gerar questões", desc: "Questões de prova baseadas na aula"),
         ActionDef(id: "conceitos", icon: "key", name: "Extrair conceitos-chave", desc: "Termos e definicoes importantes"),
-        ActionDef(id: "mindmap", icon: "point.3.connected.trianglepath.dotted", name: "Mindmap", desc: "Mapa mental visual do conteudo"),
+        ActionDef(id: "mindmap", icon: "point.3.connected.trianglepath.dotted", name: "Mindmap", desc: "Mapa mental visual do conteúdo"),
     ]
 
     @State private var selectedActions: Set<String> = []
@@ -432,7 +432,7 @@ struct TranscricaoDonePhase: View {
     let onReset: () -> Void
 
     @State private var selectedTab = 0
-    private let tabs = ["Transcricao", "Resumo", "Flashcards"]
+    private let tabs = ["Transcrição", "Resumo", "Flashcards"]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -484,7 +484,7 @@ struct TranscricaoTranscriptTab: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Transcricao completa")
+                    Text("Transcrição completa")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.90))
                     Spacer()
@@ -510,7 +510,7 @@ struct TranscricaoTranscriptTab: View {
                     }
                 }
 
-                Text(text.isEmpty ? "Nenhuma transcricao disponivel." : text)
+                Text(text.isEmpty ? "Nenhuma transcrição disponível." : text)
                     .font(.system(size: 12))
                     .lineSpacing(4)
                     .foregroundStyle(Color.white.opacity(0.70))
@@ -542,7 +542,7 @@ struct TranscricaoSummaryTab: View {
                     .foregroundStyle(Color.white.opacity(0.90))
 
                 if text.isEmpty {
-                    Text("Resumo nao disponivel.")
+                    Text("Resumo não disponível.")
                         .font(.system(size: 12))
                         .foregroundStyle(Color.white.opacity(0.55))
                 } else {

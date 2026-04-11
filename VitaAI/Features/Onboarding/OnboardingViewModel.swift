@@ -25,7 +25,7 @@ final class OnboardingViewModel {
     var syncCourses: Int = 0
 
     // MARK: - Subjects (difficulty selection — data from API)
-    var subjectDifficulties: [String: String] = [:]  // subjectName → "facil"|"medio"|"dificil"
+    var subjectDifficulties: [String: String] = [:]  // subjectName → "fácil"|"medio"|"difícil"
 
     // MARK: - Derived
 

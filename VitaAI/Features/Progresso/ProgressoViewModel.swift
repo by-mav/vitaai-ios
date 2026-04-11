@@ -91,7 +91,7 @@ final class ProgressoViewModel {
         }
 
         if !anySuccess {
-            self.error = "Nao foi possivel carregar os dados de progresso."
+            self.error = "Não foi possível carregar os dados de progresso."
         }
         isLoading = false
     }

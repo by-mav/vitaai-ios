@@ -8,7 +8,7 @@ struct TranscriptionFlashcard: Identifiable, Sendable {
     let back: String
 }
 
-/// A saved transcription entry returned by GET /api/study/transcricao
+/// A saved transcription entry returned by GET /api/study/transcrição
 struct TranscricaoEntry: Decodable, Identifiable {
     var id: String = UUID().uuidString
     var title: String = ""

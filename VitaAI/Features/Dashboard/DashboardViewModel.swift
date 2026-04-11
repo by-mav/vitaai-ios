@@ -42,7 +42,7 @@ final class DashboardViewModel {
         }
 
         if subjects.isEmpty && upcomingExams.isEmpty && greeting.isEmpty {
-            self.error = "Nao foi possivel carregar o dashboard."
+            self.error = "Não foi possível carregar o dashboard."
         }
 
         isLoading = false

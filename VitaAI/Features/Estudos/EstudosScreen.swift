@@ -670,7 +670,7 @@ private struct TrabalhosItem {
 }
 
 private let mockTrabalhos: [TrabalhosItem] = [
-    TrabalhosItem(icon: "doc.text",       title: "Relatório Caso Clinico",  meta: "Semiologia · Canvas",              dueLabel: "Sexta"),
+    TrabalhosItem(icon: "doc.text",       title: "Relatório Caso Clínico",  meta: "Semiologia · Canvas",              dueLabel: "Sexta"),
     TrabalhosItem(icon: "checkmark.circle", title: "Mapa Mental — Farmaco", meta: "Farmacologia · Entrega individual", dueLabel: "Dom"),
     TrabalhosItem(icon: "person.3",        title: "Seminario em grupo",     meta: "Anatomia · Apresentação",           dueLabel: "Seg"),
 ]

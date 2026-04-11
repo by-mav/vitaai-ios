@@ -228,7 +228,7 @@ struct PortalConnectScreen: View {
                         VStack(alignment: .leading, spacing: 10) {
                             infoRow("Login via conta Google da sua faculdade")
                             infoRow("Nenhuma senha e armazenada no app")
-                            infoRow("Apenas o cookie de sessao e capturado")
+                            infoRow("Apenas o cookie de sessão e capturado")
                         }
                         .padding(14)
                     }
@@ -358,7 +358,7 @@ struct PortalConnectScreen: View {
                     }
 
                     if let sync = vm.lastSync {
-                        Text("Ultima sinc: \(sync)")
+                        Text("Última sinc: \(sync)")
                             .font(VitaTypography.labelSmall)
                             .foregroundColor(VitaColors.textTertiary)
                     }
@@ -392,11 +392,11 @@ struct PortalConnectScreen: View {
 
     private func connectDescription(vm: PortalConnectViewModel) -> String {
         if vm.isOAuth {
-            return "Ao conectar, voce sera redirecionado ao Google para autorizar o acesso. "
-                 + "Seus dados serao importados automaticamente apos a autorizacao."
+            return "Ao conectar, você será redirecionado ao Google para autorizar o acesso. "
+                 + "Seus dados serão importados automaticamente após a autorização."
         } else {
             return "Faca login com sua conta no portal oficial. "
-                 + "Sua sessao sera capturada automaticamente para importar dados academicos."
+                 + "Sua sessão será capturada automaticamente para importar dados acadêmicos."
         }
     }
 

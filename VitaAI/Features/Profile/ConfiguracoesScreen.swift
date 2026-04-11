@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: - ConfiguracoesScreen
-// Matches configuracoes-mobile-v1.html mockup exactly.
+// Matches configurações-mobile-v1.html mockup exactly.
 // Sections: User Card, Conta, Preferencias, Seguranca, Privacidade & Dados, Logout.
 // Pushed via NavigationStack from ProfileScreen gear icon / edit button.
 
@@ -60,14 +60,14 @@ struct ConfiguracoesScreen: View {
                     VStack(spacing: 0) {
                         settingsRow(
                             icon: "sun.max",
-                            label: "Aparencia",
+                            label: "Aparência",
                             desc: "Tema, cores, tamanho de fonte",
                             action: { onNavigateToAppearance?() }
                         )
                         settingsDivider
                         settingsRow(
                             icon: "bell",
-                            label: "Notificacoes",
+                            label: "Notificações",
                             desc: "Push, email, lembretes de estudo",
                             action: { onNavigateToNotifications?() }
                         )
@@ -150,7 +150,7 @@ struct ConfiguracoesScreen: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("backButton")
 
-                Text("Configuracoes")
+                Text("Configurações")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.88))
             }

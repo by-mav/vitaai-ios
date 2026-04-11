@@ -63,7 +63,7 @@ final class PortalConnectViewModel {
                     lastSync = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
                     stats = [
                         (conn.counts?.subjects ?? 0, "disciplinas"),
-                        (conn.counts?.evaluations ?? 0, "avaliacoes"),
+                        (conn.counts?.evaluations ?? 0, "avaliações"),
                         (conn.counts?.documents ?? 0, "arquivos"),
                     ]
                 } else {
@@ -144,7 +144,7 @@ final class PortalConnectViewModel {
                 }
             } catch {
                 isConnecting = false
-                self.error = "Erro de conexao. Verifique sua internet."
+                self.error = "Erro de conexão. Verifique sua internet."
             }
         }
     }
@@ -235,7 +235,7 @@ final class PortalConnectViewModel {
                 await loadStatus()
             } catch {
                 isSyncing = false
-                self.error = "Falha na sincronizacao"
+                self.error = "Falha na sincronização"
             }
         }
     }
@@ -370,33 +370,33 @@ enum PortalConnectConfig {
             return [
                 "Disciplinas, arquivos e atividades importados",
                 "Planos de ensino processados pela IA Vita",
-                "Eventos do calendario na sua agenda",
+                "Eventos do calendário na sua agenda",
                 "Sincronize quando quiser dados atualizados",
             ]
         case "webaluno", "mannesoft":
             return [
                 "Notas parciais e finais aparecem em Insights",
                 "Grade horaria aparece na sua Agenda",
-                "Sessao pode expirar — reconecte se necessario",
+                "Sessão pode expirar — reconecte se necessário",
             ]
         case "google_calendar":
             return [
                 "Eventos e compromissos importados do seu Google Calendar",
                 "Provas e deadlines aparecem na sua Agenda no VitaAI",
-                "Sincronizacao segura via OAuth — sem armazenar sua senha",
+                "Sincronização segura via OAuth — sem armazenar sua senha",
                 "Sincronize sempre que quiser dados atualizados",
             ]
         case "google_drive":
             return [
                 "Arquivos PDF do seu Drive importados para o VitaAI",
                 "PDFs processados para gerar flashcards e resumos com IA",
-                "Sincronizacao segura via OAuth — sem armazenar sua senha",
+                "Sincronização segura via OAuth — sem armazenar sua senha",
                 "Sincronize sempre que quiser dados atualizados",
             ]
         default:
             return [
-                "Dados academicos importados automaticamente",
-                "Notas e horarios sincronizados com VitaAI",
+                "Dados acadêmicos importados automaticamente",
+                "Notas e horários sincronizados com VitaAI",
             ]
         }
     }

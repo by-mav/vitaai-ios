@@ -154,7 +154,7 @@ struct ProgressoScreen: View {
                         .foregroundStyle(textPrimary)
                         .tracking(-0.3)
 
-                    Text("\(currentXp) / \(xpToNext) XP para nivel \(level + 1)")
+                    Text("\(currentXp) / \(xpToNext) XP para nível \(level + 1)")
                         .font(.system(size: 11))
                         .foregroundStyle(textSec)
 
@@ -379,7 +379,7 @@ struct ProgressoScreen: View {
                             : String(format: "%.0fh", subject.hoursSpent)
                         weakAreaRow(
                             name: subject.subjectId,
-                            meta: "\(subject.questionCount) questoes · \(hoursText) estudo",
+                            meta: "\(subject.questionCount) questões · \(hoursText) estudo",
                             pct: pct,
                             color: color
                         )
@@ -603,7 +603,7 @@ struct ProgressoScreen: View {
 
     private func heatmapSection(vm: ProgressoViewModel) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Ultimos \(vm.heatmap.count) dias")
+            sectionLabel("Últimos \(vm.heatmap.count) dias")
 
             glassCard {
                 let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 13)

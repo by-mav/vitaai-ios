@@ -42,7 +42,7 @@ struct VitaNotifPopout: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack(spacing: 8) {
-                Text("Notificacoes")
+                Text("Notificações")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Color.white.opacity(0.92))
 
@@ -188,7 +188,7 @@ struct VitaNotifPopout: View {
             Text("Tudo em dia!")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Color.white.opacity(0.60))
-            Text("Nenhuma notificacao.")
+            Text("Nenhuma notificação.")
                 .font(.system(size: 10))
                 .foregroundStyle(VitaColors.textTertiary)
         }
@@ -240,7 +240,7 @@ struct NotifItem: Identifiable {
             id: "2",
             icon: "\u{23F0}",
             title: "Prova em 3 dias",
-            subtitle: "P2 Patologia Medica — 8 de abril",
+            subtitle: "P2 Patologia Médica — 8 de abril",
             time: "1h",
             isRead: false
         ),
@@ -255,8 +255,8 @@ struct NotifItem: Identifiable {
         NotifItem(
             id: "4",
             icon: "\u{1F4CA}",
-            title: "Relatorio semanal",
-            subtitle: "Voce estudou 8.5h esta semana",
+            title: "Relatório semanal",
+            subtitle: "Você estudou 8.5h esta semana",
             time: "2 dias",
             isRead: true
         ),

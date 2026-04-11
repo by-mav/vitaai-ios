@@ -2,16 +2,16 @@ import SwiftUI
 
 private let ACTION_LABELS: [String: String] = [
     "flashcard_review": "Revisou flashcard",
-    "flashcard_easy": "Flashcard facil",
-    "question_answered": "Respondeu questao",
+    "flashcard_easy": "Flashcard fácil",
+    "question_answered": "Respondeu questão",
     "chat_message": "Mensagem no chat",
     "note_created": "Criou nota",
     "simulado_complete": "Completou simulado",
-    "daily_login": "Login diario",
+    "daily_login": "Login diário",
     "deck_completed": "Deck completo",
     "osce_completed": "OSCE completo",
-    "qbank_session_complete": "Sessao QBank",
-    "studio_generated": "Conteudo gerado",
+    "qbank_session_complete": "Sessão QBank",
+    "studio_generated": "Conteúdo gerado",
 ]
 
 private let ACTION_ICONS: [String: String] = [
@@ -132,7 +132,7 @@ private struct StatsCard: View {
         VitaGlassCard {
             VStack(spacing: 12) {
                 HStack {
-                    Text("Nivel \(stats.level)")
+                    Text("Nível \(stats.level)")
                         .font(VitaTypography.titleMedium)
                         .foregroundStyle(VitaColors.textPrimary)
                     Spacer()
@@ -167,7 +167,7 @@ private struct StatsCard: View {
                     Spacer()
                     MiniStat(label: "Cards", value: "\(stats.totalCardsReviewed)")
                     Spacer()
-                    MiniStat(label: "Questoes", value: "\(stats.totalQuestionsAnswered)")
+                    MiniStat(label: "Questões", value: "\(stats.totalQuestionsAnswered)")
                 }
             }
             .padding(16)

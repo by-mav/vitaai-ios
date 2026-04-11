@@ -79,7 +79,7 @@ struct WelcomeStep: View {
                 .transition(.opacity)
             }
 
-            // "Minha faculdade nao esta aqui"
+            // "Minha faculdade não está aqui"
             if showDropdown && !viewModel.universityQuery.isEmpty && viewModel.selectedUniversity == nil {
                 Button {
                     showManualEntry = true
