@@ -21,6 +21,7 @@ final class DisciplineDetailViewModel {
     private(set) var exams: [ExamEntry] = []
     private(set) var flashcardDecks: [FlashcardDeckEntry] = []
     private(set) var trabalhos: TrabalhosResponse?
+    private(set) var documents: [VitaDocument] = []
 
     // MARK: - Init
 
@@ -121,6 +122,16 @@ final class DisciplineDetailViewModel {
         return (t.pending + t.overdue).filter { matchesDiscipline($0.subjectName) }
     }
 
+    // MARK: - Computed: documents
+
+    var subjectDocuments: [VitaDocument] {
+        guard !documents.isEmpty else { return [] }
+        return documents.filter { doc in
+            if let sid = doc.subjectId, sid == disciplineId { return true }
+            return matchesDiscipline(doc.title)
+        }
+    }
+
     // MARK: - Computed: VitaScore (0-100)
     // 45% difficulty (1 - accuracy), 35% gradeRisk, 20% urgency (next exam proximity)
 
@@ -161,18 +172,21 @@ final class DisciplineDetailViewModel {
         async let examsTask = api.getExams()
         async let decksTask = api.getFlashcardDecks()
         async let trabalhosTask = api.getTrabalhos()
+        async let documentsTask = api.getDocuments(subjectId: disciplineId)
 
         do {
-            let (progressResponse, examsResponse, decks, trabalhosResponse) = try await (
+            let (progressResponse, examsResponse, decks, trabalhosResponse, docs) = try await (
                 progressTask,
                 examsTask,
                 decksTask,
-                trabalhosTask
+                trabalhosTask,
+                documentsTask
             )
             subjectProgress = progressResponse.subjects.first { matchesDiscipline($0.name) }
             exams = examsResponse.exams
             flashcardDecks = decks
             trabalhos = trabalhosResponse
+            documents = docs
         } catch {
             self.error = error.localizedDescription
         }

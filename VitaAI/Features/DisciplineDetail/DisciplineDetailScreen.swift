@@ -221,30 +221,431 @@ struct DisciplineDetailScreen: View {
         }
     }
 
-    // MARK: - Placeholder sections (future tasks)
+    // MARK: - Task 5: Grades Table
 
     @ViewBuilder
     private func gradesTable(vm: DisciplineDetailViewModel) -> some View {
-        EmptyView()
+        let slots = vm.gradeSlots
+        let hasAny = slots.p1 != nil || slots.p2 != nil || slots.p3 != nil || slots.sf != nil || vm.attendance != nil
+        if hasAny {
+            VitaGlassCard {
+                VStack(spacing: 12) {
+                    // Header
+                    HStack {
+                        Text("Avaliacoes")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(VitaColors.textPrimary)
+                        if vm.hasGradeRisk {
+                            Text("RISCO")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(0.6)
+                                .foregroundStyle(VitaTokens.PrimitiveColors.red400)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(VitaTokens.PrimitiveColors.red400.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                        Spacer()
+                    }
+
+                    // Column headers
+                    HStack(spacing: 0) {
+                        ForEach(["P1", "P2", "P3", "SF", "Freq"], id: \.self) { label in
+                            Text(label)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(VitaColors.textSecondary)
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+
+                    // Values row
+                    HStack(spacing: 0) {
+                        gradeCell(value: slots.p1)
+                        gradeCell(value: slots.p2)
+                        gradeCell(value: slots.p3)
+                        gradeCell(value: slots.sf)
+                        freqCell(value: vm.attendance)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+        }
     }
+
+    @ViewBuilder
+    private func gradeCell(value: Double?) -> some View {
+        let color: Color = {
+            guard let v = value else { return VitaColors.textSecondary }
+            if v >= 7.0 { return VitaTokens.PrimitiveColors.green400 }
+            if v >= 5.0 { return VitaTokens.PrimitiveColors.amber400 }
+            return VitaTokens.PrimitiveColors.red400
+        }()
+        let text: String = {
+            guard let v = value else { return "—" }
+            return String(format: "%.1f", v)
+        }()
+        Text(text)
+            .font(.system(size: 16, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(color)
+            .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func freqCell(value: Double?) -> some View {
+        let color: Color = {
+            guard let v = value else { return VitaColors.textSecondary }
+            if v >= 75 { return VitaTokens.PrimitiveColors.green400 }
+            if v >= 50 { return VitaTokens.PrimitiveColors.amber400 }
+            return VitaTokens.PrimitiveColors.red400
+        }()
+        let text: String = {
+            guard let v = value else { return "—" }
+            return "\(Int(v))%"
+        }()
+        Text(text)
+            .font(.system(size: 16, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(color)
+            .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Task 6: Next Exam
 
     @ViewBuilder
     private func nextExamSection(vm: DisciplineDetailViewModel) -> some View {
-        EmptyView()
+        if let exam = vm.nextExam {
+            let urgencyColor: Color = {
+                if exam.daysUntil <= 0 { return VitaTokens.PrimitiveColors.red400 }
+                if exam.daysUntil <= 3 { return VitaTokens.PrimitiveColors.amber400 }
+                if exam.daysUntil <= 7 { return VitaColors.accent }
+                return VitaTokens.PrimitiveColors.green400
+            }()
+
+            VitaGlassCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Header with countdown
+                    HStack(alignment: .center) {
+                        Text("Proxima Prova")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Spacer()
+                        HStack(alignment: .firstTextBaseline, spacing: 2) {
+                            Text("\(max(0, exam.daysUntil))")
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(urgencyColor)
+                            Text("dias")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(urgencyColor.opacity(0.75))
+                        }
+                    }
+
+                    // Exam title
+                    Text(exam.displayName)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(VitaColors.textPrimary)
+
+                    // Date row
+                    if !exam.date.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(urgencyColor.opacity(0.80))
+                            Text(formatExamDate(exam.date))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(VitaColors.textSecondary)
+                        }
+                    }
+
+                    // Notes / topics
+                    if let notes = exam.notes, !notes.isEmpty {
+                        Text(notes)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(VitaColors.textSecondary)
+                            .lineLimit(3)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(urgencyColor.opacity(0.30), lineWidth: 1.5)
+            )
+        }
     }
+
+    private func formatExamDate(_ dateStr: String) -> String {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = iso.date(from: dateStr) ?? ISO8601DateFormatter().date(from: dateStr)
+        guard let d = date else { return dateStr }
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "pt_BR")
+        fmt.dateFormat = "dd 'de' MMMM 'de' yyyy"
+        return fmt.string(from: d)
+    }
+
+    // MARK: - Task 7: Assignments
 
     @ViewBuilder
     private func assignmentsSection(vm: DisciplineDetailViewModel) -> some View {
-        EmptyView()
+        if !vm.pendingAssignments.isEmpty {
+            VitaGlassCard {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Header
+                    Text("Trabalhos")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 14)
+                        .padding(.bottom, 10)
+
+                    ForEach(Array(vm.pendingAssignments.enumerated()), id: \.element.id) { idx, item in
+                        if idx > 0 {
+                            Divider()
+                                .background(VitaColors.glassBorder)
+                                .padding(.horizontal, 16)
+                        }
+                        assignmentRow(item)
+                    }
+                }
+                .padding(.bottom, 14)
+            }
+        }
     }
+
+    @ViewBuilder
+    private func assignmentRow(_ item: TrabalhoItem) -> some View {
+        let isOverdue = (item.daysUntil ?? 0) < 0 || item.status == "overdue"
+        let deadlineColor: Color = isOverdue ? VitaTokens.PrimitiveColors.red400 : VitaColors.textSecondary
+
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: isOverdue ? "exclamationmark.circle.fill" : "doc.text")
+                .font(.system(size: 14))
+                .foregroundStyle(isOverdue ? VitaTokens.PrimitiveColors.red400 : VitaColors.accent)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .center, spacing: 6) {
+                    Text(item.title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .lineLimit(2)
+                    if isOverdue {
+                        Text("ATRASADO")
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(0.5)
+                            .foregroundStyle(VitaTokens.PrimitiveColors.red400)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(VitaTokens.PrimitiveColors.red400.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    if let days = item.daysUntil {
+                        Text(days < 0 ? "\(abs(days))d atrasado" : days == 0 ? "Hoje" : "\(days)d restantes")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(deadlineColor)
+                    }
+                    Text(item.submissionTypeLabel)
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textSecondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    // MARK: - Task 8: Study Suggestions
 
     @ViewBuilder
     private func studySuggestionsSection(vm: DisciplineDetailViewModel) -> some View {
-        EmptyView()
+        VitaGlassCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Estudar")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(VitaColors.textPrimary)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        // Flashcards card
+                        studyMiniCard(
+                            icon: "rectangle.on.rectangle.angled",
+                            title: "Flashcards",
+                            detail: vm.flashcardsDue > 0
+                                ? "\(vm.flashcardsDue) para revisar"
+                                : "\(vm.flashcardsTotal) cards",
+                            cta: vm.flashcardsDue > 0 ? "Revisar" : "Estudar",
+                            color: VitaColors.toolFlashcards
+                        ) {
+                            if let deck = vm.subjectDecks.first {
+                                onNavigateToFlashcards?(deck.id)
+                            } else {
+                                onNavigateToFlashcards?("")
+                            }
+                        }
+
+                        // QBank card
+                        studyMiniCard(
+                            icon: "list.bullet.clipboard",
+                            title: "Questoes",
+                            detail: "Banco de questoes",
+                            cta: "Praticar",
+                            color: VitaColors.toolQBank
+                        ) {
+                            onNavigateToQBank?()
+                        }
+
+                        // Simulado card
+                        studyMiniCard(
+                            icon: "clock.badge.checkmark",
+                            title: "Simulado",
+                            detail: "Prova cronometrada",
+                            cta: "Iniciar",
+                            color: VitaColors.toolSimulados
+                        ) {
+                            onNavigateToSimulado?()
+                        }
+                    }
+                    .padding(.bottom, 2)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+        }
     }
 
     @ViewBuilder
+    private func studyMiniCard(
+        icon: String,
+        title: String,
+        detail: String,
+        cta: String,
+        color: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(color)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(VitaColors.textPrimary)
+                    Text(detail)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+
+                Text(cta)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(color)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(color.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+            .padding(12)
+            .frame(width: 120, height: 130)
+            .background(
+                Color(red: 14/255, green: 11/255, blue: 8/255).opacity(0.80)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(VitaColors.glassBorder, lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Task 9: Documents
+
+    @ViewBuilder
     private func documentsSection(vm: DisciplineDetailViewModel) -> some View {
-        EmptyView()
+        // Documents endpoint available via getDocuments(subjectId:)
+        if !vm.subjectDocuments.isEmpty {
+            VitaGlassCard {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Materiais")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 14)
+                        .padding(.bottom, 10)
+
+                    ForEach(Array(vm.subjectDocuments.enumerated()), id: \.element.id) { idx, doc in
+                        if idx > 0 {
+                            Divider()
+                                .background(VitaColors.glassBorder)
+                                .padding(.horizontal, 16)
+                        }
+                        documentRow(doc, color: vm.subjectColor)
+                    }
+                }
+                .padding(.bottom, 14)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func documentRow(_ doc: VitaDocument, color: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "doc.richtext")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(color)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(doc.title.isEmpty ? doc.fileName : doc.title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .lineLimit(1)
+
+                if let createdAt = doc.createdAt {
+                    Text(formatDocDate(createdAt))
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textSecondary)
+                }
+            }
+
+            Spacer()
+
+            if doc.totalPages > 0 {
+                Text("\(doc.totalPages)p")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(VitaColors.textSecondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func formatDocDate(_ dateStr: String) -> String {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = iso.date(from: dateStr) ?? ISO8601DateFormatter().date(from: dateStr)
+        guard let d = date else { return "" }
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "pt_BR")
+        fmt.dateStyle = .medium
+        return fmt.string(from: d)
     }
 }
