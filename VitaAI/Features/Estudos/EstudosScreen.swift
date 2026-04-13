@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Gold Theme Colors → VitaColors references
+// MARK: - Gold Theme Colors â†’ VitaColors references
 
 private enum GoldAccent {
     static let primary     = VitaColors.accentHover      // rgba(255,200,120)
@@ -18,7 +18,7 @@ private enum GoldAccent {
 struct EstudosScreen: View {
     @Environment(\.appContainer) private var container
 
-    // Navigation callbacks — injected by AppRouter/MainTabView
+    // Navigation callbacks â€” injected by AppRouter/MainTabView
     var onNavigateToCanvasConnect:    (() -> Void)?
     var onNavigateToNotebooks:         (() -> Void)?
     var onNavigateToMindMaps:          (() -> Void)?
@@ -28,7 +28,7 @@ struct EstudosScreen: View {
     var onNavigateToSimulados:         (() -> Void)?
     var onNavigateToOsce:              (() -> Void)?
     var onNavigateToAtlas:             (() -> Void)?
-    /// (courseId, colorIndex) — navigates to CourseDetailScreen
+    /// (courseId, colorIndex) â€” navigates to CourseDetailScreen
     var onNavigateToCourseDetail:      ((String, Int) -> Void)?
     var onNavigateToProvas:            (() -> Void)?
     var onNavigateToQBank:             (() -> Void)?
@@ -75,6 +75,7 @@ struct EstudosScreen: View {
 
 private struct EstudosContent: View {
     @Bindable var viewModel: EstudosViewModel
+    @Environment(\.appData) private var appData
     let onNavigateToCanvasConnect:    (() -> Void)?
     let onNavigateToNotebooks:         (() -> Void)?
     let onNavigateToMindMaps:          (() -> Void)?
@@ -89,6 +90,25 @@ private struct EstudosContent: View {
     let onNavigateToQBank:             (() -> Void)?
     let onNavigateToTranscricao:       (() -> Void)?
     let onNavigateToTrabalhos:         (() -> Void)?
+
+    /// Resolve disciplines: prefer appData grades (same source as Dashboard), fallback to viewModel.subjects
+    private var resolvedSubjects: [AcademicSubject] {
+        let gradeSubjects = appData.gradesResponse?.current ?? []
+        if !gradeSubjects.isEmpty {
+            return gradeSubjects.map { gs in
+                AcademicSubject(id: gs.subjectName, name: gs.subjectName, status: nil, source: nil, difficulty: nil)
+            }
+        }
+        return viewModel.subjects
+    }
+
+    /// Dashboard subjects with vitaScore — used by DisciplinesCarousel for score badges
+    private var disciplinesWithScore: [DashboardSubject] {
+        if !viewModel.dashboardSubjects.isEmpty { return viewModel.dashboardSubjects }
+        if !appData.subjectsByPriority.isEmpty { return appData.subjectsByPriority }
+        // Fallback: wrap resolvedSubjects as DashboardSubject (no vitaScore)
+        return resolvedSubjects.map { s in DashboardSubject(name: s.name) }
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -123,8 +143,10 @@ private struct EstudosContent: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 10)
 
+                // Use appData grades as primary source (same as Dashboard)
+                // Fall back to viewModel.subjects from /api/subjects
                 DisciplinesCarousel(
-                    courses: viewModel.courses,
+                    subjects: disciplinesWithScore,
                     onCourseClick: onNavigateToCourseDetail
                 )
                 .padding(.bottom, 16)
@@ -168,7 +190,7 @@ private struct EstudosContent: View {
                     .padding(.bottom, 16)
 
                 // Sessoes recentes
-                EstudosSectionLabel(text: "SESSÕES RECENTES")
+                EstudosSectionLabel(text: "SESSÃ•ES RECENTES")
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
                     .padding(.bottom, 10)
@@ -211,20 +233,16 @@ private struct ContinueStudyingCard: View {
     let recommendation: DashboardRecommendation
     let onNavigateToFlashcardSession: ((String) -> Void)?
 
-    /// Discipline label derived from deckId first component (e.g. "histologia-xyz" → "Histologia")
+    /// Discipline label derived from deckId first component (e.g. "histologia-xyz" â†’ "Histologia")
     private var disciplineLabel: String {
         let raw = recommendation.deckId.split(separator: "-").first.map(String.init) ?? ""
         return raw.isEmpty ? "Estudo" : raw.capitalized
     }
 
-    /// Map discipline to hero image asset
+    /// Map discipline to image asset via centralized DisciplineImages
     private var heroImageName: String? {
-        let d = disciplineLabel.lowercased()
-        if d.contains("histolog") { return "hero-histologia" }
-        if d.contains("farmac")   { return "hero-farmacologia" }
-        if d.contains("anatom")   { return "hero-anatomia" }
-        if d.contains("patolog")  { return "hero-patologia" }
-        return nil
+        let asset = DisciplineImages.imageAsset(for: disciplineLabel)
+        return UIImage(named: asset) != nil ? asset : nil
     }
 
     var body: some View {
@@ -232,7 +250,7 @@ private struct ContinueStudyingCard: View {
             onNavigateToFlashcardSession?(recommendation.deckId)
         } label: {
             ZStack(alignment: .bottom) {
-                // Layer 1 — background: hero image or fallback gradient
+                // Layer 1 â€” background: hero image or fallback gradient
                 if let img = heroImageName, UIImage(named: img) != nil {
                     Image(img)
                         .resizable()
@@ -251,7 +269,7 @@ private struct ContinueStudyingCard: View {
                     .frame(height: 180)
                 }
 
-                // Layer 2 — dark bottom overlay (transparent top → dark bottom)
+                // Layer 2 â€” dark bottom overlay (transparent top â†’ dark bottom)
                 LinearGradient(
                     stops: [
                         .init(color: .clear,                                            location: 0.0),
@@ -263,9 +281,9 @@ private struct ContinueStudyingCard: View {
                 )
                 .frame(height: 180)
 
-                // Layer 3 — glass panel pinned to bottom
+                // Layer 3 â€” glass panel pinned to bottom
                 VStack(alignment: .leading, spacing: 0) {
-                    // Badge — discipline name + monitor icon
+                    // Badge â€” discipline name + monitor icon
                     HStack(spacing: 5) {
                         Image(systemName: "display")
                             .font(.system(size: 10))
@@ -292,11 +310,19 @@ private struct ContinueStudyingCard: View {
                         .lineLimit(2)
                         .padding(.bottom, 3)
 
-                    // Meta
-                    Text("\(recommendation.dueCount) pendentes")
-                        .font(.system(size: 11))
-                        .foregroundStyle(GoldAccent.textGoldDim)
-                        .padding(.bottom, 8)
+                    // Meta — subtitle from recommendation (e.g. "Prova em 3 dias")
+                    if !recommendation.subtitle.isEmpty {
+                        Text(recommendation.subtitle)
+                            .font(.system(size: 11))
+                            .foregroundStyle(GoldAccent.textGoldDim)
+                            .lineLimit(1)
+                            .padding(.bottom, 8)
+                    } else if recommendation.dueCount > 0 {
+                        Text("\(recommendation.dueCount) pendentes")
+                            .font(.system(size: 11))
+                            .foregroundStyle(GoldAccent.textGoldDim)
+                            .padding(.bottom, 8)
+                    }
 
                     // Progress bar row
                     HStack(spacing: 8) {
@@ -386,7 +412,7 @@ private struct ModulesRow: View {
             ModuleImageCard(
                 imageName: "tool-questoes",
                 fallbackIcon: "questionmark.circle.fill",
-                fallbackLabel: "Questões",
+                fallbackLabel: "QuestÃµes",
                 fallbackColor: VitaColors.dataBlue,
                 identifier: "estudos_questoes",
                 onTap: { onNavigateToQBank?() }
@@ -477,92 +503,97 @@ private struct ModuleImageCard: View {
 // MARK: - Disciplines Carousel
 
 private struct DisciplinesCarousel: View {
-    let courses: [Course]
+    let subjects: [DashboardSubject]
     let onCourseClick: ((String, Int) -> Void)?
 
-    // Discipline image names matching the web assets
-    private let disciplineImages = [
-        "disc-farmacologia", "disc-anatomia", "disc-histologia",
-        "disc-bioquimica", "disc-fisiologia-1", "disc-patologia-geral",
-        "disc-medicina-legal", "disc-interprofissional"
-    ]
+    private func disciplineImage(for name: String) -> String {
+        let s = name.lowercased()
+            .folding(options: .diacriticInsensitive, locale: .init(identifier: "pt_BR"))
+        if s.contains("farmacologia")  { return "disc-farmacologia" }
+        if s.contains("patologia")     { return "disc-patologia-geral" }
+        if s.contains("fisiologia")    { return "disc-fisiologia-1" }
+        if s.contains("bioquimica")    { return "disc-bioquimica" }
+        if s.contains("anatomia")      { return "disc-anatomia" }
+        if s.contains("histologia")    { return "disc-histologia" }
+        if s.contains("legal") || s.contains("deontologia") { return "disc-medicina-legal" }
+        if s.contains("familia") || s.contains("comunidade") { return "disc-mfc" }
+        if s.contains("sociedade") || s.contains("contemporaneidade") { return "disc-sociedade" }
+        if s.contains("interprofissional") { return "disc-interprofissional" }
+        return "disc-interprofissional"
+    }
+
+    /// Color for vitaScore badge based on score value
+    private func scoreColor(_ score: Double) -> Color {
+        if score < 40 { return VitaColors.dataRed }
+        if score < 60 { return VitaColors.dataAmber }
+        if score < 80 { return VitaColors.accent }
+        return VitaColors.dataGreen
+    }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                if courses.isEmpty {
-                    // Show placeholder discipline thumbnails
-                    ForEach(Array(disciplineImages.enumerated()), id: \.offset) { index, name in
-                        DisciplineThumbnail(imageName: name, index: index, onTap: nil)
-                    }
-                } else {
-                    ForEach(Array(courses.enumerated()), id: \.element.id) { index, course in
-                        let imageName = index < disciplineImages.count ? disciplineImages[index] : disciplineImages[index % disciplineImages.count]
-                        DisciplineThumbnail(
-                            imageName: imageName,
-                            index: index,
-                            onTap: { onCourseClick?(course.id, index) }
-                        )
+        if subjects.isEmpty {
+            EstudosEmptyCard(
+                icon: "graduationcap",
+                message: "Conecte seu portal para ver suas disciplinas"
+            )
+            .padding(.horizontal, 16)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(Array(subjects.enumerated()), id: \.offset) { index, subject in
+                        let name = subject.name ?? ""
+                        Button {
+                            onCourseClick?(name, index)
+                        } label: {
+                            ZStack(alignment: .bottomLeading) {
+                                // Discipline image
+                                Image(disciplineImage(for: name))
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 100, height: 67)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .shadow(color: .black.opacity(0.30), radius: 5, x: 0, y: 2)
+
+                                // VitaScore badge (bottom-left)
+                                if let score = subject.vitaScore {
+                                    HStack(spacing: 2) {
+                                        Text(String(Int(score)))
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundStyle(scoreColor(score))
+                                        Text("VS")
+                                            .font(.system(size: 7, weight: .semibold))
+                                            .foregroundStyle(scoreColor(score).opacity(0.75))
+                                    }
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(.black.opacity(0.55))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    .padding(4)
+                                }
+                            }
+                            .frame(width: 100, height: 67)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: 0.75),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .leading, endPoint: .trailing
+                )
+            )
         }
     }
 }
 
-private struct DisciplineThumbnail: View {
-    let imageName: String
-    let index: Int
-    let onTap: (() -> Void)?
 
-    var body: some View {
-        Button {
-            onTap?()
-        } label: {
-            if UIImage(named: imageName) != nil {
-                Image(imageName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .shadow(color: .black.opacity(0.30), radius: 4, y: 2)
-            } else {
-                // Fallback golden placeholder
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                GoldAccent.warm.opacity(0.15),
-                                GoldAccent.warm.opacity(0.05)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: 100, height: 130)
-                    .overlay(
-                        VStack(spacing: 4) {
-                            Image(systemName: "graduationcap.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(GoldAccent.primary.opacity(0.50))
-                            Text("Disc. \(index + 1)")
-                                .font(.system(size: 9, weight: .semibold))
-                                .foregroundStyle(GoldAccent.textGold.opacity(0.50))
-                        }
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(GoldAccent.border, lineWidth: 0.5)
-                    )
-                    .shadow(color: .black.opacity(0.30), radius: 4, y: 2)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Materiais Scroll (Vita Sugere — data from API)
+// MARK: - Materiais Scroll (Vita Sugere â€” data from API)
 
 private struct MateriaisScroll: View {
     let recommendations: [DashboardRecommendation]
@@ -571,7 +602,7 @@ private struct MateriaisScroll: View {
         if recommendations.isEmpty {
             // Empty state
             HStack {
-                Text("Nenhuma sugestão no momento")
+                Text("Nenhuma sugestÃ£o no momento")
                     .font(.system(size: 12))
                     .foregroundStyle(GoldAccent.textGoldDim)
                 Spacer()
@@ -598,7 +629,7 @@ private struct RecommendationCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Thumbnail area — purple for video, gold for PDF
+            // Thumbnail area â€” purple for video, gold for PDF
             ZStack {
                 if isVideo {
                     Rectangle()
@@ -649,7 +680,7 @@ private struct RecommendationCard: View {
                     .foregroundStyle(Color.white.opacity(0.88))
                     .lineLimit(2)
 
-                Text("\(recommendation.dueCount) cards pendentes")
+                Text(recommendation.subtitle.isEmpty ? "\(recommendation.dueCount) cards pendentes" : recommendation.subtitle)
                     .font(.system(size: 9.5))
                     .foregroundStyle(GoldAccent.textGoldDim.opacity(0.88))
                     .lineLimit(1)
@@ -742,12 +773,12 @@ private struct TrabalhosSection: View {
     private func daysLabel(_ days: Int) -> String {
         if days < 0 { return "\(abs(days))d atrasado" }
         if days == 0 { return "Hoje" }
-        if days == 1 { return "Amanhã" }
+        if days == 1 { return "AmanhÃ£" }
         return "Em \(days)d"
     }
 }
 
-// MARK: - Sessões Recentes Section (data from API activity feed)
+// MARK: - SessÃµes Recentes Section (data from API activity feed)
 
 private struct SessoesRecentesSection: View {
     let activities: [ActivityFeedItem]
@@ -759,7 +790,7 @@ private struct SessoesRecentesSection: View {
                     .font(.system(size: 18))
                     .foregroundStyle(GoldAccent.textGoldDim.opacity(0.50))
 
-                Text("Nenhuma sessão recente")
+                Text("Nenhuma sessÃ£o recente")
                     .font(.system(size: 12))
                     .foregroundStyle(GoldAccent.textGoldDim)
 
@@ -875,7 +906,7 @@ private struct EmptyContinueStudyingHero: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(VitaColors.textPrimary)
 
-            Text("Use flashcards, questões ou simulados para começar")
+            Text("Use flashcards, questÃµes ou simulados para comeÃ§ar")
                 .font(.system(size: 12))
                 .foregroundStyle(GoldAccent.textGoldDim)
                 .multilineTextAlignment(.center)
@@ -917,7 +948,7 @@ private struct EmptySessoesRecentesSection: View {
     var body: some View {
         EstudosEmptyCard(
             icon: "clock",
-            message: "Nenhuma sessão recente"
+            message: "Nenhuma sessÃ£o recente"
         )
     }
 }

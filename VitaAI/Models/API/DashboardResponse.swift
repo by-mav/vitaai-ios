@@ -33,8 +33,26 @@ struct DashboardExam: Decodable, Identifiable {
     var practiceCards: Int = 0
 }
 
-struct DashboardRecommendation: Decodable {
+/// Rich recommendation built locally from DashboardHeroCard or flashcard data.
+/// NOT decoded from API — constructed in EstudosViewModel.applyDashboard().
+struct DashboardRecommendation: Identifiable {
+    var id: String = UUID().uuidString
+    /// Card title shown in ContinueStudyingCard and RecommendationCard
     var title: String = ""
+    /// Subtitle / detail (e.g. "Prova em 3 dias", "536 pendentes")
+    var subtitle: String = ""
+    /// Legacy field: card count for RecommendationCard label
     var dueCount: Int = 0
+    /// Optional deckId for flashcard navigation
     var deckId: String = ""
+    /// Semantic type mirroring DashboardHeroCard.ModelType raw value
+    var type: String = "revision"
+    /// Urgency 0-100 (higher = shown first)
+    var urgency: Int = 0
+    /// CTA button copy
+    var ctaText: String = "Estudar agora"
+    /// Label tone: "danger", "warning", "info", "accent", "neutral"
+    var labelTone: String = "neutral"
+    /// Subject name for display
+    var subjectName: String = ""
 }

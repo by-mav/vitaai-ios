@@ -41,9 +41,8 @@ enum CourseSortOption: String, CaseIterable {
     var iconName: String {
         switch self {
         case .favoritesFirst: return "star.fill"
-        case .nameAZ:         return "textformat.abc"
-        case .nameZA:         return "textformat.abc"
-        case .mostFiles:      return "doc.on.doc.fill"
+        case .nameAZ, .nameZA: return "textformat.abc"
+        case .mostFiles:       return "doc.on.doc.fill"
         }
     }
 }
@@ -52,29 +51,16 @@ enum CourseSortOption: String, CaseIterable {
 
 enum FolderPalette {
     static let colors: [Color] = [
-        Color(hex: 0x4FC3F7), // Light Blue
-        Color(hex: 0x66BB6A), // Green
-        Color(hex: 0xEF5350), // Red/Pink
-        Color(hex: 0xFDD835), // Yellow
-        Color(hex: 0xAB47BC), // Purple
-        Color(hex: 0x26A69A), // Teal
+        Color(hex: 0x4FC3F7), Color(hex: 0x66BB6A), Color(hex: 0xEF5350),
+        Color(hex: 0xFDD835), Color(hex: 0xAB47BC), Color(hex: 0x26A69A),
     ]
-
-    static func color(forIndex index: Int) -> Color {
-        colors[index % colors.count]
-    }
+    static func color(forIndex i: Int) -> Color { colors[i % colors.count] }
 }
 
 // MARK: - FlashcardDeckDisplayEntry
-// Mirrors Android FlashcardDeck: id, name, cardCount, masteredCount, courseName
 
 struct FlashcardDeckDisplayEntry: Identifiable {
-    var id: String
-    var name: String
-    var cardCount: Int
-    var masteredCount: Int
-    var courseName: String
-
+    var id: String; var name: String; var cardCount: Int; var masteredCount: Int; var courseName: String
     var progress: Double {
         guard cardCount > 0 else { return 0 }
         return Double(masteredCount) / Double(cardCount)
@@ -87,105 +73,57 @@ struct FlashcardDeckDisplayEntry: Identifiable {
 @Observable
 final class EstudosViewModel {
     private let api: VitaAPI
-
-    // Tabs
     var selectedTab: EstudosTab = .disciplinas
-
-    // Canvas connection state
     var canvasConnected: Bool = true
-
-    // Disciplinas (raw from API/mock)
-    var courses: [Course] = []
-
-    // Flashcards tab — display entries (include progress)
+    var subjects: [AcademicSubject] = []
+    var dashboardSubjects: [DashboardSubject] = []
     var flashcardDisplayDecks: [FlashcardDeckDisplayEntry] = []
-
-    // PDFs
     var files: [CanvasFile] = []
     var downloadingFileId: String? = nil
-    var downloadedFilePaths: [String: URL] = [:] // fileId -> local URL
-
-    // Stats (retained from iOS-specific view)
+    var downloadedFilePaths: [String: URL] = [:]
     var flashcardsDue: Int = 0
     var streakDays: Int = 0
     var avgAccuracy: Double = 0
-
-    // Simulados (iOS-specific)
     var simulados: [SimuladoEntry] = []
-
-    // Documents (iOS-specific — PDF read progress)
     var documents: [DocumentEntry] = []
-
-    // Notes (iOS-specific)
     var notes: [NoteEntry] = []
-
-    // Study recommendations from dashboard API (Vita Sugere)
     var studyRecommendations: [DashboardRecommendation] = []
-
-    // Recent activity feed (Sessoes Recentes)
     var recentActivity: [ActivityFeedItem] = []
-
-    // Trabalhos pendentes (from /api/study/trabalhos)
     var trabalhosPending: [TrabalhoItem] = []
     var trabalhosOverdue: [TrabalhoItem] = []
-
-    // State
     var isLoading = true
     var error: String? = nil
-
-    // Selected course filter for PDFs tab
     var selectedCourseId: String? = nil
-
-    // MARK: - Disciplinas Sort & Favorites
-
     var sortOption: CourseSortOption = .favoritesFirst
     var favoriteCourseIds: Set<String> = []
 
-    /// Sorted courses based on current sort option, with favorites support.
-    var sortedCourses: [Course] {
-        let sorted: [Course]
+    var sortedSubjects: [AcademicSubject] {
         switch sortOption {
         case .favoritesFirst:
-            sorted = courses.sorted { a, b in
+            return subjects.sorted { a, b in
                 let aFav = favoriteCourseIds.contains(a.id)
                 let bFav = favoriteCourseIds.contains(b.id)
                 if aFav != bFav { return aFav }
                 return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
             }
-        case .nameAZ:
-            sorted = courses.sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-            }
-        case .nameZA:
-            sorted = courses.sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending
-            }
-        case .mostFiles:
-            sorted = courses.sorted { $0.filesCount > $1.filesCount }
+        case .nameAZ: return subjects.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .nameZA: return subjects.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending }
+        case .mostFiles: return subjects.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
-        return sorted
     }
 
-    func isFavorite(_ courseId: String) -> Bool {
-        favoriteCourseIds.contains(courseId)
-    }
+    func isFavorite(_ courseId: String) -> Bool { favoriteCourseIds.contains(courseId) }
 
     func toggleFavorite(_ courseId: String) {
-        if favoriteCourseIds.contains(courseId) {
-            favoriteCourseIds.remove(courseId)
-        } else {
-            favoriteCourseIds.insert(courseId)
-        }
+        if favoriteCourseIds.contains(courseId) { favoriteCourseIds.remove(courseId) }
+        else { favoriteCourseIds.insert(courseId) }
         saveFavorites()
     }
-
-    // MARK: - Favorites Persistence (UserDefaults, scoped to user)
 
     private let userScopedFavoritesKey: String
 
     private func loadFavorites() {
-        let stored = UserDefaults.standard.stringArray(forKey: userScopedFavoritesKey) ?? []
-        favoriteCourseIds = Set(stored)
+        favoriteCourseIds = Set(UserDefaults.standard.stringArray(forKey: userScopedFavoritesKey) ?? [])
     }
 
     private func saveFavorites() {
@@ -202,131 +140,152 @@ final class EstudosViewModel {
     // MARK: - Load
 
     func load() async {
-        isLoading = true
-        error = nil
-
+        isLoading = true; error = nil
         do {
             async let progressTask  = api.getProgress()
-            async let coursesTask   = api.getCourses()
+            async let subjectsTask  = api.getSubjects()
             async let filesTask     = api.getFiles(courseId: selectedCourseId)
             async let decksTask     = api.getFlashcardDecks(dueOnly: false)
-            async let dashboardTask = api.getDashboard()
             async let activityTask  = api.getActivityFeed(limit: 5)
-
-            let (progressResp, coursesResp, filesResp, rawDecks) =
-                try await (progressTask, coursesTask, filesTask, decksTask)
-
-            // Dashboard recommendations (best-effort, don't fail main load)
-            if let dashResp = try? await dashboardTask {
-                // studyRecommendations removed — not in generated Dashboard type
-            }
-            if let activityResp = try? await activityTask {
-                recentActivity = activityResp
-            }
-
-
+            async let dashboardTask = api.getDashboard()
+            let (progressResp, subjectsResp, filesResp, rawDecks) =
+                try await (progressTask, subjectsTask, filesTask, decksTask)
+            if let r = try? await activityTask { recentActivity = r }
+            if let dash = try? await dashboardTask { applyDashboard(dash) }
             flashcardsDue = progressResp.flashcardsDue
             streakDays    = progressResp.streakDays
             avgAccuracy   = progressResp.avgAccuracy
-
-            canvasConnected = coursesResp.connected
-
-            if !coursesResp.courses.isEmpty {
-                courses = coursesResp.courses
-            }
-
-            if !filesResp.files.isEmpty {
-                files = filesResp.files
-            }
-
+            if !subjectsResp.subjects.isEmpty { subjects = subjectsResp.subjects; canvasConnected = true }
+            if !filesResp.files.isEmpty { files = filesResp.files }
             if !rawDecks.isEmpty {
                 flashcardDisplayDecks = rawDecks.map { deck in
                     FlashcardDeckDisplayEntry(
-                        id: deck.id,
-                        name: deck.title,
+                        id: deck.id, name: deck.title,
                         cardCount: deck.cards.count,
                         masteredCount: deck.cards.filter { $0.repetitions > 0 }.count,
-                        courseName: courses.first(where: { $0.id == deck.subjectId })?.name ?? ""
+                        courseName: subjects.first(where: { $0.id == deck.subjectId })?.name ?? ""
                     )
                 }
+            }
+            if studyRecommendations.isEmpty {
+                buildLocalRecommendations(flashcardsDue: progressResp.flashcardsDue, decks: rawDecks)
             }
         } catch {
             print("[EstudosViewModel] API error: \(error)")
             self.error = error.localizedDescription
         }
-
-        // Trabalhos — independent of main load (best-effort)
-        if let trabResp = try? await api.getTrabalhos() {
-            trabalhosPending = trabResp.pending
-            trabalhosOverdue = trabResp.overdue
+        if let t = try? await api.getTrabalhos() {
+            trabalhosPending = t.pending; trabalhosOverdue = t.overdue
         }
-
         isLoading = false
     }
 
-    func selectTab(_ tab: EstudosTab) {
-        selectedTab = tab
+    // MARK: - Dashboard integration
+
+    private func applyDashboard(_ dash: Dashboard) {
+        if let subs = dash.subjects, !subs.isEmpty {
+            dashboardSubjects = subs.sorted { ($0.vitaScore ?? 0) > ($1.vitaScore ?? 0) }
+        }
+        if let hero = dash.hero, !hero.isEmpty {
+            studyRecommendations = hero.sorted { $0.urgency > $1.urgency }.prefix(6).map { card in
+                DashboardRecommendation(
+                    id: card.id, title: card.title, subtitle: card.subtitle,
+                    dueCount: 0, deckId: card.action.id ?? "",
+                    type: card.type.rawValue, urgency: card.urgency,
+                    ctaText: card.cta.text, labelTone: card.labelTone.rawValue,
+                    subjectName: card.pills.first?.text ?? ""
+                )
+            }
+            return
+        }
+        if let subs = dash.subjects, !subs.isEmpty {
+            studyRecommendations = buildSubjectRecommendations(
+                subjects: subs, flashcardsDue: dash.flashcardsDueTotal ?? 0)
+        }
     }
+
+    private func buildSubjectRecommendations(subjects: [DashboardSubject], flashcardsDue: Int) -> [DashboardRecommendation] {
+        var recs: [DashboardRecommendation] = []
+        if flashcardsDue > 0 {
+            recs.append(DashboardRecommendation(
+                id: "flashcards-due", title: "Revisar Flashcards",
+                subtitle: "\(flashcardsDue) cards pendentes de revisao",
+                dueCount: flashcardsDue, deckId: "", type: "revision",
+                urgency: 80, ctaText: "Revisar agora", labelTone: "warning", subjectName: "Flashcards"
+            ))
+        }
+        for sub in subjects.filter({ $0.vitaScore != nil }).sorted(by: { ($0.vitaScore ?? 100) < ($1.vitaScore ?? 100) }).prefix(3) {
+            let score = Int(sub.vitaScore ?? 50)
+            let name = sub.name ?? sub.shortName ?? "Disciplina"
+            let tone = score < 40 ? "danger" : score < 60 ? "warning" : "info"
+            recs.append(DashboardRecommendation(
+                id: "subject-\(name)", title: "Estudar \(name)",
+                subtitle: score < 50 ? "VitaScore baixo — prioridade alta" : "Revisar conceitos",
+                dueCount: 0, deckId: "", type: "revision",
+                urgency: 100 - score, ctaText: "Estudar agora", labelTone: tone, subjectName: name
+            ))
+        }
+        return recs
+    }
+
+    private func buildLocalRecommendations(flashcardsDue: Int, decks: [FlashcardDeckEntry]) {
+        var recs: [DashboardRecommendation] = []
+        for deck in decks.sorted(by: { $0.cards.count > $1.cards.count }).prefix(3) {
+            let pending = deck.cards.filter { $0.repetitions == 0 }.count
+            guard pending > 0 else { continue }
+            recs.append(DashboardRecommendation(
+                id: deck.id, title: deck.title,
+                subtitle: "\(pending) cards para revisar",
+                dueCount: pending, deckId: deck.id, type: "revision",
+                urgency: 60, ctaText: "Revisar agora", labelTone: "info", subjectName: ""
+            ))
+        }
+        if recs.isEmpty && flashcardsDue > 0 {
+            recs.append(DashboardRecommendation(
+                id: "flashcards-pending", title: "Revisar Flashcards",
+                subtitle: "\(flashcardsDue) cards pendentes de revisao",
+                dueCount: flashcardsDue, deckId: "", type: "revision",
+                urgency: 70, ctaText: "Revisar agora", labelTone: "warning", subjectName: "Flashcards"
+            ))
+        }
+        studyRecommendations = recs
+    }
+
+    func selectTab(_ tab: EstudosTab) { selectedTab = tab }
 
     func selectCourse(_ courseId: String?) {
-        selectedCourseId = courseId
-        selectedTab = .pdfs
+        selectedCourseId = courseId; selectedTab = .pdfs
         Task { await reloadFiles() }
     }
 
-    func clearCourseFilter() {
-        selectedCourseId = nil
-        Task { await reloadFiles() }
-    }
+    func clearCourseFilter() { selectedCourseId = nil; Task { await reloadFiles() } }
 
     private func reloadFiles() async {
         isLoading = true
-        do {
-            let resp = try await api.getFiles(courseId: selectedCourseId)
-            files = resp.files
-        } catch {
-            print("[EstudosViewModel] Files reload failed: \(error)")
-        }
+        do { let r = try await api.getFiles(courseId: selectedCourseId); files = r.files }
+        catch { print("[EstudosViewModel] Files reload: \(error)") }
         isLoading = false
     }
 
-    // MARK: - PDF Download
-
     func downloadFile(fileId: String, fileName: String) async -> URL? {
         guard downloadingFileId == nil else { return nil }
-        downloadingFileId = fileId
-        defer { downloadingFileId = nil }
-
-        // Return cached path if already downloaded
-        if let cached = downloadedFilePaths[fileId] {
-            return cached
-        }
-
+        downloadingFileId = fileId; defer { downloadingFileId = nil }
+        if let cached = downloadedFilePaths[fileId] { return cached }
         do {
             let data = try await api.downloadFileData(fileId: fileId)
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent("pdfs", isDirectory: true)
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let dest = dir.appendingPathComponent(fileName)
-            try data.write(to: dest)
-            downloadedFilePaths[fileId] = dest
-            return dest
+            try data.write(to: dest); downloadedFilePaths[fileId] = dest; return dest
         } catch {
             print("[EstudosViewModel] Download failed: \(error)")
             return nil
         }
     }
-
 }
 
-// MARK: - Local Models (Estudos-specific)
-
 struct SimuladoEntry: Identifiable {
-    var id: String
-    var title: String
-    var totalQ: Int
-    var correctQ: Int
-    var finishedAt: String?
-
+    var id: String; var title: String; var totalQ: Int; var correctQ: Int; var finishedAt: String?
     var scorePercent: Int {
         guard totalQ > 0 else { return 0 }
         return Int((Double(correctQ) / Double(totalQ)) * 100)
@@ -334,17 +293,10 @@ struct SimuladoEntry: Identifiable {
 }
 
 struct DocumentEntry: Identifiable {
-    var id: String
-    var title: String
-    var fileName: String
-    var readProgress: Int
-    var totalPages: Int
-    var currentPage: Int
+    var id: String; var title: String; var fileName: String
+    var readProgress: Int; var totalPages: Int; var currentPage: Int
 }
 
 struct NoteEntry: Identifiable {
-    var id: String
-    var title: String
-    var content: String
-    var updatedAt: String
+    var id: String; var title: String; var content: String; var updatedAt: String
 }
