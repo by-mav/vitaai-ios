@@ -588,6 +588,22 @@ actor VitaAPI {
         return try await client.get("exams", queryItems: items.isEmpty ? nil : items)
     }
 
+    // MARK: - Professor Intelligence
+
+    func getProfessorProfile(subjectId: String) async throws -> ProfessorProfileResponse {
+        try await client.get("subjects/\(subjectId)/professor-profile")
+    }
+
+    func analyzeExam(fileData: Data, fileName: String, mimeType: String, subjectId: String) async throws -> ExamAnalyzeResponse {
+        try await client.uploadExamMultipart(
+            "exams/analyze",
+            fileData: fileData,
+            fileName: fileName,
+            mimeType: mimeType,
+            subjectId: subjectId
+        )
+    }
+
     func getStudyEvents(from: String? = nil, to: String? = nil) async throws -> StudyEventsResponse {
         var items: [URLQueryItem] = []
         if let from { items.append(.init(name: "from", value: from)) }
@@ -636,6 +652,25 @@ actor VitaAPI {
         try await client.delete("integrations/\(provider)")
     }
 
+
+    // MARK: - WhatsApp
+
+    func getWhatsAppStatus() async throws -> WhatsAppStatusResponse {
+        try await client.get("whatsapp/status")
+    }
+
+    func linkWhatsApp(phone: String) async throws {
+        let _: EmptyResponse = try await client.post("whatsapp/link", body: WhatsAppLinkRequest(phone: phone))
+    }
+
+    func verifyWhatsApp(code: String) async throws -> WhatsAppVerifyResponse {
+        try await client.post("whatsapp/verify", body: WhatsAppVerifyRequest(code: code))
+    }
+
+    func unlinkWhatsApp() async throws {
+        let _: EmptyResponse = try await client.post("whatsapp/unlink", body: EmptyBody())
+    }
+
     func syncPushPreferences(_ prefs: PushPreferencesRequest) async throws {
         let _: EmptyResponse = try await client.post("push/preferences", body: prefs)
     }
@@ -656,3 +691,23 @@ struct UniversityRequestBody: Encodable {
     let city: String
     let state: String
 }
+
+struct WhatsAppLinkRequest: Encodable {
+    let phone: String
+}
+
+struct WhatsAppVerifyRequest: Encodable {
+    let code: String
+}
+
+struct WhatsAppStatusResponse: Decodable {
+    let phone: String?
+    let verified: Bool
+}
+
+struct WhatsAppVerifyResponse: Decodable {
+    let ok: Bool
+    let verified: Bool
+}
+
+struct EmptyBody: Encodable {}

@@ -158,6 +158,7 @@ struct AppRouter: View {
                 case .faculdade: router.selectedTab = .faculdade
                 case .progresso: router.selectedTab = .progresso
                 case .profile:   router.selectedTab = .progresso
+                case .paywall:   router.navigate(to: .paywall)
                 default:         router.navigate(to: route)
                 }
             default: break
@@ -190,6 +191,9 @@ struct MainTabView: View {
                     userName: authManager.userName,
                     userImageURL: authManager.userImage.flatMap(URL.init(string:)),
                     subtitle: dashboardSubtitle,
+                    level: container.gamificationEvents.currentLevel,
+                    xpProgress: container.gamificationEvents.currentXpProgress,
+                    xpToast: container.gamificationEvents.xpToast,
                     onAvatarTap: { router.selectedTab = .progresso },
                     onBellTap: { showMenuPopout = false; showNotifPopout.toggle() },
                     onMenuTap: { showNotifPopout = false; showMenuPopout.toggle() }
@@ -218,6 +222,7 @@ struct MainTabView: View {
                     .background(.clear)
                     .scrollContentBackground(.hidden)
                     .toolbar(.hidden, for: .navigationBar)
+                    .enableSwipeBack()
 
                     // Chat overlay — sits in content area (below top bar, above tab bar)
                     if showChat {
@@ -277,6 +282,10 @@ struct MainTabView: View {
             VitaAmbientBackground { Color.clear }
                 .ignoresSafeArea()
         }
+        .onChange(of: router.path.count) { _, _ in
+            // Sync routeStack when user swipes back (UIKit modifies path directly)
+            router.syncStackToPath()
+        }
         .onChange(of: router.selectedTab) { _, _ in
             // Dismiss popouts and chat on tab change
             showMenuPopout = false
@@ -289,7 +298,6 @@ struct MainTabView: View {
                 router.popToRoot()
             }
         }
-        .vitaXpToastHost(container.gamificationEvents.xpToast)
         .overlay {
             ZStack {
                 VitaLevelUpOverlay(event: container.gamificationEvents.levelUpEvent)
@@ -310,6 +318,9 @@ struct MainTabView: View {
             // await PushManager.shared.requestPermission()
             Task {
                 let stats = try? await container.api.getGamificationStats()
+                if let stats {
+                    container.gamificationEvents.updateFromStats(stats)
+                }
                 let previousLevel = stats?.level
                 if let result = try? await container.api.logActivity(action: "daily_login") {
                     container.gamificationEvents.handleActivityResponse(result, previousLevel: previousLevel)
@@ -324,6 +335,7 @@ struct MainTabView: View {
                 }
             }
         }
+        // Paywall now navigated via router.navigate(to: .paywall) — no fullScreenCover
     }
 
     // MARK: - Active Tab Content
@@ -339,7 +351,7 @@ struct MainTabView: View {
                 onNavigateToMaterials: { router.navigate(to: .qbank) },
                 onNavigateToTranscricao: { router.navigate(to: .transcricao) },
                 onNavigateToAtlas3D: { router.navigate(to: .atlas3D) },
-                onNavigateToDisciplineDetail: { id, name in router.navigate(to: .disciplineDetail(disciplineId: id, disciplineName: name)) },
+                onNavigateToDisciplineDetail: { id, name in router.navigateToDiscipline(id: id, name: name) },
                 onNavigateToTrabalhos: { router.navigate(to: .trabalhos) },
                 onSubtitleLoaded: { subtitle in dashboardSubtitle = subtitle }
             )
@@ -579,9 +591,14 @@ struct MainTabView: View {
         case .faculdadeAgenda:
             AgendaScreen()
         case .faculdadeMaterias:
-            FaculdadeMateriasScreen(onBack: { router.goBack() })
+            FaculdadeMateriasScreen(
+                onBack: { router.goBack() },
+                onNavigateToDiscipline: { id, name in router.navigate(to: .disciplineDetail(disciplineId: id, disciplineName: name)) }
+            )
         case .faculdadeDocumentos:
             FaculdadeDocumentosScreen(onBack: { router.goBack() })
+        case .faculdadeProfessores:
+            FaculdadeProfessoresScreen()
         default:
             EmptyView()
         }

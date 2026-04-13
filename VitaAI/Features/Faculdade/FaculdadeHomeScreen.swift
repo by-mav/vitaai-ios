@@ -56,11 +56,13 @@ struct FaculdadeHomeScreen: View {
     // MARK: - Subtab row (navigation shortcuts)
 
     private var subTabRow: some View {
-        HStack(spacing: 6) {
-            subTabPill(title: "Agenda", icon: "calendar", route: .faculdadeAgenda)
-            subTabPill(title: "Matérias", icon: "graduationcap", route: .faculdadeMaterias)
-            subTabPill(title: "Documentos", icon: "doc.text", route: .faculdadeDocumentos)
-            Spacer()
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                subTabPill(title: "Agenda", icon: "calendar", route: .faculdadeAgenda)
+                subTabPill(title: "Matérias", icon: "graduationcap", route: .faculdadeMaterias)
+                subTabPill(title: "Documentos", icon: "doc.text", route: .faculdadeDocumentos)
+                subTabPill(title: "Professores", icon: "person.2", route: .faculdadeProfessores)
+            }
         }
     }
 

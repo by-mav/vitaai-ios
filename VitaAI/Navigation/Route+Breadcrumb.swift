@@ -18,9 +18,10 @@ extension Route {
     var breadcrumbLabel: String? {
         switch self {
         // MARK: - Faculdade
-        case .faculdadeAgenda:     return "Agenda"
-        case .faculdadeMaterias:   return "Matérias"
-        case .faculdadeDocumentos: return "Documentos"
+        case .faculdadeAgenda:      return "Agenda"
+        case .faculdadeMaterias:    return "Matérias"
+        case .faculdadeDocumentos:  return "Documentos"
+        case .faculdadeProfessores: return "Professores"
         case .provas:              return "Provas"
         case .trabalhos:           return "Trabalhos"
 

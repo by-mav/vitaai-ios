@@ -84,4 +84,5 @@ enum Route: Hashable {
     case faculdadeAgenda
     case faculdadeMaterias
     case faculdadeDocumentos
+    case faculdadeProfessores
 }
