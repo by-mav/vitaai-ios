@@ -61,6 +61,133 @@ struct TranscricaoEntry: Decodable, Identifiable {
     }
 }
 
+// MARK: - Studio Source Detail (GET /api/studio/sources/:id)
+
+struct StudioSourceDetail: Decodable {
+    let id: String
+    let type: String
+    let title: String
+    let status: String
+    let metadata: StudioSourceMetadata?
+    let errorMessage: String?
+    let createdAt: String
+    let updatedAt: String
+    let chunks: [StudioChunk]?
+}
+
+struct StudioSourceMetadata: Decodable {
+    let durationSeconds: Double?
+    let durationLabel: String?
+    let fileName: String?
+    let fileSize: Int?
+    let whisperModel: String?
+    let segments: [WhisperSegment]?
+    let audioFileId: String?
+    let audioR2Key: String?
+
+    enum CodingKeys: String, CodingKey {
+        case duration, fileName, fileSize, whisperModel, segments, audioFileId, audioR2Key
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fileName = try c.decodeIfPresent(String.self, forKey: .fileName)
+        fileSize = try c.decodeIfPresent(Int.self, forKey: .fileSize)
+        whisperModel = try c.decodeIfPresent(String.self, forKey: .whisperModel)
+        segments = try c.decodeIfPresent([WhisperSegment].self, forKey: .segments)
+        audioFileId = try c.decodeIfPresent(String.self, forKey: .audioFileId)
+        audioR2Key = try c.decodeIfPresent(String.self, forKey: .audioR2Key)
+
+        // duration can be Double (seconds) or String ("~60min")
+        if let d = try? c.decodeIfPresent(Double.self, forKey: .duration) {
+            durationSeconds = d
+            durationLabel = nil
+        } else if let s = try? c.decodeIfPresent(String.self, forKey: .duration) {
+            durationLabel = s
+            durationSeconds = nil
+        } else {
+            durationSeconds = nil
+            durationLabel = nil
+        }
+    }
+}
+
+struct WhisperSegment: Decodable {
+    let start: Double
+    let end: Double
+    let text: String
+    let words: [WhisperWord]?
+}
+
+struct WhisperWord: Decodable, Identifiable {
+    var id: String { "\(start)-\(word)" }
+    let word: String
+    let start: Double
+    let end: Double
+}
+
+struct StudioChunk: Decodable, Identifiable {
+    var id: Int { chunkIndex }
+    let chunkIndex: Int
+    let content: String
+}
+
+// MARK: - Studio Output (GET /api/studio/outputs?sourceId=X)
+
+struct StudioOutputsResponse: Decodable {
+    let outputs: [StudioOutput]
+}
+
+struct StudioOutput: Decodable, Identifiable {
+    let id: String
+    let outputType: String // "summary", "flashcards", "questions", "concepts", "mindmap"
+    let title: String
+    let sourceId: String?
+    let createdAt: String?
+    let status: String
+    let content: StudioOutputContent?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, outputType, type, title, sourceId, createdAt, status, content
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        // GET returns "outputType", POST generate returns "type"
+        outputType = (try? c.decode(String.self, forKey: .outputType))
+            ?? (try? c.decode(String.self, forKey: .type))
+            ?? "unknown"
+        sourceId = try? c.decode(String.self, forKey: .sourceId)
+        createdAt = try? c.decode(String.self, forKey: .createdAt)
+        status = (try? c.decode(String.self, forKey: .status)) ?? "ready"
+        content = try? c.decode(StudioOutputContent.self, forKey: .content)
+        // Title: top-level or from content.title
+        title = (try? c.decode(String.self, forKey: .title))
+            ?? content?.title
+            ?? outputType
+    }
+}
+
+struct StudioOutputContent: Decodable {
+    let title: String?
+    let markdown: String?
+    let flashcards: [StudioFlashcard]?
+    let questions: [StudioQuestion]?
+}
+
+struct StudioFlashcard: Decodable, Identifiable {
+    var id: String { front }
+    let front: String
+    let back: String
+}
+
+struct StudioQuestion: Decodable, Identifiable {
+    var id: String { question }
+    let question: String
+    let answer: String?
+}
+
 enum TranscricaoSSEEvent: Sendable {
     case progress(stage: String, percent: Int)
     case complete(transcript: String, summary: String, flashcards: [TranscriptionFlashcard])
