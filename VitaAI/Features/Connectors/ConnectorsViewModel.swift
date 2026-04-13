@@ -113,21 +113,37 @@ final class ConnectorsViewModel {
                 case "inactive", "disconnected": .disconnected
                 default: .connected
                 }
-                let syncTime = conn.lastPingAt ?? conn.lastSyncAt
+
+                // Separamos os dois conceitos:
+                // lastSyncAt  = ultima vez que dados foram extraidos com sucesso
+                // lastPingAt  = ultima vez que o token/sessao foi verificado vivo (keep-alive)
+                // Se sync > 12h, card vira "stale" mesmo com status=connected.
+                let syncRelative = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
+                let pingRelative = conn.lastPingAt.flatMap { formatRelativeTime($0) }
+                let syncAbsolute = conn.lastSyncAt.flatMap { formatAbsoluteTime($0) }
+                let stale = isStale(conn.lastSyncAt)
+                // So mostra "Token vivo" separado se realmente divergir do sync
+                let pingDifferent = pingRelative != nil && pingRelative != syncRelative
 
                 switch conn.portalType {
                 case "canvas":
                     canvas.status = status
-                    canvas.lastSync = syncTime.flatMap { formatRelativeTime($0) }
+                    canvas.lastSync = syncRelative ?? pingRelative
+                    canvas.lastPing = pingDifferent ? pingRelative : nil
+                    canvas.lastSyncAbsolute = syncAbsolute
+                    canvas.isStale = stale
                     canvas.instanceUrl = conn.instanceUrl
                     canvas.stats = [
                         (conn.counts?.subjects ?? 0, "disciplinas"),
-                        (conn.counts?.evaluations ?? 0, "avaliacoes"),
+                        (conn.counts?.evaluations ?? 0, "atividades"),
                         (conn.counts?.documents ?? 0, "arquivos"),
                     ]
                 case "mannesoft":
                     mannesoft.status = status
-                    mannesoft.lastSync = syncTime.flatMap { formatRelativeTime($0) }
+                    mannesoft.lastSync = syncRelative ?? pingRelative
+                    mannesoft.lastPing = pingDifferent ? pingRelative : nil
+                    mannesoft.lastSyncAbsolute = syncAbsolute
+                    mannesoft.isStale = stale
                     mannesoft.instanceUrl = conn.instanceUrl
                     mannesoft.stats = [
                         (conn.counts?.subjects ?? 0, "disciplinas"),
@@ -141,14 +157,13 @@ final class ConnectorsViewModel {
 
             if canvas.status == .expired, let url = canvas.instanceUrl, !url.isEmpty {
                 NSLog("[Connectors] Canvas expired — triggering silent reauth")
-                canvas.status = .loading
+                // Keep showing "expired" while trying — don't mask with "loading"
                 Task {
                     let success = await CanvasSilentReauth.shared.forceReauth(instanceUrl: url, api: api)
                     if success {
                         await loadPortalConnections()
-                    } else {
-                        canvas.status = .expired
                     }
+                    // If failed, status stays .expired (already set)
                 }
             }
         } catch {
@@ -162,9 +177,10 @@ final class ConnectorsViewModel {
         // Load Google Calendar & Drive via existing specific endpoints
         async let cal = loadCalendar()
         async let drv = loadDrive()
-        _ = await (cal, drv)
+        async let wa = loadWhatsAppStatus()
+        _ = await (cal, drv, wa)
 
-        // Spotify, Apple Health, WhatsApp: load from unified /api/integrations
+        // Spotify, Apple Health: load from unified /api/integrations
         do {
             let data = try await api.getIntegrations()
             for item in data.productivity {
@@ -175,14 +191,39 @@ final class ConnectorsViewModel {
                 case "apple_health":
                     appleHealth.status = connectionStatus(from: item.status)
                     appleHealth.lastSync = item.lastSyncAt.flatMap { formatRelativeTime($0) }
-                case "whatsapp":
-                    whatsapp.status = connectionStatus(from: item.status)
-                    whatsapp.lastSync = item.lastSyncAt.flatMap { formatRelativeTime($0) }
                 default: break
                 }
             }
         } catch {
             print("[Connectors] Integrations load failed: \(error)")
+        }
+    }
+
+    // MARK: - WhatsApp
+
+    func loadWhatsAppStatus() async {
+        do {
+            let data = try await api.getWhatsAppStatus()
+            if data.verified, data.phone != nil {
+                whatsapp.status = .connected
+                whatsapp.subtitle = data.phone
+            } else {
+                whatsapp.status = .disconnected
+                whatsapp.subtitle = nil
+            }
+        } catch {
+            whatsapp.status = .disconnected
+        }
+    }
+
+    func linkWhatsApp(phone: String) async throws {
+        try await api.linkWhatsApp(phone: phone)
+    }
+
+    func verifyWhatsApp(code: String) async throws {
+        let result = try await api.verifyWhatsApp(code: code)
+        if result.verified {
+            await loadWhatsAppStatus()
         }
     }
 
@@ -253,7 +294,7 @@ final class ConnectorsViewModel {
             case "apple_health":
                 appleHealth = ConnectorState(id: "apple_health", name: "Apple Health")
             case "whatsapp":
-                try await api.disconnectIntegration("whatsapp")
+                try await api.unlinkWhatsApp()
                 whatsapp = ConnectorState(id: "whatsapp", name: "WhatsApp")
             default: break
             }
@@ -367,6 +408,34 @@ final class ConnectorsViewModel {
         fmt.locale = Locale(identifier: "pt_BR")
         return fmt.string(from: date)
     }
+
+    /// Data absoluta em PT-BR para ancora temporal: "11 abr, 19:54"
+    /// Se for hoje, vira "hoje, 19:54". Se > 7 dias, "11/04/26".
+    private func formatAbsoluteTime(_ isoDate: String) -> String? {
+        let fullFmt = ISO8601DateFormatter()
+        fullFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = fullFmt.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate) else { return nil }
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "pt_BR")
+        if Calendar.current.isDateInToday(date) {
+            fmt.dateFormat = "'hoje,' HH:mm"
+        } else if Date().timeIntervalSince(date) < 7 * 86_400 {
+            fmt.dateFormat = "dd MMM, HH:mm"
+        } else {
+            fmt.dateFormat = "dd/MM/yy"
+        }
+        return fmt.string(from: date)
+    }
+
+    /// Considera stale quando a ultima extracao com dados foi > 12h atras.
+    /// Usuario ve card conectado mas com aviso amarelo — sinal pra suspeitar.
+    private func isStale(_ isoDate: String?) -> Bool {
+        guard let isoDate else { return false }
+        let fullFmt = ISO8601DateFormatter()
+        fullFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = fullFmt.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate) else { return false }
+        return Date().timeIntervalSince(date) > 12 * 3600
+    }
 }
 
 // MARK: - ConnectorState
@@ -375,7 +444,10 @@ struct ConnectorState {
     let id: String
     let name: String
     var status: ConnectionItemStatus = .disconnected
-    var lastSync: String?
+    var lastSync: String?          // "dados extraidos" — relativo (ex: "3h atras")
+    var lastPing: String?          // "sessao viva" — relativo (so quando diferente de lastSync)
+    var lastSyncAbsolute: String?  // "11 abr as 19:54" para sheet e ancora temporal
+    var isStale: Bool = false      // true se lastSync > 12h (conectado mas dados velhos)
     var stats: [(value: Int, label: String)] = []
     var subtitle: String?
     var instanceUrl: String?

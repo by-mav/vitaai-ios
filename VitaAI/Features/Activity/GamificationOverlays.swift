@@ -12,6 +12,10 @@ final class GamificationEventManager {
     var levelUpEvent: LevelUpEvent?
     var badgeEvent: BadgeUnlockEvent?
 
+    /// Current level from server — single source of truth for top bar and all UI
+    var currentLevel: Int = 1
+    var currentXpProgress: Double = 0
+
     struct LevelUpEvent: Identifiable {
         let id = UUID()
         let newLevel: Int
@@ -30,8 +34,19 @@ final class GamificationEventManager {
         }
     }
 
+    /// Update level/XP from gamification stats response
+    func updateFromStats(_ stats: GamificationStatsResponse) {
+        currentLevel = max(1, stats.level)
+        let total = stats.currentLevelXp + stats.xpToNextLevel
+        currentXpProgress = total > 0 ? Double(stats.currentLevelXp) / Double(total) : 0
+    }
+
     /// Process the response from POST /api/activity
     func handleActivityResponse(_ data: LogActivityResponse, previousLevel: Int?) {
+        currentLevel = max(1, data.level)
+        let total = data.currentLevelXp + data.xpToNextLevel
+        currentXpProgress = total > 0 ? Double(data.currentLevelXp) / Double(total) : 0
+
         if data.xpAwarded > 0 {
             let source = XpSource.dailyLogin // generic — the toast shows XP amount
             xpToast.show(XpEvent(amount: data.xpAwarded, source: source))

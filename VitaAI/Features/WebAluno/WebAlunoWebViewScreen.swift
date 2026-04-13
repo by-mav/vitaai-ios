@@ -47,13 +47,28 @@ struct WebAlunoWebViewScreen: View {
                 }
 
                 // WebView — loads portal, auto-triggers Google OAuth with login_hint
-                WebAlunoWebView(
-                    url: URL(string: webalunoWebURL)!,
-                    userEmail: userEmail,
-                    isLoading: $isLoading,
-                    loadProgress: $loadProgress,
-                    onSessionCaptured: onSessionCaptured
-                )
+                if let url = URL(string: webalunoWebURL), !webalunoWebURL.isEmpty {
+                    WebAlunoWebView(
+                        url: url,
+                        userEmail: userEmail,
+                        isLoading: $isLoading,
+                        loadProgress: $loadProgress,
+                        onSessionCaptured: onSessionCaptured
+                    )
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(VitaColors.accent)
+                        Text("URL do portal não configurada")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.white)
+                        Text("Verifique a configuração do conector")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
         .navigationBarHidden(true)

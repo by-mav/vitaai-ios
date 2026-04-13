@@ -17,7 +17,7 @@ struct TranscricaoScreen: View {
             if let vm = viewModel {
                 TranscricaoContent(viewModel: vm, onBack: onBack, api: container.api)
             } else {
-                ProgressView().tint(TealColors.accent)
+                ProgressView().tint(VitaColors.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.clear.ignoresSafeArea())
             }
@@ -42,11 +42,19 @@ private struct TranscricaoContent: View {
     let onBack: () -> Void
     let api: VitaAPI
 
+    @Environment(\.appData) private var appData
     @State private var selectedMode: TranscricaoRecordingMode = .offline
-    @State private var selectedDiscipline: String = "Geral"
-    @State private var selectedFilter: String = "Todas"
+    @State private var selectedDiscipline: String = "Auto-detectar"
+    @State private var selectedFilter: String? = nil
     @State private var selectedRecording: TranscricaoEntry? = nil
-    @State private var disciplines: [String] = ["Geral"]
+
+    /// Disciplines from academic_subjects via gradesResponse (already loaded by AppDataManager)
+    private var disciplines: [String] {
+        let current = appData.gradesResponse?.current ?? []
+        let completed = appData.gradesResponse?.completed ?? []
+        let all = current + completed
+        return all.map(\.subjectName).filter { !$0.isEmpty }
+    }
 
     /// Whether the pipeline is actively processing (upload/transcribe/summarize/flashcards)
     private var isProcessing: Bool {
@@ -116,23 +124,7 @@ private struct TranscricaoContent: View {
                                 .opacity(isProcessing ? 0.6 : 1.0)
                             }
                             .padding(16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color(red: 12/255, green: 9/255, blue: 7/255, opacity: 0.85),
-                                                Color(red: 14/255, green: 11/255, blue: 8/255, opacity: 0.75)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(VitaColors.accent.opacity(0.10), lineWidth: 0.5)
-                            )
+                            .glassCard(cornerRadius: 20)
                             .padding(.horizontal, 16)
                             .padding(.top, isProcessing ? 4 : 10)
 
@@ -148,7 +140,7 @@ private struct TranscricaoContent: View {
                                 recordings: viewModel.recordings,
                                 isLoading: viewModel.recordingsLoading,
                                 selectedFilter: $selectedFilter,
-                                filterChips: ["Todas"] + disciplines,
+                                filterChips: disciplines,
                                 onTap: { rec in selectedRecording = rec },
                                 onDelete: { rec in
                                     withAnimation {
@@ -169,14 +161,6 @@ private struct TranscricaoContent: View {
         .sheet(item: $selectedRecording) { rec in
             TranscricaoDetailSheet(recording: rec)
         }
-        .task {
-            // Load user's real subjects from API
-            if let resp = try? await api.getSubjects() {
-                let names = resp.subjects.map(\.name).filter { !$0.isEmpty }
-                if !names.isEmpty {
-                    disciplines = ["Geral"] + names
-                }
-            }
-        }
+        // Disciplines loaded from appData.gradesResponse (no separate API call needed)
     }
 }

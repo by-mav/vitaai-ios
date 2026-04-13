@@ -62,16 +62,24 @@ final class ProgressoViewModel {
             print("[PROGRESSO] getProgress failed: \(error)")
         }
 
-        // Load XP/level from dashboard (gamification stats endpoint doesn't exist yet)
+        // Load XP/level from gamification stats endpoint (server is source of truth)
         do {
-            let dashboard = try await api.getDashboard()
-            let xp = dashboard.xp
+            let stats = try await api.getGamificationStats()
+            // streakDays from stats takes priority over progress endpoint if available
+            if stats.streakDays > 0 { streakDays = stats.streakDays }
             longestStreak = streakDays
+            // server provides currentLevelXp and xpToNextLevel directly — use them
+            let currentLvlXp = stats.currentLevelXp > 0
+                ? stats.currentLevelXp
+                : LevelThresholds.currentLevelXp(totalXp: stats.totalXp, level: stats.level)
+            let xpToNext = stats.xpToNextLevel > 0
+                ? stats.xpToNextLevel
+                : LevelThresholds.xpToNextLevel(stats.level)
             userProgress = UserProgress(
-                totalXp: xp?.total ?? 0,
-                level: xp?.level ?? 1,
-                currentLevelXp: (xp?.total ?? 0) % 100,
-                xpToNextLevel: 100,
+                totalXp: stats.totalXp,
+                level: max(1, stats.level),
+                currentLevelXp: currentLvlXp,
+                xpToNextLevel: xpToNext,
                 currentStreak: streakDays,
                 longestStreak: streakDays,
                 badges: [],
@@ -79,7 +87,27 @@ final class ProgressoViewModel {
             )
             anySuccess = true
         } catch {
-            print("[PROGRESSO] getDashboard (for XP) failed: \(error)")
+            print("[PROGRESSO] getGamificationStats failed: \(error) — falling back to dashboard")
+            // Fallback: derive level data from dashboard XP using local formula
+            do {
+                let dashboard = try await api.getDashboard()
+                let totalXp = dashboard.xp?.total ?? 0
+                let level = dashboard.xp?.level ?? LevelThresholds.level(for: totalXp)
+                longestStreak = streakDays
+                userProgress = UserProgress(
+                    totalXp: totalXp,
+                    level: level,
+                    currentLevelXp: LevelThresholds.currentLevelXp(totalXp: totalXp, level: level),
+                    xpToNextLevel: LevelThresholds.xpToNextLevel(level),
+                    currentStreak: streakDays,
+                    longestStreak: streakDays,
+                    badges: [],
+                    dailyXp: 0
+                )
+                anySuccess = true
+            } catch {
+                print("[PROGRESSO] getDashboard fallback failed: \(error)")
+            }
         }
 
         // Load leaderboard

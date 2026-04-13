@@ -15,10 +15,16 @@ struct VitaTopBar: View {
     var subtitle: String = ""
     var level: Int = 0
     var xpProgress: Double = 0
+    var xpToast: VitaXpToastState?
     var notificationCount: Int = 0
     var onAvatarTap: (() -> Void)?
     var onBellTap: (() -> Void)?
     var onMenuTap: (() -> Void)?
+
+    @State private var xpGainedText: String?
+    @State private var xpGainedVisible = false
+    @State private var lastToastId: UUID?
+    @State private var ringGlow = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -34,17 +40,18 @@ struct VitaTopBar: View {
                         .stroke(
                             LinearGradient(
                                 colors: [
-                                    Color(red: 1.0, green: 0.784, blue: 0.392).opacity(0.85),
-                                    Color(red: 0.784, green: 0.588, blue: 0.235).opacity(0.65)
+                                    Color(red: 1.0, green: 0.784, blue: 0.392).opacity(ringGlow ? 1.0 : 0.85),
+                                    Color(red: 0.784, green: 0.588, blue: 0.235).opacity(ringGlow ? 0.90 : 0.65)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
-                            style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                            style: StrokeStyle(lineWidth: ringGlow ? 3.0 : 2.5, lineCap: .round)
                         )
                         .frame(width: 40, height: 40)
                         .rotationEffect(.degrees(-90))
-                        .shadow(color: Color(red: 0.784, green: 0.627, blue: 0.314).opacity(0.15), radius: 4)
+                        .shadow(color: Color(red: 0.784, green: 0.627, blue: 0.314).opacity(ringGlow ? 0.35 : 0.15), radius: ringGlow ? 6 : 4)
+                        .animation(.easeInOut(duration: 0.6), value: xpProgress)
 
                     if let url = userImageURL {
                         CachedAsyncImage(url: url) {
@@ -56,36 +63,51 @@ struct VitaTopBar: View {
                         avatarInitials
                     }
 
-                    // Level badge — mockup: rgba(200,160,80,0.35)->rgba(140,100,50,0.25), border rgba(255,220,160,0.30), text rgba(255,220,160,0.95)
-                    Text("\(level)")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.95))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(
-                            Capsule().fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(red: 0.784, green: 0.627, blue: 0.314).opacity(0.35),
-                                        Color(red: 0.549, green: 0.392, blue: 0.196).opacity(0.25)
-                                    ],
-                                    startPoint: .top, endPoint: .bottom
+                    // Level badge + XP gained indicator
+                    VStack(spacing: 1) {
+                        Text("\(level)")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.95))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(
+                                Capsule().fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.784, green: 0.627, blue: 0.314).opacity(0.35),
+                                            Color(red: 0.549, green: 0.392, blue: 0.196).opacity(0.25)
+                                        ],
+                                        startPoint: .top, endPoint: .bottom
+                                    )
                                 )
                             )
-                        )
-                        .overlay(
-                            Capsule().stroke(
-                                Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.30),
-                                lineWidth: 1
+                            .overlay(
+                                Capsule().stroke(
+                                    Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.30),
+                                    lineWidth: 1
+                                )
                             )
-                        )
-                        .offset(y: 18)
+
+                        if let text = xpGainedText, xpGainedVisible {
+                            Text(text)
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundStyle(VitaColors.accent)
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                        }
+                    }
+                    .offset(y: 18)
                 }
                 .frame(width: 40, height: 40)
             }
             .buttonStyle(.plain)
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Perfil")
+            .onChange(of: xpToast?.current?.id) { _, newId in
+                guard let newId, newId != lastToastId,
+                      let amount = xpToast?.current?.event.amount else { return }
+                lastToastId = newId
+                showXpGained(amount)
+            }
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(greeting)
@@ -223,5 +245,28 @@ struct VitaTopBar: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - XP Gained Animation
+
+    private func showXpGained(_ amount: Int) {
+        xpGainedText = "+\(amount)XP"
+        // Flash the ring brighter
+        withAnimation(.easeIn(duration: 0.3)) {
+            ringGlow = true
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            xpGainedVisible = true
+        }
+        // Dismiss after 1.8s
+        Task {
+            try? await Task.sleep(for: .seconds(1.8))
+            withAnimation(.easeOut(duration: 0.4)) {
+                xpGainedVisible = false
+                ringGlow = false
+            }
+            // Also dismiss the toast state so it doesn't show the old popup
+            xpToast?.dismiss()
+        }
     }
 }

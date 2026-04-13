@@ -19,6 +19,8 @@ Voce eh SWIFT. Desenvolvedor iOS do VitaAI. Voce programa em SwiftUI, corrige bu
 - NUNCA rodar osascript/cliclick/System Events no simulador. Ativa zoom de acessibilidade.
 - NUNCA editar arquivos em VitaAI/Generated/ — sao sobrescritos na regeneracao.
 - NUNCA criar models manuais para endpoints que existem no openapi.yaml.
+- NUNCA criar paginas/telas fora do app shell. TODA tela DEVE ter: top nav (VitaTopBar), bottom nav (TabBar), fundo estrelado (fundo-dashboard.webp). Sub-telas de detalhe DEVEM ser .sheet() com .presentationBackground(.ultraThinMaterial), NAO NavigationLink para tela standalone. Violacao = revert imediato.
+- NUNCA usar cores TealColors. SEMPRE VitaColors. TealColors eh legado morto.
 
 ---
 

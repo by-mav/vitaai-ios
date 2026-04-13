@@ -15,7 +15,8 @@ struct TranscricaoDetailSheet: View {
 
     var body: some View {
         ZStack {
-            Color.clear.ignoresSafeArea()
+            // Warm dark background matching app
+            Color(red: 0.04, green: 0.03, blue: 0.02).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Header
@@ -23,23 +24,23 @@ struct TranscricaoDetailSheet: View {
                     Button { dismiss() } label: {
                         ZStack {
                             Circle()
-                                .fill(TealColors.accent.opacity(0.08))
+                                .fill(VitaColors.accent.opacity(0.08))
                                 .frame(width: 32, height: 32)
                                 .overlay(
                                     Circle()
-                                        .stroke(TealColors.accent.opacity(0.18), lineWidth: 1)
+                                        .stroke(VitaColors.accent.opacity(0.18), lineWidth: 1)
                                 )
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(TealColors.accentLight.opacity(0.70))
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(VitaColors.accentLight.opacity(0.70))
                         }
                         .frame(minWidth: 44, minHeight: 44)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Voltar")
+                    .accessibilityLabel("Fechar")
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(recording.title.isEmpty ? "Gravacao" : recording.title)
+                        Text(recording.title.isEmpty ? "Gravação" : recording.title)
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color.white.opacity(0.90))
                             .lineLimit(1)
@@ -63,9 +64,9 @@ struct TranscricaoDetailSheet: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 16)
-                .background(TealColors.accent.opacity(0.04))
+                .background(VitaColors.accent.opacity(0.04))
                 .overlay(alignment: .bottom) {
-                    Rectangle().fill(TealColors.accent.opacity(0.10)).frame(height: 1)
+                    Rectangle().fill(VitaColors.accent.opacity(0.10)).frame(height: 1)
                 }
 
                 ScrollView(showsIndicators: false) {
@@ -85,8 +86,9 @@ struct TranscricaoDetailSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .presentationBackground(.ultraThinMaterial)
     }
 }
 
@@ -103,14 +105,14 @@ struct TranscricaoAudioPlayerBar: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(TealColors.accent.opacity(0.12))
+                        .fill(VitaColors.accent.opacity(0.12))
                         .frame(width: 36, height: 36)
                         .overlay(
-                            Circle().stroke(TealColors.accent.opacity(0.20), lineWidth: 1)
+                            Circle().stroke(VitaColors.accent.opacity(0.20), lineWidth: 1)
                         )
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 14))
-                        .foregroundStyle(TealColors.accentLight.opacity(0.90))
+                        .foregroundStyle(VitaColors.accentLight.opacity(0.90))
                         .offset(x: isPlaying ? 0 : 1)
                 }
             }
@@ -122,7 +124,7 @@ struct TranscricaoAudioPlayerBar: View {
                         .fill(Color.white.opacity(0.06))
                         .frame(height: 3)
                     Capsule()
-                        .fill(TealColors.accent.opacity(0.50))
+                        .fill(VitaColors.accent.opacity(0.50))
                         .frame(width: geo.size.width * progress, height: 3)
                 }
                 .frame(maxHeight: .infinity, alignment: .center)
@@ -135,12 +137,7 @@ struct TranscricaoAudioPlayerBar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.03))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(TealColors.accent.opacity(0.08), lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 12)
     }
 }
 
@@ -161,7 +158,7 @@ struct TranscricaoPendingContent: View {
                 HStack(spacing: 12) {
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .tint(TealColors.accentLight)
+                        .tint(VitaColors.accentLight)
                         .scaleEffect(0.8)
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -176,12 +173,7 @@ struct TranscricaoPendingContent: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .background(TealColors.accent.opacity(0.04))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(TealColors.accent.opacity(0.10), lineWidth: 1)
-                )
+                .glassCard(cornerRadius: 12)
             } else {
                 Button {
                     withAnimation { isTranscribing = true }
@@ -192,14 +184,14 @@ struct TranscricaoPendingContent: View {
                         Text("Transcrever agora")
                             .font(.system(size: 14, weight: .semibold))
                     }
-                    .foregroundStyle(TealColors.accentLight.opacity(0.90))
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.90))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(TealColors.accent.opacity(0.08))
+                    .background(VitaColors.accent.opacity(0.08))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(TealColors.accent.opacity(0.24), lineWidth: 1)
+                            .stroke(VitaColors.accent.opacity(0.24), lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -224,8 +216,8 @@ struct TranscricaoTranscribedContent: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("Transcrição")
-                        .font(.system(size: 12, weight: .bold))
+                    Text("TRANSCRIÇÃO")
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(VitaColors.textWarm.opacity(0.45))
                         .tracking(0.5)
                     Spacer()
@@ -243,10 +235,10 @@ struct TranscricaoTranscribedContent: View {
                             Text(copied ? "Copiado" : "Copiar")
                                 .font(.system(size: 10, weight: .medium))
                         }
-                        .foregroundStyle(copied ? TealColors.badgeGreen : TealColors.accentLight)
+                        .foregroundStyle(copied ? VitaColors.dataGreen : VitaColors.accentLight)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background((copied ? TealColors.badgeGreen : TealColors.accent).opacity(0.1))
+                        .background((copied ? VitaColors.dataGreen : VitaColors.accent).opacity(0.1))
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -258,12 +250,7 @@ struct TranscricaoTranscribedContent: View {
                     .foregroundStyle(Color.white.opacity(0.65))
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(TealColors.accent.opacity(0.04))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(TealColors.accent.opacity(0.10), lineWidth: 1)
-                    )
+                    .glassCard(cornerRadius: 12)
             }
 
             TranscricaoActionsMenu()
@@ -283,9 +270,9 @@ struct TranscricaoActionsMenu: View {
 
     private let actions: [ActionDef] = [
         ActionDef(id: "resumo", icon: "doc.text", name: "Gerar resumo", desc: "Resumo estruturado da aula"),
-        ActionDef(id: "flashcards", icon: "rectangle.stack", name: "Gerar flashcards", desc: "Cards de memorizacao automaticos"),
+        ActionDef(id: "flashcards", icon: "rectangle.stack", name: "Gerar flashcards", desc: "Cards de memorização automáticos"),
         ActionDef(id: "questões", icon: "questionmark.circle", name: "Gerar questões", desc: "Questões de prova baseadas na aula"),
-        ActionDef(id: "conceitos", icon: "key", name: "Extrair conceitos-chave", desc: "Termos e definicoes importantes"),
+        ActionDef(id: "conceitos", icon: "key", name: "Extrair conceitos-chave", desc: "Termos e definições importantes"),
         ActionDef(id: "mindmap", icon: "point.3.connected.trianglepath.dotted", name: "Mindmap", desc: "Mapa mental visual do conteúdo"),
     ]
 
@@ -327,13 +314,13 @@ struct TranscricaoActionsMenu: View {
                         .padding(.vertical, 14)
                         .background(
                             LinearGradient(
-                                colors: [TealColors.accent.opacity(0.85), TealColors.accentLight.opacity(0.65)],
+                                colors: [VitaColors.accent.opacity(0.85), VitaColors.accentLight.opacity(0.65)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: TealColors.accent.opacity(0.25), radius: 10, y: 4)
+                        .shadow(color: VitaColors.accent.opacity(0.25), radius: 10, y: 4)
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 4)
@@ -357,15 +344,15 @@ struct TranscricaoActionItemRow: View {
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(TealColors.accent.opacity(0.08))
+                        .fill(VitaColors.accent.opacity(0.08))
                         .frame(width: 36, height: 36)
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(TealColors.accent.opacity(0.12), lineWidth: 1)
+                                .stroke(VitaColors.accent.opacity(0.12), lineWidth: 1)
                         )
                     Image(systemName: icon)
                         .font(.system(size: 14))
-                        .foregroundStyle(TealColors.accentLight.opacity(0.80))
+                        .foregroundStyle(VitaColors.accentLight.opacity(0.80))
                 }
 
                 VStack(alignment: .leading, spacing: 1) {
@@ -381,13 +368,13 @@ struct TranscricaoActionItemRow: View {
 
                 ZStack {
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? TealColors.accent.opacity(0.20) : Color.clear)
+                        .fill(isSelected ? VitaColors.accent.opacity(0.20) : Color.clear)
                         .frame(width: 20, height: 20)
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
                                 .stroke(
                                     isSelected
-                                        ? TealColors.accent.opacity(0.60)
+                                        ? VitaColors.accent.opacity(0.60)
                                         : Color.white.opacity(0.12),
                                     lineWidth: 1.5
                                 )
@@ -395,29 +382,13 @@ struct TranscricaoActionItemRow: View {
                     if isSelected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(TealColors.accentLight.opacity(0.90))
+                            .foregroundStyle(VitaColors.accentLight.opacity(0.90))
                     }
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(
-                        isSelected
-                            ? TealColors.accent.opacity(0.08)
-                            : Color.white.opacity(0.06)
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isSelected
-                            ? TealColors.accent.opacity(0.28)
-                            : TealColors.accent.opacity(0.06),
-                        lineWidth: 1
-                    )
-            )
+            .glassCard(cornerRadius: 12)
         }
         .buttonStyle(.plain)
     }
@@ -447,11 +418,11 @@ struct TranscricaoDonePhase: View {
                                 .font(.system(size: 12, weight: selectedTab == index ? .semibold : .regular))
                                 .foregroundStyle(
                                     selectedTab == index
-                                        ? TealColors.accentLight
+                                        ? VitaColors.accentLight
                                         : Color.white.opacity(0.55)
                                 )
                             Rectangle()
-                                .fill(selectedTab == index ? TealColors.accent : Color.clear)
+                                .fill(selectedTab == index ? VitaColors.accent : Color.clear)
                                 .frame(height: 2)
                         }
                         .frame(maxWidth: .infinity)
@@ -461,7 +432,7 @@ struct TranscricaoDonePhase: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                Rectangle().fill(TealColors.accent.opacity(0.10)).frame(height: 1)
+                Rectangle().fill(VitaColors.accent.opacity(0.10)).frame(height: 1)
             }
 
             switch selectedTab {
@@ -502,10 +473,10 @@ struct TranscricaoTranscriptTab: View {
                             Text(copied ? "Copiado" : "Copiar")
                                 .font(.system(size: 10, weight: .medium))
                         }
-                        .foregroundStyle(copied ? TealColors.badgeGreen : TealColors.accentLight)
+                        .foregroundStyle(copied ? VitaColors.dataGreen : VitaColors.accentLight)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background((copied ? TealColors.badgeGreen : TealColors.accent).opacity(0.1))
+                        .background((copied ? VitaColors.dataGreen : VitaColors.accent).opacity(0.1))
                         .clipShape(Capsule())
                     }
                 }
@@ -516,12 +487,7 @@ struct TranscricaoTranscriptTab: View {
                     .foregroundStyle(Color.white.opacity(0.70))
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(TealColors.accent.opacity(0.04))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(TealColors.accent.opacity(0.10), lineWidth: 1)
-                    )
+                    .glassCard(cornerRadius: 12)
             }
             .padding(16)
             .padding(.bottom, 100)
@@ -548,12 +514,7 @@ struct TranscricaoSummaryTab: View {
                 } else {
                     VitaMarkdown(content: text)
                         .padding(14)
-                        .background(TealColors.accent.opacity(0.04))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(TealColors.accent.opacity(0.10), lineWidth: 1)
-                        )
+                        .glassCard(cornerRadius: 12)
                 }
             }
             .padding(16)
@@ -585,10 +546,10 @@ struct TranscricaoFlashcardsTab: View {
                             Text("Nova gravação")
                                 .font(.system(size: 10, weight: .medium))
                         }
-                        .foregroundStyle(TealColors.accentLight)
+                        .foregroundStyle(VitaColors.accentLight)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(TealColors.accent.opacity(0.1))
+                        .background(VitaColors.accent.opacity(0.1))
                         .clipShape(Capsule())
                     }
                 }
@@ -621,7 +582,7 @@ struct TranscricaoFlashcardItemView: View {
                 .padding(14)
 
             Rectangle()
-                .fill(TealColors.accent.opacity(0.10))
+                .fill(VitaColors.accent.opacity(0.10))
                 .frame(height: 1)
 
             Text(card.back)
@@ -629,13 +590,6 @@ struct TranscricaoFlashcardItemView: View {
                 .foregroundStyle(Color.white.opacity(0.55))
                 .padding(14)
         }
-        .background(
-            Color(red: 8/255, green: 12/255, blue: 11/255, opacity: 0.94)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(TealColors.accent.opacity(0.10), lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 12)
     }
 }

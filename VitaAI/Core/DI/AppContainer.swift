@@ -84,6 +84,7 @@ final class AppContainer: ObservableObject {
         let osceSseClient = OsceSseClient(tokenStore: tokenStore, tokenRefresher: sharedRefresher)
         let transcricaoClient = TranscricaoClient(tokenStore: tokenStore, tokenRefresher: sharedRefresher)
         let authManager = AuthManager(tokenStore: tokenStore)
+        authManager.setAPI(api)
 
         self.tokenStore = tokenStore
         self.httpClient = httpClient

@@ -2,8 +2,8 @@ import Foundation
 import SwiftUI
 
 // MARK: - DisciplineDetailViewModel
-// Real API data: progress, exams, flashcard decks, trabalhos.
-// All API calls fire in parallel via async let.
+// All data from API. Parallel loading via async let.
+// Uses /grades/current as primary source for grades/attendance.
 
 @MainActor
 @Observable
@@ -18,10 +18,11 @@ final class DisciplineDetailViewModel {
     private(set) var error: String?
 
     private(set) var subjectProgress: SubjectProgress?
+    private(set) var gradeSubject: GradeSubject?
     private(set) var exams: [ExamEntry] = []
     private(set) var flashcardDecks: [FlashcardDeckEntry] = []
-    private(set) var trabalhos: TrabalhosResponse?
     private(set) var documents: [VitaDocument] = []
+    private(set) var classSchedule: [AgendaClassBlock] = []
 
     // MARK: - Init
 
@@ -41,58 +42,78 @@ final class DisciplineDetailViewModel {
 
     var subjectExams: [ExamEntry] {
         exams
-            .filter { matchesDiscipline($0.subjectName) }
-            .sorted { a, b in
-                // Sort by date ascending; treat empty date as far future
-                a.date < b.date
-            }
+            .filter { matchesDiscipline($0.subjectName) || matchesDiscipline($0.title) }
+            .sorted { $0.date < $1.date }
     }
 
     var nextExam: ExamEntry? {
         subjectExams.first { $0.daysUntil >= 0 }
     }
 
-    // MARK: - Computed: grades from scored exams
+    var pastExams: [ExamEntry] {
+        subjectExams.filter { $0.daysUntil < 0 || $0.result != nil }
+    }
 
-    var gradeSlots: (p1: Double?, p2: Double?, p3: Double?, sf: Double?) {
-        let scored = subjectExams.filter { $0.result != nil }
-        func slot(_ label: String) -> Double? {
-            scored.first { $0.examType?.lowercased() == label || $0.title.lowercased().contains(label) }?.result
-        }
-        let p1 = slot("p1") ?? slot("prova 1") ?? slot("av1")
-        let p2 = slot("p2") ?? slot("prova 2") ?? slot("av2")
-        let p3 = slot("p3") ?? slot("prova 3") ?? slot("av3")
-        let sf = slot("sf") ?? slot("sub") ?? slot("substitutiva")
-        return (p1, p2, p3, sf)
+    // MARK: - Computed: grades (from /grades/current — canonical source)
+    // Weights come from API (backend returns weight1/weight2/weight3 from portal config)
+
+    var grade1: Double? { gradeSubject?.grade1 }
+    var grade2: Double? { gradeSubject?.grade2 }
+    var grade3: Double? { gradeSubject?.grade3 }
+    var finalGrade: Double? { gradeSubject?.finalGrade }
+    var attendance: Int? { gradeSubject?.attendance }
+    var absences: Int? { gradeSubject?.absences }
+    var workload: Int? { gradeSubject?.workload }
+    var subjectStatus: String? { gradeSubject?.status }
+
+    var weight1: Double { gradeSubject?.weight1 ?? 2 }
+    var weight2: Double { gradeSubject?.weight2 ?? 3 }
+    var weight3: Double { gradeSubject?.weight3 ?? 5 }
+
+    /// Normalizes a raw grade to 0-10 scale given its weight
+    static func normalized(_ value: Double, weight: Double) -> Double {
+        guard weight > 0 else { return 0 }
+        return (value / weight) * 10.0
+    }
+
+    /// Grade slots with their weights for display: (value, weight, normalized)
+    var gradeSlots: [(label: String, value: Double?, weight: Double)] {
+        return [
+            ("P1", grade1, weight1),
+            ("P2", grade2, weight2),
+            ("P3", grade3, weight3),
+        ]
+    }
+
+    var hasAnyGrade: Bool {
+        grade1 != nil || grade2 != nil || grade3 != nil || finalGrade != nil || attendance != nil
     }
 
     var hasGradeRisk: Bool {
-        let g = gradeSlots
-        let vals = [g.p1, g.p2, g.p3].compactMap { $0 }
-        return vals.contains { $0 < 5.0 }
+        for slot in gradeSlots {
+            guard let v = slot.value else { continue }
+            if Self.normalized(v, weight: slot.weight) < 5.0 { return true }
+        }
+        return false
     }
 
-    // MARK: - Computed: attendance / professor / semester
-
-    var attendance: Double? {
-        // SubjectProgress does not expose attendance — return nil until API provides it
-        nil
-    }
-
-    var professorName: String? {
-        // SubjectProgress has no professorName field; will be nil until API adds it
-        nil
-    }
-
-    var semester: String? {
-        nil
+    /// Weighted average on 0-10 scale
+    var currentAverage: Double? {
+        var totalScore = 0.0
+        var totalWeight = 0.0
+        for slot in gradeSlots {
+            guard let v = slot.value else { continue }
+            totalScore += v
+            totalWeight += slot.weight
+        }
+        guard totalWeight > 0 else { return nil }
+        return (totalScore / totalWeight) * 10.0
     }
 
     // MARK: - Computed: flashcards
 
     var subjectDecks: [FlashcardDeckEntry] {
         flashcardDecks.filter { deck in
-            // Match by subjectId, or fall back to title similarity
             if let sid = deck.subjectId, sid == disciplineId { return true }
             return matchesDiscipline(deck.title)
         }
@@ -115,13 +136,6 @@ final class DisciplineDetailViewModel {
         subjectDecks.reduce(0) { $0 + $1.cards.count }
     }
 
-    // MARK: - Computed: trabalhos
-
-    var pendingAssignments: [TrabalhoItem] {
-        guard let t = trabalhos else { return [] }
-        return (t.pending + t.overdue).filter { matchesDiscipline($0.subjectName) }
-    }
-
     // MARK: - Computed: documents
 
     var subjectDocuments: [VitaDocument] {
@@ -132,21 +146,36 @@ final class DisciplineDetailViewModel {
         }
     }
 
+    // MARK: - Computed: schedule & professor
+
+    var subjectSchedule: [AgendaClassBlock] {
+        classSchedule
+            .filter { matchesDiscipline($0.subjectName) }
+            .sorted { $0.dayOfWeek < $1.dayOfWeek }
+    }
+
+    var professorName: String? {
+        subjectSchedule.compactMap(\.professor).first { !$0.isEmpty }
+    }
+
+    var room: String? {
+        subjectSchedule.compactMap(\.room).first { !$0.isEmpty }
+    }
+
     // MARK: - Computed: VitaScore (0-100)
-    // 45% difficulty (1 - accuracy), 35% gradeRisk, 20% urgency (next exam proximity)
+    // 45% difficulty (1 - accuracy), 35% gradeRisk, 20% urgency
 
     var vitaScore: Int {
         let accuracy = subjectProgress?.accuracy ?? 0.5
         let diffScore = (1.0 - accuracy) * 45.0
 
-        let grades = gradeSlots
-        let gradeVals = [grades.p1, grades.p2, grades.p3].compactMap { $0 }
+        let slotsWithValue = gradeSlots.filter { $0.value != nil }
         let gradeRisk: Double
-        if gradeVals.isEmpty {
+        if slotsWithValue.isEmpty {
             gradeRisk = 0
         } else {
-            let below = gradeVals.filter { $0 < 5.0 }.count
-            gradeRisk = Double(below) / Double(gradeVals.count) * 35.0
+            let below = slotsWithValue.filter { Self.normalized($0.value!, weight: $0.weight) < 5.0 }.count
+            gradeRisk = Double(below) / Double(slotsWithValue.count) * 35.0
         }
 
         let urgency: Double
@@ -162,34 +191,46 @@ final class DisciplineDetailViewModel {
         return min(100, Int(diffScore + gradeRisk + urgency))
     }
 
-    // MARK: - Load
+    // MARK: - Load (each call independent — one failure doesn't block others)
 
     func load() async {
         isLoading = true
         error = nil
 
-        async let progressTask = api.getProgress()
-        async let examsTask = api.getExams()
-        async let decksTask = api.getFlashcardDecks()
-        async let trabalhosTask = api.getTrabalhos()
-        async let documentsTask = api.getDocuments(subjectId: disciplineId)
+        async let progressTask: ProgressResponse? = try? api.getProgress()
+        async let gradesTask: GradesCurrentResponse? = try? api.getGradesCurrent()
+        async let examsTask: ExamsResponse? = try? api.getExams()
+        async let decksTask: [FlashcardDeckEntry]? = try? api.getFlashcardDecks()
+        async let docsTask: [VitaDocument]? = try? api.getDocuments(subjectId: nil)
+        async let agendaTask: AgendaResponse? = try? api.getAgenda()
 
-        do {
-            let (progressResponse, examsResponse, decks, trabalhosResponse, docs) = try await (
-                progressTask,
-                examsTask,
-                decksTask,
-                trabalhosTask,
-                documentsTask
-            )
-            subjectProgress = progressResponse.subjects.first { matchesDiscipline($0.name) }
-            exams = examsResponse.exams
-            flashcardDecks = decks
-            trabalhos = trabalhosResponse
-            documents = docs
-        } catch {
-            self.error = error.localizedDescription
+        let (progressResponse, gradesResponse, examsResponse, decks, docs, agenda) = await (
+            progressTask,
+            gradesTask,
+            examsTask,
+            decksTask,
+            docsTask,
+            agendaTask
+        )
+
+        if let progressResponse {
+            subjectProgress = progressResponse.subjects.first {
+                matchesDiscipline($0.name) || matchesDiscipline($0.subjectId)
+            }
         }
+
+        if let gradesResponse {
+            gradeSubject = gradesResponse.current.first { matchesDiscipline($0.subjectName) }
+                ?? gradesResponse.completed.first { matchesDiscipline($0.subjectName) }
+        }
+
+        if let examsResponse {
+            exams = examsResponse.exams
+        }
+
+        flashcardDecks = decks ?? []
+        documents = docs ?? []
+        classSchedule = agenda?.schedule ?? []
 
         isLoading = false
     }
@@ -197,7 +238,7 @@ final class DisciplineDetailViewModel {
     // MARK: - Helper
 
     private func matchesDiscipline(_ candidate: String?) -> Bool {
-        guard let candidate else { return false }
+        guard let candidate, !candidate.isEmpty else { return false }
         let a = disciplineName.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
         let b = candidate.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
         return a == b || b.contains(a) || a.contains(b)

@@ -74,6 +74,13 @@ actor TokenStore {
         defaults.removeObject(forKey: Keys.userImage)
     }
 
+    /// Update user info from canonical backend profile (no token change)
+    func updateUserInfo(name: String?, email: String?, image: String?) {
+        if let name { keychain.save(key: Keys.userName, value: name) }
+        if let email { keychain.save(key: Keys.userEmail, value: email) }
+        if let image { keychain.save(key: Keys.userImage, value: image) }
+    }
+
     func clearSession() {
         let fcm = defaults.string(forKey: Keys.fcmToken)
         // Clear Keychain credentials

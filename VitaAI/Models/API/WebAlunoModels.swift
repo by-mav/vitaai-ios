@@ -133,9 +133,13 @@ struct GradeSubject: Codable, Identifiable {
     var attendance: Int?
     var absences: Int?
     var workload: Int?
+    var weight1: Double?
+    var weight2: Double?
+    var weight3: Double?
 
     private enum CodingKeys: String, CodingKey {
         case subjectName, grade1, grade2, grade3, finalGrade, status, attendance, absences, workload
+        case weight1, weight2, weight3
     }
 
     init(from decoder: Decoder) throws {
@@ -149,6 +153,9 @@ struct GradeSubject: Codable, Identifiable {
         attendance = (try? c.decode(Int.self, forKey: .attendance))
         absences = (try? c.decode(Int.self, forKey: .absences))
         workload = (try? c.decode(Int.self, forKey: .workload))
+        weight1 = Self.flexDouble(c, .weight1)
+        weight2 = Self.flexDouble(c, .weight2)
+        weight3 = Self.flexDouble(c, .weight3)
     }
 
     private static func flexDouble(_ c: KeyedDecodingContainer<CodingKeys>, _ key: CodingKeys) -> Double? {

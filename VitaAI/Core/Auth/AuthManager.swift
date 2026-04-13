@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class AuthManager: ObservableObject {
     private let tokenStore: TokenStore
+    private var api: VitaAPI?
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
@@ -26,6 +27,14 @@ final class AuthManager: ObservableObject {
         Task { await checkLoginStatus() }
     }
 
+    /// Set API reference for profile sync (called by AppContainer after init)
+    func setAPI(_ api: VitaAPI) {
+        self.api = api
+        if isLoggedIn {
+            Task { await syncProfile() }
+        }
+    }
+
     private func checkLoginStatus() async {
         let loggedIn = await tokenStore.isLoggedIn
         let name = await tokenStore.userName
@@ -45,6 +54,27 @@ final class AuthManager: ObservableObject {
                 "platform": "ios",
             ])
         }
+    }
+
+    /// Fetch canonical profile from backend and update local state
+    private func syncProfile() async {
+        guard let api else { return }
+        guard let profile = try? await api.getProfile() else { return }
+        if let name = profile.displayName, !name.isEmpty {
+            userName = name
+        }
+        if let email = profile.email, !email.isEmpty {
+            userEmail = email
+        }
+        if let image = profile.image, !image.isEmpty {
+            userImage = image
+        }
+        // Persist canonical values locally
+        await tokenStore.updateUserInfo(
+            name: userName,
+            email: userEmail,
+            image: userImage
+        )
     }
 
     func signIn(provider: String) {

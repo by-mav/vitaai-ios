@@ -16,9 +16,48 @@ struct TranscricaoEntry: Decodable, Identifiable {
     var detail: String?
     var date: String?
     var status: String? // "transcribed", "pending"
+    var discipline: String?
+    var fileName: String?
+    var fileSize: Int?
+    var createdAt: String?
 
     var isTranscribed: Bool {
-        status?.lowercased() == "transcribed"
+        let s = status?.lowercased() ?? ""
+        return s == "transcribed" || s == "completed" || s == "ready"
+    }
+
+    /// Parse createdAt ISO string into Date for grouping
+    var parsedDate: Date? {
+        guard let str = createdAt ?? date else { return nil }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: str) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: str)
+    }
+
+    /// Human-readable relative date
+    var relativeDate: String {
+        guard let d = parsedDate else { return date ?? "" }
+        let cal = Calendar.current
+        if cal.isDateInToday(d) {
+            let fmt = DateFormatter()
+            fmt.dateFormat = "HH:mm"
+            return "Hoje \(fmt.string(from: d))"
+        }
+        if cal.isDateInYesterday(d) { return "Ontem" }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "dd/MM"
+        return fmt.string(from: d)
+    }
+
+    /// File size formatted
+    var formattedSize: String? {
+        guard let s = fileSize, s > 0 else { return nil }
+        if s < 1024 * 1024 {
+            return "\(s / 1024) KB"
+        }
+        return String(format: "%.1f MB", Double(s) / 1_048_576.0)
     }
 }
 

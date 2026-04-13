@@ -45,15 +45,16 @@ struct TranscricaoStatusBadge: View {
     let status: RecordingStatus
 
     var body: some View {
-        Text(label)
-            .font(.system(size: 9, weight: .semibold))
+        Text(label.uppercased())
+            .font(.system(size: 10, weight: .semibold))
+            .tracking(0.5)
             .foregroundStyle(foregroundColor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
             .background(backgroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(Capsule())
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
+                Capsule()
                     .stroke(borderColor, lineWidth: 1)
             )
     }

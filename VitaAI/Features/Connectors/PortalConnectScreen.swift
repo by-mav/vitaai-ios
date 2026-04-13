@@ -80,10 +80,12 @@ struct PortalConnectScreen: View {
                     .tint(VitaColors.accent)
                     .scaleEffect(1.2)
                 Spacer()
-            } else if vm.isConnected {
+            } else if vm.isConnected && !vm.isSyncing {
                 connectedContent(vm: vm)
             } else if portalType == "canvas" && (vm.isSyncing || cookiesCaptured) {
                 canvasSyncContent(vm: vm)
+            } else if (portalType == "webaluno" || portalType == "mannesoft") && vm.isSyncing {
+                webalunoSyncContent(vm: vm)
             } else if portalType == "canvas" {
                 canvasWebViewLogin(vm: vm)
             } else {
@@ -311,6 +313,17 @@ struct PortalConnectScreen: View {
             showRetry: !vm.isSyncing && vm.canvasSyncPhase == .error,
             errorMessage: vm.error,
             onRetry: { cookiesCaptured = false }
+        )
+    }
+
+    private func webalunoSyncContent(vm: PortalConnectViewModel) -> some View {
+        ConnectorSyncView(
+            connectorName: vm.displayName,
+            steps: SyncStep.webalunoSteps(phase: vm.mannesoftSyncPhase),
+            message: vm.mannesoftSyncMessage,
+            showRetry: !vm.isSyncing && vm.error != nil,
+            errorMessage: vm.error,
+            onRetry: { showPortalWebView = true }
         )
     }
 

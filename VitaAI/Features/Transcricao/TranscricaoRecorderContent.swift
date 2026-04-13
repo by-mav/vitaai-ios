@@ -2,12 +2,18 @@ import SwiftUI
 
 // MARK: - Recorder Area (timer + waveform + discipline chips + record button)
 
+// Pre-seeded waveform heights — avoids CGFloat.random causing layout thrash on every render
+private let waveformHeights: [CGFloat] = [8, 18, 28, 14, 34, 10, 24, 32, 12, 22, 30, 8,
+                                          20, 34, 16, 26, 10, 28, 18, 34, 12, 22, 8, 20]
+
 struct TranscricaoRecorderArea: View {
     let elapsedSeconds: Int
     let isRecording: Bool
     @Binding var selectedDiscipline: String
     let disciplines: [String]
     let onToggle: () -> Void
+
+    @State private var wavePhase: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -20,58 +26,65 @@ struct TranscricaoRecorderArea: View {
                     .monospacedDigit()
                     .foregroundStyle(
                         isRecording
-                            ? TealColors.accentLight.opacity(0.95)
+                            ? VitaColors.accentLight.opacity(0.95)
                             : Color.white.opacity(0.22)
                     )
-                    .shadow(color: isRecording ? TealColors.accent.opacity(0.4) : .clear, radius: 24)
+                    .shadow(color: isRecording ? VitaColors.accent.opacity(0.4) : .clear, radius: 24)
 
                 // Status label
                 Text(isRecording ? "Gravando..." : "Pronto para gravar")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(
                         isRecording
-                            ? TealColors.accentLight.opacity(0.70)
+                            ? VitaColors.accentLight.opacity(0.70)
                             : Color.white.opacity(0.25)
                     )
                     .padding(.top, 2)
 
-                // Waveform bars
+                // Waveform bars — fixed heights, animated via phase toggle
                 HStack(spacing: 1.5) {
-                    ForEach(0..<24, id: \.self) { _ in
+                    ForEach(0..<24, id: \.self) { i in
+                        let baseH = waveformHeights[i]
+                        let altH  = waveformHeights[(i + 12) % 24]
+                        let h: CGFloat = isRecording ? (wavePhase ? baseH : altH) : 6
                         RoundedRectangle(cornerRadius: 2)
                             .fill(
                                 isRecording
                                     ? LinearGradient(
-                                        colors: [TealColors.accent.opacity(0.5), TealColors.accentLight.opacity(0.85)],
+                                        colors: [VitaColors.accent.opacity(0.5), VitaColors.accentLight.opacity(0.85)],
                                         startPoint: .bottom,
                                         endPoint: .top
                                       )
                                     : LinearGradient(
-                                        colors: [TealColors.accent.opacity(0.10)],
+                                        colors: [VitaColors.accent.opacity(0.10)],
                                         startPoint: .bottom,
                                         endPoint: .top
                                       )
                             )
-                            .frame(
-                                width: 2.5,
-                                height: isRecording
-                                    ? CGFloat.random(in: 6...34)
-                                    : 6
-                            )
+                            .frame(width: 2.5, height: h)
+                            .animation(.easeInOut(duration: 0.35).delay(Double(i) * 0.02), value: wavePhase)
+                            .animation(.easeInOut(duration: 0.35), value: isRecording)
                     }
                 }
                 .frame(height: 36)
                 .padding(.top, 8)
-                .animation(
-                    isRecording
-                        ? .easeInOut(duration: 0.3).repeatForever(autoreverses: true)
-                        : .default,
-                    value: isRecording
-                )
+                .onAppear {
+                    guard isRecording else { return }
+                    withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
+                        wavePhase.toggle()
+                    }
+                }
+                .onChange(of: isRecording) { _, recording in
+                    if recording {
+                        withAnimation(.easeInOut(duration: 0.4).repeatForever(autoreverses: true)) {
+                            wavePhase.toggle()
+                        }
+                    }
+                }
 
                 // Discipline chips below waveform
                 TranscricaoDisciplineChips(
-                    disciplines: disciplines,
+                    disciplines: ["Auto-detectar"] + disciplines,
                     selected: $selectedDiscipline,
                     disabled: isRecording
                 )
@@ -82,14 +95,14 @@ struct TranscricaoRecorderArea: View {
                     Button(action: onToggle) {
                         Text("Parar gravação")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(TealColors.accentBright.opacity(0.85))
+                            .foregroundStyle(VitaColors.accentHover.opacity(0.85))
                             .frame(maxWidth: .infinity)
                             .frame(height: 34)
-                            .background(TealColors.accent.opacity(0.10))
+                            .background(VitaColors.accent.opacity(0.10))
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(TealColors.accent.opacity(0.18), lineWidth: 1)
+                                    .stroke(VitaColors.accent.opacity(0.18), lineWidth: 1)
                             )
                     }
                     .buttonStyle(.plain)
@@ -107,7 +120,7 @@ struct TranscricaoRecorderArea: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 155)
-                        .shadow(color: TealColors.accent.opacity(0.30), radius: 20)
+                        .shadow(color: VitaColors.accent.opacity(0.30), radius: 20)
                         .opacity(isRecording ? 0.7 : 1.0)
                         .scaleEffect(isRecording ? 1.05 : 1.0)
                         .animation(.easeInOut(duration: 0.4), value: isRecording)
@@ -116,7 +129,7 @@ struct TranscricaoRecorderArea: View {
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(
                             isRecording
-                                ? TealColors.accentLight.opacity(0.70)
+                                ? VitaColors.accentLight.opacity(0.70)
                                 : Color.white.opacity(0.22)
                         )
                 }
@@ -136,8 +149,9 @@ struct TranscricaoDisciplineChips: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 ForEach(disciplines, id: \.self) { disc in
+                    let isSelected = selected == disc
                     Button {
                         if !disabled {
                             withAnimation(.easeInOut(duration: 0.15)) {
@@ -145,29 +159,30 @@ struct TranscricaoDisciplineChips: View {
                             }
                         }
                     } label: {
-                        Text(disc)
-                            .font(.system(size: 10, weight: .semibold))
+                        Text(abbreviateDiscipline(disc))
+                            .font(.system(size: 11, weight: .medium))
+                            .lineLimit(1)
                             .foregroundStyle(
-                                selected == disc
-                                    ? TealColors.accentBright.opacity(0.85)
-                                    : Color.white.opacity(0.28)
+                                isSelected
+                                    ? VitaColors.accentHover.opacity(0.90)
+                                    : VitaColors.textWarm.opacity(0.35)
                             )
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
                             .background(
-                                RoundedRectangle(cornerRadius: 8)
+                                Capsule()
                                     .fill(
-                                        selected == disc
-                                            ? TealColors.accent.opacity(0.08)
-                                            : Color.white.opacity(0.06)
+                                        isSelected
+                                            ? VitaColors.accent.opacity(0.10)
+                                            : Color.white.opacity(0.04)
                                     )
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
+                                Capsule()
                                     .stroke(
-                                        selected == disc
-                                            ? TealColors.accent.opacity(0.28)
-                                            : TealColors.accent.opacity(0.06),
+                                        isSelected
+                                            ? VitaColors.accent.opacity(0.30)
+                                            : VitaColors.accent.opacity(0.06),
                                         lineWidth: 1
                                     )
                             )
@@ -209,25 +224,74 @@ struct TranscricaoLiveTranscriptBox: View {
 struct TranscricaoRecordingsListSection: View {
     let recordings: [TranscricaoEntry]
     let isLoading: Bool
-    @Binding var selectedFilter: String
+    @Binding var selectedFilter: String?
     let filterChips: [String]
     let onTap: (TranscricaoEntry) -> Void
     let onDelete: (TranscricaoEntry) -> Void
 
+    private var filteredRecordings: [TranscricaoEntry] {
+        guard let filter = selectedFilter else { return recordings }
+        return recordings.filter { $0.discipline?.uppercased() == filter.uppercased() }
+    }
+
+    // Group recordings by date bucket
+    private var groupedRecordings: [(key: String, recordings: [TranscricaoEntry])] {
+        let items = filteredRecordings
+        let cal = Calendar.current
+        let now = Date()
+
+        var today: [TranscricaoEntry] = []
+        var thisWeek: [TranscricaoEntry] = []
+        var older: [TranscricaoEntry] = []
+
+        for rec in items {
+            let date = rec.parsedDate ?? .distantPast
+            if cal.isDateInToday(date) {
+                today.append(rec)
+            } else if let weekAgo = cal.date(byAdding: .day, value: -7, to: now), date >= weekAgo {
+                thisWeek.append(rec)
+            } else {
+                older.append(rec)
+            }
+        }
+
+        var result: [(key: String, recordings: [TranscricaoEntry])] = []
+        if !today.isEmpty { result.append(("Hoje", today)) }
+        if !thisWeek.isEmpty { result.append(("Esta semana", thisWeek)) }
+        if !older.isEmpty { result.append(("Anteriores", older)) }
+        return result
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Filter chips (horizontal scroll)
-            TranscricaoFilterChips(chips: filterChips, selected: $selectedFilter)
-                .padding(.horizontal, 16)
+            // Header with count
+            HStack {
+                Text("GRAVAÇÕES")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.55))
+                    .tracking(0.5)
 
-            // Section label
-            Text("GRAVAÇÕES")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(VitaColors.textWarm.opacity(0.55))
-                .tracking(0.5)
-                .padding(.horizontal, 16)
-                .padding(.top, 2)
-                .padding(.bottom, 4)
+                if !recordings.isEmpty {
+                    Text("\(recordings.count)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(VitaColors.accent.opacity(0.80))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(VitaColors.accent.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 2)
+
+            // Filter chips (discipline filter)
+            if !filterChips.isEmpty {
+                TranscricaoFilterChips(chips: filterChips, selected: $selectedFilter)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 4)
+            }
 
             if isLoading {
                 ProgressView()
@@ -257,7 +321,7 @@ struct TranscricaoRecordingsListSection: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.65))
 
-                    Text("Grave sua primeira aula para transcrever.\nA IA gera resumos e flashcards automaticamente.")
+                    Text("Grave sua aula e a IA transcreve, resume,\ne cria flashcards automaticamente.")
                         .font(.system(size: 12))
                         .foregroundStyle(VitaColors.textWarm.opacity(0.35))
                         .multilineTextAlignment(.center)
@@ -267,26 +331,26 @@ struct TranscricaoRecordingsListSection: View {
                 .padding(.vertical, 40)
                 .padding(.horizontal, 32)
             } else {
-                List {
-                    ForEach(recordings) { rec in
-                        TealGlassRecordingCard(recording: rec)
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                            .contentShape(Rectangle())
-                            .onTapGesture { onTap(rec) }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    onDelete(rec)
-                                } label: {
-                                    Label("Excluir", systemImage: "trash")
-                                }
+                // Date-grouped recordings
+                VStack(spacing: 4) {
+                    ForEach(groupedRecordings, id: \.key) { group in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(group.key.uppercased())
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(VitaColors.textWarm.opacity(0.35))
+                                .tracking(0.8)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
+
+                            ForEach(group.recordings) { rec in
+                                TealGlassRecordingCard(recording: rec)
+                                    .padding(.horizontal, 16)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { onTap(rec) }
                             }
+                        }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: CGFloat(recordings.count) * 80)
             }
         }
     }
@@ -296,48 +360,59 @@ struct TranscricaoRecordingsListSection: View {
 
 struct TranscricaoFilterChips: View {
     let chips: [String]
-    @Binding var selected: String
+    @Binding var selected: String?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
+                // "Todas" chip — clears filter
+                chipButton(label: "Todas", isSelected: selected == nil) {
+                    withAnimation(.easeInOut(duration: 0.15)) { selected = nil }
+                }
+
                 ForEach(chips, id: \.self) { chip in
-                    Button {
+                    chipButton(label: abbreviateDiscipline(chip), isSelected: selected == chip) {
                         withAnimation(.easeInOut(duration: 0.15)) {
-                            selected = chip
+                            selected = (selected == chip) ? nil : chip
                         }
-                    } label: {
-                        Text(chip)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(
-                                selected == chip
-                                    ? TealColors.accentBright.opacity(0.85)
-                                    : Color.white.opacity(0.28)
-                            )
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(
-                                        selected == chip
-                                            ? TealColors.accent.opacity(0.08)
-                                            : Color.white.opacity(0.06)
-                                    )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(
-                                        selected == chip
-                                            ? TealColors.accent.opacity(0.28)
-                                            : TealColors.accent.opacity(0.06),
-                                        lineWidth: 1
-                                    )
-                            )
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func chipButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .lineLimit(1)
+                .foregroundStyle(
+                    isSelected
+                        ? VitaColors.accentHover.opacity(0.90)
+                        : VitaColors.textWarm.opacity(0.35)
+                )
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(
+                            isSelected
+                                ? VitaColors.accent.opacity(0.10)
+                                : Color.white.opacity(0.04)
+                        )
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            isSelected
+                                ? VitaColors.accent.opacity(0.30)
+                                : VitaColors.accent.opacity(0.06),
+                            lineWidth: 1
+                        )
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -352,82 +427,150 @@ struct TealGlassRecordingCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // Mic icon in teal glass circle
+            // Mic icon in glass circle
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(
                         LinearGradient(
                             colors: [
-                                TealColors.accent.opacity(displayStatus == .pending ? 0.15 : 0.32),
-                                TealColors.accent.opacity(displayStatus == .pending ? 0.06 : 0.15)
+                                VitaColors.accent.opacity(displayStatus == .pending ? 0.15 : 0.32),
+                                VitaColors.accent.opacity(displayStatus == .pending ? 0.06 : 0.15)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(TealColors.accent.opacity(0.22), lineWidth: 1)
+                            .stroke(VitaColors.accent.opacity(0.22), lineWidth: 1)
                     )
                     .shadow(color: .black.opacity(0.40), radius: 6, y: 3)
 
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 16))
+                Image(systemName: "waveform")
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(VitaColors.accentLight.opacity(0.92))
             }
             .opacity(displayStatus == .pending ? 0.5 : 1.0)
 
             // Text block
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(recording.title.isEmpty ? "Gravação" : recording.title)
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.96))
                     .lineLimit(1)
 
-                HStack(spacing: 6) {
+                // Discipline tag (if categorized)
+                if let disc = recording.discipline, !disc.isEmpty, disc != "Geral" {
+                    Text(abbreviateDiscipline(disc).uppercased())
+                        .font(.system(size: 10, weight: .semibold))
+                        .tracking(0.8)
+                        .lineLimit(1)
+                        .foregroundStyle(VitaColors.accent.opacity(0.85))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(VitaColors.accent.opacity(0.10))
+                        .clipShape(Capsule())
+                }
+
+                // Metadata row: date · duration · size
+                HStack(spacing: 5) {
+                    let dateStr = recording.relativeDate
+                    if !dateStr.isEmpty {
+                        Label(dateStr, systemImage: "clock")
+                            .font(.system(size: 10))
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.40))
+                    }
+
                     if let duration = recording.duration, !duration.isEmpty {
+                        if !dateStr.isEmpty {
+                            Circle().fill(VitaColors.textWarm.opacity(0.20)).frame(width: 2.5, height: 2.5)
+                        }
                         Text(duration)
-                            .font(.system(size: 11))
-                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                            .font(.system(size: 10))
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.40))
                     }
 
-                    if let detail = recording.detail, !detail.isEmpty {
-                        Circle()
-                            .fill(TealColors.accent.opacity(0.40))
-                            .frame(width: 3, height: 3)
-                        Text(detail)
-                            .font(.system(size: 11))
-                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
-                    }
-
-                    if let date = recording.date, !date.isEmpty {
-                        Circle()
-                            .fill(TealColors.accent.opacity(0.40))
-                            .frame(width: 3, height: 3)
-                        Text(date)
-                            .font(.system(size: 11))
-                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                    if let size = recording.formattedSize {
+                        Circle().fill(VitaColors.textWarm.opacity(0.20)).frame(width: 2.5, height: 2.5)
+                        Text(size)
+                            .font(.system(size: 10))
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.40))
                     }
                 }
+                .labelStyle(.titleOnly)
             }
 
             Spacer()
 
-            // Status badge
-            TranscricaoStatusBadge(status: displayStatus)
+            // Status + chevron
+            VStack(spacing: 6) {
+                TranscricaoStatusBadge(status: displayStatus)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.20))
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(TealColors.cardBg)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(TealColors.accent.opacity(0.12), lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.50), radius: 20, y: 10)
-        .shadow(color: TealColors.accent.opacity(0.07), radius: 14)
+        .glassCard(cornerRadius: 16)
     }
+}
+
+// MARK: - Discipline Name Abbreviation
+
+/// Shortens long discipline names for chips.
+/// Strategy: title-case, drop prepositions, abbreviate to fit ≤16 chars.
+/// "FARMACOLOGIA MÉDICA I" → "Farmacologia I"
+/// "MEDICINA DE FAMÍLIA E COMUNIDADE" → "Med. Família"
+/// "PRÁTICAS MÉDICAS EM ATENÇÃO BÁSICA" → "Prát. Médicas"
+private func abbreviateDiscipline(_ name: String) -> String {
+    let prepositions: Set<String> = ["de", "do", "da", "dos", "das", "em", "e", "a", "o", "na", "no", "para"]
+
+    // Title-case words, skipping prepositions
+    let words: [String] = name.lowercased().split(separator: " ").compactMap { segment in
+        let w = String(segment)
+        // Drop prepositions entirely for abbreviation
+        if prepositions.contains(w) { return nil }
+        // Keep roman numerals uppercase
+        if w.allSatisfy({ "ivxlcdm".contains($0) }) && !w.isEmpty {
+            return w.uppercased()
+        }
+        return w.prefix(1).uppercased() + w.dropFirst()
+    }
+
+    // If the joined result is short enough, return as-is
+    let full = words.joined(separator: " ")
+    if full.count <= 16 { return full }
+
+    // Keep first word (possibly abbreviated) + second word abbreviated
+    guard let first = words.first else { return full }
+
+    if words.count == 1 {
+        // Single long word — truncate
+        return String(first.prefix(14)) + "."
+    }
+
+    // Try: first word + remaining as initials/short
+    var result = first
+    if result.count > 10 {
+        // Abbreviate first word too
+        result = String(first.prefix(4)) + "."
+    }
+
+    for i in 1..<words.count {
+        let w = words[i]
+        let candidate = result + " " + w
+        if candidate.count <= 16 {
+            result = candidate
+        } else {
+            // Roman numeral — always append
+            if w.count <= 3 && w.allSatisfy({ "IVX".contains($0) }) {
+                result += " " + w
+            }
+            break
+        }
+    }
+
+    return result
 }

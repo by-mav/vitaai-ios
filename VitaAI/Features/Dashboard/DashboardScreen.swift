@@ -8,7 +8,7 @@ struct DashboardScreen: View {
     @Environment(\.appContainer) private var container
     @Environment(\.appData) private var appData
     @State private var viewModel: DashboardViewModel?
-    @State private var xpToastState = VitaXpToastState()
+    // XP toasts now shown inline in VitaTopBar
 
     var onNavigateToFlashcards: (() -> Void)?
     var onNavigateToSimulados: (() -> Void)?
@@ -68,7 +68,7 @@ struct DashboardScreen: View {
                 }
             }
         }
-        .vitaXpToastHost(xpToastState)
+        // XP toasts now shown inline in VitaTopBar
     }
 
     @ViewBuilder

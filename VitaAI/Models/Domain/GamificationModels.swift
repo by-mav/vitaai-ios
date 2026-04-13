@@ -156,15 +156,16 @@ enum XpSource {
 }
 
 // MARK: - Level Thresholds
-// 1000 levels using formula floor(50 * n^1.5).
+// 1000 levels using formula floor(120 * n^1.5).
 // Matches server gamification.ts — single source of truth.
+// NOTE: server values from /api/activity/stats always take priority over local calculation.
 
 enum LevelThresholds {
     static let maxLevel = 1000
 
     static func threshold(_ level: Int) -> Int {
         if level <= 1 { return 0 }
-        return Int(floor(50.0 * pow(Double(level), 1.5)))
+        return Int(floor(120.0 * pow(Double(level), 1.5)))
     }
 
     static func level(for totalXp: Int) -> Int {

@@ -29,6 +29,11 @@ final class PortalConnectViewModel {
     var canvasSyncProgress: Double = 0
     var canvasSyncMessage: String?
 
+    // Mannesoft/WebAluno sync state
+    var mannesoftSyncPhase: String = "login"
+    var mannesoftSyncMessage: String?
+    var mannesoftSyncDone = false
+
     private let api: VitaAPI
     private var syncTask: Task<Void, Never>?
 
@@ -65,7 +70,7 @@ final class PortalConnectViewModel {
                     lastSync = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
                     stats = [
                         (conn.counts?.subjects ?? 0, "disciplinas"),
-                        (conn.counts?.evaluations ?? 0, "avaliações"),
+                        (conn.counts?.evaluations ?? 0, "atividades"),
                         (conn.counts?.documents ?? 0, "arquivos"),
                     ]
                 } else {
@@ -76,18 +81,22 @@ final class PortalConnectViewModel {
                 // Use the same unified endpoint as Canvas — find the mannesoft connection specifically
                 let status = try await api.getCanvasStatus()
                 let conn = status.connections?.first { $0.portalType == "mannesoft" || $0.portalType == "webaluno" }
-                if let conn, conn.status == "active" {
-                    isConnected = true
-                    instanceUrl = conn.instanceUrl ?? ""
-                    lastSync = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
-                    stats = [
-                        (conn.counts?.subjects ?? 0, "disciplinas"),
-                        (conn.counts?.evaluations ?? 0, "notas"),
-                        (conn.counts?.schedule ?? 0, "aulas"),
-                    ]
+                if let conn {
+                    // Always preserve instanceUrl for reconnection, even if expired
+                    if let url = conn.instanceUrl, !url.isEmpty { instanceUrl = url }
+                    if conn.status == "active" {
+                        isConnected = true
+                        lastSync = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
+                        stats = [
+                            (conn.counts?.subjects ?? 0, "disciplinas"),
+                            (conn.counts?.evaluations ?? 0, "notas"),
+                            (conn.counts?.schedule ?? 0, "aulas"),
+                        ]
+                    } else {
+                        isConnected = false
+                    }
                 } else {
                     isConnected = false
-                    instanceUrl = ""
                 }
 
             case "google_calendar":
@@ -118,33 +127,64 @@ final class PortalConnectViewModel {
     func connectMannesoft(cookie: String) {
         Task {
             isConnecting = true
+            isSyncing = true
             error = nil
             successMessage = nil
+            mannesoftSyncPhase = "login"
+            mannesoftSyncMessage = "Conectando ao portal..."
+            mannesoftSyncDone = false
             do {
                 let url = instanceUrl
+                mannesoftSyncPhase = "disciplines"
+                mannesoftSyncMessage = "Vita buscando disciplinas..."
                 let crawlResult = try await api.startVitaCrawl(cookies: cookie, instanceUrl: url)
                 isConnecting = false
-                isConnected = true
-                successMessage = "Vita extraindo dados do portal..."
                 if let syncId = crawlResult.syncId, !syncId.isEmpty {
                     for _ in 0..<60 {
                         try await Task.sleep(for: .seconds(2))
                         let progress = try await api.getSyncProgress(syncId: syncId)
-                        successMessage = (progress.label ?? "").isEmpty ? "Vita trabalhando..." : (progress.label ?? "")
+                        let label = (progress.label ?? "").isEmpty ? "Vita trabalhando..." : (progress.label ?? "")
+                        mannesoftSyncMessage = label
+                        // Map backend labels to phases
+                        if label.contains("disciplina") || label.contains("matéria") {
+                            mannesoftSyncPhase = "disciplines"
+                        } else if label.contains("nota") || label.contains("grade") {
+                            mannesoftSyncPhase = "grades"
+                        } else if label.contains("horário") || label.contains("schedule") || label.contains("aula") {
+                            mannesoftSyncPhase = "schedule"
+                        } else if label.contains("extrai") || label.contains("extract") || label.contains("process") {
+                            mannesoftSyncPhase = "extracting"
+                        }
                         if progress.isDone {
-                            successMessage = "Extracao completa!"
+                            mannesoftSyncPhase = "done"
+                            mannesoftSyncMessage = "Extração completa!"
+                            mannesoftSyncDone = true
+                            isConnected = true
+                            isSyncing = false
                             await loadStatus()
                             return
                         }
                         if progress.isError {
-                            error = (progress.label ?? "").isEmpty ? "Erro na extracao" : (progress.label ?? "")
+                            error = label
+                            isSyncing = false
                             return
                         }
                     }
-                    successMessage = "Vita continua em background..."
+                    // Timeout — still syncing in background
+                    mannesoftSyncMessage = "Vita continua em background..."
+                    isConnected = true
+                    isSyncing = false
+                } else {
+                    // No syncId — crawl was instant
+                    mannesoftSyncPhase = "done"
+                    mannesoftSyncDone = true
+                    isConnected = true
+                    isSyncing = false
+                    await loadStatus()
                 }
             } catch {
                 isConnecting = false
+                isSyncing = false
                 self.error = "Erro de conexão. Verifique sua internet."
             }
         }

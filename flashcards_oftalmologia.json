@@ -1,0 +1,402 @@
+[
+  {
+    "front": "Qual é a pressão intraocular normal?",
+    "back": "Entre 10 e 21 mmHg. Valores acima de 21 mmHg são considerados hipertensão ocular."
+  },
+  {
+    "front": "Qual é a tríade clássica do glaucoma?",
+    "back": "Aumento da pressão intraocular, escavação do disco óptico e defeitos no campo visual."
+  },
+  {
+    "front": "Qual tipo de glaucoma é considerado emergência oftalmológica?",
+    "back": "Glaucoma agudo de ângulo fechado, com dor intensa, olho vermelho, midríase e redução súbita da visão."
+  },
+  {
+    "front": "Qual é o mecanismo do glaucoma de ângulo aberto?",
+    "back": "Obstrução da malha trabecular dificulta a drenagem do humor aquoso, elevando a PIO sem bloqueio do ângulo camerular."
+  },
+  {
+    "front": "Qual é a principal causa de cegueira irreversível no mundo?",
+    "back": "Glaucoma, por dano progressivo e irreversível ao nervo óptico."
+  },
+  {
+    "front": "Quais são os sintomas do glaucoma de ângulo aberto primário?",
+    "back": "Geralmente assintomático nas fases iniciais; perda de campo visual periférico ocorre tardiamente."
+  },
+  {
+    "front": "Qual é o tratamento de primeira linha para glaucoma de ângulo aberto?",
+    "back": "Colírios análogos de prostaglandina (latanoprosta, bimatoprosta), que aumentam o fluxo uveoescleral."
+  },
+  {
+    "front": "Qual fármaco está contraindicado em glaucoma de ângulo fechado?",
+    "back": "Anticolinérgicos e simpaticomiméticos, pois causam midríase e podem precipitar bloqueio pupilar."
+  },
+  {
+    "front": "Qual é o tratamento definitivo do glaucoma agudo de ângulo fechado?",
+    "back": "Iridotomia periférica a laser (YAG), que cria comunicação entre câmaras anterior e posterior."
+  },
+  {
+    "front": "O que é a relação escavação/disco óptico e qual valor sugere glaucoma?",
+    "back": "Relação entre o diâmetro da escavação e o disco óptico; valores acima de 0,6 ou assimetria entre olhos são suspeitos."
+  },
+  {
+    "front": "Qual é a causa mais comum de catarata?",
+    "back": "Envelhecimento (catarata senil), por desnaturação proteica do cristalino."
+  },
+  {
+    "front": "Quais condições sistêmicas estão associadas a catarata precoce?",
+    "back": "Diabetes mellitus, hipoparatireoidismo, uso crônico de corticosteroides e síndrome de Down."
+  },
+  {
+    "front": "Qual é o único tratamento eficaz para catarata?",
+    "back": "Cirurgia de facoemulsificação com implante de lente intraocular."
+  },
+  {
+    "front": "O que é catarata congênita e como deve ser tratada?",
+    "back": "Opacidade do cristalino presente ao nascimento; deve ser tratada precocemente para evitar ambliopia."
+  },
+  {
+    "front": "Qual achado indica catarata madura ao exame com oftalmoscópio?",
+    "back": "Ausência de reflexo vermelho (leucocoria) ao exame com luz do oftalmoscópio."
+  },
+  {
+    "front": "Quais são as alterações iniciais de fundo de olho na retinopatia diabética?",
+    "back": "Microaneurismas e hemorragias punctiformes na retina."
+  },
+  {
+    "front": "O que diferencia retinopatia diabética proliferativa da não proliferativa?",
+    "back": "A presença de neovascularização retiniana ou pré-retiniana na forma proliferativa."
+  },
+  {
+    "front": "Qual é o principal fator de risco para progressão da retinopatia diabética?",
+    "back": "Controle glicêmico inadequado (HbA1c elevada) e hipertensão arterial."
+  },
+  {
+    "front": "Qual é o tratamento para edema macular diabético?",
+    "back": "Injeção intravítrea de anti-VEGF (ranibizumabe, bevacizumabe) e/ou fotocoagulação a laser."
+  },
+  {
+    "front": "Qual exame é essencial para detectar edema macular diabético?",
+    "back": "Tomografia de coerência óptica (OCT), que avalia o espessamento retiniano com alta precisão."
+  },
+  {
+    "front": "Qual é a causa mais comum de cegueira em pacientes com diabetes tipo 1?",
+    "back": "Retinopatia diabética proliferativa com hemovítreo ou descolamento de retina tracional."
+  },
+  {
+    "front": "O que é DMRI e quais são seus dois subtipos?",
+    "back": "Degeneração Macular Relacionada à Idade; subdivide-se em forma seca (atrófica) e úmida (exsudativa/neovascular)."
+  },
+  {
+    "front": "Qual subtipo de DMRI tem pior prognóstico visual?",
+    "back": "DMRI úmida, por neovascularização coroidal que causa exsudação e cicatrização macular rápida."
+  },
+  {
+    "front": "Qual é o tratamento da DMRI úmida?",
+    "back": "Injeções intravítreas de anti-VEGF (ranibizumabe, aflibercepte, bevacizumabe)."
+  },
+  {
+    "front": "Qual exame detecta membrana neovascular na DMRI úmida?",
+    "back": "Angiofluoresceinografia (AFG) e OCT com angiografia (OCT-A)."
+  },
+  {
+    "front": "O que é a grade de Amsler e para que serve?",
+    "back": "Grade quadriculada para auto-monitoramento macular; linhas distorcidas ou escotomas centrais sugerem DMRI ativa."
+  },
+  {
+    "front": "Quais drusas indicam maior risco de progressão para DMRI avançada?",
+    "back": "Drusas grandes (acima de 125 micrômetros) e confluentes."
+  },
+  {
+    "front": "Quais são os sintomas do descolamento de retina regmatogênico?",
+    "back": "Fotopsias (flashes), miodesopsias (moscas volantes) e cortina/sombra progressiva no campo visual."
+  },
+  {
+    "front": "Quais são os três tipos de descolamento de retina?",
+    "back": "Regmatogênico (por ruptura), tracional (por tração fibrovascular) e exsudativo (por exsudação subretiniana)."
+  },
+  {
+    "front": "O que é o sinal de Shafer no descolamento de retina?",
+    "back": "Presença de células pigmentares no vítreo anterior (sinal de fumaça de tabaco), indicando ruptura retiniana."
+  },
+  {
+    "front": "Qual é o tratamento cirúrgico do descolamento de retina?",
+    "back": "Vitrectomia, retinopexia pneumática ou introflexão escleral (encerclagem), dependendo do tipo e localização."
+  },
+  {
+    "front": "O descolamento de retina que envolve a mácula tem pior prognóstico visual?",
+    "back": "Sim; o envolvimento macular causa perda visual central que pode não ser totalmente recuperada mesmo após cirurgia."
+  },
+  {
+    "front": "Qual é a diferença entre conjuntivite viral e bacteriana?",
+    "back": "Viral: secreção aquosa, folículos, adenopatia pré-auricular. Bacteriana: secreção purulenta, papilas, sem adenopatia habitualmente."
+  },
+  {
+    "front": "Qual vírus é a causa mais comum de conjuntivite viral epidêmica?",
+    "back": "Adenovírus, especialmente sorotipos 8 e 19 (ceratoconjuntivite epidêmica)."
+  },
+  {
+    "front": "Qual é o tratamento da conjuntivite bacteriana?",
+    "back": "Colírio antibiótico (tobramicina, ciprofloxacino ou azitromicina oftálmica) por 5 a 7 dias."
+  },
+  {
+    "front": "Quais são as características da conjuntivite alérgica?",
+    "back": "Prurido intenso, hiperemia bilateral, papilas, secreção aquosa e lacrimejamento; frequentemente associada a atopia."
+  },
+  {
+    "front": "Qual é o tratamento da conjuntivite alérgica?",
+    "back": "Anti-histamínicos tópicos (cetotifeno, olopatadina) e estabilizadores de mastócitos; evitar alérgenos."
+  },
+  {
+    "front": "O que é conjuntivite gonocócica e por que é grave?",
+    "back": "Conjuntivite hiperaguda por Neisseria gonorrhoeae com secreção purulenta intensa que pode perfurar a córnea em horas."
+  },
+  {
+    "front": "Qual é o tratamento da oftalmia neonatorum gonocócica?",
+    "back": "Ceftriaxona sistêmica IV ou IM em dose única associada a irrigação ocular com soro fisiológico."
+  },
+  {
+    "front": "O que é uveíte anterior?",
+    "back": "Inflamação da íris e corpo ciliar (iridociclite), com flare e células na câmara anterior, precipitados ceráticos e possível hipópio."
+  },
+  {
+    "front": "Quais doenças sistêmicas estão associadas à uveíte anterior?",
+    "back": "Espondilite anquilosante (HLA-B27+), artrite reumatoide juvenil, sarcoidose e síndrome de Reiter."
+  },
+  {
+    "front": "O que é hipópio?",
+    "back": "Acúmulo de células inflamatórias no nível inferior da câmara anterior, visível como linha horizontal branca."
+  },
+  {
+    "front": "Qual é o tratamento da uveíte anterior aguda não infecciosa?",
+    "back": "Corticosteroide tópico (prednisolona 1%) e midriático/cicloplegiante (tropicamida) para evitar sinéquias."
+  },
+  {
+    "front": "O que são sinéquias posteriores e qual complicação podem causar?",
+    "back": "Aderências entre íris e cristalino; se completas (seclusão pupilar), causam iris bombé e glaucoma secundário."
+  },
+  {
+    "front": "Quais são as principais causas de uveíte posterior?",
+    "back": "Toxoplasmose (mais comum no Brasil), CMV (em imunodeprimidos), sarcoidose e sífilis."
+  },
+  {
+    "front": "Como se apresenta a toxoplasmose ocular?",
+    "back": "Retinocoroidite focal branca com borda hiperpigmentada (lesão em farol na neblina), geralmente adjacente a cicatriz pigmentada."
+  },
+  {
+    "front": "O que é trauma ocular contuso e quais estruturas podem ser afetadas?",
+    "back": "Trauma sem laceração; pode causar hifema, luxação de cristalino, fratura de órbita, descolamento de retina e ruptura do globo."
+  },
+  {
+    "front": "O que é hifema e como é tratado?",
+    "back": "Sangue na câmara anterior; tratado com repouso, elevação da cabeceira, oclusão ocular e hipotensores se PIO elevada."
+  },
+  {
+    "front": "O que deve ser feito imediatamente em queimadura química ocular?",
+    "back": "Irrigação abundante e imediata com soro fisiológico ou água por pelo menos 20 a 30 minutos, antes de qualquer outro exame."
+  },
+  {
+    "front": "Qual tipo de queimadura química ocular é mais grave: ácido ou álcali?",
+    "back": "Álcali (base), pois causa necrose por liquefação que penetra profundamente nos tecidos oculares."
+  },
+  {
+    "front": "O que é corpo estranho intraocular e como é diagnosticado?",
+    "back": "Fragmento penetrante retido no olho; diagnosticado por tomografia computadorizada de órbita (RNM contraindicada se metálico)."
+  },
+  {
+    "front": "O que é estrabismo?",
+    "back": "Desvio do alinhamento ocular, podendo ser convergente (esotropia), divergente (exotropia) ou vertical (hiper/hipotropia)."
+  },
+  {
+    "front": "Qual é a principal complicação do estrabismo não tratado na infância?",
+    "back": "Ambliopia (olho preguiçoso), por supressão cortical do olho desviado."
+  },
+  {
+    "front": "O que é ambliopia e como é tratada?",
+    "back": "Redução da acuidade visual por privação sensorial ou supressão; tratada com oclusão do olho dominante e correção do defeito refrativo."
+  },
+  {
+    "front": "Qual é a diferença entre estrabismo paralítico e concomitante?",
+    "back": "No paralítico o ângulo varia com a direção do olhar (paresia muscular); no concomitante o ângulo é fixo em todas as posições."
+  },
+  {
+    "front": "Qual sinal de alarme deve ser investigado antes de tratar estrabismo infantil?",
+    "back": "Leucocoria (reflexo branco pupilar), que deve afastar retinoblastoma antes de qualquer conduta."
+  },
+  {
+    "front": "O que é miopia e como é corrigida?",
+    "back": "Erro refrativo em que a imagem forma-se antes da retina, geralmente por eixo axial longo; corrigida com lentes divergentes (côncavas, negativas)."
+  },
+  {
+    "front": "O que é hipermetropia e como é corrigida?",
+    "back": "Erro refrativo em que a imagem forma-se atrás da retina, geralmente por eixo curto; corrigida com lentes convergentes (convexas, positivas)."
+  },
+  {
+    "front": "O que é astigmatismo?",
+    "back": "Curvatura corneal irregular em diferentes meridianos causando imagem desfocada; corrigido com lentes cilíndricas."
+  },
+  {
+    "front": "O que é presbiopia?",
+    "back": "Redução da amplitude de acomodação por endurecimento do cristalino, surgindo após os 40 anos; corrigida com lentes positivas para perto."
+  },
+  {
+    "front": "O que é ceratocone?",
+    "back": "Ectasia corneal progressiva com adelgaçamento e protrusão cônica da córnea, causando astigmatismo irregular crescente."
+  },
+  {
+    "front": "Quais são as causas de olho vermelho sem redução da acuidade visual?",
+    "back": "Conjuntivite, episclerite, pterígio e hemorragia subconjuntival."
+  },
+  {
+    "front": "Quais são as causas de olho vermelho com redução da acuidade visual?",
+    "back": "Uveíte anterior, glaucoma agudo de ângulo fechado, ceratite e endoftalmite."
+  },
+  {
+    "front": "O que diferencia episclerite de esclerite?",
+    "back": "Episclerite é superficial, autolimitada e pouco dolorosa; esclerite é profunda, muito dolorosa e pode associar-se a doenças sistêmicas graves."
+  },
+  {
+    "front": "O que é pterígio?",
+    "back": "Crescimento fibrovascular da conjuntiva sobre a córnea, associado a exposição UV; pode causar astigmatismo e redução visual."
+  },
+  {
+    "front": "Qual é a principal causa de hemorragia subconjuntival?",
+    "back": "Geralmente espontânea (tosse, vômito, Valsalva) ou traumática; autolimitada, sem tratamento específico necessário."
+  },
+  {
+    "front": "O que é neurite óptica e qual doença está fortemente associada?",
+    "back": "Inflamação do nervo óptico com redução aguda da visão, dor à movimentação ocular e DPAR; fortemente associada a esclerose múltipla."
+  },
+  {
+    "front": "O que é o defeito pupilar aferente relativo (DPAR) e como é pesquisado?",
+    "back": "Resposta pupilar anormal indicando lesão do nervo óptico ou retina; pesquisado com o teste de luz oscilante (swinging flashlight test)."
+  },
+  {
+    "front": "Qual é o tratamento da neurite óptica?",
+    "back": "Metilprednisolona IV em altas doses acelera a recuperação visual, mas não melhora o prognóstico visual final."
+  },
+  {
+    "front": "O que é papiledema?",
+    "back": "Edema bilateral do disco óptico por aumento da pressão intracraniana; geralmente sem redução precoce da acuidade visual."
+  },
+  {
+    "front": "Como diferenciar papiledema de pseudopapiledema?",
+    "back": "Papiledema é bilateral com veias ingurgitadas e associado à hipertensão intracraniana; pseudopapiledema (drusen do disco) é assintomático e as veias são normais."
+  },
+  {
+    "front": "Quais sintomas de hipertensão intracraniana acompanham o papiledema?",
+    "back": "Cefaleia progressiva, vômitos, diplopia (paresia do VI nervo) e obscurecimentos visuais transitórios."
+  },
+  {
+    "front": "O que é hipertensão intracraniana idiopática (pseudotumor cerebri)?",
+    "back": "Aumento da PIC sem lesão estrutural, frequente em mulheres obesas; tratada com acetazolamida e perda de peso."
+  },
+  {
+    "front": "Como é o fundo de olho normal?",
+    "back": "Disco óptico alaranjado-rosado com bordas nítidas, relação E/D menor que 0,4, mácula com reflexo foveal e vasos com calibre normal."
+  },
+  {
+    "front": "Qual é a relação artéria/veia normal no fundo de olho?",
+    "back": "Aproximadamente 2:3, com artérias menores e mais claras que as veias."
+  },
+  {
+    "front": "O que são cruzamentos arteriovenosos patológicos?",
+    "back": "Compressão ou desvio da veia pela artéria no cruzamento, sinal de arteriosclerose e hipertensão (sinais de Gunn e Salus)."
+  },
+  {
+    "front": "Quais são os achados de fundo de olho na hipertensão arterial grave?",
+    "back": "Estreitamento arteriolar, cruzamentos patológicos, exsudatos algodonosos, hemorragias em chama de vela e papiledema (grau IV de Keith-Wagener)."
+  },
+  {
+    "front": "O que é a fóvea?",
+    "back": "Região central da mácula com maior concentração de cones, responsável pela visão de maior acuidade (20/20)."
+  },
+  {
+    "front": "O que é oclusão de ramo arterial retiniano?",
+    "back": "Embolia de ramo arterial com perda súbita de campo visual parcial; fundo mostra área branca isquêmica (edema retiniano segmentar)."
+  },
+  {
+    "front": "O que é oclusão da artéria central da retina?",
+    "back": "Perda visual súbita, indolor e unilateral grave; fundo mostra retina branca opaca com mancha vermelho-cereja na fóvea."
+  },
+  {
+    "front": "Qual é o tratamento da oclusão de artéria central da retina?",
+    "back": "Emergência ocular; massagem ocular digital, paracentese de câmara anterior e redução da PIO nas primeiras horas (janela terapêutica muito estreita)."
+  },
+  {
+    "front": "O que é oclusão de veia central da retina?",
+    "back": "Trombose da veia central com hemorragias em todos os quadrantes (aspecto de tempestade de sangue), veias tortuosas e edema de papila."
+  },
+  {
+    "front": "Quais fatores de risco estão associados à oclusão venosa retiniana?",
+    "back": "Hipertensão arterial, diabetes, glaucoma, dislipidemia, trombofilias e policitemia."
+  },
+  {
+    "front": "O que é retinopatia hipertensiva grau IV?",
+    "back": "Presença de papiledema além de hemorragias, exsudatos e estreitamento arteriolar; indica hipertensão maligna com risco sistêmico grave."
+  },
+  {
+    "front": "O que é endoftalmite e quais são seus sinais?",
+    "back": "Infecção intraocular grave (pós-cirúrgica ou endógena) com dor intensa, hipópio, olho vermelho e redução visual severa."
+  },
+  {
+    "front": "Qual é o tratamento da endoftalmite pós-operatória?",
+    "back": "Injeção intravítrea imediata de vancomicina e ceftazidima; vitrectomia em casos graves."
+  },
+  {
+    "front": "O que é dacriocistite?",
+    "back": "Infecção do saco lacrimal por obstrução do ducto nasolacrimal; apresenta massa dolorosa no canto medial inferior com epífora."
+  },
+  {
+    "front": "O que é calázio e como difere do hordéolo?",
+    "back": "Calázio: granuloma indolente da glândula de Meibomius. Hordéolo: infecção aguda (terçol) dolorosa, geralmente por Staphylococcus aureus."
+  },
+  {
+    "front": "O que é blefarite e como é tratada?",
+    "back": "Inflamação crônica das pálpebras com crostas e eritema ciliar; tratada com higiene palpebral, compressas quentes e antibiótico tópico se necessário."
+  },
+  {
+    "front": "O que é entrópio e ectrópio?",
+    "back": "Entrópio: inversão da pálpebra com cílios roçando a córnea. Ectrópio: eversão da pálpebra com exposição conjuntival; ambos tratados cirurgicamente."
+  },
+  {
+    "front": "O que é ptose palpebral e quais suas causas?",
+    "back": "Queda da pálpebra superior; causas incluem forma congênita, senil (desinserção do levantador), síndrome de Horner, paralisia do III nervo e miastenia gravis."
+  },
+  {
+    "front": "Qual é a tríade da síndrome de Horner?",
+    "back": "Ptose, miose e anidrose ipsilateral, por lesão da via simpática oculomotora."
+  },
+  {
+    "front": "O que é diplopia monocular versus binocular?",
+    "back": "Monocular persiste com oclusão do outro olho (causa ocular); binocular desaparece com oclusão de um olho (causa neurológica ou muscular)."
+  },
+  {
+    "front": "Paralisia do III nervo craniano causa qual desvio ocular?",
+    "back": "Olho em baixo e para fora, com ptose, midríase e limitação de adução, elevação e depressão; pode indicar aneurisma da artéria comunicante posterior."
+  },
+  {
+    "front": "Paralisia do VI nervo craniano causa qual limitação ocular?",
+    "back": "Limitação da abdução ipsilateral (estrabismo convergente) com diplopia horizontal ao olhar para o lado afetado."
+  },
+  {
+    "front": "Onde pode estar a lesão na síndrome de Horner?",
+    "back": "No hipotálamo, tronco encefálico, medula cervical, cadeia simpática cervical ou ápice pulmonar (síndrome de Pancoast)."
+  },
+  {
+    "front": "O que é exoftalmia e qual é a causa mais comum?",
+    "back": "Protrusão do globo ocular; a causa mais comum é a oftalmopatia de Graves associada a doença de Basedow."
+  },
+  {
+    "front": "O que é ceratoconjuntivite sicca (olho seco)?",
+    "back": "Deficiência qualitativa ou quantitativa do filme lacrimal com ardor, sensação de areia e piora ao final do dia."
+  },
+  {
+    "front": "Qual teste avalia a produção lacrimal?",
+    "back": "Teste de Schirmer: tira de papel milimetrado no fórnice inferior; menos de 10 mm em 5 minutos é anormal."
+  },
+  {
+    "front": "O que é síndrome de Sjögren e como afeta os olhos?",
+    "back": "Doença autoimune com infiltração linfocítica das glândulas exócrinas; causa ceratoconjuntivite sicca severa e xerostomia."
+  }
+]

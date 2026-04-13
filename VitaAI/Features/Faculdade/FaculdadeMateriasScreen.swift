@@ -11,6 +11,7 @@ import SwiftUI
 
 struct FaculdadeMateriasScreen: View {
     let onBack: () -> Void
+    var onNavigateToDiscipline: ((String, String) -> Void)?
     @Environment(\.appData) private var appData
     @State private var gradesFilter = 0 // 0 = Cursando, 1 = Aprovadas
     @State private var gradesTab = 0    // 0 = Notas, 1 = Freq
@@ -113,15 +114,20 @@ struct FaculdadeMateriasScreen: View {
                     }
 
                     ForEach(subjects) { subject in
-                        if gradesTab == 0 {
-                            if gradesFilter == 0 {
-                                notasRow(subject)
+                        Button {
+                            onNavigateToDiscipline?(subject.subjectName, subject.subjectName)
+                        } label: {
+                            if gradesTab == 0 {
+                                if gradesFilter == 0 {
+                                    notasRow(subject)
+                                } else {
+                                    approvedRow(subject)
+                                }
                             } else {
-                                approvedRow(subject)
+                                freqRow(subject)
                             }
-                        } else {
-                            freqRow(subject)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }

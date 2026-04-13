@@ -9,6 +9,10 @@ struct ConnectorStatusSheet: View {
     let icon: String
     var subtitle: String?
     let lastSync: String?
+    var lastSyncAbsolute: String?   // "hoje, 19:54" ou "11 abr, 19:54" — ancora temporal
+    var lastPing: String?           // "token vivo · verificado 2min atras"
+    var isStale: Bool = false
+    var isExpired: Bool = false
     let stats: [ConnectorStat]
     var syncNote: String?
     let onSync: () -> Void
@@ -52,10 +56,36 @@ struct ConnectorStatusSheet: View {
                     }
 
                     if let lastSync {
-                        Text("Última sincronização: \(lastSync)")
-                            .font(.system(size: 12))
-                            .foregroundColor(goldSubtle.opacity(0.30))
-                            .padding(.top, 4)
+                        VStack(spacing: 2) {
+                            HStack(spacing: 4) {
+                                Image(systemName: isExpired || isStale ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                    .font(.system(size: 10))
+                                Text("Dados extraidos \(lastSync)")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundColor(
+                                isExpired || isStale
+                                    ? VitaColors.dataAmber.opacity(0.80)
+                                    : Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.80)
+                            )
+                            if let lastSyncAbsolute {
+                                Text(lastSyncAbsolute)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(goldSubtle.opacity(0.30))
+                            }
+                        }
+                        .padding(.top, 6)
+                    }
+
+                    if let lastPing {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: 9))
+                            Text("Token vivo · verificado \(lastPing)")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.65))
+                        .padding(.top, 4)
                     }
 
                     if let syncNote {

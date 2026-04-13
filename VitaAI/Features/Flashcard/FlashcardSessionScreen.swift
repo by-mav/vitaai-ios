@@ -22,11 +22,11 @@ struct FlashcardSessionScreen: View {
     @State private var timerCancellable: (any Cancellable)?
     private let timer = Timer.publish(every: 1, on: .main, in: .common)
 
-    // Progress bar gradient — rgba(148,75,220,0.70) → rgba(180,120,255,0.50) per mockup
+    // Progress bar gradient — gold accent
     private let progressGradient = LinearGradient(
         colors: [
-            Color(red: 148/255, green: 75/255, blue: 220/255).opacity(0.70),
-            Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.50)
+            VitaColors.accent.opacity(0.70),
+            VitaColors.accentHover.opacity(0.50)
         ],
         startPoint: .leading,
         endPoint: .trailing
@@ -34,50 +34,7 @@ struct FlashcardSessionScreen: View {
 
     var body: some View {
         ZStack {
-            // Screen background: #08060a base + purple ambient radial gradients per mockup
-            flashcardScreenBg.ignoresSafeArea()
-            Canvas { ctx, size in
-                // Radial 1: top-center, rgba(100,40,180,0.08) ellipse 60%×50% at 50% 30%
-                ctx.drawLayer { c in
-                    c.fill(
-                        Path(ellipseIn: CGRect(
-                            x: size.width * 0.20, y: size.height * 0.05,
-                            width: size.width * 0.60, height: size.height * 0.50)),
-                        with: .radialGradient(
-                            Gradient(colors: [
-                                Color(red: 100/255, green: 40/255, blue: 180/255).opacity(0.08),
-                                .clear]),
-                            center: CGPoint(x: size.width * 0.50, y: size.height * 0.30),
-                            startRadius: 0, endRadius: size.width * 0.50))
-                }
-                // Radial 2: top-right, rgba(148,75,220,0.06) ellipse 40%×40% at 80% 20%
-                ctx.drawLayer { c in
-                    c.fill(
-                        Path(ellipseIn: CGRect(
-                            x: size.width * 0.60, y: 0,
-                            width: size.width * 0.40, height: size.height * 0.40)),
-                        with: .radialGradient(
-                            Gradient(colors: [
-                                Color(red: 148/255, green: 75/255, blue: 220/255).opacity(0.06),
-                                .clear]),
-                            center: CGPoint(x: size.width * 0.80, y: size.height * 0.20),
-                            startRadius: 0, endRadius: size.width * 0.35))
-                }
-                // Radial 3: bottom-left, rgba(120,50,200,0.04) ellipse 40%×40% at 20% 80%
-                ctx.drawLayer { c in
-                    c.fill(
-                        Path(ellipseIn: CGRect(
-                            x: 0, y: size.height * 0.60,
-                            width: size.width * 0.40, height: size.height * 0.40)),
-                        with: .radialGradient(
-                            Gradient(colors: [
-                                Color(red: 120/255, green: 50/255, blue: 200/255).opacity(0.04),
-                                .clear]),
-                            center: CGPoint(x: size.width * 0.20, y: size.height * 0.80),
-                            startRadius: 0, endRadius: size.width * 0.35))
-                }
-            }
-            .ignoresSafeArea()
+            // Background handled by shell VitaAmbientBackground — no duplicate here
 
             if let vm = viewModel {
                 switch vm.phase {
@@ -179,7 +136,7 @@ struct FlashcardSessionScreen: View {
                     Text("Voltar")
                         .font(.system(size: 12, weight: .medium))
                 }
-                .foregroundStyle(VitaColors.textWarm.opacity(0.50))
+                .foregroundStyle(VitaColors.textWarm.opacity(0.70))
                 .frame(minWidth: 60, alignment: .leading)
             }
             .buttonStyle(.plain)
@@ -195,10 +152,10 @@ struct FlashcardSessionScreen: View {
 
             Spacer()
 
-            // Count — 11px semibold, rgba(180,120,255,0.60)
+            // Count — 11px semibold, gold accent
             Text(vm.progressLabel)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color(red: 180/255, green: 120/255, blue: 255/255).opacity(0.60))
+                .foregroundStyle(VitaColors.accent.opacity(0.60))
                 .monospacedDigit()
                 .frame(minWidth: 60, alignment: .trailing)
         }

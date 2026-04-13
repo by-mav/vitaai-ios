@@ -144,7 +144,7 @@ enum AppConfig {
         if let explicit = overrideValue(envKey: "VITA_FORWARDED_HOST", defaultsKey: "vita_forwarded_host") {
             return explicit
         }
-        return "localhost"
+        return url.host
     }
 
     static func isOnboardingComplete(in defaults: UserDefaults = .standard) -> Bool {
