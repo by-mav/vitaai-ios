@@ -318,6 +318,13 @@ actor VitaAPI {
         try await client.get("qbank/sessions/\(id)")
     }
 
+    func finishQBankSession(id: String, correctCount: Int, totalAnswered: Int) async throws -> QBankSession {
+        try await client.post("qbank/sessions/\(id)/finish", body: [
+            "correctCount": correctCount,
+            "totalAnswered": totalAnswered,
+        ])
+    }
+
     func getQBankQuestions(
         page: Int = 1,
         limit: Int = 1,

@@ -36,11 +36,24 @@ final class FlashcardViewModel {
     private(set) var sessionStartDate: Date = Date()
     private(set) var cardStartDate: Date = Date()
 
+    // Undo support
+    private(set) var canUndo: Bool = false
+    private var undoSnapshot: UndoSnapshot?
+
     // MARK: Private
 
     private let api: VitaAPI
     private let gamificationEvents: GamificationEventManager
-    private let scheduler = FsrsScheduler()
+    private var scheduler = FsrsScheduler()
+    private var leechThreshold: Int = 8
+
+    private struct UndoSnapshot {
+        let cardIndex: Int
+        let fsrsState: FsrsCardState
+        let wasFlipped: Bool
+        let totalReviewed: Int
+        let correctCount: Int
+    }
 
     // MARK: Computed helpers
 
@@ -78,7 +91,7 @@ final class FlashcardViewModel {
 
     // MARK: - Load
 
-    func loadDeck(_ deckId: String) {
+    func loadDeck(_ deckId: String, tagFilter: String? = nil) {
         phase = .loading
         isFlipped = false
         currentIndex = 0
@@ -90,7 +103,7 @@ final class FlashcardViewModel {
 
         Task { @MainActor in
             do {
-                let deck = try await fetchDeck(deckId: deckId)
+                let deck = try await fetchDeck(deckId: deckId, tagFilter: tagFilter)
                 startSession(deck: deck)
             } catch {
                 phase = .error("Erro ao carregar flashcards: \(error.localizedDescription)")
@@ -109,6 +122,16 @@ final class FlashcardViewModel {
         guard case .studying = phase, let card = currentCard else { return }
         guard fsrsStates.indices.contains(currentIndex) else { return }
 
+        // Save undo snapshot before modifying state
+        undoSnapshot = UndoSnapshot(
+            cardIndex: currentIndex,
+            fsrsState: fsrsStates[currentIndex],
+            wasFlipped: isFlipped,
+            totalReviewed: totalReviewed,
+            correctCount: correctCount
+        )
+        canUndo = true
+
         phase = .reviewing
 
         // Apply FSRS-5 locally (instant, offline-capable)
@@ -119,16 +142,42 @@ final class FlashcardViewModel {
         )
         fsrsStates[currentIndex] = result.card
 
-        // Fire-and-forget API review — session always advances even on failure
+        // Leech detection: auto-suspend cards that exceed the lapse threshold
+        if result.card.lapses >= leechThreshold && leechThreshold < 999 {
+            let leechCardId = card.id
+            Task.detached { [api = self.api] in
+                for attempt in 0..<2 {
+                    do {
+                        _ = try await api.suspendFlashcard(cardId: leechCardId)
+                        break
+                    } catch {
+                        if attempt == 0 { try? await Task.sleep(for: .milliseconds(500)) }
+                    }
+                }
+            }
+        }
+
+        // API review with retry — session advances regardless, but we retry failures
         let cardId = card.id
         let responseTimeMs = Int64(Date().timeIntervalSince(cardStartDate) * 1000)
         let action = rating.isCorrect ? "flashcard_easy" : "flashcard_review"
         Task.detached { [api = self.api] in
-            _ = try? await api.reviewFlashcard(
-                cardId: cardId,
-                rating: rating.rawValue,
-                responseTimeMs: responseTimeMs
-            )
+            for attempt in 0..<3 {
+                do {
+                    _ = try await api.reviewFlashcard(
+                        cardId: cardId,
+                        rating: rating.rawValue,
+                        responseTimeMs: responseTimeMs
+                    )
+                    break
+                } catch {
+                    if attempt < 2 {
+                        try? await Task.sleep(for: .milliseconds(500 * (attempt + 1)))
+                    } else {
+                        print("[Flashcard] Review sync failed after 3 attempts for card \(cardId)")
+                    }
+                }
+            }
         }
 
         // Track activity for gamification (XP, streak, study time)
@@ -147,6 +196,142 @@ final class FlashcardViewModel {
 
     func clearError() {
         if case .error = phase { phase = .studying }
+    }
+
+    /// Remove the current card from the session (suspend)
+    func suspendCurrentCard() {
+        guard case .studying = phase, let card = currentCard else { return }
+
+        // Fire-and-forget API call to suspend on server
+        let cardId = card.id
+        Task.detached { [api = self.api] in
+            _ = try? await api.suspendFlashcard(cardId: cardId)
+        }
+
+        // Remove from local session
+        cards.remove(at: currentIndex)
+        fsrsStates.remove(at: currentIndex)
+
+        if cards.isEmpty {
+            result = FlashcardSessionResult(
+                totalCards: totalReviewed,
+                correctCount: correctCount,
+                timeSpentMs: Int64(Date().timeIntervalSince(sessionStartDate) * 1000),
+                streakCount: correctCount
+            )
+            phase = .finished
+        } else if currentIndex >= cards.count {
+            currentIndex = cards.count - 1
+        }
+        isFlipped = false
+        cardStartDate = Date()
+    }
+
+    /// Undo the last rating — go back to previous card
+    func undoLastRating() {
+        guard let snapshot = undoSnapshot else { return }
+        guard case .studying = phase else { return }
+
+        // Restore state
+        currentIndex = snapshot.cardIndex
+        fsrsStates[snapshot.cardIndex] = snapshot.fsrsState
+        totalReviewed = snapshot.totalReviewed
+        correctCount = snapshot.correctCount
+        isFlipped = false
+        cardStartDate = Date()
+
+        undoSnapshot = nil
+        canUndo = false
+    }
+
+    /// Bury current card — hide until tomorrow (remove from session, don't delete)
+    func buryCurrentCard() {
+        guard case .studying = phase, let card = currentCard else { return }
+
+        // Fire-and-forget API call to bury on server
+        let cardId = card.id
+        Task.detached { [api = self.api] in
+            _ = try? await api.buryFlashcard(cardId: cardId)
+        }
+
+        // Remove from local session
+        cards.remove(at: currentIndex)
+        fsrsStates.remove(at: currentIndex)
+
+        if cards.isEmpty {
+            result = FlashcardSessionResult(
+                totalCards: totalReviewed,
+                correctCount: correctCount,
+                timeSpentMs: Int64(Date().timeIntervalSince(sessionStartDate) * 1000),
+                streakCount: correctCount
+            )
+            phase = .finished
+        } else if currentIndex >= cards.count {
+            currentIndex = cards.count - 1
+        }
+        isFlipped = false
+        cardStartDate = Date()
+    }
+
+    /// Apply settings from the settings sheet
+    func applySettings(_ settings: FlashcardSettings) {
+        // Update FSRS scheduler with desired retention
+        scheduler = FsrsScheduler(params: FsrsParameters(requestedRetention: settings.desiredRetention))
+        leechThreshold = settings.leechThreshold
+
+        // Sort order
+        switch settings.sortOrder {
+        case .random:
+            let combined = Array(zip(cards, fsrsStates))
+            let shuffled = combined.shuffled()
+            cards = shuffled.map { $0.0 }
+            fsrsStates = shuffled.map { $0.1 }
+        case .dueDate:
+            // Sort by FSRS scheduled days (ascending = most overdue first)
+            let combined = Array(zip(cards, fsrsStates)).sorted { $0.1.scheduledDays < $1.1.scheduledDays }
+            cards = combined.map { $0.0 }
+            fsrsStates = combined.map { $0.1 }
+        case .added:
+            break // Keep original order
+        }
+        currentIndex = 0
+        isFlipped = false
+
+        // Filter by session mode
+        switch settings.sessionMode {
+        case .newOnly:
+            let filtered = (0..<cards.count).filter { fsrsStates[$0].status == .new }
+            cards = filtered.map { cards[$0] }
+            fsrsStates = filtered.map { fsrsStates[$0] }
+        case .reviewOnly:
+            let filtered = (0..<cards.count).filter { fsrsStates[$0].status != .new }
+            cards = filtered.map { cards[$0] }
+            fsrsStates = filtered.map { fsrsStates[$0] }
+        case .all:
+            break
+        }
+
+        // Apply daily limits
+        let newLimit = settings.dailyNewLimit
+        let reviewLimit = settings.dailyReviewLimit
+        var newCount = 0
+        var reviewCount = 0
+        var keep: [Int] = []
+        for i in 0..<cards.count {
+            if fsrsStates[i].status == .new {
+                if newCount < newLimit { keep.append(i); newCount += 1 }
+            } else {
+                if reviewCount < reviewLimit { keep.append(i); reviewCount += 1 }
+            }
+        }
+        cards = keep.map { cards[$0] }
+        fsrsStates = keep.map { fsrsStates[$0] }
+
+        currentIndex = min(currentIndex, max(0, cards.count - 1))
+
+        if cards.isEmpty {
+            phase = .empty
+        }
     }
 
     // MARK: - Private
@@ -235,9 +420,11 @@ final class FlashcardViewModel {
 
     // MARK: - API fetch with domain mapping
 
-    private func fetchDeck(deckId: String) async throws -> FlashcardDeck {
-        async let allTask = api.getFlashcardDecks()
-        async let dueTask = api.getFlashcardDecks(dueOnly: true)
+    private func fetchDeck(deckId: String, tagFilter: String? = nil) async throws -> FlashcardDeck {
+        // When filtering by tag, request all matching cards (no server-side limit)
+        let limit = tagFilter != nil ? 9999 : nil
+        async let allTask = api.getFlashcardDecks(tag: tagFilter, cardsLimit: limit)
+        async let dueTask = api.getFlashcardDecks(dueOnly: true, tag: tagFilter, cardsLimit: limit)
         let (allDecks, dueDecks) = try await (allTask, dueTask)
 
         guard let deck = allDecks.first(where: { $0.id == deckId }) else {

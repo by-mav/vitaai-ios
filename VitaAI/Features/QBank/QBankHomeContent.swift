@@ -50,7 +50,7 @@ struct QBankHomeContent: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 16)
 
-                        Text("Os filtros reais aparecem ao criar uma nova sessão.")
+                        Text("Selecione disciplinas e filtros ao iniciar uma nova sessão.")
                             .font(.system(size: 11))
                             .foregroundStyle(VitaColors.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -65,7 +65,7 @@ struct QBankHomeContent: View {
                         if vm.state.recentSessions.isEmpty {
                             QBankInfoCard(
                                 icon: "clock",
-                                message: "Suas sessoes recentes vao aparecer aqui quando vierem da API."
+                                message: "Suas sessões recentes aparecerão aqui."
                             )
                             .padding(.horizontal, 16)
                             .padding(.top, 12)

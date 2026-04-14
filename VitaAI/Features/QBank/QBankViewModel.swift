@@ -525,27 +525,35 @@ final class QBankViewModel {
         let responseTimeMs = Int64(Date().timeIntervalSince(state.questionStartDate) * 1000)
 
         Task {
-            do {
-                let result = try await api.answerQBankQuestion(
-                    id: question.id,
-                    request: QBankAnswerRequest(
-                        alternativeId: alternativeId,
-                        responseTimeMs: responseTimeMs,
-                        sessionId: state.session?.id
-                    )
-                )
+            let request = QBankAnswerRequest(
+                alternativeId: alternativeId,
+                responseTimeMs: responseTimeMs,
+                sessionId: state.session?.id
+            )
+            var result: QBankAnswerResponse?
+            // Try up to 2 times (initial + 1 retry)
+            for attempt in 0..<2 {
+                do {
+                    result = try await api.answerQBankQuestion(id: question.id, request: request)
+                    break
+                } catch {
+                    if attempt == 0 {
+                        try? await Task.sleep(for: .milliseconds(500))
+                    }
+                }
+            }
+            if let result {
                 state.answerResult = result
                 state.sessionAnswers[question.id] = result
                 state.showFeedback = true
-
-                // Track activity for gamification
                 let action = result.isCorrect ? "question_answered" : "question_answered_wrong"
                 Task { [api, gamificationEvents] in
                     if let actResult = try? await api.logActivity(action: action) {
                         gamificationEvents.handleActivityResponse(actResult, previousLevel: nil)
                     }
                 }
-            } catch {
+            } else {
+                // Fallback to local calculation
                 let isCorrect = question.alternatives.first(where: { $0.id == alternativeId })?.isCorrect ?? false
                 let fallback = QBankAnswerResponse(isCorrect: isCorrect, answerId: 0)
                 state.answerResult = fallback
@@ -578,11 +586,26 @@ final class QBankViewModel {
     }
 
     private func logSessionComplete() {
+        guard let session = state.session else { return }
+        let correctCount = state.sessionAnswers.values.filter { $0.isCorrect }.count
+        let totalAnswered = state.sessionAnswers.count
         let durationMinutes = Int(Date().timeIntervalSince(sessionStartDate) / 60)
+
         Task { [api, gamificationEvents] in
+            // POST finish to backend
+            _ = try? await api.finishQBankSession(
+                id: session.id,
+                correctCount: correctCount,
+                totalAnswered: totalAnswered
+            )
+            // Log activity for gamification
             if let result = try? await api.logActivity(
                 action: "qbank_session_complete",
-                metadata: ["durationMinutes": String(durationMinutes)]
+                metadata: [
+                    "durationMinutes": String(durationMinutes),
+                    "correctCount": String(correctCount),
+                    "totalAnswered": String(totalAnswered),
+                ]
             ) {
                 gamificationEvents.handleActivityResponse(result, previousLevel: nil)
             }
@@ -686,26 +709,28 @@ final class QBankViewModel {
     }
 
     func resumeSession(_ summary: QBankSessionSummary) {
-        let session = QBankSession(
-            id: summary.id,
-            title: summary.title,
-            questionIds: [],
-            totalQuestions: summary.totalQuestions,
-            currentIndex: summary.currentIndex,
-            correctCount: summary.correctCount,
-            createdAt: summary.createdAt
-        )
-        state.session = session
-        state.currentQuestionIndex = summary.currentIndex
-        state.sessionAnswers = [:]
-        state.sessionDetails = [:]
-        state.selectedAlternativeId = nil
-        state.answerResult = nil
-        state.showFeedback = false
-        state.questionStartDate = Date()
-        state.elapsedSeconds = 0
-        state.activeScreen = .session
-        goToDisciplines()
+        Task {
+            state.sessionLoading = true
+            state.error = nil
+            do {
+                let session = try await api.getQBankSessionDetail(id: summary.id)
+                state.session = session
+                state.currentQuestionIndex = session.currentIndex
+                state.sessionAnswers = [:]
+                state.sessionDetails = [:]
+                state.selectedAlternativeId = nil
+                state.answerResult = nil
+                state.showFeedback = false
+                state.questionStartDate = Date()
+                state.elapsedSeconds = 0
+                sessionStartDate = Date()
+                state.activeScreen = .session
+                await loadCurrentQuestion()
+            } catch {
+                state.error = "Erro ao retomar sessão: \(error.localizedDescription)"
+            }
+            state.sessionLoading = false
+        }
     }
 
     func clearError() { state.error = nil }
