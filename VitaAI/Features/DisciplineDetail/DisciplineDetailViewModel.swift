@@ -23,6 +23,10 @@ final class DisciplineDetailViewModel {
     private(set) var flashcardDecks: [FlashcardDeckEntry] = []
     private(set) var documents: [VitaDocument] = []
     private(set) var classSchedule: [AgendaClassBlock] = []
+    private(set) var trabalhos: TrabalhosResponse?
+    /// VitaScore computed server-side in /api/dashboard (grade + urgency + difficulty).
+    /// Single source of truth — NEVER recompute client-side.
+    private(set) var vitaScore: Int = 0
 
     // MARK: - Init
 
@@ -61,9 +65,9 @@ final class DisciplineDetailViewModel {
     var grade2: Double? { gradeSubject?.grade2 }
     var grade3: Double? { gradeSubject?.grade3 }
     var finalGrade: Double? { gradeSubject?.finalGrade }
-    var attendance: Int? { gradeSubject?.attendance }
-    var absences: Int? { gradeSubject?.absences }
-    var workload: Int? { gradeSubject?.workload }
+    var attendance: Double? { gradeSubject?.attendance }
+    var absences: Double? { gradeSubject?.absences }
+    var workload: Double? { gradeSubject?.workload }
     var subjectStatus: String? { gradeSubject?.status }
 
     var weight1: Double { gradeSubject?.weight1 ?? 2 }
@@ -136,6 +140,22 @@ final class DisciplineDetailViewModel {
         subjectDecks.reduce(0) { $0 + $1.cards.count }
     }
 
+    // MARK: - Computed: trabalhos
+
+    var subjectTrabalhos: [TrabalhoItem] {
+        guard let t = trabalhos else { return [] }
+        let all = t.pending + t.overdue + t.completed
+        return all.filter { matchesDiscipline($0.subjectName) }
+    }
+
+    var trabalhosPending: [TrabalhoItem] {
+        subjectTrabalhos.filter { !$0.submitted && $0.status != "graded" }
+    }
+
+    var trabalhosCompleted: [TrabalhoItem] {
+        subjectTrabalhos.filter { $0.submitted || $0.status == "graded" }
+    }
+
     // MARK: - Computed: documents
 
     var subjectDocuments: [VitaDocument] {
@@ -162,35 +182,6 @@ final class DisciplineDetailViewModel {
         subjectSchedule.compactMap(\.room).first { !$0.isEmpty }
     }
 
-    // MARK: - Computed: VitaScore (0-100)
-    // 45% difficulty (1 - accuracy), 35% gradeRisk, 20% urgency
-
-    var vitaScore: Int {
-        let accuracy = subjectProgress?.accuracy ?? 0.5
-        let diffScore = (1.0 - accuracy) * 45.0
-
-        let slotsWithValue = gradeSlots.filter { $0.value != nil }
-        let gradeRisk: Double
-        if slotsWithValue.isEmpty {
-            gradeRisk = 0
-        } else {
-            let below = slotsWithValue.filter { Self.normalized($0.value!, weight: $0.weight) < 5.0 }.count
-            gradeRisk = Double(below) / Double(slotsWithValue.count) * 35.0
-        }
-
-        let urgency: Double
-        if let days = nextExam?.daysUntil {
-            if days <= 3 { urgency = 20.0 }
-            else if days <= 7 { urgency = 14.0 }
-            else if days <= 14 { urgency = 7.0 }
-            else { urgency = 2.0 }
-        } else {
-            urgency = 0
-        }
-
-        return min(100, Int(diffScore + gradeRisk + urgency))
-    }
-
     // MARK: - Load (each call independent — one failure doesn't block others)
 
     func load() async {
@@ -203,15 +194,24 @@ final class DisciplineDetailViewModel {
         async let decksTask: [FlashcardDeckEntry]? = try? api.getFlashcardDecks()
         async let docsTask: [VitaDocument]? = try? api.getDocuments(subjectId: nil)
         async let agendaTask: AgendaResponse? = try? api.getAgenda()
+        async let trabalhosTask: TrabalhosResponse? = try? api.getTrabalhos()
+        async let dashboardTask: Dashboard? = try? api.getDashboard()
 
-        let (progressResponse, gradesResponse, examsResponse, decks, docs, agenda) = await (
+        let (progressResponse, gradesResponse, examsResponse, decks, docs, agenda, trabalhosResp, dash) = await (
             progressTask,
             gradesTask,
             examsTask,
             decksTask,
             docsTask,
-            agendaTask
+            agendaTask,
+            trabalhosTask,
+            dashboardTask
         )
+
+        // VitaScore — read from server (canonical). Match by subject name.
+        if let dash, let matched = dash.subjects?.first(where: { matchesDiscipline($0.name) }) {
+            vitaScore = Int(matched.vitaScore ?? 0)
+        }
 
         if let progressResponse {
             subjectProgress = progressResponse.subjects.first {
@@ -231,6 +231,7 @@ final class DisciplineDetailViewModel {
         flashcardDecks = decks ?? []
         documents = docs ?? []
         classSchedule = agenda?.schedule ?? []
+        trabalhos = trabalhosResp
 
         isLoading = false
     }

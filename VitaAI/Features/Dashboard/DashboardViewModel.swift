@@ -47,6 +47,9 @@ final class DashboardViewModel {
             // Silently continue — dashboard data may be enough
         }
 
+        // NOTE: vitaScore is now computed server-side in /api/dashboard.
+        // Clients just read `subject.vitaScore` — DO NOT recompute here.
+
         if subjects.isEmpty && upcomingExams.isEmpty && greeting.isEmpty {
             self.error = "Não foi possível carregar o dashboard."
         }

@@ -184,6 +184,7 @@ final class EstudosViewModel {
 
     private func applyDashboard(_ dash: Dashboard) {
         if let subs = dash.subjects, !subs.isEmpty {
+            // vitaScore is computed server-side in /api/dashboard — just consume.
             dashboardSubjects = subs.sorted { ($0.vitaScore ?? 0) > ($1.vitaScore ?? 0) }
         }
         if let hero = dash.hero, !hero.isEmpty {
@@ -282,6 +283,7 @@ final class EstudosViewModel {
             return nil
         }
     }
+
 }
 
 struct SimuladoEntry: Identifiable {
