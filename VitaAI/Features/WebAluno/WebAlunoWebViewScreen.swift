@@ -143,29 +143,16 @@ struct WebAlunoWebView: UIViewRepresentable {
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         configuration.allowsInlineMediaPlayback = true
 
-        // DO NOT set customUserAgent — WKWebView's default UA is already a real Safari UA.
-        // Hardcoded UA mismatches TLS fingerprint and triggers Cloudflare bot detection.
-        // Google OAuth works with the default WKWebView UA.
+        // DO NOT set customUserAgent — mismatches TLS fingerprint, triggers Cloudflare.
+        // Instead, applicationNameForUserAgent APPENDS to the default UA, making it look
+        // like real Safari so Google OAuth doesn't block it as "embedded browser".
+        // TLS fingerprint stays the same (real WebKit), so Cloudflare is happy.
+        configuration.applicationNameForUserAgent = "Version/18.0 Mobile/15E148 Safari/605.1.15"
 
-        // Use .recommended so WKWebView auto-scales desktop-layout pages to fit.
-        // .mobile forces a narrow viewport that clips fixed-width sites like Mannesoft.
-        configuration.defaultWebpagePreferences.preferredContentMode = .recommended
+        configuration.defaultWebpagePreferences.preferredContentMode = .mobile
 
         // Register vitaBridge message handler for bridge.js extraction
         configuration.userContentController.add(context.coordinator, name: "vitaBridge")
-
-        // Inject viewport meta BEFORE page renders so fixed-width pages scale to fit
-        let viewportScript = WKUserScript(
-            source: """
-                var vp = document.createElement('meta');
-                vp.name = 'viewport';
-                vp.content = 'width=device-width, initial-scale=1.0, shrink-to-fit=yes';
-                document.head.appendChild(vp);
-            """,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-        configuration.userContentController.addUserScript(viewportScript)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -277,81 +264,106 @@ struct WebAlunoWebView: UIViewRepresentable {
                 self.parent.isLoading = false
             }
 
-            // Force page to fit screen width — Mannesoft has fixed-width desktop layout.
-            // shrink-to-fit=yes makes WKWebView scale the page down to fit the viewport.
-            let viewportFix = """
-                (function() {
-                    var vp = document.querySelector('meta[name=viewport]');
-                    if (vp) {
-                        vp.content = 'width=device-width, initial-scale=1.0, shrink-to-fit=yes';
-                    } else {
-                        vp = document.createElement('meta');
-                        vp.name = 'viewport';
-                        vp.content = 'width=device-width, initial-scale=1.0, shrink-to-fit=yes';
-                        document.head.appendChild(vp);
-                    }
-                })();
-            """
-            webView.evaluateJavaScript(viewportFix, completionHandler: nil)
+            // pageZoom handles scaling natively — no JS needed
 
             guard !sessionFound else { return }
 
             let currentURL = webView.url?.absoluteString ?? ""
             NSLog("[WebAluno] didFinish URL: %@", currentURL)
 
-            // Auto-trigger Google OAuth with login_hint so user doesn't type email again.
-            // Only on the initial /webaluno/ landing page (not during OAuth flow).
-            let isLandingPage = currentURL.hasSuffix("/webaluno/") || currentURL.hasSuffix("/webaluno")
-            if isLandingPage, let email = parent.userEmail, !email.isEmpty {
+            // Auto-trigger Google OAuth — any page under /webaluno/ that isn't Google/OAuth itself
+            let isMannesoftPage = currentURL.contains("/webaluno")
+                && !currentURL.contains("accounts.google.com")
+                && !currentURL.contains("/autenticacao/")
+            NSLog("[WebAluno] isMannesoftPage=%d sessionFound=%d url=%@",
+                  isMannesoftPage ? 1 : 0, sessionFound ? 1 : 0, currentURL)
+            if isMannesoftPage && !sessionFound {
+                // Call loginGoogle() directly — skip the Mannesoft UI entirely.
+                // The function is defined in the page and triggers Google OAuth redirect.
                 let oauthJS = """
                     (function() {
-                        var btn = document.querySelector('#GOOGLE_ALUNO, .btn-google, [onclick*="loginGoogle"]');
-                        if (btn) {
-                            // Try to find the loginGoogle function and add login_hint
-                            if (typeof loginGoogle === 'function') {
-                                // Override to add login_hint
-                                var origAction = document.querySelector('form')?.action || '';
-                                window.location.href = origAction || btn.getAttribute('onclick')?.match(/location\\.href\\s*=\\s*'([^']+)'/)?.[1] || '';
+                        try {
+                            // Mannesoft defines redirect_uri and client_id as globals.
+                            // The button calls: loginGoogle(redirect_uri, client_id)
+                            if (typeof loginGoogle === 'function' && typeof redirect_uri !== 'undefined' && typeof client_id !== 'undefined') {
+                                loginGoogle(redirect_uri, client_id);
+                                return 'called-loginGoogle';
                             }
-                            // Fallback: just click the Google button
-                            btn.click();
+                            // Fallback: click the actual button
+                            var btn = document.querySelector('#GOOGLE_ALUNO_BTN, [onclick*="loginGoogle"]');
+                            if (btn) { btn.click(); return 'clicked: ' + btn.id; }
+                            return 'no-google-auth-found';
+                        } catch(e) {
+                            return 'error: ' + e.message;
                         }
                     })();
                 """
-                webView.evaluateJavaScript(oauthJS) { _, error in
+                webView.evaluateJavaScript(oauthJS) { result, error in
                     if let error {
                         NSLog("[WebAluno] OAuth auto-trigger error: %@", error.localizedDescription)
                     }
+                    NSLog("[WebAluno] OAuth auto-trigger: %@", String(describing: result))
                 }
             }
 
-            // Inspect cookies for PHPSESSID after page load
-            WKWebsiteDataStore.default().httpCookieStore.getAllCookies { [weak self] cookies in
-                guard let self else {
-                    NSLog("[WebAluno] getAllCookies: self is nil")
+            // Inspect cookies for PHPSESSID after page load — but only capture
+            // session if the page is actually the logged-in portal (not login page).
+            // Check via JS: login page has a login form; logged-in page has menu links.
+            webView.evaluateJavaScript("""
+                JSON.stringify({
+                    hasLoginForm: !!document.querySelector('input[type="password"], #GOOGLE_ALUNO, .btn-google, [onclick*="loginGoogle"]'),
+                    hasMenuLinks: document.querySelectorAll('a[href*="index.php?"]').length,
+                    hasFrames: document.querySelectorAll('iframe, frame').length,
+                    title: document.title,
+                    bodyLen: document.body ? document.body.innerHTML.length : 0
+                })
+            """) { [weak self] result, error in
+                if let error {
+                    NSLog("[WebAluno] Page check JS failed: %@ — skipping session capture", error.localizedDescription)
                     return
                 }
-                NSLog("[WebAluno] getAllCookies: %d total cookies for URL %@", cookies.count, currentURL)
-                let phpCookies = cookies.filter { $0.name.lowercased() == "phpsessid" }
-                NSLog("[WebAluno] PHPSESSID cookies found: %d", phpCookies.count)
-                for c in phpCookies {
-                    NSLog("[WebAluno]   PHPSESSID domain=%@ value=%d chars", c.domain, c.value.count)
+                guard let self, let jsonStr = result as? String,
+                      let data = jsonStr.data(using: .utf8),
+                      let info = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    NSLog("[WebAluno] Page check: could not parse result=%@", String(describing: result))
+                    return
                 }
+
+                let hasLoginForm = info["hasLoginForm"] as? Bool ?? false
+                let hasMenuLinks = info["hasMenuLinks"] as? Int ?? 0
+                let hasFrames = info["hasFrames"] as? Int ?? 0
+                let title = info["title"] as? String ?? ""
+                NSLog("[WebAluno] Page check: loginForm=%d, menuLinks=%d, frames=%d, title=%@",
+                      hasLoginForm ? 1 : 0, hasMenuLinks, hasFrames, title)
+
+                // If page has a login form, it's NOT logged in — skip session capture
+                if hasLoginForm {
+                    NSLog("[WebAluno] Login form detected — NOT capturing session (waiting for real login)")
+                    return
+                }
+
+                self.captureSessionIfValid(webView: webView, currentURL: currentURL)
+            }
+        }
+
+        /// Capture session only after confirming user is actually logged in
+        private func captureSessionIfValid(webView: WKWebView, currentURL: String) {
+            WKWebsiteDataStore.default().httpCookieStore.getAllCookies { [weak self] cookies in
+                guard let self else { return }
+                NSLog("[WebAluno] getAllCookies: %d total cookies for URL %@", cookies.count, currentURL)
 
                 if let phpSession = self.extractPhpSessionId(from: cookies, for: currentURL) {
                     NSLog("[WebAluno] Session extracted: %d chars", phpSession.count)
-                    // Don't fire during OAuth flow — only after landing on logged-in portal
+                    // Don't fire during OAuth flow
                     let isAuthFlow = currentURL.contains("accounts.google.com")
                         || currentURL.contains("/autenticacao/")
                         || currentURL.contains("/login")
-                        || currentURL.hasSuffix("/webaluno/")
-                        || currentURL.hasSuffix("/webaluno")
                     guard !isAuthFlow else {
                         NSLog("[WebAluno] Skipping session capture — auth flow URL")
                         return
                     }
 
-                    // We landed on a Mannesoft page that's NOT auth — user is logged in
+                    // User is logged in (no login form, valid PHPSESSID)
                     NSLog("[WebAluno] Session captured! Firing onSessionCaptured")
                     self.sessionFound = true
 
