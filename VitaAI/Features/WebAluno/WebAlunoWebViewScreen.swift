@@ -14,6 +14,8 @@ struct WebAlunoWebViewScreen: View {
     var onBack: () -> Void
     /// Called once when a valid PHPSESSID is detected after login
     var onSessionCaptured: (String) -> Void
+    /// Called when bridge.js extracts pages from the portal
+    var onPagesExtracted: (([CapturedPortalPage]) -> Void)?
     /// User's institutional email from VitaAI login — used as login_hint for Google OAuth
     var userEmail: String?
     /// Portal instance URL — comes from university portal config, no hardcoded fallback
@@ -53,7 +55,8 @@ struct WebAlunoWebViewScreen: View {
                         userEmail: userEmail,
                         isLoading: $isLoading,
                         loadProgress: $loadProgress,
-                        onSessionCaptured: onSessionCaptured
+                        onSessionCaptured: onSessionCaptured,
+                        onPagesExtracted: onPagesExtracted
                     )
                 } else {
                     VStack(spacing: 12) {
@@ -117,6 +120,8 @@ struct WebAlunoWebView: UIViewRepresentable {
     @Binding var isLoading: Bool
     @Binding var loadProgress: Double
     var onSessionCaptured: (String) -> Void
+    /// Called when bridge.js extracts pages from the portal (after session capture)
+    var onPagesExtracted: (([CapturedPortalPage]) -> Void)?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -145,6 +150,9 @@ struct WebAlunoWebView: UIViewRepresentable {
         // Use .recommended so WKWebView auto-scales desktop-layout pages to fit.
         // .mobile forces a narrow viewport that clips fixed-width sites like Mannesoft.
         configuration.defaultWebpagePreferences.preferredContentMode = .recommended
+
+        // Register vitaBridge message handler for bridge.js extraction
+        configuration.userContentController.add(context.coordinator, name: "vitaBridge")
 
         // Inject viewport meta BEFORE page renders so fixed-width pages scale to fit
         let viewportScript = WKUserScript(
@@ -184,10 +192,11 @@ struct WebAlunoWebView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         let parent: WebAlunoWebView
         var webView: WKWebView?
         var sessionFound = false
+        var bridgeInjected = false
         var progressObservation: NSKeyValueObservation?
 
         init(parent: WebAlunoWebView) {
@@ -196,6 +205,56 @@ struct WebAlunoWebView: UIViewRepresentable {
 
         deinit {
             progressObservation?.invalidate()
+        }
+
+        // MARK: - WKScriptMessageHandler (bridge.js messages)
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            guard message.name == "vitaBridge",
+                  let dict = message.body as? [String: Any],
+                  let type = dict["type"] as? String else { return }
+
+            switch type {
+            case "vita-bridge-progress":
+                let label = dict["label"] as? String ?? ""
+                NSLog("[WebAluno/Bridge] Progress: %@", label)
+
+            case "vita-bridge-complete":
+                guard let pagesArray = dict["pages"] as? [[String: Any]] else { return }
+                let pages = pagesArray.compactMap { pageDict -> CapturedPortalPage? in
+                    guard let pType = pageDict["type"] as? String,
+                          let html = pageDict["html"] as? String,
+                          let linkText = pageDict["linkText"] as? String else { return nil }
+                    return CapturedPortalPage(type: pType, html: html, linkText: linkText)
+                }
+                NSLog("[WebAluno/Bridge] Extraction complete: %d pages", pages.count)
+
+                // Re-save cookies AFTER bridge.js — PHP may have regenerated the session
+                if let wv = webView {
+                    WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
+                        let portalCookies = cookies.filter { $0.domain.contains("mannesoftprime") }
+                        let cookieStr = portalCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+                        if !cookieStr.isEmpty {
+                            MannesoftCookieStore.save(cookieStr, domain: wv.url?.absoluteString ?? "")
+                            NSLog("[WebAluno/Bridge] Re-persisted %d cookies after bridge (%d chars)", portalCookies.count, cookieStr.count)
+                        }
+                    }
+                }
+
+                DispatchQueue.main.async {
+                    self.parent.onPagesExtracted?(pages)
+                }
+
+            case "vita-bridge-error":
+                let error = dict["error"] as? String ?? "Unknown"
+                NSLog("[WebAluno/Bridge] Error: %@", error)
+
+            default:
+                break
+            }
         }
 
         // Keep all navigation inside the WebView
@@ -268,21 +327,59 @@ struct WebAlunoWebView: UIViewRepresentable {
 
             // Inspect cookies for PHPSESSID after page load
             WKWebsiteDataStore.default().httpCookieStore.getAllCookies { [weak self] cookies in
-                guard let self else { return }
+                guard let self else {
+                    NSLog("[WebAluno] getAllCookies: self is nil")
+                    return
+                }
+                NSLog("[WebAluno] getAllCookies: %d total cookies for URL %@", cookies.count, currentURL)
+                let phpCookies = cookies.filter { $0.name.lowercased() == "phpsessid" }
+                NSLog("[WebAluno] PHPSESSID cookies found: %d", phpCookies.count)
+                for c in phpCookies {
+                    NSLog("[WebAluno]   PHPSESSID domain=%@ value=%d chars", c.domain, c.value.count)
+                }
+
                 if let phpSession = self.extractPhpSessionId(from: cookies, for: currentURL) {
+                    NSLog("[WebAluno] Session extracted: %d chars", phpSession.count)
                     // Don't fire during OAuth flow — only after landing on logged-in portal
                     let isAuthFlow = currentURL.contains("accounts.google.com")
                         || currentURL.contains("/autenticacao/")
                         || currentURL.contains("/login")
                         || currentURL.hasSuffix("/webaluno/")
                         || currentURL.hasSuffix("/webaluno")
-                    guard !isAuthFlow else { return }
+                    guard !isAuthFlow else {
+                        NSLog("[WebAluno] Skipping session capture — auth flow URL")
+                        return
+                    }
 
                     // We landed on a Mannesoft page that's NOT auth — user is logged in
+                    NSLog("[WebAluno] Session captured! Firing onSessionCaptured")
                     self.sessionFound = true
+
+                    // Store this WebView for SilentSync reuse — same browser fingerprint
+                    SharedPortalWebView.shared.store(webView, url: currentURL)
+
+                    // Persist ALL cookies for this domain for SilentSync
+                    // WKWebView cookies don't survive app termination
+                    // Log all cookies to diagnose which ones are needed
+                    for c in cookies {
+                        NSLog("[WebAluno] Cookie: name=%@ domain=%@ value=%d chars", c.name, c.domain, c.value.count)
+                    }
+                    // Save ALL cookies from the portal domain (not just PHPSESSID)
+                    let portalDomain = URL(string: currentURL)?.host ?? ""
+                    let allPortalCookies = cookies.filter { c in
+                        c.domain.contains("mannesoftprime") || c.domain == portalDomain
+                    }
+                    let cookieStr = allPortalCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+                    MannesoftCookieStore.save(cookieStr, domain: currentURL)
+                    NSLog("[WebAluno] Persisted %d cookies (%d chars) for SilentSync", allPortalCookies.count, cookieStr.count)
+
                     DispatchQueue.main.async {
                         self.parent.onSessionCaptured(phpSession)
                     }
+                    // Inject bridge.js to extract portal data directly from this WebView
+                    self.injectBridgeJS(into: webView)
+                } else {
+                    NSLog("[WebAluno] extractPhpSessionId returned nil")
                 }
             }
         }
@@ -309,9 +406,48 @@ struct WebAlunoWebView: UIViewRepresentable {
             return nil
         }
 
+        // MARK: - Bridge.js injection
+
+        private func injectBridgeJS(into webView: WKWebView) {
+            guard !bridgeInjected else { return }
+            bridgeInjected = true
+
+            NSLog("[WebAluno/Bridge] Fetching bridge.js from server...")
+            guard let bridgeURL = URL(string: AppConfig.apiBaseURL + "/portal/bridge") else {
+                NSLog("[WebAluno/Bridge] Invalid bridge URL")
+                return
+            }
+
+            Task {
+                do {
+                    let (data, response) = try await URLSession.shared.data(from: bridgeURL)
+                    guard (response as? HTTPURLResponse)?.statusCode == 200,
+                          let js = String(data: data, encoding: .utf8) else {
+                        NSLog("[WebAluno/Bridge] Failed to fetch bridge.js")
+                        return
+                    }
+                    NSLog("[WebAluno/Bridge] Injecting bridge.js (%d bytes)", js.count)
+                    // Wait 2s for page to fully render before bridge navigates
+                    try await Task.sleep(for: .seconds(2))
+                    await MainActor.run {
+                        webView.evaluateJavaScript(js) { _, error in
+                            if let error {
+                                NSLog("[WebAluno/Bridge] Injection error: %@", error.localizedDescription)
+                            } else {
+                                NSLog("[WebAluno/Bridge] Injected successfully, extraction running...")
+                            }
+                        }
+                    }
+                } catch {
+                    NSLog("[WebAluno/Bridge] Error: %@", error.localizedDescription)
+                }
+            }
+        }
+
         // MARK: - Session extraction
 
         private func extractPhpSessionId(from cookies: [HTTPCookie], for urlString: String) -> String? {
+            // Return just the PHPSESSID value — backend wraps with "PHPSESSID=" if needed
             return cookies
                 .first { $0.name.lowercased() == "phpsessid" && !$0.value.isEmpty }
                 .map { $0.value }

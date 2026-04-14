@@ -116,6 +116,8 @@ struct VitaAIApp: App {
         #endif
     }
 
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             AppRouter(authManager: container.authManager)
@@ -125,6 +127,11 @@ struct VitaAIApp: App {
                 // SwiftData (iOS 17+) - notes/mindmaps local persistence
                 .modifier(ModelContainerModifier(container: container))
                 .preferredColorScheme(.dark)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                SilentPortalSync.shared.syncIfNeeded(api: container.api)
+            }
         }
     }
 }

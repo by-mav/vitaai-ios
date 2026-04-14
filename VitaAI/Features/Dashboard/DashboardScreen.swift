@@ -54,6 +54,9 @@ struct DashboardScreen: View {
             }
         }
         .onAppear {
+            // Silent sync on every dashboard appear (returns from portal connect, tab switch, etc.)
+            SilentPortalSync.shared.syncIfNeeded(api: container.api)
+
             if viewModel == nil {
                 viewModel = DashboardViewModel(api: container.api, dataManager: container.dataManager)
                 Task {

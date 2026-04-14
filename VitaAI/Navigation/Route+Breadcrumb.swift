@@ -70,7 +70,7 @@ extension Route {
         case .vitaChat, .paywall, .portalConnect, .toolManager:
             return nil
         // Settings subtree (modal-like, acessada via menu popout)
-        case .about, .appearance, .notifications, .connections, .configuracoes:
+        case .about, .appearance, .notifications, .connections, .configuracoes, .disciplinasConfig:
             return nil
         // Legacy aliases (all redirect to portalConnect)
         case .canvasConnect, .webalunoConnect, .googleCalendarConnect, .googleDriveConnect:

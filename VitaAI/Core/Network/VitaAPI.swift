@@ -538,6 +538,11 @@ actor VitaAPI {
         return try await client.post("subjects/manual", body: Body(name: name, difficulty: difficulty))
     }
 
+    func updateSubjectDifficulty(id: String, difficulty: String?) async throws -> AcademicSubject {
+        struct Body: Encodable { let difficulty: String? }
+        return try await client.patch("subjects/\(id)", body: Body(difficulty: difficulty))
+    }
+
     // MARK: - Grades
 
     func getGradesCurrent() async throws -> GradesCurrentResponse {

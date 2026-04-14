@@ -9,37 +9,52 @@ import WebKit
 final class SilentPortalSync {
     static let shared = SilentPortalSync()
 
-    private let minSyncInterval: TimeInterval = 3600 // 1 hour between syncs
+    private let minSyncInterval: TimeInterval = 900 // 15 min between syncs
     private var sessionCheckURL: String = ""
     private var webView: WKWebView?
+    private var bridgeHandler: SilentBridgeHandler?
     private var isRunning = false
+    private var lastLocalSyncAttempt: Date?
 
     private init() {}
+
+    /// Reset throttle so next syncIfNeeded runs immediately
+    func resetThrottle() {
+        lastLocalSyncAttempt = nil
+    }
 
     /// Call on app foreground / dashboard appear.
     /// Does nothing if last sync was recent or no active connection exists.
     /// Also triggers Canvas silent reauth if needed.
     func syncIfNeeded(api: VitaAPI) {
-        guard !isRunning else { return }
+        guard !isRunning else {
+            NSLog("[SilentSync] Already running, skipping")
+            return
+        }
+        isRunning = true  // Set immediately to prevent race conditions
 
         // Also check Canvas reauth (runs independently)
         CanvasSilentReauth.shared.reauthIfNeeded(api: api)
 
         Task {
+            defer { if !self.isRunning { /* already cleaned up */ } }
             // Check if we have an active portal connection
             do {
                 let status = try await api.getPortalStatus()
-                guard status.connected else { return }
+                guard status.connected else {
+                    self.isRunning = false
+                    return
+                }
 
                 // Get the portal connection for mannesoft/webaluno
                 let conn = status.connections?.first(where: { $0.portalType == "mannesoft" || $0.portalType == "webaluno" })
 
-                // Check if enough time has passed since last sync
-                if let lastSync = conn?.lastSyncAt,
-                   let syncDate = parseISO(lastSync) {
-                    let elapsed = Date().timeIntervalSince(syncDate)
+                // Use LOCAL timestamp to gate syncs — server lastSyncAt gets polluted by cron keepalive
+                if let lastAttempt = lastLocalSyncAttempt {
+                    let elapsed = Date().timeIntervalSince(lastAttempt)
                     if elapsed < minSyncInterval {
-                        NSLog("[SilentSync] Last sync %.0fm ago, skipping (min: %.0fm)", elapsed / 60, minSyncInterval / 60)
+                        NSLog("[SilentSync] Last local sync %.0fs ago, skipping (min: %.0fs)", elapsed, minSyncInterval)
+                        self.isRunning = false
                         return
                     }
                 }
@@ -47,47 +62,96 @@ final class SilentPortalSync {
                 // Get instance URL from the connection (not hardcoded)
                 guard let portalUrl = conn?.instanceUrl, !portalUrl.isEmpty else {
                     NSLog("[SilentSync] No portal instance URL found, skipping")
+                    self.isRunning = false
                     return
                 }
                 let baseUrl = portalUrl.hasSuffix("/") ? portalUrl : portalUrl + "/"
                 sessionCheckURL = baseUrl + (baseUrl.contains("/webaluno") ? "" : "webaluno/")
 
                 NSLog("[SilentSync] Starting silent sync for %@", sessionCheckURL)
+                lastLocalSyncAttempt = Date()
                 await performSilentSync(api: api)
             } catch {
                 NSLog("[SilentSync] Status check failed: %@", String(describing: error))
+                self.isRunning = false
             }
         }
     }
 
     private func performSilentSync(api: VitaAPI) async {
-        isRunning = true
-        defer { isRunning = false }
+        // isRunning already set by syncIfNeeded
 
-        // Fetch stored session cookie from backend — works on ANY device
-        let backendCookie = await fetchBackendSessionCookie(api: api)
+        // PRIORITY 1: Reuse the SAME WKWebView from login (same browser fingerprint)
+        // Mannesoft binds PHPSESSID to TLS/UA fingerprint — new WebView = session rejected
+        let usingShared: Bool
+        let wv: WKWebView
 
-        // Create a hidden WKWebView with the SAME data store (shares cookies with login WebView)
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
-        config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15"
+        if let shared = SharedPortalWebView.shared.webView {
+            NSLog("[SilentSync] Reusing shared login WebView (same fingerprint)")
+            wv = shared
+            usingShared = true
+            // Remove login coordinator's delegate — it would re-trigger OAuth on /webaluno/ load
+            wv.navigationDelegate = nil
+            wv.uiDelegate = nil
+            // Register bridge handler on shared WebView
+            let handler = SilentBridgeHandler()
+            wv.configuration.userContentController.removeScriptMessageHandler(forName: "vitaBridge")
+            wv.configuration.userContentController.add(handler, name: "vitaBridge")
+            self.bridgeHandler = handler
+        } else {
+            NSLog("[SilentSync] No shared WebView — creating new one with persisted cookies")
+            usingShared = false
+            let config = WKWebViewConfiguration()
+            config.websiteDataStore = .default()
+            // Match login WebView config EXACTLY — Mannesoft may fingerprint differences
+            config.preferences.javaScriptCanOpenWindowsAutomatically = true
+            config.allowsInlineMediaPlayback = true
+            config.defaultWebpagePreferences.preferredContentMode = .recommended
 
-        let handler = SilentBridgeHandler()
-        config.userContentController.add(handler, name: "vitaBridge")
+            let handler = SilentBridgeHandler()
+            config.userContentController.add(handler, name: "vitaBridge")
+            self.bridgeHandler = handler
 
-        let wv = WKWebView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), configuration: config)
+            // Use realistic frame size — 1x1 may affect viewport/UA behavior
+            let newWV = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), configuration: config)
+            wv = newWV
+
+            // Inject persisted cookies
+            if let stored = MannesoftCookieStore.load() {
+                NSLog("[SilentSync] Using MannesoftCookieStore (%d chars)", stored.cookies.count)
+                await injectCookies(stored.cookies, into: wv, for: sessionCheckURL)
+            } else {
+                let backendCookie = await fetchBackendSessionCookie(api: api)
+                if let cookieStr = backendCookie {
+                    let cleaned = cookieStr.replacingOccurrences(of: "PHPSESSID=PHPSESSID=", with: "PHPSESSID=")
+                    NSLog("[SilentSync] Using backend cookie (%d chars)", cleaned.count)
+                    await injectCookies(cleaned, into: wv, for: sessionCheckURL)
+                } else {
+                    NSLog("[SilentSync] No cookies available, skipping")
+                    cleanup()
+                    return
+                }
+            }
+        }
         self.webView = wv
 
-        // Inject backend cookie BEFORE loading — ensures sync works on any device
-        if let cookieStr = backendCookie {
-            await injectCookies(cookieStr, into: wv, for: sessionCheckURL)
+        // NEVER navigate to /webaluno/ root — it calls session_start() which kills the PHPSESSID.
+        // Always navigate to /webaluno/index.php which reuses the existing session.
+        let targetURL: String
+        if usingShared, let lastURL = SharedPortalWebView.shared.lastURL, lastURL.contains("index.php") {
+            targetURL = lastURL
+            NSLog("[SilentSync] Using shared WebView's last URL: %@", targetURL)
+        } else {
+            // Replace /webaluno/ with /webaluno/index.php
+            targetURL = sessionCheckURL.hasSuffix("/")
+                ? sessionCheckURL + "index.php"
+                : sessionCheckURL + "/index.php"
+            NSLog("[SilentSync] Using index.php URL: %@", targetURL)
         }
-
-        // Load the Mannesoft portal — injected + local cookies should auto-login
-        let url = URL(string: sessionCheckURL)!
+        let url = URL(string: targetURL)!
         wv.load(URLRequest(url: url))
 
-        // Wait for navigation to complete
+        // Wait for initial page load
         let loadResult = await waitForLoad(wv, timeout: 15)
         guard loadResult else {
             NSLog("[SilentSync] Page load timeout/failed")
@@ -95,15 +159,38 @@ final class SilentPortalSync {
             return
         }
 
+        // Mannesoft uses JS redirects (window.location = 'index.php?...')
+        // After initial load, wait for JS to execute and trigger redirect
+        var finalURL = wv.url?.absoluteString ?? ""
+        NSLog("[SilentSync] Initial load URL: %@", finalURL)
+
+        // Wait up to 8s for JS redirects to settle
+        for i in 0..<16 {
+            try? await Task.sleep(for: .milliseconds(500))
+            let newURL = wv.url?.absoluteString ?? ""
+            if newURL != finalURL {
+                NSLog("[SilentSync] JS redirect detected: %@", newURL)
+                finalURL = newURL
+                // Wait for the new page to finish loading
+                _ = await waitForLoad(wv, timeout: 10)
+            }
+            // If we're on a logged-in page, stop waiting
+            if finalURL.contains("index.php") || finalURL.contains("modulo=") {
+                break
+            }
+        }
+
+        NSLog("[SilentSync] Final URL after redirects: %@", finalURL)
+
         // Check if we landed on logged-in page (index.php) or login page
-        let currentURL = wv.url?.absoluteString ?? ""
-        let isLoggedIn = currentURL.contains("index.php") || currentURL.contains("modulo=")
-        let isAuthPage = currentURL.contains("autenticacao") || currentURL.contains("oauth") || currentURL.contains("login")
+        let isLoggedIn = finalURL.contains("index.php") || finalURL.contains("modulo=")
+        let isAuthPage = finalURL.contains("autenticacao") || finalURL.contains("oauth") || finalURL.contains("login")
 
         if !isLoggedIn || isAuthPage {
-            NSLog("[SilentSync] Session expired (landed on: %@)", currentURL)
-            // Mark connection as expired via API
-            // The user will see "Reconecte" next time they open the portal screen
+            NSLog("[SilentSync] Session expired (landed on: %@)", finalURL)
+            // Session is dead — release the shared WebView so next login creates a fresh one
+            SharedPortalWebView.shared.release()
+            MannesoftCookieStore.clear()
             cleanup()
             return
         }
@@ -123,16 +210,22 @@ final class SilentPortalSync {
             return
         }
 
-        handler.onComplete = { [weak self] pages in
+        bridgeHandler?.onComplete = { [weak self] pages in
             guard let self else { return }
             Task { @MainActor in
                 NSLog("[SilentSync] Bridge captured %d pages, sending to extract...", pages.count)
-                await self.sendToExtract(pages: pages, api: api, sessionCookie: sessionCookie)
+                // Re-persist cookies after bridge (PHP may have regenerated session)
+                let freshCookies = await self.extractAllCookies(from: wv)
+                if let fresh = freshCookies {
+                    MannesoftCookieStore.save(fresh, domain: self.sessionCheckURL)
+                    NSLog("[SilentSync] Re-persisted cookies after bridge extraction")
+                }
+                await self.sendToExtract(pages: pages, api: api, sessionCookie: freshCookies ?? sessionCookie)
                 self.cleanup()
             }
         }
 
-        handler.onError = { [weak self] error in
+        bridgeHandler?.onError = { [weak self] error in
             NSLog("[SilentSync] Bridge error: %@", error)
             Task { @MainActor in self?.cleanup() }
         }
@@ -255,9 +348,16 @@ final class SilentPortalSync {
     }
 
     private func cleanup() {
-        webView?.stopLoading()
-        webView?.configuration.userContentController.removeAllScriptMessageHandlers()
+        // Don't destroy the shared WebView — it's reused across syncs
+        if webView === SharedPortalWebView.shared.webView {
+            // Just remove our bridge handler, keep the WebView alive
+            webView?.configuration.userContentController.removeScriptMessageHandler(forName: "vitaBridge")
+        } else {
+            webView?.stopLoading()
+            webView?.configuration.userContentController.removeAllScriptMessageHandlers()
+        }
         webView = nil
+        bridgeHandler = nil
         isRunning = false
     }
 
@@ -270,7 +370,7 @@ final class SilentPortalSync {
 
 // MARK: - Silent bridge message handler
 
-private class SilentBridgeHandler: NSObject, WKScriptMessageHandler {
+final class SilentBridgeHandler: NSObject, WKScriptMessageHandler {
     var onComplete: (([CapturedPortalPage]) -> Void)?
     var onError: ((String) -> Void)?
 

@@ -374,6 +374,10 @@ final class ConnectorsViewModel {
             )
             toastMessage = "Portal conectado! Extraindo dados..."
             toastType = .success
+            // Trigger SilentSync immediately — server-side can't fetch Mannesoft
+            // (no Cloudflare cf_clearance), so extraction must happen client-side
+            // via WKWebView + bridge.js
+            SilentPortalSync.shared.syncIfNeeded(api: api)
             await loadPortalConnections()
         } catch {
             print("[Connectors] Portal connect error: \(error)")

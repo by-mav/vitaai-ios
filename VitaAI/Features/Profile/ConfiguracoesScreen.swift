@@ -14,6 +14,7 @@ struct ConfiguracoesScreen: View {
     var onNavigateToConnections:   (() -> Void)?
     var onNavigateToAbout:         (() -> Void)?
     var onNavigateToAssinatura:    (() -> Void)?
+    var onNavigateToDisciplinas:   (() -> Void)?
     var onBack:                    (() -> Void)?
 
     @State private var aiConsent: Bool = true
@@ -47,8 +48,8 @@ struct ConfiguracoesScreen: View {
                         settingsRow(
                             icon: "book",
                             label: "Disciplinas",
-                            desc: "Gerenciar disciplinas ativas",
-                            action: { }
+                            desc: "Gerenciar disciplinas e dificuldade",
+                            action: { onNavigateToDisciplinas?() }
                         )
                     }
                 }

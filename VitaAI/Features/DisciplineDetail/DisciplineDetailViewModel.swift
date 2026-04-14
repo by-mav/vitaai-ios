@@ -27,6 +27,8 @@ final class DisciplineDetailViewModel {
     /// VitaScore computed server-side in /api/dashboard (grade + urgency + difficulty).
     /// Single source of truth — NEVER recompute client-side.
     private(set) var vitaScore: Int = 0
+    /// Student self-assessed difficulty: "facil", "medio", "dificil", or nil
+    private(set) var difficulty: String?
 
     // MARK: - Init
 
@@ -208,9 +210,10 @@ final class DisciplineDetailViewModel {
             dashboardTask
         )
 
-        // VitaScore — read from server (canonical). Match by subject name.
+        // VitaScore + difficulty — read from server (canonical). Match by subject name.
         if let dash, let matched = dash.subjects?.first(where: { matchesDiscipline($0.name) }) {
             vitaScore = Int(matched.vitaScore ?? 0)
+            difficulty = matched.difficulty
         }
 
         if let progressResponse {
@@ -234,6 +237,22 @@ final class DisciplineDetailViewModel {
         trabalhos = trabalhosResp
 
         isLoading = false
+    }
+
+    // MARK: - Actions
+
+    func setDifficulty(_ value: String?) {
+        let previous = difficulty
+        difficulty = value
+        Task {
+            do {
+                _ = try await api.updateSubjectDifficulty(id: disciplineId, difficulty: value)
+                // Reload to get updated VitaScore
+                await load()
+            } catch {
+                difficulty = previous
+            }
+        }
     }
 
     // MARK: - Helper

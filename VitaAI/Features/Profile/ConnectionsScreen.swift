@@ -103,8 +103,13 @@ struct ConnectionsScreen: View {
             WebAlunoWebViewScreen(
                 onBack: { showWebalunoWebView = false },
                 onSessionCaptured: { cookie in
-                    showWebalunoWebView = false
+                    // Don't dismiss yet — bridge.js needs the WebView to extract data
                     connectWebaluno(cookie: cookie)
+                },
+                onPagesExtracted: { pages in
+                    NSLog("[Connections] Bridge extracted %d pages, sending to backend", pages.count)
+                    showWebalunoWebView = false
+                    sendExtractedPages(pages)
                 },
                 userEmail: container.authManager.userEmail,
                 portalInstanceUrl: webalunoInstanceUrl
@@ -548,6 +553,29 @@ struct ConnectionsScreen: View {
         }
     }
 
+    private func sendExtractedPages(_ pages: [CapturedPortalPage]) {
+        guard let vm else { return }
+        Task {
+            let apiPages = pages.map { page in
+                PortalExtractRequestPagesInner(type: page.type, html: page.html, linkText: page.linkText)
+            }
+            guard !apiPages.isEmpty else { return }
+            do {
+                let portalUrl = vm.universityPortals.first(where: { $0.portalType == "webaluno" || $0.portalType == "mannesoft" })?.instanceUrl ?? webalunoInstanceUrl
+                let result = try await container.api.extractPortalPages(
+                    pages: apiPages,
+                    instanceUrl: portalUrl,
+                    university: ""
+                )
+                NSLog("[Connections] Extract done: grades=%d, schedule=%d", result.grades ?? 0, result.schedule ?? 0)
+                toastState.show("Dados extraídos!", type: .success)
+                await vm.loadAll()
+            } catch {
+                NSLog("[Connections] Extract failed: %@", error.localizedDescription)
+            }
+        }
+    }
+
     private func connectWebaluno(cookie: String) {
         guard let vm else { return }
         isCanvasSync = false
@@ -760,8 +788,15 @@ struct ConnectionsScreen: View {
                         switch connectorId {
                         case "canvas": await vm.syncCanvas()
                         case "webaluno", "mannesoft":
-                            webalunoInstanceUrl = vm.mannesoft.instanceUrl ?? ""
-                            showWebalunoWebView = true
+                            if SharedPortalWebView.shared.hasWebView {
+                                // Session alive — sync silently using same WebView
+                                SilentPortalSync.shared.resetThrottle()
+                                SilentPortalSync.shared.syncIfNeeded(api: container.api)
+                            } else {
+                                // No session — need login WebView
+                                webalunoInstanceUrl = vm.mannesoft.instanceUrl ?? ""
+                                showWebalunoWebView = true
+                            }
                         case "google_calendar": await vm.syncCalendar()
                         case "google_drive": await vm.syncDrive()
                         default: break

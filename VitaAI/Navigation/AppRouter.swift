@@ -626,8 +626,11 @@ struct MainTabView: View {
                 onNavigateToConnections: { router.navigate(to: .connections) },
                 onNavigateToAbout: { router.navigate(to: .about) },
                 onNavigateToAssinatura: { router.navigate(to: .paywall) },
+                onNavigateToDisciplinas: { router.navigate(to: .disciplinasConfig) },
                 onBack: { router.goBack() }
             )
+        case .disciplinasConfig:
+            DisciplinasConfigScreen(onBack: { router.goBack() })
         case .qbank:
             QBankCoordinatorScreen(onBack: { router.goBack() })
         case .transcricao:

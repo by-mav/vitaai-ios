@@ -48,8 +48,15 @@ struct PortalConnectScreen: View {
             WebAlunoWebViewScreen(
                 onBack: { showPortalWebView = false },
                 onSessionCaptured: { cookie in
-                    showPortalWebView = false
+                    // Don't dismiss yet — bridge.js needs the WebView to extract data
                     vm?.connectMannesoft(cookie: cookie)
+                },
+                onPagesExtracted: { pages in
+                    NSLog("[PortalConnect] Bridge extracted %d pages, sending to backend", pages.count)
+                    showPortalWebView = false
+                    Task {
+                        await vm?.sendExtractedPages(pages)
+                    }
                 },
                 userEmail: container.authManager.userEmail,
                 portalInstanceUrl: vm?.instanceUrl ?? defaultInstanceUrl

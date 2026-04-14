@@ -139,6 +139,9 @@ final class PortalConnectViewModel {
                 mannesoftSyncMessage = "Vita buscando disciplinas..."
                 let crawlResult = try await api.startVitaCrawl(cookies: cookie, instanceUrl: url)
                 isConnecting = false
+                // Trigger SilentSync — server can't fetch MannesoftPrime pages,
+                // extraction must happen client-side via WKWebView + bridge.js
+                SilentPortalSync.shared.syncIfNeeded(api: api)
                 if let syncId = crawlResult.syncId, !syncId.isEmpty {
                     for _ in 0..<60 {
                         try await Task.sleep(for: .seconds(2))
@@ -187,6 +190,27 @@ final class PortalConnectViewModel {
                 isSyncing = false
                 self.error = "Erro de conexão. Verifique sua internet."
             }
+        }
+    }
+
+    // MARK: - Send extracted pages from bridge.js
+
+    func sendExtractedPages(_ pages: [CapturedPortalPage]) async {
+        let apiPages = pages.map { page in
+            PortalExtractRequestPagesInner(type: page.type, html: page.html, linkText: page.linkText)
+        }
+        guard !apiPages.isEmpty else { return }
+        do {
+            let result = try await api.extractPortalPages(
+                pages: apiPages,
+                instanceUrl: instanceUrl,
+                university: ""
+            )
+            NSLog("[PortalConnect] Extract done: grades=%d, schedule=%d", result.grades ?? 0, result.schedule ?? 0)
+            successMessage = "Dados extraídos com sucesso!"
+            await loadStatus()
+        } catch {
+            NSLog("[PortalConnect] Extract failed: %@", error.localizedDescription)
         }
     }
 
@@ -258,9 +282,11 @@ final class PortalConnectViewModel {
                     error = "Para re-sincronizar, reconecte ao Canvas"
                     return
                 case "webaluno", "mannesoft":
-                    // Mannesoft syncs automatically via server cron every 10 min
+                    // Trigger SilentSync immediately using SharedPortalWebView
+                    SilentPortalSync.shared.resetThrottle()
+                    SilentPortalSync.shared.syncIfNeeded(api: api)
                     isSyncing = false
-                    successMessage = "Portal sincroniza automaticamente a cada 10 minutos"
+                    successMessage = "Sincronizando dados do portal..."
                     return
                 case "google_calendar":
                     let result = try await api.syncGoogleCalendar()
