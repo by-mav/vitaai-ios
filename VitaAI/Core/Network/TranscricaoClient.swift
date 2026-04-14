@@ -9,13 +9,13 @@ struct TranscriptionFlashcard: Identifiable, Sendable {
 }
 
 /// A saved transcription entry returned by GET /api/study/transcrição
-struct TranscricaoEntry: Decodable, Identifiable {
+struct TranscricaoEntry: Identifiable {
     var id: String = UUID().uuidString
     var title: String = ""
     var duration: String?
     var detail: String?
     var date: String?
-    var status: String? // "transcribed", "pending"
+    var status: String? // "transcribed", "pending", "completed"
     var discipline: String?
     var fileName: String?
     var fileSize: Int?
@@ -58,6 +58,34 @@ struct TranscricaoEntry: Decodable, Identifiable {
             return "\(s / 1024) KB"
         }
         return String(format: "%.1f MB", Double(s) / 1_048_576.0)
+    }
+}
+
+extension TranscricaoEntry: Decodable {
+    // Use String-based keys to bypass convertFromSnakeCase interference
+    private struct RawKey: CodingKey {
+        var stringValue: String
+        var intValue: Int?
+        init?(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { return nil }
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: RawKey.self)
+        id = (try? c.decode(String.self, forKey: RawKey(stringValue: "id")!)) ?? UUID().uuidString
+        title = (try? c.decode(String.self, forKey: RawKey(stringValue: "title")!)) ?? ""
+        duration = try? c.decode(String.self, forKey: RawKey(stringValue: "duration")!)
+        detail = try? c.decode(String.self, forKey: RawKey(stringValue: "detail")!)
+        date = try? c.decode(String.self, forKey: RawKey(stringValue: "date")!)
+        status = try? c.decode(String.self, forKey: RawKey(stringValue: "status")!)
+        discipline = try? c.decode(String.self, forKey: RawKey(stringValue: "discipline")!)
+        fileName = try? c.decode(String.self, forKey: RawKey(stringValue: "fileName")!)
+        fileSize = try? c.decode(Int.self, forKey: RawKey(stringValue: "fileSize")!)
+        createdAt = try? c.decode(String.self, forKey: RawKey(stringValue: "createdAt")!)
+
+        // Debug: dump all keys in the JSON to find what's actually there
+        let allKeys = c.allKeys.map { $0.stringValue }
+        NSLog("[TranscricaoEntry] JSON keys: %@, status=%@, isTranscribed=%d", allKeys.joined(separator: ","), status ?? "NIL", isTranscribed ? 1 : 0)
     }
 }
 

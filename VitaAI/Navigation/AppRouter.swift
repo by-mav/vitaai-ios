@@ -159,8 +159,19 @@ struct AppRouter: View {
                 case .progresso: router.selectedTab = .progresso
                 case .profile:   router.selectedTab = .progresso
                 case .paywall:   router.navigate(to: .paywall)
+                case .trabalhoDetail:
+                    router.selectedTab = .faculdade
+                    // Small delay so tab switch completes before push
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        router.navigate(to: route)
+                    }
                 default:         router.navigate(to: route)
                 }
+            case .integrationCallback(let provider):
+                // OAuth finished — navigate to connections and reload
+                router.navigate(to: .connections)
+                // Post notification so ConnectorsViewModel reloads
+                NotificationCenter.default.post(name: .integrationOAuthCompleted, object: provider)
             default: break
             }
         }
@@ -194,16 +205,23 @@ struct MainTabView: View {
                     level: container.gamificationEvents.currentLevel,
                     xpProgress: container.gamificationEvents.currentXpProgress,
                     xpToast: container.gamificationEvents.xpToast,
+                    notificationCount: PushManager.shared.unreadNotificationCount,
                     onAvatarTap: { router.selectedTab = .progresso },
-                    onBellTap: { showMenuPopout = false; showNotifPopout.toggle() },
-                    onMenuTap: { showNotifPopout = false; showMenuPopout.toggle() }
+                    onBellTap: {
+                        showMenuPopout = false
+                        withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout.toggle() }
+                    },
+                    onMenuTap: {
+                        withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+                        showMenuPopout.toggle()
+                    }
                 )
                 .padding(.horizontal, 12)
                 .padding(.bottom, 4)
 
                 VitaBreadcrumb()
 
-                ZStack {
+                ZStack(alignment: .topTrailing) {
                     NavigationStack(path: $router.path) {
                         activeTabView
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -230,6 +248,33 @@ struct MainTabView: View {
                             .padding(.bottom, 80) // space for tab bar
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
+
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                // MARK: - Notification Popout (fixed position below TopNav)
+                if showNotifPopout {
+                    VitaNotifPopout(
+                        onDismiss: {
+                            withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+                        },
+                        onSettingsTap: {
+                            withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+                            router.navigate(to: .notifications)
+                        },
+                        onNavigate: { route in
+                            withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+                            router.navigateToRoute(route)
+                        }
+                    )
+                    // Fixed offset: TopBar height (~56pt) + padding (16pt)
+                    .padding(.top, 72)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.88, anchor: .topTrailing)).combined(with: .offset(y: -12)),
+                        removal: .opacity.combined(with: .scale(scale: 0.88, anchor: .topTrailing)).combined(with: .offset(y: -12))
+                    ))
+                    .animation(.spring(duration: 0.3, bounce: 0.12), value: showNotifPopout)
+                    .zIndex(200)
                 }
             }
 
@@ -250,7 +295,7 @@ struct MainTabView: View {
                     userName: authManager.userName,
                     userImageURL: authManager.userImage.flatMap(URL.init(string:)),
                     onProfile: { router.navigate(to: .profile) },
-                    onNotifications: { showNotifPopout = true },
+                    onNotifications: { showMenuPopout = false; showNotifPopout = true },
                     onAgenda: { router.selectedTab = .faculdade },
                     onConfiguracoes: { router.navigate(to: .configuracoes) },
                     onAppearance: { router.navigate(to: .appearance) },
@@ -263,19 +308,7 @@ struct MainTabView: View {
                 .zIndex(200)
             }
 
-            // MARK: - Notification Popout Overlay
-            if showNotifPopout {
-                VitaNotifPopout(
-                    onDismiss: { showNotifPopout = false },
-                    onMarkAllRead: { /* TODO: API call */ },
-                    onSettingsTap: {
-                        showNotifPopout = false
-                        router.navigate(to: .notifications)
-                    }
-                )
-                .transition(.opacity)
-                .zIndex(200)
-            }
+            // Notification popout moved inside content ZStack (below TopNav)
         }
         .environment(router)
         .background {
@@ -289,7 +322,7 @@ struct MainTabView: View {
         .onChange(of: router.selectedTab) { _, _ in
             // Dismiss popouts and chat on tab change
             showMenuPopout = false
-            showNotifPopout = false
+            withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
             if showChat {
                 withAnimation(.easeInOut(duration: 0.25)) { showChat = false }
             }
@@ -315,7 +348,7 @@ struct MainTabView: View {
                 }
             }
             await subStatus.refresh()
-            // await PushManager.shared.requestPermission()
+            await PushManager.shared.requestPermission()
             Task {
                 let stats = try? await container.api.getGamificationStats()
                 if let stats {
@@ -345,7 +378,7 @@ struct MainTabView: View {
         switch router.selectedTab {
         case .home:
             DashboardScreen(
-                onNavigateToFlashcards: { router.navigate(to: .flashcardHome) },
+                onNavigateToFlashcards: { router.navigate(to: .flashcardHome()) },
                 onNavigateToSimulados: { router.navigate(to: .simuladoHome) },
                 onNavigateToPdfs: { router.selectedTab = .estudos },
                 onNavigateToMaterials: { router.navigate(to: .qbank) },
@@ -425,15 +458,32 @@ struct MainTabView: View {
             )
         case .pdfViewer(let urlString):
             if let url = URL(string: urlString) {
+                let _ = print("[AppRouter] pdfViewer route hit, url=\(urlString)")
                 PdfViewerScreen(url: url, onBack: { router.goBack() })
             } else {
+                let _ = print("[AppRouter] pdfViewer INVALID URL: \(urlString)")
                 EmptyView()
             }
-        case .flashcardSession(let deckId):
+        case .flashcardTopics(let deckId, let deckTitle):
+            FlashcardTopicsScreen(
+                deckId: deckId,
+                deckTitle: deckTitle,
+                onBack: { router.goBack() },
+                onSelectTopic: { tagPrefix in
+                    router.navigate(to: .flashcardSession(deckId: deckId, tagFilter: tagPrefix))
+                }
+            )
+        case .flashcardSession(let deckId, let tagFilter):
             FlashcardSessionScreen(
                 deckId: deckId,
+                tagFilter: tagFilter,
                 onBack: { router.goBack() },
-                onFinished: { router.goBack() }
+                onFinished: { router.goBack() },
+                onOpenSettings: { router.navigate(to: .flashcardSettings) }
+            )
+        case .flashcardSettings:
+            FlashcardSettingsScreen(
+                onBack: { router.goBack() }
             )
         case .flashcardStats:
             FlashcardStatsView(onBack: { router.goBack() })
@@ -498,7 +548,15 @@ struct MainTabView: View {
         case .insights:
             InsightsScreen()
         case .trabalhos:
-            TrabalhoScreen()
+            TrabalhoScreen(onOpenDetail: { id in router.navigate(to: .trabalhoDetail(id: id)) })
+        case .trabalhoDetail(let id):
+            TrabalhoDetailScreen(
+                assignmentId: id,
+                onBack: { router.goBack() },
+                onOpenEditor: { assignmentId in
+                    // Editor is presented as fullScreenCover inside TrabalhoDetailScreen
+                }
+            )
         case .about:
             AboutScreen()
         case .appearance:
@@ -574,22 +632,26 @@ struct MainTabView: View {
             QBankCoordinatorScreen(onBack: { router.goBack() })
         case .transcricao:
             TranscricaoScreen(onBack: { router.goBack() })
-        case .flashcardHome:
+        case .flashcardHome(let subjectId):
             FlashcardsListScreen(
+                initialSubjectId: subjectId,
                 onBack: { router.goBack() },
-                onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) }
+                onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
+                onOpenTopics: { deckId, deckTitle in router.navigate(to: .flashcardTopics(deckId: deckId, deckTitle: deckTitle)) }
             )
         case .disciplineDetail(let disciplineId, let disciplineName):
             DisciplineDetailScreen(
                 disciplineId: disciplineId,
                 disciplineName: disciplineName,
                 onBack: { router.goBack() },
-                onNavigateToFlashcards: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
+                onNavigateToFlashcards: { _ in router.navigate(to: .flashcardHome(subjectId: disciplineId)) },
                 onNavigateToQBank: { router.navigate(to: .qbank) },
                 onNavigateToSimulado: { router.navigate(to: .simuladoHome) }
             )
         case .faculdadeAgenda:
             AgendaScreen()
+        case .faculdadeDisciplinas:
+            FaculdadeDisciplinasScreen()
         case .faculdadeMaterias:
             FaculdadeMateriasScreen(
                 onBack: { router.goBack() },

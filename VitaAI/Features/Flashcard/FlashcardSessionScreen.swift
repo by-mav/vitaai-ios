@@ -13,13 +13,17 @@ private let flashcardScreenBg   = Color(red: 8/255, green: 6/255, blue: 10/255) 
 struct FlashcardSessionScreen: View {
 
     let deckId: String
+    var tagFilter: String? = nil
     var onBack: () -> Void
     var onFinished: () -> Void = {}
+    var onOpenSettings: () -> Void = {}
 
     @Environment(\.appContainer) private var container
+    @Environment(Router.self) private var router
     @State private var viewModel: FlashcardViewModel?
     @State private var elapsedSeconds: Int = 0
     @State private var timerCancellable: (any Cancellable)?
+    @State private var settings = FlashcardSettings()
     private let timer = Timer.publish(every: 1, on: .main, in: .common)
 
     // Progress bar gradient — gold accent
@@ -54,7 +58,7 @@ struct FlashcardSessionScreen: View {
                             result: result,
                             elapsedSeconds: elapsedSeconds,
                             onBack: onBack,
-                            onRestart: { vm.loadDeck(deckId) }
+                            onRestart: { vm.loadDeck(deckId, tagFilter: tagFilter) }
                         )
                     }
 
@@ -69,8 +73,11 @@ struct FlashcardSessionScreen: View {
             if viewModel == nil {
                 let vm = FlashcardViewModel(api: container.api, gamificationEvents: container.gamificationEvents)
                 viewModel = vm
-                vm.loadDeck(deckId)
+                vm.loadDeck(deckId, tagFilter: tagFilter)
             }
+            // Share VM + settings with router so pushed settings screen can access them
+            router.activeFlashcardVM = viewModel
+            router.activeFlashcardSettings = settings
             timerCancellable = timer.connect()
         }
         .onDisappear {
@@ -81,6 +88,10 @@ struct FlashcardSessionScreen: View {
             elapsedSeconds = viewModel?.elapsedSeconds ?? 0
         }
         .navigationBarHidden(true)
+        .onChange(of: viewModel != nil) {
+            router.activeFlashcardVM = viewModel
+            router.activeFlashcardSettings = settings
+        }
     }
 
     // MARK: Main Study Layout
@@ -119,8 +130,12 @@ struct FlashcardSessionScreen: View {
 
             Spacer().frame(height: 8)
 
-            timerLabel
-                .padding(.bottom, 20)
+            if settings.showTimer {
+                timerLabel
+                    .padding(.bottom, 20)
+            } else {
+                Spacer().frame(height: 20)
+            }
         }
     }
 
@@ -152,12 +167,32 @@ struct FlashcardSessionScreen: View {
 
             Spacer()
 
-            // Count — 11px semibold, gold accent
-            Text(vm.progressLabel)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(VitaColors.accent.opacity(0.60))
-                .monospacedDigit()
-                .frame(minWidth: 60, alignment: .trailing)
+            // Right side: count + undo + gear
+            HStack(spacing: 10) {
+                Text(vm.progressLabel)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(VitaColors.accent.opacity(0.60))
+                    .monospacedDigit()
+
+                if vm.canUndo {
+                    Button(action: { vm.undoLastRating() }) {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(VitaColors.accent.opacity(0.70))
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
+                }
+
+                Button(action: onOpenSettings) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(minWidth: 80, alignment: .trailing)
+            .animation(.easeOut(duration: 0.2), value: vm.canUndo)
         }
     }
 
@@ -195,6 +230,7 @@ struct FlashcardSessionScreen: View {
         } else if vm.isFlipped {
             RatingButtonsView(
                 intervalPreviews: vm.intervalPreviews,
+                showIntervals: settings.showIntervalPreview,
                 onRate: { rating in vm.rateCard(rating) }
             )
             .transition(.move(edge: .bottom).combined(with: .opacity))

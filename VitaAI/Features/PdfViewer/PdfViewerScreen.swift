@@ -1,14 +1,17 @@
 import SwiftUI
 import PDFKit
+import PencilKit
 
 // MARK: - PdfViewerScreen
 
 /// Full-screen PDF viewer with GoodNotes-level annotation support.
-/// Uses PDFKit page rendering + SwiftUI Canvas overlays for ink, shapes, and text.
+/// Uses PDFKit page rendering + PencilKit overlay for native Apple Pencil ink.
+/// Shapes and text use SwiftUI overlays on top.
 struct PdfViewerScreen: View {
     let url: URL
     let onBack: () -> Void
 
+    @Environment(\.appContainer) private var container
     @State private var viewModel = PdfViewerViewModel()
     @State private var selectedPage: Int = 0
     @State private var showExportSheet: Bool = false
@@ -25,7 +28,7 @@ struct PdfViewerScreen: View {
                 errorView
             }
         }
-        .task { await viewModel.load(url: url) }
+        .task { await viewModel.load(url: url, tokenStore: container.tokenStore) }
         .onDisappear { viewModel.forceSave() }
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard)
@@ -41,57 +44,24 @@ struct PdfViewerScreen: View {
 
     @ViewBuilder
     private func mainContent(document: PDFDocument) -> some View {
-        ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                // Top bar
-                PdfTopBar(
-                    fileName: viewModel.fileName,
-                    currentPage: viewModel.currentPage + 1,
-                    pageCount: viewModel.pageCount,
-                    isSaving: viewModel.isSaving,
-                    showThumbnailToggle: viewModel.pageCount > 1,
-                    onBack: {
-                        viewModel.forceSave()
-                        onBack()
-                    },
-                    onToggleThumbnails: viewModel.toggleThumbnails,
-                    onExport: {
-                        Task { await exportPDF(document: document) }
-                    }
-                )
-
-                // Main pager
-                ZStack(alignment: .leading) {
-                    TabView(selection: $selectedPage) {
-                        ForEach(0..<viewModel.pageCount, id: \.self) { pageIndex in
-                            PdfPageView(
-                                document: document,
-                                pageIndex: pageIndex,
-                                viewModel: viewModel,
-                                isCurrentPage: pageIndex == viewModel.currentPage
-                            )
-                            .tag(pageIndex)
-                        }
-                    }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .onChange(of: selectedPage) { newPage in
-                        viewModel.setCurrentPage(newPage)
-                    }
-
-                    // Thumbnail sidebar (slides in from left)
-                    PageThumbnailSidebar(
-                        document: document,
-                        pageCount: viewModel.pageCount,
-                        currentPage: viewModel.currentPage,
-                        isVisible: viewModel.showThumbnails,
-                        onPageSelected: { page in
-                            selectedPage = page
-                        }
-                    )
+        VStack(spacing: 0) {
+            PdfTopBar(
+                fileName: viewModel.fileName,
+                currentPage: viewModel.currentPage + 1,
+                pageCount: viewModel.pageCount,
+                isSaving: viewModel.isSaving,
+                showThumbnailToggle: viewModel.pageCount > 1,
+                onBack: {
+                    viewModel.forceSave()
+                    onBack()
+                },
+                onToggleThumbnails: viewModel.toggleThumbnails,
+                onExport: {
+                    Task { await exportPDF(document: document) }
                 }
-            }
+            )
 
-            // Floating annotation toolbar
+            // Annotation toolbar right below top bar
             AnnotationToolbar(
                 isDrawMode: viewModel.isDrawMode,
                 selectedTool: viewModel.selectedTool,
@@ -108,7 +78,35 @@ struct PdfViewerScreen: View {
                 onShapeMode: viewModel.selectTool
             )
             .padding(.horizontal, 16)
-            .padding(.bottom, 32)
+            .padding(.vertical, 6)
+
+            ZStack(alignment: .leading) {
+                TabView(selection: $selectedPage) {
+                    ForEach(0..<viewModel.pageCount, id: \.self) { pageIndex in
+                        PdfPageView(
+                            document: document,
+                            pageIndex: pageIndex,
+                            viewModel: viewModel,
+                            isCurrentPage: pageIndex == viewModel.currentPage
+                        )
+                        .tag(pageIndex)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .onChange(of: selectedPage) { newPage in
+                    viewModel.setCurrentPage(newPage)
+                }
+
+                PageThumbnailSidebar(
+                    document: document,
+                    pageCount: viewModel.pageCount,
+                    currentPage: viewModel.currentPage,
+                    isVisible: viewModel.showThumbnails,
+                    onPageSelected: { page in
+                        selectedPage = page
+                    }
+                )
+            }
         }
     }
 
@@ -130,20 +128,21 @@ struct PdfViewerScreen: View {
     // MARK: - Export
 
     private func exportPDF(document: PDFDocument) async {
-        guard let exportedURL = try? await PdfExporter.export(
+        // TODO: Flatten PencilKit drawings + shapes + text into exported PDF
+        // For now, export PencilKit drawings per page
+        guard let url = try? await PdfPencilKitExporter.export(
             document: document,
             pageCount: viewModel.pageCount,
-            getStrokes: viewModel.strokes,
-            getErasers: viewModel.erasers,
-            getShapes: viewModel.shapes,
-            getTexts: viewModel.texts
+            getDrawing: { viewModel.drawing(for: $0) },
+            getShapes: { viewModel.shapes(for: $0) },
+            getTexts: { viewModel.texts(for: $0) }
         ) else { return }
-        self.exportedURL = exportedURL
+        self.exportedURL = url
         showExportSheet = true
     }
 }
 
-// MARK: - PDF Page View
+// MARK: - PDF Page View (PencilKit overlay)
 
 private struct PdfPageView: View {
     let document: PDFDocument
@@ -152,40 +151,27 @@ private struct PdfPageView: View {
     let isCurrentPage: Bool
 
     @State private var pageImage: UIImage? = nil
-    @State private var scale: CGFloat = 1.0
-    @State private var offset: CGSize = .zero
-
-    private var strokes: [InkStroke] {
-        isCurrentPage ? viewModel.currentStrokes : viewModel.strokes(for: pageIndex)
-    }
-    private var eraserPaths: [EraserPath] {
-        isCurrentPage ? viewModel.currentEraserPaths : viewModel.erasers(for: pageIndex)
-    }
+    @State private var canvasKey: UUID = UUID()
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 if let img = pageImage {
-                    // Zoomable/pannable image when not drawing
                     ZStack {
+                        // PDF page as background
                         Image(uiImage: img)
                             .resizable()
                             .scaledToFit()
-                            .scaleEffect(scale)
-                            .offset(offset)
-                            .gesture(viewModel.isDrawMode ? nil : magnifyAndPanGesture)
 
-                        // Ink canvas overlay
-                        InkCanvasView(
-                            finishedStrokes: strokes,
-                            eraserPaths: eraserPaths,
-                            isDrawMode: viewModel.isDrawMode && isCurrentPage,
-                            selectedTool: viewModel.selectedTool,
-                            selectedColor: viewModel.selectedColor,
-                            strokeWidth: viewModel.strokeWidth,
-                            onStrokeFinished: { viewModel.addStrokes([$0]) },
-                            onEraserPath: { viewModel.addEraserPath($0) }
-                        )
+                        // PencilKit canvas overlay (only on current page for performance)
+                        if isCurrentPage {
+                            PdfPencilKitCanvas(
+                                viewModel: viewModel,
+                                pageIndex: pageIndex
+                            )
+                            .id(canvasKey)
+                            .allowsHitTesting(viewModel.isDrawMode && viewModel.selectedTool.isInkTool || viewModel.isDrawMode && viewModel.selectedTool == .eraser)
+                        }
 
                         // Shape overlay
                         ShapeOverlay(
@@ -221,12 +207,7 @@ private struct PdfPageView: View {
             guard pageImage == nil else { return }
             pageImage = await renderPage()
         }
-        .onChange(of: viewModel.isDrawMode) { drawing in
-            if drawing { scale = 1; offset = .zero }
-        }
     }
-
-    // MARK: - Page Rendering
 
     private func renderPage() async -> UIImage? {
         await Task.detached(priority: .userInitiated) {
@@ -240,37 +221,166 @@ private struct PdfPageView: View {
             return renderer.image { ctx in
                 UIColor.white.setFill()
                 ctx.fill(CGRect(origin: .zero, size: renderSize))
-                ctx.cgContext.scaleBy(x: scl, y: scl)
-                page.draw(with: .cropBox, to: ctx.cgContext)
+
+                let cgCtx = ctx.cgContext
+                // PDF coordinate system is bottom-left origin; flip to UIKit top-left
+                cgCtx.translateBy(x: 0, y: renderSize.height)
+                cgCtx.scaleBy(x: scl, y: -scl)
+                page.draw(with: .cropBox, to: cgCtx)
             }
         }.value
     }
+}
 
-    // MARK: - Zoom/Pan Gesture
+// MARK: - PencilKit Canvas for PDF (UIViewRepresentable)
 
-    private var magnifyAndPanGesture: some Gesture {
-        SimultaneousGesture(
-            MagnificationGesture()
-                .onChanged { value in
-                    scale = max(1, min(5, value))
-                }
-                .onEnded { value in
-                    scale = max(1, min(5, value))
-                    if scale == 1 { withAnimation(.spring) { offset = .zero } }
-                },
-            DragGesture()
-                .onChanged { value in
-                    guard scale > 1 else { return }
-                    offset = value.translation
-                }
-                .onEnded { value in
-                    guard scale > 1 else {
-                        withAnimation(.spring) { offset = .zero }
-                        return
-                    }
-                    offset = value.translation
-                }
+private struct PdfPencilKitCanvas: UIViewRepresentable {
+    @Bindable var viewModel: PdfViewerViewModel
+    let pageIndex: Int
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> PKCanvasView {
+        let canvas = PKCanvasView()
+        canvas.backgroundColor = .clear
+        canvas.isOpaque = false
+        canvas.drawingPolicy = .anyInput
+        canvas.delegate = context.coordinator
+        canvas.alwaysBounceVertical = false
+        canvas.alwaysBounceHorizontal = false
+        canvas.showsVerticalScrollIndicator = false
+        canvas.showsHorizontalScrollIndicator = false
+        canvas.isScrollEnabled = false
+        canvas.minimumZoomScale = 1.0
+        canvas.maximumZoomScale = 1.0
+
+        // Load existing drawing
+        canvas.drawing = viewModel.drawing(for: pageIndex)
+
+        // Apply current tool
+        canvas.tool = viewModel.pkTool
+
+        // Observe undo manager
+        let um = canvas.undoManager
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.undoManagerChanged),
+            name: .NSUndoManagerDidCloseUndoGroup, object: um
         )
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.undoManagerChanged),
+            name: .NSUndoManagerDidUndoChange, object: um
+        )
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.undoManagerChanged),
+            name: .NSUndoManagerDidRedoChange, object: um
+        )
+
+        context.coordinator.canvas = canvas
+        return canvas
+    }
+
+    func updateUIView(_ canvas: PKCanvasView, context: Context) {
+        canvas.tool = viewModel.pkTool
+
+        // Undo/redo triggers from toolbar
+        if context.coordinator.lastUndoTrigger != viewModel.undoTrigger {
+            context.coordinator.lastUndoTrigger = viewModel.undoTrigger
+            canvas.undoManager?.undo()
+        }
+        if context.coordinator.lastRedoTrigger != viewModel.redoTrigger {
+            context.coordinator.lastRedoTrigger = viewModel.redoTrigger
+            canvas.undoManager?.redo()
+        }
+    }
+
+    static func dismantleUIView(_ canvas: PKCanvasView, coordinator: Coordinator) {
+        NotificationCenter.default.removeObserver(coordinator)
+    }
+
+    final class Coordinator: NSObject, PKCanvasViewDelegate {
+        var parent: PdfPencilKitCanvas
+        weak var canvas: PKCanvasView?
+        var lastUndoTrigger: Int = 0
+        var lastRedoTrigger: Int = 0
+
+        init(_ parent: PdfPencilKitCanvas) {
+            self.parent = parent
+        }
+
+        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+            parent.viewModel.updateDrawing(canvasView.drawing, for: parent.pageIndex)
+            updateUndoState(canvasView)
+        }
+
+        @objc func undoManagerChanged() {
+            guard let canvas else { return }
+            updateUndoState(canvas)
+        }
+
+        private func updateUndoState(_ canvas: PKCanvasView) {
+            parent.viewModel.canUndo = canvas.undoManager?.canUndo ?? false
+            parent.viewModel.canRedo = canvas.undoManager?.canRedo ?? false
+        }
+    }
+}
+
+// MARK: - PencilKit PDF Exporter
+
+enum PdfPencilKitExporter {
+    static func export(
+        document: PDFDocument,
+        pageCount: Int,
+        getDrawing: @escaping (Int) -> PKDrawing,
+        getShapes: @escaping (Int) -> [ShapeAnnotation],
+        getTexts: @escaping (Int) -> [TextAnnotation]
+    ) async throws -> URL {
+        try await Task.detached(priority: .userInitiated) {
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("annotated_\(UUID().uuidString).pdf")
+
+            let data = NSMutableData()
+            UIGraphicsBeginPDFContextToData(data, .zero, nil)
+
+            for pageIndex in 0..<pageCount {
+                guard let pdfPage = document.page(at: pageIndex) else { continue }
+
+                let renderWidth: CGFloat = 1080
+                let pageRect = pdfPage.bounds(for: .cropBox)
+                let scale = renderWidth / pageRect.width
+                let renderSize = CGSize(width: renderWidth, height: pageRect.height * scale)
+
+                UIGraphicsBeginPDFPageWithInfo(CGRect(origin: .zero, size: renderSize), nil)
+                guard let ctx = UIGraphicsGetCurrentContext() else { continue }
+
+                // Layer 1: PDF page
+                ctx.saveGState()
+                ctx.scaleBy(x: scale, y: scale)
+                pdfPage.draw(with: .cropBox, to: ctx)
+                ctx.restoreGState()
+
+                // Layer 2: PencilKit drawing
+                let drawing = getDrawing(pageIndex)
+                let pkImage = drawing.image(from: CGRect(origin: .zero, size: renderSize), scale: 1.0)
+                pkImage.draw(in: CGRect(origin: .zero, size: renderSize))
+
+                // Layer 3: Shapes
+                let shapes = getShapes(pageIndex)
+                PdfExporter.drawShapesPublic(shapes, in: ctx, scale: scale)
+
+                // Layer 4: Text
+                let texts = getTexts(pageIndex)
+                PdfExporter.drawTextsPublic(texts, in: ctx, scale: scale)
+            }
+
+            UIGraphicsEndPDFContext()
+            try (data as Data).write(to: tempURL)
+            return tempURL
+        }.value
     }
 }
 

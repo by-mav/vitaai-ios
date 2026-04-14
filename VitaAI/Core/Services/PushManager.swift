@@ -23,6 +23,9 @@ final class PushManager: NSObject, ObservableObject {
 
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @Published private(set) var deviceToken: String? = nil
+    @Published var unreadNotificationCount: Int = 0
+    /// Cached notifications from last fetch — used by popout for instant display
+    @Published private(set) var cachedNotifications: [VitaNotification] = []
 
     // MARK: - UserDefaults key (non-sensitive — mirrors Android saveFcmToken)
     private let tokenDefaultsKey = "vita_apns_device_token"
@@ -83,8 +86,29 @@ final class PushManager: NSObject, ObservableObject {
         _ notification: UNNotification,
         completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // Show banner + sound + badge even while app is foregrounded
         completionHandler([.banner, .badge, .sound])
+        Task { await refreshUnreadCount() }
+    }
+
+    /// Fetch notifications from backend, cache them, and update unread count.
+    func refreshUnreadCount() async {
+        guard let api else { return }
+        do {
+            let items = try await api.getNotifications()
+            let count = items.filter { !$0.read }.count
+            await MainActor.run {
+                cachedNotifications = items
+                unreadNotificationCount = count
+            }
+        } catch {
+            // Non-fatal
+        }
+    }
+
+    /// Update cached notifications locally (e.g. after mark-read)
+    func updateCachedNotifications(_ items: [VitaNotification]) {
+        cachedNotifications = items
+        unreadNotificationCount = items.filter { !$0.read }.count
     }
 
     // MARK: - Stored Token

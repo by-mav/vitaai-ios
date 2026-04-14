@@ -122,8 +122,15 @@ final class ConnectorsViewModel {
                 let pingRelative = conn.lastPingAt.flatMap { formatRelativeTime($0) }
                 let syncAbsolute = conn.lastSyncAt.flatMap { formatAbsoluteTime($0) }
                 let stale = isStale(conn.lastSyncAt)
-                // So mostra "Token vivo" separado se realmente divergir do sync
-                let pingDifferent = pingRelative != nil && pingRelative != syncRelative
+                // So mostra "Token vivo" se status=connected E ping for MAIS RECENTE que sync.
+                // Se sync > ping, o ping antigo e irrelevante (acabou de reconectar).
+                // Quando expired, token NAO e vivo — nunca mostrar.
+                let pingNewerThanSync: Bool = {
+                    guard let pingDate = conn.lastPingAt.flatMap({ parseISO($0) }),
+                          let syncDate = conn.lastSyncAt.flatMap({ parseISO($0) }) else { return true }
+                    return pingDate > syncDate
+                }()
+                let pingDifferent = status == .connected && pingRelative != nil && pingRelative != syncRelative && pingNewerThanSync
 
                 switch conn.portalType {
                 case "canvas":
@@ -206,7 +213,7 @@ final class ConnectorsViewModel {
             let data = try await api.getWhatsAppStatus()
             if data.verified, data.phone != nil {
                 whatsapp.status = .connected
-                whatsapp.subtitle = data.phone
+                whatsapp.subtitle = Self.formatPhone(data.phone)
             } else {
                 whatsapp.status = .disconnected
                 whatsapp.subtitle = nil
@@ -283,10 +290,10 @@ final class ConnectorsViewModel {
                 try await api.disconnectPortal()
                 mannesoft = ConnectorState(id: "mannesoft", name: "Portal Academico")
             case "google_calendar":
-                try await api.disconnectGoogleCalendar()
+                try await api.disconnectIntegration("google_calendar")
                 calendar = ConnectorState(id: "google_calendar", name: "Google Calendar")
             case "google_drive":
-                try await api.disconnectGoogleDrive()
+                try await api.disconnectIntegration("google_drive")
                 drive = ConnectorState(id: "google_drive", name: "Google Drive")
             case "spotify":
                 try await api.disconnectIntegration("spotify")
@@ -308,6 +315,36 @@ final class ConnectorsViewModel {
     }
 
     // MARK: - Connect
+
+    func connectAppleHealth() async {
+        let hk = HealthKitManager.shared
+        guard hk.isAvailable else {
+            toastMessage = "Apple Health nao disponivel neste dispositivo"
+            toastType = .error
+            return
+        }
+        let granted = await hk.requestAuthorization()
+        if granted {
+            appleHealth.status = .connected
+            async let sleepTask = hk.fetchSleepData()
+            async let stepsTask = hk.fetchSteps()
+            async let exerciseTask = hk.fetchExerciseMinutes()
+            let (sleep, steps, exerciseMin) = await (sleepTask, stepsTask, exerciseTask)
+            let totalSleepHours = sleep.reduce(0.0) { $0 + $1.hours }
+            let totalSteps = steps.reduce(0) { $0 + $1.count }
+            appleHealth.stats = [
+                (Int(totalSleepHours), "h sono (7d)"),
+                (totalSteps, "passos (7d)"),
+                (Int(exerciseMin), "min exercicio"),
+            ]
+            appleHealth.lastSync = "agora"
+            toastMessage = "Apple Health conectado!"
+            toastType = .success
+        } else {
+            toastMessage = "Permissao negada"
+            toastType = .error
+        }
+    }
 
     func connectIntegration(_ connectorId: String) async {
         do {
@@ -392,6 +429,12 @@ final class ConnectorsViewModel {
 
     // MARK: - Helpers
 
+    private func parseISO(_ isoDate: String) -> Date? {
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fmt.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate)
+    }
+
     private func formatRelativeTime(_ isoDate: String) -> String? {
         var date: Date?
         let fullFmt = ISO8601DateFormatter()
@@ -425,6 +468,29 @@ final class ConnectorsViewModel {
             fmt.dateFormat = "dd/MM/yy"
         }
         return fmt.string(from: date)
+    }
+
+    /// Format BR phone: "5551989484243" → "+55 51 98948-4243"
+    private static func formatPhone(_ raw: String?) -> String? {
+        guard let raw, !raw.isEmpty else { return nil }
+        let digits = raw.filter(\.isNumber)
+        guard digits.count >= 10 else { return "+\(digits)" }
+        if digits.count == 13 {
+            // +CC AA 9XXXX-XXXX
+            let cc = digits.prefix(2)
+            let area = digits.dropFirst(2).prefix(2)
+            let part1 = digits.dropFirst(4).prefix(5)
+            let part2 = digits.dropFirst(9)
+            return "+\(cc) \(area) \(part1)-\(part2)"
+        }
+        if digits.count == 11 {
+            // AA 9XXXX-XXXX
+            let area = digits.prefix(2)
+            let part1 = digits.dropFirst(2).prefix(5)
+            let part2 = digits.dropFirst(7)
+            return "+55 \(area) \(part1)-\(part2)"
+        }
+        return "+\(digits)"
     }
 
     /// Considera stale quando a ultima extracao com dados foi > 12h atras.

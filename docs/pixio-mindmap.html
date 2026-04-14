@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixio — Source of Truth</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; background: #0a0f1a; }
+  body { position: fixed !important; inset: 0; }
+  .markmap { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
+  .markmap > svg { width: 100vw !important; height: 100vh !important; display: block; touch-action: none; }
+  #controls { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; gap: 6px; flex-direction: column; }
+  #controls button { width: 40px; height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(10,15,26,0.9); color: #ccc; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  #controls button:hover { background: rgba(30,40,70,0.9); color: #fff; }
+  #meta { position: fixed; bottom: 20px; left: 20px; z-index: 9999; color: rgba(255,255,255,0.3); font: 10px/1.4 system-ui, sans-serif; pointer-events: none; }
+  #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.5); font: 14px system-ui; z-index: 9999; background: #0a0f1a; transition: opacity 0.3s; }
+  #loading.hidden { opacity: 0; pointer-events: none; }
+</style>
+<script>
+document.addEventListener('wheel', function(e){ e.preventDefault(); }, {passive:false, capture:true});
+window.addEventListener('scroll', function(){ window.scrollTo(0,0); });
+</script>
+</head>
+<body>
+
+<div id="loading">Carregando dados do Pixio...</div>
+
+<div class="markmap">
+<script id="md-source" type="text/template">
+---
+markmap:
+  maxWidth: 420
+  initialExpandLevel: 2
+  colorFreezeLevel: 3
+---
+
+# Pixio
+## Carregando dados...
+</script>
+</div>
+
+<div id="controls">
+  <button id="btn-zin" title="Zoom in">+</button>
+  <button id="btn-zout" title="Zoom out">&minus;</button>
+  <button id="btn-fit" title="Fit">&squf;</button>
+  <button id="btn-refresh" title="Refresh &#8635;">&#x21bb;</button>
+</div>
+<div id="meta">
+  Scroll = zoom &middot; Drag = pan &middot; Click = expand<br>
+  <span id="meta-info">Carregando...</span>
+</div>
+
+<script>
+var API_URL = 'http://monstro.tail7e98e6.ts.net:3000/api/mindmap/data?token=pixio-cron-dev';
+var HEADER = '---\nmarkmap:\n  maxWidth: 420\n  initialExpandLevel: 2\n  colorFreezeLevel: 3\n---\n\n';
+var loadingEl = document.getElementById('loading');
+
+function setStatus(msg) { loadingEl.textContent = msg; }
+
+setStatus('Conectando ao Pixio...');
+fetch(API_URL)
+  .then(function(r) {
+    setStatus('Recebendo dados... (' + r.status + ')');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(data) {
+    var lines = data.markdown.split('\n').length;
+    setStatus('Renderizando mapa (' + lines + ' linhas)...');
+    document.getElementById('md-source').textContent = HEADER + data.markdown;
+
+    var ts = new Date(data.timestamp);
+    document.getElementById('meta-info').textContent =
+      'Live: ' + data.stats.users + ' users | ' +
+      data.stats.accounts + ' accounts | ' +
+      Number(data.stats.transactions).toLocaleString('pt-BR') + ' transactions | ' +
+      data.stats.goals + ' goals | ' +
+      data.stats.tables + ' tables | ' +
+      ts.toLocaleString('pt-BR');
+
+    loadAutoloader();
+  })
+  .catch(function(err) {
+    console.error('[pixio-mindmap] API error:', err);
+    setStatus('ERRO: ' + err.message);
+    document.getElementById('meta-info').textContent = 'Erro: ' + err.message;
+    loadAutoloader();
+  });
+
+function loadAutoloader() {
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/markmap-autoloader';
+  s.onload = function() {
+    document.getElementById('loading').classList.add('hidden');
+    waitForRenderAndApplyZoom();
+  };
+  document.head.appendChild(s);
+}
+
+function waitForRenderAndApplyZoom() {
+  (function check() {
+    var svg = document.querySelector('.markmap > svg');
+    if (!svg || !svg.querySelector('g') || typeof d3 === 'undefined') {
+      return setTimeout(check, 200);
+    }
+    svg.style.width = '100vw';
+    svg.style.height = '100vh';
+    var g = svg.querySelector('g');
+    var currentTransform = d3.zoomTransform(svg);
+    var zoom = d3.zoom()
+      .scaleExtent([0.02, 10])
+      .on('zoom', function(event) { g.setAttribute('transform', event.transform.toString()); });
+    d3.select(svg).call(zoom).call(zoom.transform, currentTransform);
+
+    document.getElementById('btn-zin').onclick = function(e) {
+      e.preventDefault(); d3.select(svg).transition().duration(300).call(zoom.scaleBy, 1.3);
+    };
+    document.getElementById('btn-zout').onclick = function(e) {
+      e.preventDefault(); d3.select(svg).transition().duration(300).call(zoom.scaleBy, 0.7);
+    };
+    document.getElementById('btn-fit').onclick = function(e) {
+      e.preventDefault(); d3.select(svg).transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(window.innerWidth/2, window.innerHeight/2).scale(0.35));
+    };
+    document.getElementById('btn-refresh').onclick = function(e) {
+      e.preventDefault(); location.reload();
+    };
+  })();
+}
+</script>
+</body>
+</html>

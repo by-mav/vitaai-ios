@@ -130,9 +130,9 @@ struct GradeSubject: Codable, Identifiable {
     var grade3: Double?
     var finalGrade: Double?
     var status: String = "cursando"
-    var attendance: Int?
-    var absences: Int?
-    var workload: Int?
+    var attendance: Double?
+    var absences: Double?
+    var workload: Double?
     var weight1: Double?
     var weight2: Double?
     var weight3: Double?
@@ -150,9 +150,9 @@ struct GradeSubject: Codable, Identifiable {
         grade3 = Self.flexDouble(c, .grade3)
         finalGrade = Self.flexDouble(c, .finalGrade)
         status = (try? c.decode(String.self, forKey: .status)) ?? "cursando"
-        attendance = (try? c.decode(Int.self, forKey: .attendance))
-        absences = (try? c.decode(Int.self, forKey: .absences))
-        workload = (try? c.decode(Int.self, forKey: .workload))
+        attendance = Self.flexDouble(c, .attendance)
+        absences = Self.flexDouble(c, .absences)
+        workload = Self.flexDouble(c, .workload)
         weight1 = Self.flexDouble(c, .weight1)
         weight2 = Self.flexDouble(c, .weight2)
         weight3 = Self.flexDouble(c, .weight3)

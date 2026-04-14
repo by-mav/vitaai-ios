@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "disc-biosseguranca.webp",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

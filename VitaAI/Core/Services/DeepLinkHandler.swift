@@ -1,5 +1,11 @@
 import Foundation
 
+extension Notification.Name {
+    /// Posted when an integration OAuth flow completes via deep link callback.
+    /// Object is the provider name string (e.g. "google_calendar").
+    static let integrationOAuthCompleted = Notification.Name("integrationOAuthCompleted")
+}
+
 // MARK: - DeepLinkHandler
 //
 // Parses incoming vitaai:// URLs and maps them to app Routes.
@@ -16,6 +22,7 @@ import Foundation
 //   vitaai://flashcard/{id}    -> .flashcardSession(deckId: id)
 //   vitaai://notebooks         -> .notebookList
 //   vitaai://notebook/{id}     -> .notebookEditor(notebookId: id)
+//   vitaai://trabalho/{id}     -> .trabalhoDetail(id: id)
 //   vitaai://auth/callback     -> .authCallback (handled by AuthManager)
 //   vitaai://settings/about         -> .about
 //   vitaai://settings/appearance    -> .appearance
@@ -36,6 +43,8 @@ final class DeepLinkHandler {
         case navigate(Route)
         /// Auth callback — handled separately by AuthManager.
         case authCallback
+        /// Integration OAuth callback — provider connected successfully.
+        case integrationCallback(provider: String)
         /// URL could not be mapped to a known route.
         case unknown(URL)
         /// No deep link data present.
@@ -68,6 +77,13 @@ final class DeepLinkHandler {
         case "auth":
             return .authCallback
 
+        // Integration OAuth callback: vitaai://integrations/callback?provider=google_calendar&status=success
+        case "integrations":
+            if pathSegments.first == "callback", let provider = queryValue("provider") {
+                return .integrationCallback(provider: provider)
+            }
+            return .navigate(.connections)
+
         // Main tabs
         case "home":       return .navigate(.home)
         case "estudos":    return .navigate(.estudos)
@@ -97,6 +113,13 @@ final class DeepLinkHandler {
                 return .navigate(.notebookEditor(notebookId: notebookId))
             }
             return .navigate(.notebookList)
+
+        // Trabalho detail: vitaai://trabalho/{id}
+        case "trabalho":
+            if let id = pathSegments.first, !id.isEmpty {
+                return .navigate(.trabalhoDetail(id: id))
+            }
+            return .navigate(.trabalhos)
 
         // Atlas 3D
         case "atlas": return .navigate(.atlas3D)

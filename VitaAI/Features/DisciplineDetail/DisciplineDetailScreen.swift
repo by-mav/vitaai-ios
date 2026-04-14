@@ -55,6 +55,7 @@ struct DisciplineDetailScreen: View {
                         scheduleCard(vm: vm)
                         nextExamCard(vm: vm)
                         allExamsCard(vm: vm)
+                        trabalhosCard(vm: vm)
                         studyCard(vm: vm)
                         documentsCard(vm: vm)
                         Spacer().frame(height: 100)
@@ -138,7 +139,7 @@ struct DisciplineDetailScreen: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "clock")
                                     .font(.system(size: 9))
-                                Text("\(wl)h")
+                                Text(String(format: "%.0fh", wl))
                                     .font(.system(size: 11, weight: .medium))
                             }
                             .foregroundStyle(goldMuted.opacity(0.65))
@@ -147,7 +148,7 @@ struct DisciplineDetailScreen: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "person.badge.minus")
                                     .font(.system(size: 9))
-                                Text("\(abs) faltas")
+                                Text(String(format: "%.0f faltas", abs))
                                     .font(.system(size: 11, weight: .medium))
                             }
                             .foregroundStyle(abs > 10 ? VitaColors.dataRed.opacity(0.85) : goldMuted.opacity(0.65))
@@ -205,8 +206,10 @@ struct DisciplineDetailScreen: View {
 
                 Spacer()
 
-                vitaScoreBadge(score: vm.vitaScore)
-                    .padding(.top, 2)
+                if vm.vitaScore > 0 {
+                    vitaScoreBadge(score: vm.vitaScore)
+                        .padding(.top, 2)
+                }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
@@ -284,7 +287,7 @@ struct DisciplineDetailScreen: View {
                         HStack(spacing: 3) {
                             Image(systemName: "person.fill.checkmark")
                                 .font(.system(size: 9))
-                            Text("\(att)%")
+                            Text(String(format: "%.0f%%", att))
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
                         }
                         .foregroundStyle(att >= 75 ? VitaColors.dataGreen : VitaColors.dataRed)
@@ -557,14 +560,126 @@ struct DisciplineDetailScreen: View {
         .padding(.vertical, 8)
     }
 
+    // MARK: - Trabalhos Card
+
+    @ViewBuilder
+    private func trabalhosCard(vm: DisciplineDetailViewModel) -> some View {
+        let items = vm.subjectTrabalhos
+        if !items.isEmpty {
+            VitaGlassCard {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        HStack(spacing: 6) {
+                            Image(systemName: "doc.badge.clock")
+                                .font(.system(size: 12))
+                                .foregroundStyle(goldPrimary)
+                            Text("Trabalhos")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(textPrimary)
+                        }
+                        Spacer()
+                        if !vm.trabalhosPending.isEmpty {
+                            Text("\(vm.trabalhosPending.count) pendente\(vm.trabalhosPending.count > 1 ? "s" : "")")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(VitaColors.dataAmber)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(VitaColors.dataAmber.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 10)
+
+                    ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                        if idx > 0 {
+                            Rectangle().fill(glassBorder).frame(height: 0.5)
+                                .padding(.horizontal, 16)
+                        }
+                        Button {
+                            router.navigate(to: .trabalhoDetail(id: item.id))
+                        } label: {
+                            trabalhoRow(item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.bottom, 14)
+            }
+        }
+    }
+
+    private func trabalhoRow(_ item: TrabalhoItem) -> some View {
+        let statusColor: Color = {
+            if item.submitted { return VitaColors.dataGreen }
+            if let d = item.daysUntil, d < 0 { return VitaColors.dataRed }
+            if item.status == "graded" { return VitaColors.accent }
+            if let d = item.daysUntil, d <= 3 { return VitaColors.dataAmber }
+            return goldMuted
+        }()
+        let statusText: String = {
+            if item.submitted { return "ENTREGUE" }
+            if let d = item.daysUntil, d < 0 { return "ATRASADO" }
+            if item.status == "graded" { return "CORRIGIDO" }
+            return "PENDENTE"
+        }()
+
+        return HStack(spacing: 10) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 6, height: 6)
+                .padding(.top, 6)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(textPrimary)
+                    .lineLimit(1)
+                if let date = item.dueDate {
+                    let fmt = DateFormatter()
+                    let _ = { fmt.locale = Locale(identifier: "pt_BR"); fmt.dateFormat = "dd/MM" }()
+                    Text(fmt.string(from: date))
+                        .font(.system(size: 10))
+                        .foregroundStyle(textDim)
+                }
+            }
+
+            Spacer()
+
+            Text(statusText)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(statusColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(statusColor.opacity(0.12))
+                .clipShape(Capsule())
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(textDim)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
     // MARK: - Study Section (always visible)
 
     private func studyCard(vm: DisciplineDetailViewModel) -> some View {
-        VitaGlassCard {
+        let progress = vm.subjectProgress
+        return VitaGlassCard {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Estudar")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(textPrimary)
+                HStack {
+                    Text("Estudar")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(textPrimary)
+                    Spacer()
+                    if let p = progress, p.hoursSpent > 0 {
+                        Text(String(format: "%.1fh estudadas", p.hoursSpent))
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(textDim)
+                    }
+                }
 
                 studyRow(
                     icon: "rectangle.on.rectangle.angled",
@@ -581,7 +696,7 @@ struct DisciplineDetailScreen: View {
                 studyRow(
                     icon: "list.bullet.clipboard",
                     title: "Questões",
-                    detail: "Banco de questões",
+                    detail: questoesDetail(vm),
                     badge: nil,
                     badgeColor: .clear
                 ) {
@@ -592,8 +707,8 @@ struct DisciplineDetailScreen: View {
 
                 studyRow(
                     icon: "clock.badge.checkmark",
-                    title: "Simulado",
-                    detail: "Prova cronometrada",
+                    title: "Simulados",
+                    detail: simuladoDetail(vm),
                     badge: nil,
                     badgeColor: .clear
                 ) {
@@ -610,7 +725,22 @@ struct DisciplineDetailScreen: View {
         } else if vm.flashcardsTotal > 0 {
             return "\(vm.flashcardsTotal) cards"
         }
-        return "Criar flashcards"
+        return "Iniciar flashcards"
+    }
+
+    private func questoesDetail(_ vm: DisciplineDetailViewModel) -> String {
+        if let p = vm.subjectProgress, p.questionCount > 0 {
+            let pct = Int(p.accuracy * 100)
+            return "\(p.questionCount) respondidas · \(pct)% acerto"
+        }
+        return "Iniciar questões"
+    }
+
+    private func simuladoDetail(_ vm: DisciplineDetailViewModel) -> String {
+        if let p = vm.subjectProgress, p.questionCount > 0 {
+            return "Treinar com prova cronometrada"
+        }
+        return "Iniciar simulado"
     }
 
     private func studyRow(icon: String, title: String, detail: String, badge: String?, badgeColor: Color, action: @escaping () -> Void) -> some View {
@@ -654,11 +784,48 @@ struct DisciplineDetailScreen: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Documents
+    // MARK: - Documents (grouped by type)
+
+    private struct DocCategory: Identifiable {
+        var id: String { label }
+        let label: String
+        let icon: String
+        let color: Color
+        let docs: [VitaDocument]
+    }
+
+    private func categorizedDocs(_ docs: [VitaDocument]) -> [DocCategory] {
+        var planos: [VitaDocument] = []
+        var slides: [VitaDocument] = []
+        var provas: [VitaDocument] = []
+        var outros: [VitaDocument] = []
+
+        for doc in docs {
+            let t = doc.title.lowercased()
+            if t.contains("plano") || t.contains("cronograma") || t.contains("ementa") || t.contains("syllabus") {
+                planos.append(doc)
+            } else if t.contains("apresenta") || t.contains("aula") || t.contains("slide") || t.contains("pptx") || doc.fileName.lowercased().hasSuffix(".pptx") {
+                slides.append(doc)
+            } else if t.contains("prova") || t.contains("ade") || t.contains("avaliação") || t.contains("simulado") || t.contains("gabarito") {
+                provas.append(doc)
+            } else {
+                outros.append(doc)
+            }
+        }
+
+        var result: [DocCategory] = []
+        if !planos.isEmpty { result.append(DocCategory(label: "Planos de Ensino", icon: "list.clipboard", color: VitaColors.accent, docs: planos)) }
+        if !slides.isEmpty { result.append(DocCategory(label: "Aulas & Slides", icon: "doc.richtext", color: VitaColors.dataAmber, docs: slides)) }
+        if !provas.isEmpty { result.append(DocCategory(label: "Provas & Avaliações", icon: "checkmark.seal", color: VitaColors.dataRed, docs: provas)) }
+        if !outros.isEmpty { result.append(DocCategory(label: "Outros Materiais", icon: "doc.text", color: goldPrimary, docs: outros)) }
+        return result
+    }
 
     @ViewBuilder
     private func documentsCard(vm: DisciplineDetailViewModel) -> some View {
-        if !vm.subjectDocuments.isEmpty {
+        let allDocs = vm.subjectDocuments
+        if !allDocs.isEmpty {
+            let categories = categorizedDocs(allDocs)
             VitaGlassCard {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
@@ -666,7 +833,7 @@ struct DisciplineDetailScreen: View {
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(textPrimary)
                         Spacer()
-                        Text("\(vm.subjectDocuments.count)")
+                        Text("\(allDocs.count)")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(goldMuted)
                     }
@@ -674,52 +841,76 @@ struct DisciplineDetailScreen: View {
                     .padding(.top, 14)
                     .padding(.bottom, 10)
 
-                    ForEach(Array(vm.subjectDocuments.prefix(5).enumerated()), id: \.element.id) { idx, doc in
-                        if idx > 0 {
-                            Rectangle().fill(glassBorder).frame(height: 0.5)
-                                .padding(.horizontal, 16)
-                        }
-                        HStack(spacing: 10) {
-                            Image(systemName: docIcon(doc.fileName))
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(goldPrimary.opacity(0.80))
-                                .frame(width: 24, height: 24)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(goldPrimary.opacity(0.10))
-                                )
-
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(doc.title.isEmpty ? doc.fileName : doc.title)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundStyle(textPrimary)
-                                    .lineLimit(1)
-                                if let date = doc.createdAt {
-                                    Text(formatDate(date, format: "dd/MM/yyyy"))
-                                        .font(.system(size: 10))
-                                        .foregroundStyle(textDim)
-                                }
-                            }
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(textDim)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                    }
-
-                    if vm.subjectDocuments.count > 5 {
-                        Text("+ \(vm.subjectDocuments.count - 5) materiais")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(goldMuted)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 6)
+                    ForEach(categories) { cat in
+                        docCategorySection(cat)
                     }
                 }
                 .padding(.bottom, 14)
+            }
+        }
+    }
+
+    @Environment(Router.self) private var router
+
+    private func docCategorySection(_ cat: DocCategory) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: cat.icon)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(cat.color.opacity(0.80))
+                Text(cat.label.uppercased())
+                    .font(.system(size: 10, weight: .bold))
+                    .tracking(0.6)
+                    .foregroundStyle(cat.color.opacity(0.65))
+                Spacer()
+                Text("\(cat.docs.count)")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(textDim)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 6)
+
+            ForEach(Array(cat.docs.enumerated()), id: \.element.id) { idx, doc in
+                if idx > 0 {
+                    Rectangle().fill(glassBorder).frame(height: 0.5)
+                        .padding(.horizontal, 16)
+                }
+                Button {
+                    router.navigate(to: .pdfViewer(url: doc.fileUrl))
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: docIcon(doc.fileName))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(cat.color.opacity(0.80))
+                            .frame(width: 24, height: 24)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(cat.color.opacity(0.10))
+                            )
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(doc.title.isEmpty ? doc.fileName : doc.title)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(textPrimary)
+                                .lineLimit(1)
+                            if let date = doc.createdAt {
+                                Text(formatDate(date, format: "dd/MM/yyyy"))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(textDim)
+                            }
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(textDim)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
             }
         }
     }

@@ -18,7 +18,7 @@ struct AtlasWebViewScreen: View {
     @State private var tokenReady = false
     @State private var reloadTrigger = 0
 
-    private var atlasURL: String { AppConfig.authBaseURL + "/atlas-v5.html" }
+    private var atlasURL: String { AppConfig.authBaseURL + "/atlas-embed" }
 
     var body: some View {
         ZStack {

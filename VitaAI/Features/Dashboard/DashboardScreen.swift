@@ -67,6 +67,8 @@ struct DashboardScreen: View {
                     }
                 }
             }
+            // Silent background sync — keeps Mannesoft/Canvas data fresh
+            SilentPortalSync.shared.syncIfNeeded(api: container.api)
         }
         // XP toasts now shown inline in VitaTopBar
     }
@@ -92,30 +94,17 @@ struct DashboardScreen: View {
                     .padding(.bottom, 12)
                     .padding(.horizontal, 16)
 
-                // ═══ TOOLS GRID 2x2 — IMAGES ONLY ═══
+                // ═══ TOOLS GRID 2x2 ═══
                 toolsGrid()
                     .padding(.horizontal, 16)
 
-                // ═══ "Minhas Disciplinas" ═══
-                Text("Minhas Disciplinas")
-                    .font(.system(size: 10, weight: .semibold))
-                    .kerning(0.8)
-                    .textCase(.uppercase)
-                    .foregroundStyle(VitaColors.sectionLabel)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 12)
-                    .padding(.bottom, 12)
-                    .padding(.horizontal, 16)
-
-                // ═══ DISCIPLINES — skeleton → scroll ═══
-                if viewModel.isLoading {
-                    disciplinesSkeleton()
-                } else {
-                    disciplinesScroll()
-                }
-
-                // ═══ ATLAS 3D + AGENDA side by side ═══
-                atlasAgendaRow(viewModel: viewModel)
+                // ═══ MATÉRIAS ↔ AGENDA (swipe) ═══
+                MateriasAgendaWidget(
+                    subjects: appData.gradesResponse?.current ?? [],
+                    schedule: appData.classSchedule,
+                    evaluations: appData.academicEvaluations,
+                    onNavigateToDiscipline: onNavigateToDisciplineDetail
+                )
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
 
@@ -397,24 +386,14 @@ struct DashboardScreen: View {
         )
     }
 
-    private func shortSubjectName(_ subject: String) -> String {
-        subject
-            .replacingOccurrences(of: "(?i)\\bMÉDICA\\b", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "(?i)\\bMÉDICO\\b", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "\\b(III|II|I)\\b", with: "", options: .regularExpression)
-            .replacingOccurrences(of: ",.*$", with: "", options: .regularExpression)
-            .components(separatedBy: .whitespaces).filter { !$0.isEmpty }.joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
-    }
-
     private func formatDays(_ n: Int) -> String {
         if n == 0 { return "hoje" }
         if n == 1 { return "amanhã" }
         return "em \(n) dias"
     }
 
-    // MARK: - Tools Grid 2x2
 
+    // Legacy: kept for reference but unused now
     @ViewBuilder
     private func toolsGrid() -> some View {
         VStack(spacing: 8) {
@@ -441,261 +420,19 @@ struct DashboardScreen: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 130)
                 .background(bg)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 18)
+                    RoundedRectangle(cornerRadius: 14)
                         .stroke(
                             Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.16),
                             lineWidth: 0.5
                         )
                 )
-                .shadow(color: .black.opacity(0.50), radius: 25, x: 0, y: 10)
-                .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 3)
-                .shadow(color: Color(red: 0.706, green: 0.549, blue: 0.235).opacity(0.07), radius: 14, x: 0, y: 0)
+                .shadow(color: .black.opacity(0.40), radius: 12, x: 0, y: 5)
+                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
-    }
-
-    // MARK: - Disciplines Skeleton
-
-    @ViewBuilder
-    private func disciplinesSkeleton() -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(0..<3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: VitaColors.textWarm.opacity(0.03), location: 0),
-                                    .init(color: VitaColors.textWarm.opacity(0.08), location: 0.5),
-                                    .init(color: VitaColors.textWarm.opacity(0.03), location: 1),
-                                ],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
-                        .frame(width: 100, height: 67)
-                        .shimmer()
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-        .mask(
-            LinearGradient(
-                stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black, location: 0.75),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .leading, endPoint: .trailing
-            )
-        )
-    }
-
-    private func disciplineImage(for name: String) -> String {
-        let s = name.lowercased()
-            .folding(options: .diacriticInsensitive, locale: .init(identifier: "pt_BR"))
-        if s.contains("farmacologia")  { return "disc-farmacologia" }
-        if s.contains("patologia")     { return "disc-patologia-geral" }
-        if s.contains("fisiologia")    { return "disc-fisiologia-1" }
-        if s.contains("bioquimica")    { return "disc-bioquimica" }
-        if s.contains("anatomia")      { return "disc-anatomia" }
-        if s.contains("histologia")    { return "disc-histologia" }
-        if s.contains("legal") || s.contains("etica") { return "disc-medicina-legal" }
-        return "disc-interprofissional"
-    }
-
-    @ViewBuilder
-    private func disciplinesScroll() -> some View {
-        // appData.gradesResponse is the reliable source (from /api/grades/current)
-        // viewModel.subjects from /api/dashboard is unreliable fallback
-        let gradeSubjects = appData.gradesResponse?.current ?? []
-        let dashSubjects = viewModel?.subjects ?? []
-
-        if !gradeSubjects.isEmpty {
-            disciplineCards(names: gradeSubjects.map(\.subjectName), tierFor: { name in
-                dashSubjects.first(where: { $0.name == name })?.vitaTier
-            })
-        } else if !dashSubjects.isEmpty {
-            disciplineCards(names: dashSubjects.compactMap(\.name), tierFor: { name in
-                dashSubjects.first(where: { $0.name == name })?.vitaTier
-            })
-        } else {
-            HStack(spacing: 8) {
-                Image(systemName: "graduationcap")
-                    .font(.system(size: 18))
-                    .foregroundStyle(VitaColors.accent.opacity(0.35))
-                Text("Nenhuma disciplina encontrada")
-                    .font(.system(size: 12))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.35))
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-        }
-    }
-
-    @ViewBuilder
-    private func disciplineCards(names: [String], tierFor: @escaping (String) -> String?) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(names, id: \.self) { name in
-                    let img = disciplineImage(for: name)
-                    let tier = tierFor(name)
-                    Button {
-                        onNavigateToDisciplineDetail?(name, name)
-                    } label: {
-                        ZStack(alignment: .topTrailing) {
-                            Image(img)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 100, height: 67)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .shadow(color: .black.opacity(0.30), radius: 5, x: 0, y: 2)
-
-                            Circle()
-                                .fill(tierDotColor(tier))
-                                .frame(width: 8, height: 8)
-                                .shadow(color: tierDotColor(tier).opacity(0.6), radius: 3)
-                                .padding(6)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-        .mask(
-            LinearGradient(
-                stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black, location: 0.75),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .leading, endPoint: .trailing
-            )
-        )
-    }
-
-    // MARK: - Atlas 3D + Agenda Row
-
-    @ViewBuilder
-    private func atlasAgendaRow(viewModel: DashboardViewModel) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Button(action: { onNavigateToAtlas3D?() }) {
-                Image("tool-atlas3d")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 110)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .shadow(color: .black.opacity(0.35), radius: 10, x: 0, y: 4)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("tool_atlas3d")
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Agenda")
-                    .font(.system(size: 10, weight: .semibold))
-                    .kerning(0.8)
-                    .textCase(.uppercase)
-                    .foregroundStyle(VitaColors.sectionLabel)
-
-                if viewModel.isLoading {
-                    agendaSkeleton()
-                } else if viewModel.agenda.isEmpty && viewModel.upcomingExams.isEmpty {
-                    agendaEmptyState()
-                } else {
-                    agendaList(viewModel: viewModel)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    @ViewBuilder
-    private func agendaSkeleton() -> some View {
-        VStack(spacing: 6) {
-            ForEach([1.0, 0.8, 0.6], id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(
-                        LinearGradient(
-                            stops: [
-                                .init(color: VitaColors.textWarm.opacity(0.03), location: 0),
-                                .init(color: VitaColors.textWarm.opacity(0.08), location: 0.5),
-                                .init(color: VitaColors.textWarm.opacity(0.03), location: 1),
-                            ],
-                            startPoint: .leading, endPoint: .trailing
-                        )
-                    )
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 12)
-                    .shimmer()
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func agendaEmptyState() -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: "clipboard.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(VitaColors.accent.opacity(0.35))
-
-            Text("Nenhuma prova próxima")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color(red: 1, green: 0.988, blue: 0.973).opacity(0.55))
-
-            Text("Aproveite para revisar!")
-                .font(.system(size: 10))
-                .foregroundStyle(VitaColors.textWarm.opacity(0.28))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .multilineTextAlignment(.center)
-    }
-
-    // MARK: - Agenda List (v2: dot + title + date, up to 5, urgency colors)
-
-    @ViewBuilder
-    private func agendaList(viewModel: DashboardViewModel) -> some View {
-        VStack(spacing: 4) {
-            if !viewModel.agenda.isEmpty {
-                ForEach(viewModel.agenda.prefix(5), id: \.title) { item in
-                    agendaItemRow(title: item.title ?? "", dateStr: item.date ?? "", daysUntil: item.daysUntil ?? 0)
-                }
-            } else {
-                ForEach(viewModel.upcomingExams.prefix(5)) { exam in
-                    agendaItemRow(
-                        title: "\(exam.type) · \(exam.subject)",
-                        dateStr: formatDays(exam.daysUntil),
-                        daysUntil: exam.daysUntil
-                    )
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func agendaItemRow(title: String, dateStr: String, daysUntil: Int) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(agendaDotColor(daysUntil))
-                .frame(width: 5, height: 5)
-
-            Text(title)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Color(red: 1, green: 0.988, blue: 0.973).opacity(0.70))
-                .lineLimit(1)
-
-            Spacer()
-
-            Text(dateStr)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(agendaTextColor(daysUntil))
-                .lineLimit(1)
-        }
-        .padding(.vertical, 4)
     }
 
     private func tierDotColor(_ tier: String?) -> Color {

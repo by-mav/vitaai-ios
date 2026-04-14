@@ -34,6 +34,8 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>VitaAI usa dados de sono e exercicio para correlacionar com seu desempenho academico.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>VitaAI precisa do microfone para gravar suas aulas e gerar transcricoes automaticas.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

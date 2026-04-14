@@ -3,55 +3,91 @@ import SwiftUI
 // MARK: - ConnectorCard
 // Shared card used by ConnectionsScreen, Onboarding ConnectStep, and any future connector entry point.
 // Mirrors Android's ConnectorCard composable and web's connector-card component.
+//
+// Gold Standard — 4 estados:
+// 1. Conectado + dados frescos (<12h): 🟢 "Conectado" | "56min atrás · 4172 notas" | [Desconectar]
+// 2. Conectado + dados velhos (>12h):  🟡 "Conectado" | "⚠ Dados 14h" + "⚡ Token vivo 3min" | [Desconectar]
+// 3. Expirado:                         🔴 "Expirado"  | "⚠ Expirado · dados 56min" (sem token vivo) | [Reconectar]
+// 4. Desconectado:                     ⚪ "Disponível" | — | [Conectar]
 
 struct ConnectorCard: View {
     let letter: String
     let name: String
     let status: ConnectionItemStatus
     let color: Color
+    var subtitle: String?            // email, phone, or account info shown under name
     var lastSync: String?
-    var lastPing: String?           // "sessao viva ha Xmin" — so quando divergir do lastSync
-    var isStale: Bool = false        // conectado mas dados > 12h → clock fica ambar
+    var lastPing: String?           // "sessao viva ha Xmin" — so quando status==connected e divergir do lastSync
+    var isStale: Bool = false        // conectado mas dados > 12h → dot e texto ficam ambar
     var stats: [(value: Int, label: String)] = []
     var isPrimary: Bool = false
     var onConnect: (() -> Void)?
     var onDisconnect: (() -> Void)?
     var onTapConnected: (() -> Void)?
 
-    // Design tokens (gold palette — matches ConnectionsScreen)
+    // Design tokens (gold palette)
     private let goldSubtle = VitaColors.accentLight
     private let borderColor = VitaColors.glassBorder
     private let cardBg = VitaColors.glassBg
 
+    // State-derived colors
+    private var dotColor: Color {
+        switch status {
+        case .connected where isStale:
+            return VitaColors.dataAmber.opacity(0.75)
+        case .connected:
+            return Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.75)
+        case .expired:
+            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.75)
+        default:
+            return Color.white.opacity(0.12)
+        }
+    }
+
+    private var dotGlow: Color {
+        switch status {
+        case .connected where isStale:
+            return VitaColors.dataAmber.opacity(0.30)
+        case .connected:
+            return Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.30)
+        case .expired:
+            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.30)
+        default:
+            return .clear
+        }
+    }
+
     var body: some View {
-        let isConnected = status == .connected
+        let isActive = status == .connected || status == .expired
 
         VStack(spacing: 0) {
             // Header row
             HStack(spacing: 12) {
-                letterIcon
-                nameAndStatus(isConnected: isConnected)
-                Spacer()
-                actionArea(isConnected: isConnected)
+                HStack(spacing: 12) {
+                    letterIcon
+                    nameAndStatus
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if isActive { onTapConnected?() }
+                }
+                actionButton
             }
             .padding(14)
 
-            // Meta row — mostra sempre que tiver dado, mesmo com token expirado,
-            // pra nao esconder a ancora temporal do usuario ("expirado ha 2 dias")
+            // Meta row
             if hasMetaData {
                 metaRow
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if isActive { onTapConnected?() }
+                    }
             }
         }
         .background(cardBg)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(borderColor, lineWidth: 1))
-        .overlay {
-            if status == .connected {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture { onTapConnected?() }
-            }
-        }
     }
 
     // MARK: - Letter Icon
@@ -73,21 +109,24 @@ struct ConnectorCard: View {
 
     // MARK: - Name + Status
 
-    private func nameAndStatus(isConnected: Bool) -> some View {
+    private var nameAndStatus: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(name)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(Color(red: 1.0, green: 0.988, blue: 0.973).opacity(0.90))
 
+            if let subtitle, !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.system(size: 10.5))
+                    .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.50))
+                    .lineLimit(1)
+            }
+
             HStack(spacing: 6) {
                 Circle()
-                    .fill(
-                        isConnected
-                            ? Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.75)
-                            : Color.white.opacity(0.12)
-                    )
+                    .fill(dotColor)
                     .frame(width: 7, height: 7)
-                    .shadow(color: isConnected ? Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.30) : .clear, radius: 3)
+                    .shadow(color: dotGlow, radius: 3)
                 Text(statusLabel)
                     .font(.system(size: 10.5))
                     .foregroundColor(statusLabelColor)
@@ -106,45 +145,80 @@ struct ConnectorCard: View {
 
     private var statusLabelColor: Color {
         switch status {
+        case .connected where isStale: VitaColors.dataAmber.opacity(0.65)
         case .connected: Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.65)
-        case .expired: VitaColors.dataAmber.opacity(0.65)
+        case .expired: Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.65)
         default: isPrimary ? color.opacity(0.8) : goldSubtle.opacity(0.35)
         }
     }
 
     // MARK: - Action Button
 
-    @ViewBuilder
-    private func actionArea(isConnected: Bool) -> some View {
+    private var actionButton: some View {
         Button {
-            if isConnected { onDisconnect?() }
-            else { onConnect?() }
+            switch status {
+            case .connected:
+                onDisconnect?()
+            case .expired:
+                onConnect?()  // Reconectar
+            default:
+                onConnect?()
+            }
         } label: {
-            Text(isConnected ? "Desconectar" : "Conectar")
+            Text(buttonLabel)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(
-                    isConnected
-                        ? Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.70)
-                        : isPrimary ? color : Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.80)
-                )
+                .foregroundColor(buttonFgColor)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(
-                    isConnected
-                        ? Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.06)
-                        : (isPrimary ? color : VitaColors.glassInnerLight).opacity(0.12)
-                )
+                .background(buttonBgColor)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8).stroke(
-                        isConnected
-                            ? Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.12)
-                            : (isPrimary ? color : Color(red: 1.0, green: 0.784, blue: 0.471)).opacity(0.16),
-                        lineWidth: 1
-                    )
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(buttonBorderColor, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
+    }
+
+    private var buttonLabel: String {
+        switch status {
+        case .connected: "Desconectar"
+        case .expired: "Reconectar"
+        default: "Conectar"
+        }
+    }
+
+    private var buttonFgColor: Color {
+        switch status {
+        case .connected:
+            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.70)
+        case .expired:
+            return VitaColors.dataAmber.opacity(0.80)
+        default:
+            return isPrimary ? color : Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.80)
+        }
+    }
+
+    private var buttonBgColor: Color {
+        switch status {
+        case .connected:
+            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.06)
+        case .expired:
+            return VitaColors.dataAmber.opacity(0.10)
+        default:
+            return (isPrimary ? color : VitaColors.glassInnerLight).opacity(0.12)
+        }
+    }
+
+    private var buttonBorderColor: Color {
+        switch status {
+        case .connected:
+            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.12)
+        case .expired:
+            return VitaColors.dataAmber.opacity(0.16)
+        default:
+            return (isPrimary ? color : Color(red: 1.0, green: 0.784, blue: 0.471)).opacity(0.16)
+        }
     }
 
     // MARK: - Meta Row
@@ -153,28 +227,25 @@ struct ConnectorCard: View {
         lastSync != nil || stats.contains(where: { $0.value > 0 })
     }
 
-    // Cor do "dados ha X" — ambar quando stale (dados > 12h) ou expirado
     private var syncTextColor: Color {
-        if status == .expired {
-            return VitaColors.dataAmber.opacity(0.75)
-        }
-        if isStale {
-            return VitaColors.dataAmber.opacity(0.70)
-        }
+        if status == .expired { return VitaColors.dataAmber.opacity(0.75) }
+        if isStale { return VitaColors.dataAmber.opacity(0.70) }
         return Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55)
     }
 
+    private var syncIconName: String {
+        (status == .expired || isStale) ? "exclamationmark.triangle.fill" : "clock"
+    }
+
     private var syncIconColor: Color {
-        if status == .expired || isStale {
-            return VitaColors.dataAmber.opacity(0.50)
-        }
-        return goldSubtle.opacity(0.25)
+        (status == .expired || isStale)
+            ? VitaColors.dataAmber.opacity(0.50)
+            : goldSubtle.opacity(0.25)
     }
 
     private var syncPrefix: String {
-        // Prefixo muda conforme o estado: token vivo / velho / expirado
         if status == .expired { return "Expirado · dados " }
-        if isStale           { return "Dados " }
+        if isStale { return "Dados " }
         return ""
     }
 
@@ -184,10 +255,10 @@ struct ConnectorCard: View {
                 .fill(goldSubtle.opacity(0.04))
                 .frame(height: 1)
 
-            // Linha 1: "dados ha X" + stats
+            // Line 1: sync time + stats
             HStack(spacing: 6) {
                 if let sync = lastSync {
-                    Image(systemName: isStale || status == .expired ? "exclamationmark.triangle.fill" : "clock")
+                    Image(systemName: syncIconName)
                         .font(.system(size: 8))
                         .foregroundColor(syncIconColor)
                     Text("\(syncPrefix)\(sync)")
@@ -219,9 +290,9 @@ struct ConnectorCard: View {
             .padding(.horizontal, 14)
             .padding(.top, 8)
 
-            // Linha 2: "token vivo ha X" — so quando ping divergir de sync
-            // (ex: Mannesoft com PHPSESSID keep-alive mas extracao parada)
-            if let ping = lastPing {
+            // Line 2: "Token vivo" — ONLY when connected and ping differs from sync
+            // NEVER when expired (token is dead, showing "vivo" is a lie)
+            if let ping = lastPing, status == .connected {
                 HStack(spacing: 4) {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 7))

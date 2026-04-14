@@ -144,6 +144,11 @@ struct FlashcardDeckEntry: Codable, Identifiable {
     var updatedAt: String?
     var deletedAt: String?
     var cards: [FlashcardEntry] = []
+    var totalCards: Int?
+    var dueCount: Int?
+
+    /// Real card count — uses server-side totalCards when available, falls back to cards array length.
+    var cardCount: Int { totalCards ?? cards.count }
 }
 
 struct FlashcardEntry: Codable, Identifiable {
@@ -187,6 +192,14 @@ struct FlexString: Codable, Hashable {
         var c = encoder.singleValueContainer()
         try c.encode(value)
     }
+}
+
+struct FlashcardTopic: Decodable, Identifiable {
+    var name: String = ""
+    var totalCards: Int = 0
+    var dueCount: Int = 0
+    var tags: [String] = []
+    var id: String { name }
 }
 
 struct FlashcardRecommended: Decodable, Identifiable {

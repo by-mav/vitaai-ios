@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "disc-internato-cm.webp",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

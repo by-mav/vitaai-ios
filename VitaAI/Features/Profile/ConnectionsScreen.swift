@@ -98,8 +98,8 @@ struct ConnectionsScreen: View {
                 .presentationDragIndicator(.visible)
                 .background(Color(red: 0.047, green: 0.035, blue: 0.027))
         }
-        // WebAluno WebView (direct, no intermediate screen)
-        .fullScreenCover(isPresented: $showWebalunoWebView) {
+        // WebAluno login — full-page navigationDestination (inside shell)
+        .navigationDestination(isPresented: $showWebalunoWebView) {
             WebAlunoWebViewScreen(
                 onBack: { showWebalunoWebView = false },
                 onSessionCaptured: { cookie in
@@ -110,8 +110,8 @@ struct ConnectionsScreen: View {
                 portalInstanceUrl: webalunoInstanceUrl
             )
         }
-        // Canvas WebView (direct, no intermediate screen)
-        .fullScreenCover(isPresented: $showCanvasWebView) {
+        // Canvas WebView — pushed inside NavigationStack (keeps shell)
+        .navigationDestination(isPresented: $showCanvasWebView) {
             canvasWebViewFullScreen
         }
         // WhatsApp linking sheet
@@ -536,6 +536,8 @@ struct ConnectionsScreen: View {
         switch portalType {
         case "webaluno", "mannesoft":
             webalunoInstanceUrl = instanceUrl ?? vm?.mannesoft.instanceUrl ?? ""
+            NSLog("[Connections] handleConnect webaluno — instanceUrl param: %@, vm.mannesoft.instanceUrl: %@, resolved: %@",
+                  instanceUrl ?? "nil", vm?.mannesoft.instanceUrl ?? "nil", webalunoInstanceUrl)
             showWebalunoWebView = true
         case "canvas":
             canvasInstanceUrl = instanceUrl ?? vm?.canvas.instanceUrl ?? "https://ulbra.instructure.com"

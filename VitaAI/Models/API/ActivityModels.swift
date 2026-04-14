@@ -14,7 +14,7 @@ struct LogActivityRequest: Encodable {
 struct LogActivityResponse: Decodable {
     var xpAwarded: Int = 0
     var totalXp: Int = 0
-    var level: Int = 0
+    var level: Int = 1
     var currentLevelXp: Int = 0
     var xpToNextLevel: Int = 0
     var newBadges: [NewBadge] = []
@@ -57,7 +57,7 @@ struct NewBadge: Decodable {
 struct GamificationStatsResponse: Decodable {
     // Fields that exist in the real API
     var totalXp: Int = 0
-    var level: Int = 0
+    var level: Int = 1
     var currentLevelXp: Int = 0
     var xpToNextLevel: Int = 0
     var streakDays: Int = 0

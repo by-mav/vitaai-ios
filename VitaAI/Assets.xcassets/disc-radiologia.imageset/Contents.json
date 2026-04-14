@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "disc-radiologia.webp",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

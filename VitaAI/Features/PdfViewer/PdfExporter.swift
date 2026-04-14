@@ -103,6 +103,14 @@ enum PdfExporter {
         }
     }
 
+    static func drawShapesPublic(_ shapes: [ShapeAnnotation], in ctx: CGContext, scale: CGFloat) {
+        drawShapes(shapes, in: ctx, scale: scale)
+    }
+
+    static func drawTextsPublic(_ texts: [TextAnnotation], in ctx: CGContext, scale: CGFloat) {
+        drawTexts(texts, in: ctx, scale: scale)
+    }
+
     private static func drawShapes(_ shapes: [ShapeAnnotation], in ctx: CGContext, scale: CGFloat) {
         for shape in shapes {
             ctx.saveGState()

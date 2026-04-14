@@ -231,19 +231,19 @@ struct FaculdadeMateriasScreen: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(s.attendance.map { "\($0)%" } ?? "—")
+            Text(s.attendance.map { String(format: "%.0f%%", $0) } ?? "—")
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(attendanceColor(s.attendance))
                 .frame(width: 48, alignment: .center)
 
-            Text(s.absences.map { "\($0)" } ?? "—")
+            Text(s.absences.map { String(format: "%.0f", $0) } ?? "—")
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(VitaColors.textWarm.opacity(0.60))
                 .frame(width: 48, alignment: .center)
 
-            Text(s.workload.map { "\($0)" } ?? "—")
+            Text(s.workload.map { String(format: "%.0f", $0) } ?? "—")
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(VitaColors.textWarm.opacity(0.60))
@@ -286,9 +286,9 @@ struct FaculdadeMateriasScreen: View {
         guard !grades.isEmpty else { return nil }
         let withWorkload = completed.filter { $0.finalGrade != nil && $0.workload != nil && $0.workload! > 0 }
         if withWorkload.count > grades.count / 2 {
-            let totalWeight = withWorkload.reduce(0) { $0 + ($1.workload ?? 0) }
-            let weightedSum = withWorkload.reduce(0.0) { $0 + ($1.finalGrade ?? 0) * Double($1.workload ?? 0) }
-            return totalWeight > 0 ? weightedSum / Double(totalWeight) : nil
+            let totalWeight = withWorkload.reduce(0.0) { $0 + ($1.workload ?? 0) }
+            let weightedSum = withWorkload.reduce(0.0) { $0 + ($1.finalGrade ?? 0) * ($1.workload ?? 0) }
+            return totalWeight > 0 ? weightedSum / totalWeight : nil
         }
         return grades.reduce(0, +) / Double(grades.count)
     }
@@ -299,7 +299,7 @@ struct FaculdadeMateriasScreen: View {
         return VitaColors.dataRed
     }
 
-    private func attendanceColor(_ val: Int?) -> Color {
+    private func attendanceColor(_ val: Double?) -> Color {
         guard let v = val else { return VitaColors.textWarm.opacity(0.40) }
         if v >= 90 { return VitaColors.dataGreen }
         if v >= 75 { return VitaColors.accent }

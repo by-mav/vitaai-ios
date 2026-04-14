@@ -317,6 +317,7 @@ final class AuthManager: ObservableObject {
     // MARK: - OAuth Callback (Google)
 
     private func handleCallback(url: URL) async {
+        NSLog("[AuthManager] handleCallback URL: %@", url.absoluteString)
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             error = "Callback invalido"
             return
@@ -326,7 +327,13 @@ final class AuthManager: ObservableObject {
             item.value.map { (item.name, $0.replacingOccurrences(of: "+", with: " ")) }
         })
 
+        NSLog("[AuthManager] callback params: token=%@, name=%@, email=%@",
+              params["token"] != nil ? "present(\(params["token"]!.prefix(20))...)" : "MISSING",
+              params["name"] ?? "nil",
+              params["email"] ?? "nil")
+
         guard let token = params["token"] else {
+            NSLog("[AuthManager] ERROR: no token in callback params. All params: %@", params.keys.joined(separator: ", "))
             error = "Token não recebido"
             return
         }

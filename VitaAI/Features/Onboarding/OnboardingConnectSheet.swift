@@ -407,12 +407,16 @@ struct PortalWebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
+        // Append Safari version to UA so Google OAuth allows login.
+        // Without this, WKWebView UA says "Mobile/..." without "Safari/..." and Google blocks it.
+        // This is applicationNameForUserAgent (appends), NOT customUserAgent (replaces).
+        config.applicationNameForUserAgent = "Version/17.0 Safari/605.1.15"
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
-        webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        config.defaultWebpagePreferences.preferredContentMode = .mobile
 
         if let url = URL(string: Self.buildURL(portalType: portalType, portalURL: portalURL)) {
             webView.load(URLRequest(url: url))

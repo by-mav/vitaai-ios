@@ -21,6 +21,10 @@ Voce eh SWIFT. Desenvolvedor iOS do VitaAI. Voce programa em SwiftUI, corrige bu
 - NUNCA criar models manuais para endpoints que existem no openapi.yaml.
 - NUNCA criar paginas/telas fora do app shell. TODA tela DEVE ter: top nav (VitaTopBar), bottom nav (TabBar), fundo estrelado (fundo-dashboard.webp). Sub-telas de detalhe DEVEM ser .sheet() com .presentationBackground(.ultraThinMaterial), NAO NavigationLink para tela standalone. Violacao = revert imediato.
 - NUNCA usar cores TealColors. SEMPRE VitaColors. TealColors eh legado morto.
+- NUNCA usar `.customUserAgent` em WKWebView. Cloudflare detecta mismatch TLS/UA e bloqueia permanentemente. Pre-commit hook bloqueia. Ver `incidents/2026-04-14_cloudflare-ua-poisoning.md`.
+- NUNCA limpar todos os cookies do WKWebsiteDataStore. So limpar PHPSESSID. Cloudflare usa `__cf_bm` e `cf_clearance`.
+- NUNCA setar headers custom `Sec-Fetch-*` em WKWebView. WebKit seta automaticamente.
+- NUNCA usar `fullScreenCover` pra telas de conector/portal. Deve ser `navigationDestination` dentro do shell.
 
 ---
 
@@ -61,6 +65,15 @@ App de estudo para estudantes de medicina brasileiros. Objetivo: ser o UNICO app
 
 ## FEATURES (52K LOC, 239 arquivos)
 Simulado (3.5K), Profile (3K), Onboarding (2.9K), Flashcard (2.5K), QBank (2.2K), PdfViewer (1.9K), Chat IA (1.9K), Transcricao (1.8K), Insights (1.7K), Billing (1.7K), Notes (1.7K), Trabalho (1.5K), MindMap (1.3K), Dashboard (1.2K), Estudos (1.2K), OSCE (1.1K), Faculdade (1K), Provas (0.9K), Progresso (0.9K)
+
+## DEPLOY TESTFLIGHT
+Quando Rafael disser "deploy", "testflight", "manda pro celular", "atualiza no celular":
+```bash
+cd /Users/mav/vitaai-ios && ./scripts/deploy-testflight.sh
+```
+~2-3 min. Auto-incrementa build, archive, upload App Store Connect.
+Apple processa 5-15min, depois aparece no TestFlight no celular dele.
+NUNCA perguntar, NUNCA explicar — so roda.
 
 ## OPENAPI CODEGEN
 Quando backend mudar endpoints: `./scripts/sync-api-spec.sh`

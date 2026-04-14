@@ -1,6 +1,12 @@
 {
   "images" : [
-    { "filename" : "disc-interprofissional.png", "idiom" : "universal", "scale" : "1x" }
+    {
+      "filename" : "disc-interprofissional.webp",
+      "idiom" : "universal"
+    }
   ],
-  "info" : { "author" : "xcode", "version" : 1 }
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
 }

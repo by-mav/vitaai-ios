@@ -23,19 +23,28 @@ struct FaculdadeHomeScreen: View {
     private var cardBg: Color { VitaColors.surfaceCard.opacity(0.55) }
     private var glassBorder: Color { VitaColors.textWarm.opacity(0.06) }
 
-    // Institution info — coming from user profile / appData.
-    // Hardcoded por enquanto até termos getUserProfile() exposto no appData.
-    private var institutionName: String { "ULBRA Porto Alegre" }
+    // Institution info from user profile (via onboarding)
+    private var institutionName: String { appData.profile?.university ?? "Minha Faculdade" }
     private var courseName: String { "Medicina" }
-    private var currentSemester: Int { 3 }
+    private var currentSemester: Int { appData.profile?.semester ?? 0 }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
                 subTabRow
                 heroCard
+                disciplinesSection
                 agendaMiniCard
-                materiasMiniCard
+                MateriasAgendaWidget(
+                    subjects: appData.gradesResponse?.current ?? [],
+                    schedule: appData.classSchedule,
+                    evaluations: appData.academicEvaluations,
+                    onNavigateToDiscipline: { id, name in
+                        router.navigate(to: .faculdadeDisciplinas)
+                        router.navigate(to: .disciplineDetail(disciplineId: id, disciplineName: name))
+                    }
+                )
+                trabalhosMiniCard
                 documentosMiniCard
                 Spacer().frame(height: 100)
             }
@@ -58,9 +67,10 @@ struct FaculdadeHomeScreen: View {
     private var subTabRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                subTabPill(title: "Disciplinas", icon: "graduationcap", route: .faculdadeDisciplinas)
                 subTabPill(title: "Agenda", icon: "calendar", route: .faculdadeAgenda)
-                subTabPill(title: "Matérias", icon: "graduationcap", route: .faculdadeMaterias)
                 subTabPill(title: "Documentos", icon: "doc.text", route: .faculdadeDocumentos)
+                subTabPill(title: "Trabalhos", icon: "doc.richtext", route: .trabalhos)
                 subTabPill(title: "Professores", icon: "person.2", route: .faculdadeProfessores)
             }
         }
@@ -159,16 +169,18 @@ struct FaculdadeHomeScreen: View {
     private var heroContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Zona 1: eyebrow no topo
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(goldPrimary)
-                    .frame(width: 5, height: 5)
-                Text("\(currentSemester)º SEMESTRE")
-                    .font(.system(size: 10, weight: .bold))
-                    .tracking(1.2)
-                    .foregroundStyle(goldPrimary)
+            if currentSemester > 0 {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(goldPrimary)
+                        .frame(width: 5, height: 5)
+                    Text("\(currentSemester)º SEMESTRE")
+                        .font(.system(size: 10, weight: .bold))
+                        .tracking(1.2)
+                        .foregroundStyle(goldPrimary)
+                }
+                .padding(.bottom, 6)
             }
-            .padding(.bottom, 6)
 
             // Zona 2: título agrupado (institution + curso)
             Text(institutionName)
@@ -231,6 +243,101 @@ struct FaculdadeHomeScreen: View {
     private var crValue: String {
         guard let avg = appData.gradesResponse?.summary.averageGrade else { return "—" }
         return String(format: "%.2f", avg)
+    }
+
+    // MARK: - Disciplines section (preview + navigate to full list)
+
+    private var disciplinesSection: some View {
+        let subjects = appData.gradesResponse?.current ?? []
+        let names = subjects.map(\.subjectName)
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Minhas Disciplinas")
+                    .font(.system(size: 10, weight: .semibold))
+                    .kerning(0.8)
+                    .textCase(.uppercase)
+                    .foregroundStyle(VitaColors.sectionLabel)
+                Spacer()
+                if !names.isEmpty {
+                    Button {
+                        router.navigate(to: .faculdadeDisciplinas)
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text("Ver todas")
+                                .font(.system(size: 10, weight: .medium))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8, weight: .semibold))
+                        }
+                        .foregroundStyle(goldPrimary.opacity(0.60))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if names.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "graduationcap")
+                        .font(.system(size: 16))
+                        .foregroundStyle(goldPrimary.opacity(0.35))
+                    Text("Conecte seu portal para ver disciplinas")
+                        .font(.system(size: 12))
+                        .foregroundStyle(textDim)
+                }
+                .padding(.vertical, 8)
+            } else {
+                let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 2)
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(names, id: \.self) { name in
+                        Button {
+                            router.navigate(to: .faculdadeDisciplinas)
+                            router.navigate(to: .disciplineDetail(disciplineId: name, disciplineName: name))
+                        } label: {
+                            glassDisciplineCard(name: name)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func glassDisciplineCard(name: String) -> some View {
+        let shortName = name
+            .replacingOccurrences(of: "(?i),.*$", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+
+        HStack(spacing: 10) {
+            Circle()
+                .fill(goldPrimary.opacity(0.35))
+                .frame(width: 8, height: 8)
+
+            Text(shortName)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(textWarm.opacity(0.85))
+                .lineLimit(1)
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(textWarm.opacity(0.25))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial.opacity(0.35))
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.03))
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.06), lineWidth: 0.5)
+        )
     }
 
     // MARK: - Mini card: Agenda (preview só de hoje)
@@ -342,41 +449,48 @@ struct FaculdadeHomeScreen: View {
         }
     }
 
-    // MARK: - Mini card: Matérias
+    // MARK: - Mini card: Trabalhos
 
-    @State private var hoveredSubject: String?
+    private var trabalhosMiniCard: some View {
+        let assignments = appData.academicEvaluations.filter {
+            $0.type == "assignment" || $0.type == "exam"
+        }
+        let upcoming = assignments.filter { eval in
+            guard let s = eval.date else { return eval.status == "pending" }
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let fmt2 = ISO8601DateFormatter()
+            fmt2.formatOptions = [.withInternetDateTime]
+            guard let d = fmt.date(from: s) ?? fmt2.date(from: s) else { return false }
+            return d > Date().addingTimeInterval(-86400)  // include today
+        }.sorted { a, b in
+            (a.date ?? "") < (b.date ?? "")
+        }
 
-    private var materiasMiniCard: some View {
-        Button {
-            router.navigate(to: .faculdadeMaterias)
+        return Button {
+            router.navigate(to: .trabalhos)
         } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                miniCardHeader(icon: "graduationcap", title: "Matérias", trailing: cursandoShort)
+            VStack(alignment: .leading, spacing: 10) {
+                miniCardHeader(
+                    icon: "doc.richtext",
+                    title: "Trabalhos",
+                    trailing: upcoming.isEmpty ? "" : "\(upcoming.count) pendente\(upcoming.count == 1 ? "" : "s")"
+                )
 
-                let subjects = appData.gradesResponse?.current ?? []
-                if subjects.isEmpty {
-                    Text("Nenhuma disciplina ativa")
+                if upcoming.isEmpty {
+                    Text("Nenhum trabalho pendente")
                         .font(.system(size: 11))
                         .foregroundStyle(textDim)
                         .padding(.vertical, 6)
                 } else {
-                    // Column headers
-                    HStack(spacing: 0) {
-                        Text("DISCIPLINA")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Text("G1").frame(width: 36, alignment: .center)
-                        Text("FREQ").frame(width: 42, alignment: .center)
-                    }
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(textDim)
-                    .padding(.horizontal, 4)
-
-                    VStack(spacing: 0) {
-                        ForEach(subjects) { subject in
-                            materiaRow(subject)
-                            if subject.id != subjects.last?.id {
-                                Rectangle().fill(glassBorder).frame(height: 0.5)
-                            }
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(upcoming.prefix(3).enumerated()), id: \.offset) { _, eval in
+                            miniTrabalhoLine(eval)
+                        }
+                        if upcoming.count > 3 {
+                            Text("+ \(upcoming.count - 3) mais")
+                                .font(.system(size: 10))
+                                .foregroundStyle(textDim)
                         }
                     }
                 }
@@ -391,93 +505,37 @@ struct FaculdadeHomeScreen: View {
             )
         }
         .buttonStyle(.plain)
-        .overlay(alignment: .top) {
-            if let name = hoveredSubject {
-                Text(name)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(cardBg))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(glassBorder, lineWidth: 0.5))
-                    .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
-                    .offset(y: -30)
-                    .transition(.opacity)
+    }
+
+    private func miniTrabalhoLine(_ eval: AgendaEvaluation) -> some View {
+        let subject = eval.subjectName ?? "—"
+        let color = SubjectColors.colorFor(subject: subject)
+        return HStack(spacing: 8) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(eval.title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(textWarm.opacity(0.80))
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            if let dateStr = eval.date {
+                Text(shortDate(dateStr))
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(textDim)
             }
         }
-        .animation(.easeInOut(duration: 0.15), value: hoveredSubject)
     }
 
-    private var cursandoShort: String {
-        let n = appData.gradesResponse?.current.count ?? 0
-        return n == 0 ? "" : "\(n) ativas"
-    }
-
-    @ViewBuilder
-    private func materiaRow(_ subject: GradeSubject) -> some View {
-        let color = SubjectColors.colorFor(subject: subject.subjectName)
-        let grade = subject.grade1
-        let freq = subject.attendance
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(color)
-                .frame(width: 2, height: 20)
-                .clipShape(RoundedRectangle(cornerRadius: 1))
-                .padding(.trailing, 6)
-            Text(subject.subjectName)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(textWarm.opacity(0.82))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .onLongPressGesture(minimumDuration: 0.3) {
-                    hoveredSubject = subject.subjectName
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        if hoveredSubject == subject.subjectName { hoveredSubject = nil }
-                    }
-                }
-            Text(grade.map { String(format: "%.1f", $0) } ?? "--")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(grade.map { gradeColor($0) } ?? textDim)
-                .frame(width: 36, alignment: .center)
-            Text(freq.map { "\($0)%" } ?? "--")
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(freq.map { freqColor(Double($0)) } ?? textDim)
-                .frame(width: 42, alignment: .center)
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 5)
-    }
-
-    private func miniStatPill(value: String, label: String, color: Color) -> some View {
-        HStack(spacing: 3) {
-            Text(value)
-                .font(.system(size: 10, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(textDim)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(
-            Capsule().fill(color.opacity(0.10))
-        )
-    }
-
-    private func freqColor(_ freq: Double) -> Color {
-        if freq >= 85 { return VitaColors.dataGreen }
-        if freq >= 75 { return VitaColors.dataAmber }
-        return VitaColors.dataRed
-    }
-
-    private func gradeColor(_ grade: Double) -> Color {
-        if grade >= 7 { return VitaColors.dataGreen }
-        if grade >= 5 { return VitaColors.dataAmber }
-        return VitaColors.dataRed
+    private func shortDate(_ iso: String) -> String {
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fmt2 = ISO8601DateFormatter()
+        fmt2.formatOptions = [.withInternetDateTime]
+        guard let d = fmt.date(from: iso) ?? fmt2.date(from: iso) else { return "" }
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "pt_BR")
+        df.dateFormat = "d MMM"
+        return df.string(from: d)
     }
 
     // MARK: - Mini card: Documentos

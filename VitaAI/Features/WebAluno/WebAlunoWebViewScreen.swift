@@ -138,21 +138,28 @@ struct WebAlunoWebView: UIViewRepresentable {
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         configuration.allowsInlineMediaPlayback = true
 
-        // Build a real Safari UA so Google allows OAuth AND serves mobile layout.
-        // Default WKWebView UA: "...AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/XXX"
-        // Real Safari UA: "...AppleWebKit/605.1.15 (KHTML, like Gecko) Version/X.0 Mobile/XXX Safari/605.1.15"
-        // Google requires "Safari/" to allow OAuth (403: disallowed_useragent).
-        // Google requires "Mobile/" BEFORE "Safari/" to serve mobile layout.
-        // TLS fingerprint matches real Safari since WKWebView uses the same WebKit engine.
-        let osVersion = ProcessInfo.processInfo.operatingSystemVersion
-        let osStr = "\(osVersion.majorVersion)_\(osVersion.minorVersion)"
-        let safariUA = "Mozilla/5.0 (iPhone; CPU iPhone OS \(osStr) like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/\(osVersion.majorVersion).0 Mobile/15E148 Safari/605.1.15"
+        // DO NOT set customUserAgent — WKWebView's default UA is already a real Safari UA.
+        // Hardcoded UA mismatches TLS fingerprint and triggers Cloudflare bot detection.
+        // Google OAuth works with the default WKWebView UA.
 
-        // Render pages at mobile viewport
-        configuration.defaultWebpagePreferences.preferredContentMode = .mobile
+        // Use .recommended so WKWebView auto-scales desktop-layout pages to fit.
+        // .mobile forces a narrow viewport that clips fixed-width sites like Mannesoft.
+        configuration.defaultWebpagePreferences.preferredContentMode = .recommended
+
+        // Inject viewport meta BEFORE page renders so fixed-width pages scale to fit
+        let viewportScript = WKUserScript(
+            source: """
+                var vp = document.createElement('meta');
+                vp.name = 'viewport';
+                vp.content = 'width=device-width, initial-scale=1.0, shrink-to-fit=yes';
+                document.head.appendChild(vp);
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        configuration.userContentController.addUserScript(viewportScript)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.customUserAgent = safariUA
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.backgroundColor = UIColor.systemBackground
@@ -181,7 +188,6 @@ struct WebAlunoWebView: UIViewRepresentable {
         let parent: WebAlunoWebView
         var webView: WKWebView?
         var sessionFound = false
-        var oauthTriggered = false
         var progressObservation: NSKeyValueObservation?
 
         init(parent: WebAlunoWebView) {
@@ -212,17 +218,17 @@ struct WebAlunoWebView: UIViewRepresentable {
                 self.parent.isLoading = false
             }
 
-            // Force mobile viewport on every page load — Google's login page
-            // may render at desktop width if it doesn't detect mobile correctly.
+            // Force page to fit screen width — Mannesoft has fixed-width desktop layout.
+            // shrink-to-fit=yes makes WKWebView scale the page down to fit the viewport.
             let viewportFix = """
                 (function() {
                     var vp = document.querySelector('meta[name=viewport]');
                     if (vp) {
-                        vp.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0';
+                        vp.content = 'width=device-width, initial-scale=1.0, shrink-to-fit=yes';
                     } else {
                         vp = document.createElement('meta');
                         vp.name = 'viewport';
-                        vp.content = 'width=device-width, initial-scale=1.0, maximum-scale=5.0';
+                        vp.content = 'width=device-width, initial-scale=1.0, shrink-to-fit=yes';
                         document.head.appendChild(vp);
                     }
                 })();
@@ -234,69 +240,30 @@ struct WebAlunoWebView: UIViewRepresentable {
             let currentURL = webView.url?.absoluteString ?? ""
             NSLog("[WebAluno] didFinish URL: %@", currentURL)
 
-            // On Google's email entry page: auto-click Next since login_hint pre-filled email.
-            // This makes the flow truly zero-friction — user never interacts with Google's page.
-            if currentURL.contains("accounts.google.com") {
-                let autoAdvance = """
+            // Auto-trigger Google OAuth with login_hint so user doesn't type email again.
+            // Only on the initial /webaluno/ landing page (not during OAuth flow).
+            let isLandingPage = currentURL.hasSuffix("/webaluno/") || currentURL.hasSuffix("/webaluno")
+            if isLandingPage, let email = parent.userEmail, !email.isEmpty {
+                let oauthJS = """
                     (function() {
-                        // Click the Next button on the email step
-                        var nextBtn = document.getElementById('identifierNext');
-                        if (nextBtn) {
-                            nextBtn.click();
-                            return 'clicked identifierNext';
+                        var btn = document.querySelector('#GOOGLE_ALUNO, .btn-google, [onclick*="loginGoogle"]');
+                        if (btn) {
+                            // Try to find the loginGoogle function and add login_hint
+                            if (typeof loginGoogle === 'function') {
+                                // Override to add login_hint
+                                var origAction = document.querySelector('form')?.action || '';
+                                window.location.href = origAction || btn.getAttribute('onclick')?.match(/location\\.href\\s*=\\s*'([^']+)'/)?.[1] || '';
+                            }
+                            // Fallback: just click the Google button
+                            btn.click();
                         }
-                        // Click the Next button on the password step
-                        var passNext = document.getElementById('passwordNext');
-                        if (passNext) {
-                            passNext.click();
-                            return 'clicked passwordNext';
-                        }
-                        // For account chooser, click the matching account
-                        var accounts = document.querySelectorAll('[data-identifier]');
-                        for (var i = 0; i < accounts.length; i++) {
-                            accounts[i].click();
-                            return 'clicked account: ' + accounts[i].getAttribute('data-identifier');
-                        }
-                        return 'no action taken';
                     })();
                 """
-                webView.evaluateJavaScript(autoAdvance) { result, error in
-                    NSLog("[WebAluno] Google auto-advance: %@", String(describing: result ?? error ?? "nil"))
+                webView.evaluateJavaScript(oauthJS) { _, error in
+                    if let error {
+                        NSLog("[WebAluno] OAuth auto-trigger error: %@", error.localizedDescription)
+                    }
                 }
-            }
-
-            // Auto-trigger Google OAuth once landing page loads.
-            // Uses login_hint from user's VitaAI email so Google skips the email entry screen.
-            if !oauthTriggered && currentURL.contains("/webaluno") && !currentURL.contains("autenticacao") && !currentURL.contains("accounts.google") {
-                oauthTriggered = true
-                let emailHint = parent.userEmail ?? ""
-                NSLog("[WebAluno] Landing page loaded, triggering Google OAuth (hint: %@)...", emailHint)
-                // Derive base domain from portal URL for OAuth redirect
-                let portalBase: String = {
-                    guard let scheme = parent.url.scheme, let host = parent.url.host else { return "" }
-                    return "\(scheme)://\(host)"
-                }()
-                let js = """
-                    (function() {
-                        var clientId = '841344683161-55h62tlo6h5f0ea7ilrsp3psr29ubo0i.apps.googleusercontent.com';
-                        var portalBase = '\(portalBase)';
-                        var redirectUri = encodeURIComponent(portalBase + '/autenticacao/oauth_google.php?tipo=1&origem=webaluno');
-                        var loginHint = '\(emailHint)';
-                        var url = 'https://accounts.google.com/o/oauth2/v2/auth'
-                            + '?client_id=' + clientId
-                            + '&redirect_uri=' + redirectUri
-                            + '&response_type=code'
-                            + '&scope=email%20profile'
-                            + (loginHint && loginHint.indexOf('@') > 0 ? '&hd=' + loginHint.split('@')[1] : '')
-                            + (loginHint ? '&login_hint=' + encodeURIComponent(loginHint) : '');
-                        window.location.href = url;
-                        return 'redirecting to Google with hint: ' + loginHint;
-                    })();
-                """
-                webView.evaluateJavaScript(js) { result, error in
-                    NSLog("[WebAluno] OAuth trigger: %@", String(describing: result ?? error ?? "nil"))
-                }
-                return
             }
 
             // Inspect cookies for PHPSESSID after page load

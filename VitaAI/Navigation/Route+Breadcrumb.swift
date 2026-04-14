@@ -19,15 +19,19 @@ extension Route {
         switch self {
         // MARK: - Faculdade
         case .faculdadeAgenda:      return "Agenda"
+        case .faculdadeDisciplinas: return "Disciplinas"
         case .faculdadeMaterias:    return "Matérias"
         case .faculdadeDocumentos:  return "Documentos"
         case .faculdadeProfessores: return "Professores"
         case .provas:              return "Provas"
         case .trabalhos:           return "Trabalhos"
+        case .trabalhoDetail:      return "Trabalho"
 
         // MARK: - Estudos
         case .flashcardHome:       return "Flashcards"
+        case .flashcardTopics(_, let title): return title
         case .flashcardSession:    return "Sessão"
+        case .flashcardSettings:   return "Configurações"
         case .flashcardStats:      return "Estatísticas"
         case .qbank:               return "Questões"
         case .simuladoHome:        return "Simulados"

@@ -20,6 +20,9 @@ struct PortalConnectScreen: View {
 
     var body: some View {
         ZStack {
+            VitaAmbientBackground { Color.clear }
+                .ignoresSafeArea()
+
             if let vm {
                 mainContent(vm: vm)
             } else {
@@ -212,16 +215,17 @@ struct PortalConnectScreen: View {
                     )
                     .frame(maxWidth: .infinity)
                 } else {
-                    // WebAluno: open WebView sheet
+                    // WebAluno: open WebView sheet — disabled until instanceUrl is available
+                    let canConnect = !vm.isConnecting && !vm.instanceUrl.isEmpty
                     VitaButton(
-                        text: vm.isConnecting ? "Conectando..." : "Entrar no \(vm.displayName)",
+                        text: vm.isConnecting ? "Conectando..." : "Conectar Portal",
                         action: {
-                            guard !vm.isConnecting else { return }
+                            guard canConnect else { return }
                             showPortalWebView = true
                         },
                         variant: .primary,
                         size: .lg,
-                        isEnabled: !vm.isConnecting,
+                        isEnabled: canConnect,
                         isLoading: vm.isConnecting,
                         leadingSystemImage: vm.isConnecting ? nil : "safari"
                     )

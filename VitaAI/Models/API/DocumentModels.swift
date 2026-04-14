@@ -16,6 +16,7 @@ struct VitaDocument: Codable, Identifiable {
     var fileName: String
     var fileUrl: String
     var subjectId: String?
+    var subjectName: String?
     var totalPages: Int = 0
     var currentPage: Int = 0
     var readProgress: Double = 0

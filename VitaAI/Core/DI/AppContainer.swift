@@ -111,6 +111,7 @@ final class AppContainer: ObservableObject {
 
         // Wire PushManager with API for token registration
         PushManager.shared.api = api
+        Task { await PushManager.shared.refreshUnreadCount() }
 
         // --- SwiftData (iOS 17+) ---
         if #available(iOS 17, *) {

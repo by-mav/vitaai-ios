@@ -19,6 +19,7 @@ private struct RatingOption {
 struct RatingButtonsView: View {
 
     let intervalPreviews: [ReviewRating: Int]
+    var showIntervals: Bool = true
     var onRate: (ReviewRating) -> Void
 
     // Data colors — match mockup flashcard-session-v1.html rating buttons
@@ -40,7 +41,7 @@ struct RatingButtonsView: View {
                 color: colorAgain,
                 bgColor: Color(red: 30/255, green: 12/255, blue: 12/255).opacity(0.88),
                 borderColor: Color(red: 239/255, green: 68/255, blue: 68/255).opacity(0.18),
-                intervalLabel: fmt(intervalPreviews[.again] ?? 0)
+                intervalLabel: showIntervals ? fmt(intervalPreviews[.again] ?? 0) : ""
             ),
             RatingOption(
                 rating: .hard,
@@ -49,7 +50,7 @@ struct RatingButtonsView: View {
                 color: colorHard,
                 bgColor: Color(red: 24/255, green: 16/255, blue: 8/255).opacity(0.88),
                 borderColor: Color(red: 245/255, green: 158/255, blue: 11/255).opacity(0.18),
-                intervalLabel: fmt(intervalPreviews[.hard] ?? 1)
+                intervalLabel: showIntervals ? fmt(intervalPreviews[.hard] ?? 1) : ""
             ),
             RatingOption(
                 rating: .good,
@@ -58,7 +59,7 @@ struct RatingButtonsView: View {
                 color: colorGood,
                 bgColor: Color(red: 16/255, green: 10/255, blue: 20/255).opacity(0.88),
                 borderColor: Color(red: 148/255, green: 75/255, blue: 220/255).opacity(0.18),
-                intervalLabel: fmt(intervalPreviews[.good] ?? 3)
+                intervalLabel: showIntervals ? fmt(intervalPreviews[.good] ?? 3) : ""
             ),
             RatingOption(
                 rating: .easy,
@@ -67,7 +68,7 @@ struct RatingButtonsView: View {
                 color: colorEasy,
                 bgColor: Color(red: 8/255, green: 20/255, blue: 14/255).opacity(0.88),
                 borderColor: Color(red: 34/255, green: 197/255, blue: 94/255).opacity(0.18),
-                intervalLabel: fmt(intervalPreviews[.easy] ?? 7)
+                intervalLabel: showIntervals ? fmt(intervalPreviews[.easy] ?? 7) : ""
             ),
         ]
     }

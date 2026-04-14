@@ -1,6 +1,12 @@
 {
   "images" : [
-    { "filename" : "disc-histologia.png", "idiom" : "universal", "scale" : "1x" }
+    {
+      "filename" : "disc-histologia.webp",
+      "idiom" : "universal"
+    }
   ],
-  "info" : { "author" : "xcode", "version" : 1 }
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
 }

@@ -10,6 +10,7 @@ final class AppDataManager {
 
     // MARK: - Shared state
 
+    var profile: ProfileResponse?
     var gradesResponse: GradesCurrentResponse?
     var classSchedule: [AgendaClassBlock] = []
     var academicEvaluations: [AgendaEvaluation] = []
@@ -54,10 +55,17 @@ final class AppDataManager {
 
     private func refreshAll() async {
         lastRefresh = Date()
+        async let p: () = refreshProfile()
         async let g: () = refreshGrades()
         async let s: () = refreshSchedule()
         async let e: () = refreshEvents()
-        _ = await (g, s, e)
+        _ = await (p, g, s, e)
+    }
+
+    private func refreshProfile() async {
+        if let resp = try? await api.getProfile() {
+            profile = resp
+        }
     }
 
     private func refreshGrades() async {

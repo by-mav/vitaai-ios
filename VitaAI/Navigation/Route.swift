@@ -8,6 +8,7 @@ enum Route: Hashable {
     case faculdade
     case progresso
     case trabalhos
+    case trabalhoDetail(id: String)
     case agenda
     case insights
     case profile
@@ -23,8 +24,10 @@ enum Route: Hashable {
     case notebookEditor(notebookId: String)
     case mindMapList
     case mindMapEditor(id: String)
-    case flashcardHome
-    case flashcardSession(deckId: String)
+    case flashcardHome(subjectId: String? = nil)
+    case flashcardTopics(deckId: String, deckTitle: String)
+    case flashcardSession(deckId: String, tagFilter: String? = nil)
+    case flashcardSettings
     case flashcardStats
     case pdfViewer(url: String)
 
@@ -82,6 +85,7 @@ enum Route: Hashable {
 
     // MARK: - Faculdade subpages (dashboard + push navigation)
     case faculdadeAgenda
+    case faculdadeDisciplinas
     case faculdadeMaterias
     case faculdadeDocumentos
     case faculdadeProfessores

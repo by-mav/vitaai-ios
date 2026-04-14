@@ -73,8 +73,11 @@ final class TranscricaoViewModel {
         recordingsLoading = true
         do {
             recordings = try await api.getTranscricoes()
+            for r in recordings {
+                NSLog("[TranscricaoVM] Recording: id=%@ title=%@ status=%@ isTranscribed=%d", r.id, r.title, r.status ?? "nil", r.isTranscribed ? 1 : 0)
+            }
         } catch {
-            print("[TranscricaoVM] Failed to load recordings: \(error)")
+            NSLog("[TranscricaoVM] FAILED to load recordings: %@", "\(error)")
             // Non-fatal — just show empty list
         }
         recordingsLoading = false

@@ -77,6 +77,25 @@ class VitaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenter
             PushManager.shared.willPresent(notification, completionHandler: completionHandler)
         }
     }
+
+    // Handle notification tap — navigate via deep link
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+
+        // Backend sends "deepLink": "vitaai://trabalho/{id}" in push payload
+        if let deepLinkStr = userInfo["deepLink"] as? String,
+           let url = URL(string: deepLinkStr) {
+            Task { @MainActor in
+                // Post via onOpenURL handler already wired in AppRouter
+                UIApplication.shared.open(url)
+            }
+        }
+        completionHandler()
+    }
 }
 
 @main

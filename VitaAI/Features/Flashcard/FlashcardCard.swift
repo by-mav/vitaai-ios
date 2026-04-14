@@ -68,14 +68,14 @@ struct FlashcardCardView: View {
                 Spacer().frame(height: 16)
 
                 // Question — 20px semibold, rgba(255,252,248,0.95), vertically centered
-                Text(front)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(VitaColors.white.opacity(0.95))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-                    .tracking(-0.4) // letter-spacing: -0.02em ≈ -0.4 at 20px
-                    .frame(maxWidth: .infinity)
-                    .frame(maxHeight: .infinity)
+                FlashcardContentView(
+                    content: front,
+                    fontSize: 20,
+                    textColor: VitaColors.white.opacity(0.95),
+                    alignment: .center
+                )
+                .frame(maxWidth: .infinity)
+                .frame(maxHeight: .infinity)
 
                 Spacer()
 
@@ -111,12 +111,13 @@ struct FlashcardCardView: View {
                 .padding(.bottom, 12)
 
                 // Answer text — 16px medium, rgba(255,252,248,0.88)
-                Text(back)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(VitaColors.white.opacity(0.88))
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                FlashcardContentView(
+                    content: back,
+                    fontSize: 16,
+                    textColor: VitaColors.white.opacity(0.88),
+                    alignment: .leading
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer()
             }

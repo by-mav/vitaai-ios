@@ -1,43 +1,59 @@
 import SwiftUI
 
 // MARK: - VitaNotifPopout
-// Glass notification popout matching mockup .notif-popout CSS
-// width: 300px, max-height: 400px, gold glassmorphism
+// Glass notification popout — 60% width, anchored top-trailing below TopNav
+// Shows 5 visible items with scroll indicator bar
 
 struct VitaNotifPopout: View {
     let onDismiss: () -> Void
-    let onMarkAllRead: () -> Void
     let onSettingsTap: () -> Void
+    let onNavigate: (String) -> Void
 
     @Environment(\.appContainer) private var container
-    @State private var notifications: [NotifItem] = []
-    @State private var isLoading = true
+    @ObservedObject private var pushManager = PushManager.shared
+    @State private var notifications: [VitaNotification] = []
     @State private var isVisible = false
+    @State private var timeRefreshTick = false
+    private let timeRefreshTimer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     private var unreadCount: Int {
-        notifications.filter { !$0.isRead }.count
+        notifications.filter { !$0.read }.count
+    }
+
+    private var hasMoreThanVisible: Bool {
+        notifications.count > 5
     }
 
     var body: some View {
+        let _ = timeRefreshTick
         ZStack(alignment: .topTrailing) {
-            // Tap-outside dismiss scrim
+            // Dismiss backdrop — fills all content area
             Color.black.opacity(0.001)
-                .ignoresSafeArea()
                 .onTapGesture { dismiss() }
 
+            // Bubble — top trailing, below TopNav
             popoutContent
-                .padding(.trailing, 16)
-                .padding(.top, 8)
-                .scaleEffect(isVisible ? 1 : 0.85, anchor: .topTrailing)
+                .padding(.trailing, 12)
+                .padding(.top, 4)
+                .scaleEffect(isVisible ? 1 : 0.88, anchor: .topTrailing)
                 .opacity(isVisible ? 1 : 0)
+                .offset(y: isVisible ? 0 : -12)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            withAnimation(.spring(duration: 0.2, bounce: 0.15)) {
+            // Instant: use cached notifications (already fetched by PushManager)
+            notifications = pushManager.cachedNotifications
+            withAnimation(.spring(duration: 0.3, bounce: 0.12)) {
                 isVisible = true
             }
+            // Background refresh for freshness
+            Task {
+                await PushManager.shared.refreshUnreadCount()
+                notifications = pushManager.cachedNotifications
+            }
         }
-        .task {
-            await loadNotifications()
+        .onReceive(timeRefreshTimer) { _ in
+            timeRefreshTick.toggle()
         }
     }
 
@@ -86,37 +102,33 @@ struct VitaNotifPopout: View {
             .padding(.top, 14)
             .padding(.bottom, 10)
 
-            // Divider
             Rectangle()
                 .fill(VitaColors.accentLight.opacity(0.05))
                 .frame(height: 1)
                 .padding(.horizontal, 10)
 
-            // Notification list
-            if isLoading {
-                VStack {
-                    Spacer()
-                    ProgressView()
-                        .tint(VitaColors.accent)
-                    Spacer()
-                }
-                .frame(height: 120)
-            } else if notifications.isEmpty {
+            if notifications.isEmpty {
                 emptyState
             } else {
-                ScrollView(.vertical, showsIndicators: false) {
+                ScrollView(.vertical) {
                     VStack(spacing: 3) {
                         ForEach(notifications) { item in
-                            notifRow(item)
+                            Button {
+                                tapNotification(item)
+                            } label: {
+                                notifRow(item)
+                            }
+                            .buttonStyle(NotifButtonStyle())
                         }
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 8)
                 }
-                .frame(maxHeight: 320)
+                .scrollIndicators(.visible)
+                .frame(maxHeight: notifListHeight)
             }
         }
-        .frame(width: 300)
+        .frame(width: UIScreen.main.bounds.width * 0.78)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(
@@ -138,11 +150,28 @@ struct VitaNotifPopout: View {
         )
     }
 
-    // MARK: - Notification Row
+    /// Height for ~5 visible notification rows
+    private var notifListHeight: CGFloat {
+        let rowHeight: CGFloat = 62
+        let visibleCount = min(notifications.count, 5)
+        return CGFloat(visibleCount) * rowHeight + 16
+    }
 
-    private func notifRow(_ item: NotifItem) -> some View {
+    // MARK: - Notification Row (tappable)
+
+    private func notifRowButton(_ item: VitaNotification) -> some View {
+        Button {
+            NSLog("[NotifPopout] TAP on: %@ route=%@", item.title, item.route ?? "nil")
+            tapNotification(item)
+        } label: {
+            notifRow(item)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+
+    private func notifRow(_ item: VitaNotification) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            // Emoji icon
             Text(item.icon)
                 .font(.system(size: 18))
                 .frame(width: 24)
@@ -150,18 +179,18 @@ struct VitaNotifPopout: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.88))
+                    .foregroundStyle(item.read ? Color.white.opacity(0.50) : Color.white.opacity(0.88))
                     .lineLimit(1)
 
-                Text(item.subtitle)
+                Text(item.description)
                     .font(.system(size: 10))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.35))
+                    .foregroundStyle(VitaColors.textWarm.opacity(item.read ? 0.20 : 0.35))
                     .lineLimit(2)
             }
 
             Spacer()
 
-            Text(item.time)
+            Text(item.relativeTime)
                 .font(.system(size: 9))
                 .foregroundStyle(VitaColors.accentHover.opacity(0.35))
         }
@@ -182,7 +211,7 @@ struct VitaNotifPopout: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(
-                            item.isRead
+                            item.read
                                 ? VitaColors.accentHover.opacity(0.04)
                                 : VitaColors.accentHover.opacity(0.12),
                             lineWidth: 1
@@ -211,52 +240,115 @@ struct VitaNotifPopout: View {
 
     // MARK: - Actions
 
-    private func loadNotifications() async {
-        isLoading = true
-        do {
-            let items = try await container.api.getNotifications()
-            notifications = items.map { n in
-                NotifItem(
-                    id: n.id,
-                    icon: n.icon,
-                    title: n.title,
-                    subtitle: n.description,
-                    time: n.time,
-                    isRead: n.read
-                )
+    private func tapNotification(_ item: VitaNotification) {
+        if !item.read {
+            if let idx = notifications.firstIndex(where: { $0.id == item.id }) {
+                var updated = notifications
+                let old = updated[idx]
+                updated[idx] = VitaNotification(id: old.id, type: old.type, title: old.title, description: old.description, time: old.time, read: true, createdAt: old.createdAt)
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    notifications = updated
+                }
+                // Sync cache immediately so reopening popout won't flash unread
+                pushManager.updateCachedNotifications(updated)
             }
-        } catch {
-            notifications = []
+            Task {
+                try? await container.api.markNotificationsRead(ids: [item.id])
+                await pushManager.refreshUnreadCount()
+            }
         }
-        isLoading = false
+        if let route = item.route, !route.isEmpty {
+            onNavigate(route)
+        }
     }
 
     private func markAllRead() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            notifications = notifications.map {
-                NotifItem(id: $0.id, icon: $0.icon, title: $0.title, subtitle: $0.subtitle, time: $0.time, isRead: true)
-            }
+        let updated = notifications.map {
+            VitaNotification(id: $0.id, type: $0.type, title: $0.title, description: $0.description, time: $0.time, read: true, createdAt: $0.createdAt)
         }
-        onMarkAllRead()
+        withAnimation(.easeInOut(duration: 0.2)) {
+            notifications = updated
+        }
+        // Sync cache immediately
+        pushManager.updateCachedNotifications(updated)
+        Task {
+            try? await container.api.markNotificationsRead(markAll: true)
+            await pushManager.refreshUnreadCount()
+        }
+    }
+
+    private func deleteNotification(_ item: VitaNotification) {
+        withAnimation(.easeOut(duration: 0.2)) {
+            notifications.removeAll { $0.id == item.id }
+        }
+        // Mark as read on backend (no delete endpoint yet)
+        Task {
+            try? await container.api.markNotificationsRead(ids: [item.id])
+        }
     }
 
     private func dismiss() {
-        withAnimation(.easeOut(duration: 0.15)) {
+        withAnimation(.spring(duration: 0.3, bounce: 0.12)) {
             isVisible = false
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             onDismiss()
         }
     }
 }
 
-// MARK: - NotifItem Model
+// MARK: - Notif Button Style (no flash, full hit area)
 
-struct NotifItem: Identifiable {
-    let id: String
-    let icon: String
-    let title: String
-    let subtitle: String
-    let time: String
-    let isRead: Bool
+private struct NotifButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Swipe to Delete (notification-specific)
+
+private struct SwipeToDelete<Content: View>: View {
+    let onDelete: () -> Void
+    @ViewBuilder let content: Content
+
+    @State private var offset: CGFloat = 0
+    private let threshold: CGFloat = -70
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            HStack {
+                Spacer()
+                Image(systemName: "trash.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white)
+                    .frame(width: 56)
+            }
+            .background(VitaColors.dataRed.opacity(0.7))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .opacity(offset < -20 ? 1 : 0)
+
+            content
+                .offset(x: offset)
+                .gesture(
+                    DragGesture(minimumDistance: 15)
+                        .onChanged { value in
+                            if value.translation.width < 0 {
+                                offset = value.translation.width * 0.6
+                            }
+                        }
+                        .onEnded { _ in
+                            if offset < threshold {
+                                withAnimation(.easeOut(duration: 0.2)) { offset = -300 }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    onDelete()
+                                }
+                            } else {
+                                withAnimation(.spring(duration: 0.25)) { offset = 0 }
+                            }
+                        }
+                )
+        }
+    }
 }

@@ -4,13 +4,14 @@ import SwiftUI
 
 struct TrabalhoScreen: View {
     @Environment(\.appContainer) private var container
+    var onOpenDetail: ((String) -> Void)? = nil
     @State private var viewModel: TrabalhoViewModel?
 
     // Editor navigation state
     @State private var showEditor: Bool = false
     @State private var editorAssignmentId: String? = nil
 
-    private let segments = ["Tarefas", "Notas"]
+    private let segments = ["Tarefas", "Notas por Disciplina"]
 
     var body: some View {
         Group {
@@ -210,8 +211,12 @@ struct TrabalhoScreen: View {
             ForEach(items) { item in
                 SwipeToArchive(onArchive: { vm.dismiss(item) }) {
                     Button {
-                        editorAssignmentId = item.id
-                        showEditor = true
+                        if let onOpenDetail {
+                            onOpenDetail(item.id)
+                        } else {
+                            editorAssignmentId = item.id
+                            showEditor = true
+                        }
                     } label: {
                         TrabalhoRow(item: item)
                     }
@@ -221,22 +226,38 @@ struct TrabalhoScreen: View {
         }
     }
 
-    // MARK: - Grades Tab
+    // MARK: - Grades Tab (grouped by discipline)
 
     @ViewBuilder
     private func gradesContent(vm: TrabalhoViewModel) -> some View {
-        VStack(spacing: 8) {
-            SectionHeader(title: "Notas")
-
+        VStack(spacing: 16) {
             if vm.grades.isEmpty {
                 TrabalhoEmptyState(
                     icon: "chart.bar",
                     message: "Nenhuma nota registrada"
                 )
             } else {
-                VStack(spacing: 8) {
-                    ForEach(vm.sortedGrades) { grade in
-                        GradeRow(grade: grade)
+                let grouped = Dictionary(grouping: vm.sortedGrades, by: { $0.label.isEmpty ? "Sem disciplina" : $0.label })
+                let sortedKeys = grouped.keys.sorted()
+
+                ForEach(sortedKeys, id: \.self) { subject in
+                    VStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "book.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(VitaColors.accent)
+                            Text(subject)
+                                .font(VitaTypography.labelMedium)
+                                .foregroundStyle(VitaColors.textPrimary)
+                            Text("\(grouped[subject]?.count ?? 0)")
+                                .font(VitaTypography.labelSmall)
+                                .foregroundStyle(VitaColors.textTertiary)
+                            Spacer()
+                        }
+
+                        ForEach(grouped[subject] ?? []) { grade in
+                            GradeRow(grade: grade)
+                        }
                     }
                 }
             }
