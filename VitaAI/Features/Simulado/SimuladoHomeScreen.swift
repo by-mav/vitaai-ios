@@ -48,7 +48,7 @@ struct SimuladoHomeScreen: View {
             }
         }
         .onAppear {
-            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents) }
+            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents, dataManager: container.dataManager) }
             vm?.loadAttempts()
         }
     }
@@ -180,6 +180,10 @@ struct SimuladoHomeScreen: View {
                 .padding(.top, 4)
                 .padding(.bottom, 120)
             }
+        }
+        .refreshable {
+            vm.loadAttempts()
+            try? await Task.sleep(for: .milliseconds(500))
         }
     }
 }

@@ -14,43 +14,24 @@ final class PdfViewerViewModel {
     var isLoading: Bool = true
     var isSaving: Bool = false
 
-    // MARK: - Annotation mode
-    var isDrawMode: Bool = false
-    var selectedTool: AnnotationTool = .pen
-    var selectedColor: Color = VitaColors.accent
-    var strokeWidth: CGFloat = 4
-
-    // MARK: - PencilKit drawings per page
-    private var pageDrawings: [Int: PKDrawing] = [:]
-
-    // MARK: - Shape/text annotations per page (non-PencilKit)
-    private var pageTextAnnotations: [Int: [TextAnnotation]] = [:]
-    private var pageShapeAnnotations: [Int: [ShapeAnnotation]] = [:]
-
-    // MARK: - Current page hot cache
-    var textAnnotations: [TextAnnotation] = []
-    var shapeAnnotations: [ShapeAnnotation] = []
-
-    // MARK: - Undo/Redo (delegated to PKCanvasView's UndoManager)
-    var canUndo: Bool = false
-    var canRedo: Bool = false
-    var undoTrigger: Int = 0
-    var redoTrigger: Int = 0
-
     // MARK: - UI state
     var showThumbnails: Bool = false
+    var isAnnotating: Bool = false
 
-    private var fileHash: String = ""
-    private var saveTask: Task<Void, Never>?
+    // MARK: - Search state
+    var isSearching: Bool = false
+    var searchText: String = ""
+    var searchResults: [PDFSelection] = []
+    var currentSearchIndex: Int = 0
+
+    private(set) var fileHash: String = ""
 
     // MARK: - Load
 
     func load(url: URL, tokenStore: TokenStore? = nil) async {
-        print("[PdfViewer] load called, url=%@, hasTokenStore=%@", url.absoluteString, tokenStore != nil ? "YES" : "NO")
         fileName = url.deletingPathExtension().lastPathComponent
         fileHash = computeHash(url.absoluteString)
 
-        // If URL points to our API, fetch with auth header
         if let tokenStore, url.absoluteString.contains("/api/documents/") {
             do {
                 let token = await tokenStore.token
@@ -59,16 +40,11 @@ final class PdfViewerViewModel {
                     request.setValue(token, forHTTPHeaderField: "X-Extension-Token")
                 }
                 let (data, response) = try await URLSession.shared.data(for: request)
-                if let httpResp = response as? HTTPURLResponse {
-                    print("[PdfViewer] HTTP %d, bytes: %d, contentType: %@", httpResp.statusCode, data.count, httpResp.mimeType ?? "nil")
-                    if httpResp.statusCode == 200 {
-                        let pdf = PDFDocument(data: data)
-                        print("[PdfViewer] PDFDocument created: %@, pages: %d", pdf != nil ? "YES" : "NO", pdf?.pageCount ?? 0)
-                        document = pdf
-                    }
+                if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
+                    document = PDFDocument(data: data)
                 }
             } catch {
-                print("[PdfViewer] Auth fetch failed: %@", error.localizedDescription)
+                print("[PdfViewer] Auth fetch failed: \(error.localizedDescription)")
             }
         } else {
             document = PDFDocument(url: url)
@@ -76,184 +52,101 @@ final class PdfViewerViewModel {
 
         pageCount = document?.pageCount ?? 0
         isLoading = false
-        loadAnnotations(for: 0)
     }
 
-    // MARK: - Page Navigation
+    // MARK: - Annotation mode
 
-    func setCurrentPage(_ page: Int) {
-        guard page != currentPage else { return }
-        saveCurrentPage()
-        currentPage = page
-        loadAnnotations(for: page)
-    }
-
-    // MARK: - Draw Mode
-
-    func toggleDrawMode() { isDrawMode.toggle() }
-
-    func selectTool(_ tool: AnnotationTool) {
-        selectedTool = tool
-        isDrawMode = true
-    }
-
-    func setColor(_ color: Color) { selectedColor = color }
-    func setStrokeWidth(_ width: CGFloat) { strokeWidth = width }
-
-    // MARK: - PencilKit Drawing
-
-    func drawing(for page: Int) -> PKDrawing {
-        pageDrawings[page] ?? PKDrawing()
-    }
-
-    func updateDrawing(_ drawing: PKDrawing, for page: Int) {
-        pageDrawings[page] = drawing
-        scheduleSave()
-    }
-
-    // MARK: - PencilKit tool
-
-    var pkTool: PKTool {
-        let uiColor = UIColor(selectedColor)
-        switch selectedTool {
-        case .pen:
-            return PKInkingTool(.pen, color: uiColor, width: strokeWidth)
-        case .highlighter:
-            return PKInkingTool(.marker, color: uiColor.withAlphaComponent(0.35), width: strokeWidth * 3)
-        case .eraser:
-            return PKEraserTool(.vector)
-        default:
-            return PKInkingTool(.pen, color: uiColor, width: strokeWidth)
-        }
-    }
-
-    // MARK: - Undo/Redo
-
-    func undo() { undoTrigger += 1 }
-    func redo() { redoTrigger += 1 }
-
-    // MARK: - Text Annotations
-
-    func addTextAnnotation(_ ann: TextAnnotation) {
-        let page = currentPage
-        var list = pageTextAnnotations[page, default: []]
-        list.append(ann)
-        pageTextAnnotations[page] = list
-        textAnnotations = list
-        scheduleSave()
-    }
-
-    func updateTextAnnotation(_ ann: TextAnnotation) {
-        let page = currentPage
-        var list = pageTextAnnotations[page, default: []]
-        if let idx = list.firstIndex(where: { $0.id == ann.id }) {
-            list[idx] = ann
-            pageTextAnnotations[page] = list
-            textAnnotations = list
-            scheduleSave()
-        }
-    }
-
-    func removeTextAnnotation(id: UUID) {
-        let page = currentPage
-        var list = pageTextAnnotations[page, default: []]
-        list.removeAll { $0.id == id }
-        pageTextAnnotations[page] = list
-        textAnnotations = list
-        scheduleSave()
-    }
-
-    // MARK: - Shape Annotations
-
-    func addShapeAnnotation(_ ann: ShapeAnnotation) {
-        let page = currentPage
-        var list = pageShapeAnnotations[page, default: []]
-        list.append(ann)
-        pageShapeAnnotations[page] = list
-        shapeAnnotations = list
-        scheduleSave()
-    }
-
-    // MARK: - Thumbnails
-
+    func toggleAnnotating() { isAnnotating.toggle() }
     func toggleThumbnails() { showThumbnails.toggle() }
 
-    // MARK: - Accessors for all pages (export)
+    // MARK: - Search
 
-    func texts(for page: Int) -> [TextAnnotation] { pageTextAnnotations[page, default: []] }
-    func shapes(for page: Int) -> [ShapeAnnotation] { pageShapeAnnotations[page, default: []] }
+    func toggleSearch() {
+        isSearching.toggle()
+        if !isSearching { clearSearch() }
+    }
 
-    // MARK: - Force Save (on dismiss)
+    func clearSearch() {
+        searchText = ""
+        searchResults = []
+        currentSearchIndex = 0
+    }
 
-    func forceSave() {
-        saveTask?.cancel()
-        saveCurrentPage()
-        for page in 0..<pageCount {
-            performSave(page: page)
+    func performSearch(_ text: String, pdfView: PDFView?) {
+        guard !text.isEmpty, let document else {
+            searchResults = []
+            currentSearchIndex = 0
+            pdfView?.highlightedSelections = nil
+            pdfView?.currentSelection = nil
+            return
+        }
+        searchResults = document.findString(text, withOptions: [.caseInsensitive, .diacriticInsensitive])
+        currentSearchIndex = 0
+        highlightCurrentResult(in: pdfView)
+    }
+
+    func nextResult(pdfView: PDFView?) {
+        guard !searchResults.isEmpty else { return }
+        currentSearchIndex = (currentSearchIndex + 1) % searchResults.count
+        highlightCurrentResult(in: pdfView)
+    }
+
+    func previousResult(pdfView: PDFView?) {
+        guard !searchResults.isEmpty else { return }
+        currentSearchIndex = (currentSearchIndex - 1 + searchResults.count) % searchResults.count
+        highlightCurrentResult(in: pdfView)
+    }
+
+    func highlightCurrentResult(in pdfView: PDFView?) {
+        guard let pdfView else { return }
+        pdfView.highlightedSelections = searchResults
+        guard !searchResults.isEmpty else { return }
+        let selection = searchResults[currentSearchIndex]
+        pdfView.currentSelection = selection
+        pdfView.go(to: selection)
+        // Update current page indicator
+        if let page = selection.pages.first, let doc = pdfView.document {
+            let pageIndex = doc.index(for: page)
+            currentPage = pageIndex
         }
     }
 
-    // MARK: - Private
-
-    private func saveCurrentPage() {
-        // Text/shape state is already in pageTextAnnotations/pageShapeAnnotations
-        // PKDrawing is updated via updateDrawing() from the canvas delegate
+    func clearSearchHighlights(in pdfView: PDFView?) {
+        pdfView?.highlightedSelections = nil
+        pdfView?.currentSelection = nil
     }
 
-    private func scheduleSave() {
-        saveTask?.cancel()
+    // MARK: - Annotation persistence (file-based, keyed by hash + page)
+
+    func loadDrawing(pageIndex: Int) -> PKDrawing? {
+        let url = annotationFileURL(page: pageIndex)
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? PKDrawing(data: data)
+    }
+
+    func saveDrawing(_ drawing: PKDrawing, pageIndex: Int) {
         isSaving = true
-        saveTask = Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            guard !Task.isCancelled else { return }
-            performSave(page: currentPage)
-            isSaving = false
+        let url = annotationFileURL(page: pageIndex)
+        try? drawing.dataRepresentation().write(to: url)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            self.isSaving = false
         }
     }
 
-    private func loadAnnotations(for page: Int) {
-        guard !fileHash.isEmpty else { return }
-        let key = annotationKey(page: page)
-
-        // Load PencilKit drawing
-        if let drawingData = UserDefaults.standard.data(forKey: key + "_pk"),
-           let drawing = try? PKDrawing(data: drawingData) {
-            pageDrawings[page] = drawing
-        }
-
-        // Load text/shape annotations
-        if let data = UserDefaults.standard.data(forKey: key + "_meta"),
-           let meta = try? JSONDecoder().decode(PageMetaAnnotations.self, from: data) {
-            pageTextAnnotations[page] = meta.textAnnotations
-            pageShapeAnnotations[page] = meta.shapeAnnotations
-        }
-
-        if page == currentPage {
-            textAnnotations = pageTextAnnotations[page, default: []]
-            shapeAnnotations = pageShapeAnnotations[page, default: []]
-        }
+    func saveAllAnnotations() {
+        // Coordinator calls saveDrawing per page as they scroll off-screen.
+        // Nothing extra needed here — file writes are synchronous in coordinator.
     }
 
-    private func performSave(page: Int) {
-        guard !fileHash.isEmpty else { return }
-        let key = annotationKey(page: page)
+    // MARK: - Private helpers
 
-        // Save PencilKit drawing
-        if let drawing = pageDrawings[page] {
-            UserDefaults.standard.set(drawing.dataRepresentation(), forKey: key + "_pk")
-        }
-
-        // Save text/shape annotations
-        let meta = PageMetaAnnotations(
-            textAnnotations: pageTextAnnotations[page, default: []],
-            shapeAnnotations: pageShapeAnnotations[page, default: []]
-        )
-        if let data = try? JSONEncoder().encode(meta) {
-            UserDefaults.standard.set(data, forKey: key + "_meta")
-        }
+    func annotationFileURL(page: Int) -> URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("pdf_annotations", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("\(fileHash)_p\(page).pkdrawing")
     }
-
-    private func annotationKey(page: Int) -> String { "vita_pdf_ann_\(fileHash)_p\(page)" }
 
     private func computeHash(_ input: String) -> String {
         var hash: UInt64 = 5381
@@ -262,11 +155,4 @@ final class PdfViewerViewModel {
         }
         return String(hash, radix: 16)
     }
-}
-
-// MARK: - Meta annotations (text + shapes, non-PencilKit)
-
-private struct PageMetaAnnotations: Codable {
-    var textAnnotations: [TextAnnotation]
-    var shapeAnnotations: [ShapeAnnotation]
 }

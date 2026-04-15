@@ -82,10 +82,12 @@ final class SimuladoViewModel {
     var state = SimuladoUiState()
     private let api: VitaAPI
     private let gamificationEvents: GamificationEventManager
+    private let dataManager: AppDataManager
 
-    init(api: VitaAPI, gamificationEvents: GamificationEventManager) {
+    init(api: VitaAPI, gamificationEvents: GamificationEventManager, dataManager: AppDataManager) {
         self.api = api
         self.gamificationEvents = gamificationEvents
+        self.dataManager = dataManager
     }
 
     // MARK: - Home
@@ -176,7 +178,7 @@ final class SimuladoViewModel {
                 let filters = try await api.getQBankFilters()
                 let top = filters.disciplines
                     .filter { $0.questionCount > 0 }
-                    .sorted { $0.questionCount > $1.questionCount }
+                    .sorted { dataManager.vitaScore(for: $0.title) > dataManager.vitaScore(for: $1.title) }
                     .prefix(12)
                 if !top.isEmpty {
                     state.disciplines = top.map { SimuladoDiscipline(name: $0.title, count: $0.questionCount) }

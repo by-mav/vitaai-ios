@@ -64,6 +64,11 @@ struct ProfileScreen: View {
                 Spacer().frame(height: 120)
             }
         }
+        .refreshable {
+            async let statsTask: () = loadStats()
+            async let profileTask: () = loadProfile()
+            _ = await (statsTask, profileTask)
+        }
         .task {
             async let statsTask: () = loadStats()
             async let profileTask: () = loadProfile()

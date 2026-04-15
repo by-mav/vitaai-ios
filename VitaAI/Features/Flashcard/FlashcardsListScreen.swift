@@ -176,6 +176,7 @@ struct FlashcardsListScreen: View {
                 }
                 .padding(.horizontal, 16)
             }
+        .refreshable { await loadData() }
         .task {
             await appData.loadIfNeeded()
             await container.studyOverviewStore.loadIfNeeded()
@@ -256,16 +257,19 @@ struct FlashcardsListScreen: View {
             let subjectIds = Set(
                 container.studyOverviewStore.snapshot?.subjects.map(\.id) ?? []
             )
+            let scoreFor: (FlashcardDeckEntry) -> Double = { deck in
+                container.dataManager.vitaScore(for: deck.title)
+            }
             if subjectIds.isEmpty {
-                currentDecks = withCards.sorted { $0.cardCount > $1.cardCount }
+                currentDecks = withCards.sorted { scoreFor($0) > scoreFor($1) }
                 historyDecks = []
             } else {
                 currentDecks = withCards
                     .filter { $0.subjectId != nil && subjectIds.contains($0.subjectId!) }
-                    .sorted { $0.cardCount > $1.cardCount }
+                    .sorted { scoreFor($0) > scoreFor($1) }
                 historyDecks = withCards
                     .filter { $0.subjectId == nil || !subjectIds.contains($0.subjectId!) }
-                    .sorted { $0.cardCount > $1.cardCount }
+                    .sorted { scoreFor($0) > scoreFor($1) }
             }
 
             // First CURRENT deck with due cards = continue deck
@@ -492,7 +496,7 @@ struct FlashcardsListScreen: View {
 
             if showLibrary || !searchText.isEmpty {
                 VStack(spacing: 4) {
-                    ForEach(filteredHistoryDecks.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }) { deck in
+                    ForEach(filteredHistoryDecks.sorted { container.dataManager.vitaScore(for: $0.title) > container.dataManager.vitaScore(for: $1.title) }) { deck in
                         Button(action: { navigateToDeck(deck) }) {
                             HStack(spacing: 10) {
                                 Text(deck.title)

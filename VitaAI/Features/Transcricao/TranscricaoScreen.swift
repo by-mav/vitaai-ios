@@ -153,6 +153,7 @@ private struct TranscricaoContent: View {
                         .padding(.bottom, 120)
                     }
                     .animation(.easeInOut(duration: 0.3), value: isProcessing)
+                    .refreshable { await viewModel.loadRecordings() }
                 }
             }
         }

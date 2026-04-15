@@ -106,6 +106,7 @@ struct ActivityFeedScreen: View {
                     }
                     .padding(.top, 8)
                 }
+                .refreshable { await vm.load() }
             } else {
                 Spacer()
                 ProgressView()

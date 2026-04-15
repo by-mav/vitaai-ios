@@ -264,12 +264,27 @@ struct WebAlunoWebView: UIViewRepresentable {
                 self.parent.isLoading = false
             }
 
-            // pageZoom handles scaling natively — no JS needed
-
-            guard !sessionFound else { return }
-
             let currentURL = webView.url?.absoluteString ?? ""
             NSLog("[WebAluno] didFinish URL: %@", currentURL)
+
+            // Google OAuth pages render oversized in WKWebView — inject viewport meta
+            // to force mobile-width rendering. Only targets accounts.google.com.
+            if currentURL.contains("accounts.google.com") {
+                let fixZoomJS = """
+                    (function() {
+                        var meta = document.querySelector('meta[name="viewport"]');
+                        if (!meta) {
+                            meta = document.createElement('meta');
+                            meta.name = 'viewport';
+                            document.head.appendChild(meta);
+                        }
+                        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0';
+                    })();
+                """
+                webView.evaluateJavaScript(fixZoomJS) { _, _ in }
+            }
+
+            guard !sessionFound else { return }
 
             // Auto-trigger Google OAuth — any page under /webaluno/ that isn't Google/OAuth itself
             let isMannesoftPage = currentURL.contains("/webaluno")
@@ -385,11 +400,14 @@ struct WebAlunoWebView: UIViewRepresentable {
                     MannesoftCookieStore.save(cookieStr, domain: currentURL)
                     NSLog("[WebAluno] Persisted %d cookies (%d chars) for SilentSync", allPortalCookies.count, cookieStr.count)
 
-                    DispatchQueue.main.async {
-                        self.parent.onSessionCaptured(phpSession)
-                    }
-                    // Inject bridge.js to extract portal data directly from this WebView
+                    // Inject bridge.js FIRST — it needs the WebView alive.
+                    // onSessionCaptured triggers state changes that can invalidate the view.
                     self.injectBridgeJS(into: webView)
+                    // Delay onSessionCaptured so bridge fetch starts before any SwiftUI state change
+                    let capturedSession = phpSession
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        self.parent.onSessionCaptured(capturedSession)
+                    }
                 } else {
                     NSLog("[WebAluno] extractPhpSessionId returned nil")
                 }
@@ -439,8 +457,7 @@ struct WebAlunoWebView: UIViewRepresentable {
                         return
                     }
                     NSLog("[WebAluno/Bridge] Injecting bridge.js (%d bytes)", js.count)
-                    // Wait 2s for page to fully render before bridge navigates
-                    try await Task.sleep(for: .seconds(2))
+                    // Inject immediately — bridge.js has its own DOMContentLoaded wait
                     await MainActor.run {
                         webView.evaluateJavaScript(js) { _, error in
                             if let error {

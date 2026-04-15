@@ -166,7 +166,10 @@ struct FlashcardEntry: Codable, Identifiable {
     var tag: String?
     var deckId: String?
     var disciplineId: FlexString?
+    var topicId: Int?
+    var language: String?
     var sourceQuestionId: FlexString?
+    var sourceNid: String?
     var createdAt: String?
     var updatedAt: String?
     var deletedAt: String?

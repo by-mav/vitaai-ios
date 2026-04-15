@@ -39,6 +39,7 @@ struct FaculdadeDisciplinasScreen: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
         }
+        .refreshable { await appData.forceRefresh() }
     }
 
     // MARK: - Empty state
@@ -84,7 +85,7 @@ struct FaculdadeDisciplinasScreen: View {
             ForEach(subjects) { subject in
                 Button {
                     router.navigate(to: .disciplineDetail(
-                        disciplineId: subject.subjectName,
+                        disciplineId: subject.id,
                         disciplineName: subject.subjectName
                     ))
                 } label: {

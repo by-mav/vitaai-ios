@@ -85,7 +85,6 @@ enum Route: Hashable {
     case planner
 
     // MARK: - Faculdade subpages (dashboard + push navigation)
-    case faculdadeAgenda
     case faculdadeDisciplinas
     case faculdadeMaterias
     case faculdadeDocumentos

@@ -34,7 +34,6 @@ struct FaculdadeHomeScreen: View {
                 subTabRow
                 heroCard
                 disciplinesSection
-                agendaMiniCard
                 MateriasAgendaWidget(
                     subjects: appData.gradesResponse?.current ?? [],
                     schedule: appData.classSchedule,
@@ -68,7 +67,6 @@ struct FaculdadeHomeScreen: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 subTabPill(title: "Disciplinas", icon: "graduationcap", route: .faculdadeDisciplinas)
-                subTabPill(title: "Agenda", icon: "calendar", route: .faculdadeAgenda)
                 subTabPill(title: "Documentos", icon: "doc.text", route: .faculdadeDocumentos)
                 subTabPill(title: "Trabalhos", icon: "doc.richtext", route: .trabalhos)
                 subTabPill(title: "Professores", icon: "person.2", route: .faculdadeProfessores)
@@ -245,11 +243,10 @@ struct FaculdadeHomeScreen: View {
         return String(format: "%.2f", avg)
     }
 
-    // MARK: - Disciplines section (preview + navigate to full list)
+    // MARK: - Disciplines section (folder grid)
 
     private var disciplinesSection: some View {
         let subjects = appData.gradesResponse?.current ?? []
-        let names = subjects.map(\.subjectName)
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -259,7 +256,7 @@ struct FaculdadeHomeScreen: View {
                     .textCase(.uppercase)
                     .foregroundStyle(VitaColors.sectionLabel)
                 Spacer()
-                if !names.isEmpty {
+                if !subjects.isEmpty {
                     Button {
                         router.navigate(to: .faculdadeDisciplinas)
                     } label: {
@@ -275,7 +272,7 @@ struct FaculdadeHomeScreen: View {
                 }
             }
 
-            if names.isEmpty {
+            if subjects.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "graduationcap")
                         .font(.system(size: 16))
@@ -286,14 +283,18 @@ struct FaculdadeHomeScreen: View {
                 }
                 .padding(.vertical, 8)
             } else {
-                let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 2)
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(names, id: \.self) { name in
+                let sorted = sortedByFavorite(subjects)
+                let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(sorted) { subject in
                         Button {
                             router.navigate(to: .faculdadeDisciplinas)
-                            router.navigate(to: .disciplineDetail(disciplineId: name, disciplineName: name))
+                            router.navigate(to: .disciplineDetail(disciplineId: subject.id, disciplineName: subject.subjectName))
                         } label: {
-                            glassDisciplineCard(name: name)
+                            DisciplineFolderCard(
+                                subjectName: subject.subjectName,
+                                vitaScore: Int(appData.vitaScore(for: subject.subjectName))
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -302,150 +303,15 @@ struct FaculdadeHomeScreen: View {
         }
     }
 
-    @ViewBuilder
-    private func glassDisciplineCard(name: String) -> some View {
-        let shortName = name
-            .replacingOccurrences(of: "(?i),.*$", with: "", options: .regularExpression)
-            .trimmingCharacters(in: .whitespaces)
+    // MARK: - Helpers
 
-        HStack(spacing: 10) {
-            Circle()
-                .fill(goldPrimary.opacity(0.35))
-                .frame(width: 8, height: 8)
-
-            Text(shortName)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(textWarm.opacity(0.85))
-                .lineLimit(1)
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(textWarm.opacity(0.25))
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial.opacity(0.35))
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white.opacity(0.03))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.06), lineWidth: 0.5)
-        )
-    }
-
-    // MARK: - Mini card: Agenda (preview só de hoje)
-
-    private var agendaMiniCard: some View {
-        Button {
-            router.navigate(to: .faculdadeAgenda)
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                miniCardHeader(icon: "calendar", title: "Hoje", trailing: todayShort)
-
-                let aulas = appData.classSchedule.filter { $0.dayOfWeek == todayWeekdayAPI }
-                    .sorted { $0.startTime < $1.startTime }
-                let evals = todayEvaluations
-
-                if aulas.isEmpty && evals.isEmpty {
-                    Text("Nenhum compromisso hoje")
-                        .font(.system(size: 12))
-                        .foregroundStyle(textDim)
-                        .padding(.vertical, 6)
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(Array(evals.prefix(2).enumerated()), id: \.offset) { _, eval in
-                            miniEvalLine(eval)
-                        }
-                        ForEach(Array(aulas.prefix(3).enumerated()), id: \.offset) { _, aula in
-                            miniAulaLine(aula)
-                        }
-                    }
-                }
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14).fill(cardBg)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14).stroke(glassBorder, lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var todayShort: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "pt_BR")
-        f.dateFormat = "EEE, d MMM"
-        return f.string(from: Date()).capitalized
-    }
-
-    private var todayWeekdayAPI: Int {
-        let wd = Calendar.current.component(.weekday, from: Date())
-        // Foundation: 1=Sun ... 7=Sat → API: 1=Mon ... 7=Sun
-        return ((wd + 5) % 7) + 1
-    }
-
-    private var todayEvaluations: [AgendaEvaluation] {
-        let today = Date()
-        let cal = Calendar.current
-        return appData.academicEvaluations.filter { eval in
-            guard let s = eval.date else { return false }
-            let fmt = ISO8601DateFormatter()
-            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            let fmt2 = ISO8601DateFormatter()
-            fmt2.formatOptions = [.withInternetDateTime]
-            guard let d = fmt.date(from: s) ?? fmt2.date(from: s) else { return false }
-            return cal.isDate(d, inSameDayAs: today)
-        }
-    }
-
-    private func miniEvalLine(_ eval: AgendaEvaluation) -> some View {
-        let subject = eval.subjectName ?? "—"
-        let color = SubjectColors.colorFor(subject: subject)
-        let prova = eval.type.uppercased().contains("EXAM") || eval.type.uppercased().contains("PROVA")
-        return HStack(spacing: 8) {
-            Group {
-                if prova {
-                    Circle().fill(color).frame(width: 7, height: 7)
-                        .shadow(color: color.opacity(0.5), radius: 2)
-                } else {
-                    Circle().stroke(color, lineWidth: 1.3).frame(width: 7, height: 7)
-                }
-            }
-            .frame(width: 10)
-            Text(eval.title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(color.opacity(0.95))
-                .lineLimit(1)
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func miniAulaLine(_ aula: AgendaClassBlock) -> some View {
-        let color = SubjectColors.colorFor(subject: aula.subjectName)
-        return HStack(spacing: 8) {
-            Text(String(aula.startTime.prefix(5)))
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(textWarm.opacity(0.55))
-                .frame(width: 36, alignment: .leading)
-            Rectangle()
-                .fill(color)
-                .frame(width: 2, height: 12)
-            Text(aula.subjectName)
-                .font(.system(size: 11))
-                .foregroundStyle(textWarm.opacity(0.75))
-                .lineLimit(1)
-            Spacer(minLength: 0)
+    private func sortedByFavorite(_ subjects: [GradeSubject]) -> [GradeSubject] {
+        let favs = DisciplineFolderCard.favorites()
+        return subjects.sorted { a, b in
+            let aFav = favs.contains(a.subjectName)
+            let bFav = favs.contains(b.subjectName)
+            if aFav != bFav { return aFav }
+            return a.subjectName < b.subjectName
         }
     }
 

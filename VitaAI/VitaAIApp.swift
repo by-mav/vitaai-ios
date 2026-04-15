@@ -32,11 +32,10 @@ class VitaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenter
     }
 
     /// Silent (content-available) push handler — app is woken in the background
-    /// with a ~30s window to run work. The cron sends `type=canvas_reauth` payloads
-    /// when Canvas is within 2h of its 24h session expiry.
-    ///
-    /// Must call `completionHandler` exactly once, within the window, or iOS will
-    /// throttle future background pushes for this app.
+    /// with a ~30s window to run work.
+    /// Handles:
+    ///   - `canvas_reauth`: Canvas session about to expire → reauth via WKWebView
+    ///   - `mannesoft_sync`: Cron triggers Mannesoft keep-alive + data extraction
     func application(
         _ application: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
@@ -45,25 +44,36 @@ class VitaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenter
         let type = userInfo["type"] as? String ?? ""
         NSLog("[PushBG] Silent push received: type=%@", type)
 
-        guard type == "canvas_reauth",
-              let instanceUrl = userInfo["instanceUrl"] as? String,
-              !instanceUrl.isEmpty else {
-            completionHandler(.noData)
-            return
-        }
+        switch type {
+        case "canvas_reauth":
+            guard let instanceUrl = userInfo["instanceUrl"] as? String, !instanceUrl.isEmpty else {
+                completionHandler(.noData)
+                return
+            }
+            Task { @MainActor in
+                let api = VitaAPI(client: HTTPClient(tokenStore: TokenStore()))
+                let success = await CanvasSilentReauth.shared.forceReauth(
+                    instanceUrl: instanceUrl,
+                    api: api
+                )
+                NSLog("[PushBG] Canvas reauth result: %@", success ? "success" : "failed")
+                completionHandler(success ? .newData : .failed)
+            }
 
-        Task { @MainActor in
-            // Background wakes don't go through AppContainer's @StateObject init,
-            // so build a minimal VitaAPI against the keychain-backed TokenStore.
-            // TokenStore reads the same `vita_session_token` used by the running app,
-            // so /portal/ingest authenticates correctly.
-            let api = VitaAPI(client: HTTPClient(tokenStore: TokenStore()))
-            let success = await CanvasSilentReauth.shared.forceReauth(
-                instanceUrl: instanceUrl,
-                api: api
-            )
-            NSLog("[PushBG] Canvas reauth result: %@", success ? "success" : "failed")
-            completionHandler(success ? .newData : .failed)
+        case "mannesoft_sync":
+            NSLog("[PushBG] Mannesoft silent sync triggered by server")
+            Task { @MainActor in
+                let api = VitaAPI(client: HTTPClient(tokenStore: TokenStore()))
+                SilentPortalSync.shared.resetThrottle()
+                SilentPortalSync.shared.syncIfNeeded(api: api)
+                // Give sync up to 25s (iOS allows ~30s for silent push)
+                try? await Task.sleep(for: .seconds(25))
+                NSLog("[PushBG] Mannesoft sync window ending")
+                completionHandler(.newData)
+            }
+
+        default:
+            completionHandler(.noData)
         }
     }
 
@@ -157,7 +167,7 @@ private extension VitaAIApp {
 // MARK: - SwiftData Compatibility (iOS 17+)
 struct ModelContainerModifier: ViewModifier {
     let container: AppContainer
-    
+
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
             content.modelContainer(container.modelContainer)

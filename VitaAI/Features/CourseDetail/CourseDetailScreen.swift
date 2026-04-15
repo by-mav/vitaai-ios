@@ -116,7 +116,8 @@ private struct CourseDetailContent: View {
                     } else {
                         AssignmentsTab(
                             assignments: vm.assignments,
-                            onNavigateToCanvasConnect: onNavigateToCanvasConnect
+                            onNavigateToCanvasConnect: onNavigateToCanvasConnect,
+                            onRefresh: { await vm.load() }
                         )
                     }
                 }
@@ -329,6 +330,7 @@ private struct FilesTab: View {
                 }
                 .padding(.top, 4)
             }
+            .refreshable { await vm.load() }
         }
     }
 }
@@ -446,6 +448,7 @@ private struct FileRow: View {
 private struct AssignmentsTab: View {
     let assignments: [Assignment]
     let onNavigateToCanvasConnect: (() -> Void)?
+    var onRefresh: (() async -> Void)? = nil
 
     var body: some View {
         if assignments.isEmpty {
@@ -468,6 +471,7 @@ private struct AssignmentsTab: View {
                 }
                 .padding(.top, 8)
             }
+            .refreshable { await onRefresh?() }
         }
     }
 }

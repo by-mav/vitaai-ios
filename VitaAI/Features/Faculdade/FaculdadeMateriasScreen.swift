@@ -29,6 +29,7 @@ struct FaculdadeMateriasScreen: View {
             }
             .padding(.top, 8)
         }
+        .refreshable { await appData.forceRefresh() }
     }
 
     // MARK: - Empty state
@@ -115,7 +116,7 @@ struct FaculdadeMateriasScreen: View {
 
                     ForEach(subjects) { subject in
                         Button {
-                            onNavigateToDiscipline?(subject.subjectName, subject.subjectName)
+                            onNavigateToDiscipline?(subject.id, subject.subjectName)
                         } label: {
                             if gradesTab == 0 {
                                 if gradesFilter == 0 {

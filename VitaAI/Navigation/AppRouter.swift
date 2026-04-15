@@ -112,6 +112,7 @@ struct AppRouter: View {
             }
             do {
                 let profile = try await container.api.getProfile()
+                NSLog("[AppRouter] getProfile OK onboardingCompleted=\(String(describing: profile.onboardingCompleted)) university=\(String(describing: profile.university))")
                 if profile.onboardingCompleted != true {
                     needsOnboarding = true
                     isOnboardedStored = false
@@ -651,8 +652,6 @@ struct MainTabView: View {
                 onNavigateToQBank: { router.navigate(to: .qbank) },
                 onNavigateToSimulado: { router.navigate(to: .simuladoHome) }
             )
-        case .faculdadeAgenda:
-            AgendaScreen()
         case .faculdadeDisciplinas:
             FaculdadeDisciplinasScreen()
         case .faculdadeMaterias:

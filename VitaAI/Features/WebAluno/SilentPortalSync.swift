@@ -182,13 +182,19 @@ final class SilentPortalSync {
 
         NSLog("[SilentSync] Final URL after redirects: %@", finalURL)
 
-        // Check if we landed on logged-in page (index.php) or login page
-        let isLoggedIn = finalURL.contains("index.php") || finalURL.contains("modulo=")
+        // Check if we landed on logged-in page or login page
+        // Mannesoft login page is ALSO at index.php — check page content, not just URL
         let isAuthPage = finalURL.contains("autenticacao") || finalURL.contains("oauth") || finalURL.contains("login")
+        let pageHasLoginForm = (try? await wv.evaluateJavaScript("""
+            document.body.innerHTML.indexOf('Esqueceu sua senha') !== -1
+            || document.querySelector('input[name="cpf_email"]') !== null
+            || document.querySelector('input[name="senha"]') !== null
+            || document.querySelector('form[action*="autenticacao"]') !== null
+            """) as? Bool) ?? false
+        let isLoggedIn = (finalURL.contains("index.php") || finalURL.contains("modulo=")) && !pageHasLoginForm
 
         if !isLoggedIn || isAuthPage {
-            NSLog("[SilentSync] Session expired (landed on: %@)", finalURL)
-            // Session is dead — release the shared WebView so next login creates a fresh one
+            NSLog("[SilentSync] Session expired (landed on: %@, loginForm: %@)", finalURL, pageHasLoginForm ? "yes" : "no")
             SharedPortalWebView.shared.release()
             MannesoftCookieStore.clear()
             cleanup()
@@ -200,8 +206,8 @@ final class SilentPortalSync {
         // Capture all relevant cookies (PHPSESSID + Cloudflare) for server-side sync
         let sessionCookie = await extractAllCookies(from: wv)
 
-        // Wait 2s for page to render
-        try? await Task.sleep(for: .seconds(2))
+        // Wait 5s for page + iframes to fully render (Mannesoft uses frames for menus)
+        try? await Task.sleep(for: .seconds(5))
 
         // Fetch and inject bridge.js
         guard let bridgeJS = await fetchBridgeJS(api: api) else {
@@ -209,6 +215,9 @@ final class SilentPortalSync {
             cleanup()
             return
         }
+
+        // Mark: bridge not yet injected — ignore stale messages from login WebView
+        bridgeHandler?.armed = false
 
         bridgeHandler?.onComplete = { [weak self] pages in
             guard let self else { return }
@@ -230,7 +239,22 @@ final class SilentPortalSync {
             Task { @MainActor in self?.cleanup() }
         }
 
-        // Inject bridge.js
+        // Quick pre-check: what does the page look like?
+        let preCheck = try? await wv.evaluateJavaScript("""
+            JSON.stringify({
+                url: location.href,
+                hostname: location.hostname,
+                title: document.title,
+                anchorsAll: document.querySelectorAll('a[href]').length,
+                anchorsIndexPhp: document.querySelectorAll('a[href*="index.php?"]').length,
+                frames: document.querySelectorAll('iframe, frame').length,
+                bodyLen: document.body ? document.body.innerHTML.length : 0
+            })
+            """) as? String
+        NSLog("[SilentSync] Pre-bridge page state: %@", preCheck ?? "nil")
+
+        // Inject bridge.js — arm the handler AFTER injection
+        bridgeHandler?.armed = true
         do {
             try await wv.evaluateJavaScript(bridgeJS)
             NSLog("[SilentSync] Bridge injected, waiting for extraction...")
@@ -373,6 +397,7 @@ final class SilentPortalSync {
 final class SilentBridgeHandler: NSObject, WKScriptMessageHandler {
     var onComplete: (([CapturedPortalPage]) -> Void)?
     var onError: ((String) -> Void)?
+    var armed = false  // Ignore messages until bridge.js is actually injected
 
     func userContentController(
         _ userContentController: WKUserContentController,
@@ -382,7 +407,23 @@ final class SilentBridgeHandler: NSObject, WKScriptMessageHandler {
               let dict = message.body as? [String: Any],
               let type = dict["type"] as? String else { return }
 
+        if !armed {
+            NSLog("[SilentSync] Ignoring stale bridge message (type=%@) — bridge not yet injected", type)
+            return
+        }
+
         switch type {
+        case "vita-bridge-debug":
+            // Log discovery debug info from bridge.js
+            let menuCount = dict["menuLinksCount"] as? Int ?? -1
+            let anchorsInDoc = dict["anchorsInDoc"] as? Int ?? -1
+            let framesInDoc = dict["framesInDoc"] as? Int ?? -1
+            let allAnchors = dict["allAnchors"] as? Int ?? -1
+            let bodyLen = dict["bodyLength"] as? Int ?? -1
+            let links = dict["menuLinks"] as? [String] ?? []
+            NSLog("[SilentSync] Bridge debug: menuLinks=%d, anchors(index.php?)=%d, frames=%d, allAnchors=%d, bodyLen=%d, links=%@",
+                  menuCount, anchorsInDoc, framesInDoc, allAnchors, bodyLen, links as NSArray)
+
         case "vita-bridge-complete":
             guard let pagesArray = dict["pages"] as? [[String: Any]] else { return }
             let pages = pagesArray.compactMap { pageDict -> CapturedPortalPage? in

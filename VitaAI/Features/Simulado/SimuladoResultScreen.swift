@@ -26,7 +26,7 @@ struct SimuladoResultScreen: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents) }
+            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents, dataManager: container.dataManager) }
             guard let vm else { return }
             if vm.state.currentAttemptId != attemptId {
                 vm.loadSession(attemptId)

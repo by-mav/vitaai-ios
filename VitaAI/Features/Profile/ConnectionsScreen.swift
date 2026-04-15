@@ -238,6 +238,7 @@ struct ConnectionsScreen: View {
                 Spacer().frame(height: 120)
             }
         }
+        .refreshable { await vm.loadAll() }
     }
 
     // MARK: - Institucional Section

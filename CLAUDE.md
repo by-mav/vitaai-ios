@@ -1,3 +1,21 @@
+# ENGINEERING LAWS — FOUNDATION (aplicam ANTES de qualquer feature/refactor)
+
+Estas sao as leis MINIMAS pra se chamar de engenheiro de software. Se voce nao pode garantir essas 7, NAO toca em codigo:
+
+1. **Main sempre compila.** Nao commita codigo quebrado. Pre-commit hook roda `xcodebuild` — se falha, CONSERTA, nunca `--no-verify`.
+2. **Working tree limpo no fim da sessao.** Proibido `wip:`, `recovery snapshot`, `tmp:`, `temp:`, `xxx:` como subject. Trabalho em progresso mora em BRANCH (`feat/...`, `fix/...`), nunca no git log. Stashes mortos = `git stash drop`.
+3. **Git log eh o UNICO backup.** Nada de `_old.swift`, `FooScreenV2`, helpers duplicados, codigo comentado "por seguranca". Git nunca perde nada commitado — `git revert <sha>` eh o botao de desfazer.
+4. **Testa antes de declarar pronto.** Escreveu != funciona. Tem que VER funcionando: sim com binario fresh (via `./scripts/dev-sim.sh`, NUNCA `xcodebuild build` sozinho), screenshot, curl 200. Mentir que testou eh a pior falha.
+5. **Ler antes de escrever.** Grep antes de criar classe/helper/endpoint. Duplicar o que ja existe (ex: inlinar `DisciplineImages.imageAsset` porque "nao sabia") estraga o codigo.
+6. **Deletar eh feature.** Codigo morto detectado = deleta no mesmo commit. Nao acumula.
+7. **Commit pequeno, subject real.** Uma sessao = um objetivo = um commit. Diff >50 linhas em UI = PARE. Subject tipo `fix(qbank): ...`, nunca `wip`, `misc`, `update stuff`.
+
+**Enforced por:** `.git/hooks/pre-commit` (build), `.git/hooks/commit-msg` (subject), `./scripts/dev-sim.sh` (sim fresh), CI no PR. Se voce entra em repo sem esses hooks, INSTALE antes de tocar em codigo.
+
+Contexto da lei: Apr 14 2026 — `wip: recovery snapshot` + 19 stashes + sim com .app de 2 dias criaram ciclo infinito de "codigo revertendo". Nada tinha revertido; era disciplina de engenharia faltando. Essa secao existe pra NUNCA mais.
+
+---
+
 # SWIFT — VitaAI iOS Developer
 
 ## IDENTIDADE

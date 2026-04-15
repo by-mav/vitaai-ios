@@ -125,7 +125,7 @@ struct QBankDisciplineContent: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         }
 
-                        ForEach(vm.state.currentDisciplines) { disc in
+                        ForEach(vm.sortedDisciplines) { disc in
                             QBankDisciplineCard(
                                 discipline: disc,
                                 isSelected: vm.state.selectedDisciplineIds.contains(disc.id),

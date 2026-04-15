@@ -5,6 +5,8 @@ import SwiftUI
 // Shared pager widget: Matérias ↔ Agenda tabs with swipe gesture.
 // Used by both DashboardScreen and FaculdadeHomeScreen.
 // ANY change here reflects in BOTH places — that's the point.
+//
+// Wrapped in VitaGlassCard for unified glassmorphism across the app.
 
 struct MateriasAgendaWidget: View {
     let subjects: [GradeSubject]
@@ -14,16 +16,22 @@ struct MateriasAgendaWidget: View {
 
     @State private var activeTab: Int = 0
 
+    // Tokens
+    private let goldPrimary = VitaColors.accentHover
+    private let textPrimary = VitaColors.textPrimary
+    private let textWarm = VitaColors.textWarm
+    private let textDim = VitaColors.textWarm.opacity(0.25)
+
+    // Conic border colors (same as VitaGlassCard for consistency)
+    private let conicGold120 = Color(red: 1.0, green: 200/255, blue: 120/255)
+    private let conicGold100 = Color(red: 1.0, green: 180/255, blue: 100/255)
+
     var body: some View {
         VStack(spacing: 0) {
-            // Tab pills
-            HStack(spacing: 0) {
-                pagerTab(title: "Matérias", icon: "graduationcap", index: 0)
-                pagerTab(title: "Agenda", icon: "calendar", index: 1)
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            tabBar
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
 
             // Content — swap with gesture
             Group {
@@ -49,37 +57,102 @@ struct MateriasAgendaWidget: View {
                     }
             )
         }
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(VitaColors.surfaceCard.opacity(0.55))
-        )
+        .padding(.bottom, 4)
+        .background {
+            ZStack {
+                // Real blur — lets background bleed through
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                // Dark warm tint to keep gold brand feel
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(red: 12/255, green: 9/255, blue: 7/255).opacity(0.72))
+                // Subtle gold inner glow (top-left)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(
+                        RadialGradient(
+                            colors: [goldPrimary.opacity(0.06), .clear],
+                            center: UnitPoint(x: 0.15, y: 0.0),
+                            startRadius: 0,
+                            endRadius: 200
+                        )
+                    )
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        // Specular top highlight
+        .overlay {
+            VStack(spacing: 0) {
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [.clear, Color.white.opacity(0.05), .clear],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(height: 0.5)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 1)
+                Spacer()
+            }
+            .allowsHitTesting(false)
+        }
+        // Conic gold border (same angular gradient as VitaGlassCard)
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: conicGold120.opacity(0.12), location: 0.0),
+                            .init(color: conicGold100.opacity(0.04), location: 0.25),
+                            .init(color: conicGold120.opacity(0.07), location: 0.40),
+                            .init(color: conicGold100.opacity(0.02), location: 0.60),
+                            .init(color: conicGold120.opacity(0.09), location: 0.80),
+                            .init(color: conicGold120.opacity(0.12), location: 1.0),
+                        ]),
+                        center: .center,
+                        startAngle: .degrees(200),
+                        endAngle: .degrees(200 + 360)
+                    ),
+                    lineWidth: 0.5
+                )
         )
+        .shadow(color: .black.opacity(0.30), radius: 16, x: 0, y: 10)
+        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 3)
         .animation(.easeInOut(duration: 0.2), value: activeTab)
     }
 
-    // MARK: - Tab pill
+    // MARK: - Tab bar
+
+    private var tabBar: some View {
+        HStack(spacing: 6) {
+            tabPill(title: "Matérias", icon: "graduationcap", index: 0)
+            tabPill(title: "Agenda", icon: "calendar", index: 1)
+        }
+    }
 
     @ViewBuilder
-    private func pagerTab(title: String, icon: String, index: Int) -> some View {
+    private func tabPill(title: String, icon: String, index: Int) -> some View {
         let selected = activeTab == index
         Button {
             activeTab = index
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 10, weight: .semibold))
-                Text(title)
                     .font(.system(size: 11, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
             }
-            .foregroundStyle(selected ? VitaColors.accentHover : VitaColors.textWarm.opacity(0.30))
+            .foregroundStyle(selected ? goldPrimary : textWarm.opacity(0.45))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+            .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(selected ? VitaColors.accentHover.opacity(0.08) : Color.clear)
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(selected ? goldPrimary.opacity(0.10) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(selected ? goldPrimary.opacity(0.15) : Color.clear, lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -92,25 +165,26 @@ struct MateriasAgendaWidget: View {
         VStack(alignment: .leading, spacing: 8) {
             if subjects.isEmpty {
                 Text("Nenhuma disciplina ativa")
-                    .font(.system(size: 11))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.30))
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 14)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(textWarm.opacity(0.35))
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 16)
             } else {
                 // Column headers
                 HStack(spacing: 0) {
-                    Color.clear.frame(width: 6)
+                    Color.clear.frame(width: 7)
                     Text("DISCIPLINA")
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("AP1").frame(width: 32, alignment: .center)
-                    Text("AP2").frame(width: 32, alignment: .center)
-                    Text("AF").frame(width: 32, alignment: .center)
-                    Text("AS").frame(width: 32, alignment: .center)
-                    Text("FREQ").frame(width: 38, alignment: .center)
+                    Text("AP1").frame(width: 34, alignment: .center)
+                    Text("AP2").frame(width: 34, alignment: .center)
+                    Text("AF").frame(width: 34, alignment: .center)
+                    Text("AS").frame(width: 34, alignment: .center)
+                    Text("FREQ").frame(width: 40, alignment: .center)
                 }
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundStyle(VitaColors.textWarm.opacity(0.30))
-                .padding(.horizontal, 4)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(textWarm.opacity(0.35))
+                .kerning(0.3)
+                .padding(.horizontal, 8)
 
                 // Rows
                 VStack(spacing: 0) {
@@ -118,15 +192,15 @@ struct MateriasAgendaWidget: View {
                         materiaRow(subject)
                         if subject.id != subjects.last?.id {
                             Rectangle()
-                                .fill(VitaColors.textWarm.opacity(0.06))
+                                .fill(textWarm.opacity(0.06))
                                 .frame(height: 0.5)
-                                .padding(.horizontal, 14)
+                                .padding(.horizontal, 16)
                         }
                     }
                 }
             }
         }
-        .padding(.bottom, 12)
+        .padding(.bottom, 10)
     }
 
     // MARK: - Agenda content
@@ -148,17 +222,17 @@ struct MateriasAgendaWidget: View {
         let color = SubjectColors.colorFor(subject: subject.subjectName)
 
         Button {
-            onNavigateToDiscipline?(subject.subjectName, subject.subjectName)
+            onNavigateToDiscipline?(subject.id, subject.subjectName)
         } label: {
             HStack(spacing: 0) {
                 Rectangle()
                     .fill(color)
-                    .frame(width: 2, height: 20)
-                    .clipShape(RoundedRectangle(cornerRadius: 1))
+                    .frame(width: 3, height: 24)
+                    .clipShape(RoundedRectangle(cornerRadius: 1.5))
                     .padding(.trailing, 4)
                 Text(shortSubjectName(subject.subjectName))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.82))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(textWarm.opacity(0.85))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -168,8 +242,8 @@ struct MateriasAgendaWidget: View {
                 gradeCell(subject.grade3)
                 freqCell(subject.attendance)
             }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
         }
         .buttonStyle(.plain)
     }
@@ -178,20 +252,20 @@ struct MateriasAgendaWidget: View {
 
     @ViewBuilder
     private func gradeCell(_ grade: Double?) -> some View {
-        Text(grade.map { String(format: "%.1f", $0) } ?? "--")
-            .font(.system(size: 10, weight: .bold, design: .rounded))
+        Text(grade.map { String(format: "%.1f", $0) } ?? "–")
+            .font(.system(size: 11, weight: .bold, design: .rounded))
             .monospacedDigit()
-            .foregroundStyle(grade != nil ? VitaColors.textWarm.opacity(0.82) : VitaColors.textWarm.opacity(0.20))
-            .frame(width: 32, alignment: .center)
+            .foregroundStyle(grade != nil ? textWarm.opacity(0.85) : textWarm.opacity(0.18))
+            .frame(width: 34, alignment: .center)
     }
 
     @ViewBuilder
     private func freqCell(_ freq: Double?) -> some View {
-        Text(freq.map { String(format: "%.0f%%", $0) } ?? "--")
-            .font(.system(size: 10, weight: .bold, design: .rounded))
+        Text(freq.map { String(format: "%.0f%%", $0) } ?? "–")
+            .font(.system(size: 11, weight: .bold, design: .rounded))
             .monospacedDigit()
-            .foregroundStyle(freq.map { freqColor($0) } ?? VitaColors.textWarm.opacity(0.20))
-            .frame(width: 38, alignment: .center)
+            .foregroundStyle(freq.map { freqColor($0) } ?? textWarm.opacity(0.18))
+            .frame(width: 40, alignment: .center)
     }
 
     // MARK: - Helpers

@@ -18,6 +18,8 @@ struct DisciplineDetailScreen: View {
 
     @State private var vm: DisciplineDetailViewModel?
     @State private var showProfessorSheet = false
+    @State private var showColorPicker = false
+    @State private var colorRefreshTrigger: UUID = UUID()
     @Environment(\.appContainer) private var container
 
     // Tokens — same as FaculdadeHomeScreen
@@ -78,9 +80,18 @@ struct DisciplineDetailScreen: View {
                 )
             }
         }
+        .refreshable { await vm?.load() }
         .task { await vm?.load() }
         .sheet(isPresented: $showProfessorSheet) {
             ProfessorProfileSheet(subjectId: disciplineId)
+        }
+        .sheet(isPresented: $showColorPicker) {
+            SubjectColorPicker(subjectName: disciplineName) { _ in
+                colorRefreshTrigger = UUID()
+            }
+            .presentationDetents([.height(320)])
+            .presentationBackground(VitaColors.surfaceCard)
+            .presentationDragIndicator(.hidden)
         }
     }
 
@@ -143,6 +154,15 @@ struct DisciplineDetailScreen: View {
                                     .font(.system(size: 11, weight: .medium))
                             }
                             .foregroundStyle(goldMuted.opacity(0.65))
+                        }
+                        if let freq = vm.attendance {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chart.bar.fill")
+                                    .font(.system(size: 9))
+                                Text(String(format: "%.0f%% freq", freq))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                            }
+                            .foregroundStyle(freq >= 90 ? VitaColors.dataGreen.opacity(0.85) : freq >= 75 ? goldMuted.opacity(0.75) : VitaColors.dataRed.opacity(0.85))
                         }
                         if let abs = vm.absences {
                             HStack(spacing: 4) {
@@ -214,8 +234,27 @@ struct DisciplineDetailScreen: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+            // Color picker trigger — bottom trailing
+            Button {
+                showColorPicker = true
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 20, height: 20)
+                    Circle()
+                        .stroke(Color.white.opacity(0.30), lineWidth: 1)
+                        .frame(width: 20, height: 20)
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .padding(.trailing, 14)
+            .padding(.bottom, 12)
         }
         .frame(height: 162)
+        .id(colorRefreshTrigger)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
             RoundedRectangle(cornerRadius: 18)

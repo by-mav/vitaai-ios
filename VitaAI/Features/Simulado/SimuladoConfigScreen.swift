@@ -18,7 +18,7 @@ struct SimuladoConfigScreen: View {
             }
         }
         .onAppear {
-            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents) }
+            if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents, dataManager: container.dataManager) }
             vm?.loadConfigData()
         }
         .navigationBarHidden(true)

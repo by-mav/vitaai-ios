@@ -123,8 +123,10 @@ struct GradesCurrentResponse: Codable {
 }
 
 struct GradeSubject: Codable, Identifiable {
-    var id: String { subjectName }
+    var id: String { subjectId ?? subjectName }
+    var subjectId: String?
     var subjectName: String = ""
+    var professor: String?
     var grade1: Double?
     var grade2: Double?
     var grade3: Double?
@@ -138,13 +140,16 @@ struct GradeSubject: Codable, Identifiable {
     var weight3: Double?
 
     private enum CodingKeys: String, CodingKey {
-        case subjectName, grade1, grade2, grade3, finalGrade, status, attendance, absences, workload
+        case subjectId = "id"
+        case subjectName, professor, grade1, grade2, grade3, finalGrade, status, attendance, absences, workload
         case weight1, weight2, weight3
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        subjectId = try? c.decode(String.self, forKey: .subjectId)
         subjectName = (try? c.decode(String.self, forKey: .subjectName)) ?? ""
+        professor = try? c.decode(String.self, forKey: .professor)
         grade1 = Self.flexDouble(c, .grade1)
         grade2 = Self.flexDouble(c, .grade2)
         grade3 = Self.flexDouble(c, .grade3)

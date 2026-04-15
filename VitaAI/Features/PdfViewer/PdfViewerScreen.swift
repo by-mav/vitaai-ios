@@ -1,21 +1,22 @@
 import SwiftUI
 import PDFKit
 import PencilKit
+import Combine
 
 // MARK: - PdfViewerScreen
 
-/// Full-screen PDF viewer with GoodNotes-level annotation support.
-/// Uses PDFKit page rendering + PencilKit overlay for native Apple Pencil ink.
-/// Shapes and text use SwiftUI overlays on top.
+/// Full-screen PDF viewer using native PDFView + PDFPageOverlayViewProvider + PKToolPicker.
+/// Works like GoodNotes: continuous scroll, pinch zoom, Apple Pencil + finger ink per page.
 struct PdfViewerScreen: View {
     let url: URL
     let onBack: () -> Void
 
     @Environment(\.appContainer) private var container
     @State private var viewModel = PdfViewerViewModel()
-    @State private var selectedPage: Int = 0
     @State private var showExportSheet: Bool = false
     @State private var exportedURL: URL? = nil
+    @State private var searchDebounceTask: Task<Void, Never>? = nil
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         ZStack {
@@ -29,7 +30,7 @@ struct PdfViewerScreen: View {
             }
         }
         .task { await viewModel.load(url: url, tokenStore: container.tokenStore) }
-        .onDisappear { viewModel.forceSave() }
+        .onDisappear { viewModel.saveAllAnnotations() }
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard)
         .sheet(isPresented: $showExportSheet) {
@@ -50,52 +51,57 @@ struct PdfViewerScreen: View {
                 currentPage: viewModel.currentPage + 1,
                 pageCount: viewModel.pageCount,
                 isSaving: viewModel.isSaving,
+                isAnnotating: viewModel.isAnnotating,
+                isSearching: viewModel.isSearching,
                 showThumbnailToggle: viewModel.pageCount > 1,
                 onBack: {
-                    viewModel.forceSave()
+                    viewModel.saveAllAnnotations()
                     onBack()
                 },
                 onToggleThumbnails: viewModel.toggleThumbnails,
+                onToggleAnnotating: viewModel.toggleAnnotating,
+                onToggleSearch: {
+                    viewModel.toggleSearch()
+                    if viewModel.isSearching {
+                        isSearchFocused = true
+                    }
+                },
                 onExport: {
                     Task { await exportPDF(document: document) }
                 }
             )
 
-            // Annotation toolbar right below top bar
-            AnnotationToolbar(
-                isDrawMode: viewModel.isDrawMode,
-                selectedTool: viewModel.selectedTool,
-                selectedColor: viewModel.selectedColor,
-                strokeWidth: viewModel.strokeWidth,
-                canUndo: viewModel.canUndo,
-                canRedo: viewModel.canRedo,
-                onToggleDrawMode: viewModel.toggleDrawMode,
-                onSelectTool: viewModel.selectTool,
-                onSelectColor: viewModel.setColor,
-                onStrokeWidthChange: viewModel.setStrokeWidth,
-                onUndo: viewModel.undo,
-                onRedo: viewModel.redo,
-                onShapeMode: viewModel.selectTool
-            )
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-
-            ZStack(alignment: .leading) {
-                TabView(selection: $selectedPage) {
-                    ForEach(0..<viewModel.pageCount, id: \.self) { pageIndex in
-                        PdfPageView(
-                            document: document,
-                            pageIndex: pageIndex,
-                            viewModel: viewModel,
-                            isCurrentPage: pageIndex == viewModel.currentPage
-                        )
-                        .tag(pageIndex)
+            // Search bar slides in below top bar
+            if viewModel.isSearching {
+                PdfSearchBar(
+                    searchText: $viewModel.searchText,
+                    resultCount: viewModel.searchResults.count,
+                    currentIndex: viewModel.searchResults.isEmpty ? 0 : viewModel.currentSearchIndex + 1,
+                    isSearchFocused: $isSearchFocused,
+                    onPrevious: {
+                        if let pv = NativePdfView.pdfViewRef { viewModel.previousResult(pdfView: pv) }
+                    },
+                    onNext: {
+                        if let pv = NativePdfView.pdfViewRef { viewModel.nextResult(pdfView: pv) }
+                    },
+                    onClose: {
+                        viewModel.toggleSearch()
+                        viewModel.clearSearchHighlights(in: NativePdfView.pdfViewRef)
+                    }
+                )
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .onChange(of: viewModel.searchText) { _, newValue in
+                    searchDebounceTask?.cancel()
+                    searchDebounceTask = Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(300))
+                        guard !Task.isCancelled else { return }
+                        viewModel.performSearch(newValue, pdfView: NativePdfView.pdfViewRef)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .onChange(of: selectedPage) { newPage in
-                    viewModel.setCurrentPage(newPage)
-                }
+            }
+
+            ZStack(alignment: .leading) {
+                NativePdfView(viewModel: viewModel)
 
                 PageThumbnailSidebar(
                     document: document,
@@ -103,11 +109,12 @@ struct PdfViewerScreen: View {
                     currentPage: viewModel.currentPage,
                     isVisible: viewModel.showThumbnails,
                     onPageSelected: { page in
-                        selectedPage = page
+                        viewModel.currentPage = page
                     }
                 )
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isSearching)
     }
 
     // MARK: - Error View
@@ -128,259 +135,170 @@ struct PdfViewerScreen: View {
     // MARK: - Export
 
     private func exportPDF(document: PDFDocument) async {
-        // TODO: Flatten PencilKit drawings + shapes + text into exported PDF
-        // For now, export PencilKit drawings per page
-        guard let url = try? await PdfPencilKitExporter.export(
+        guard let url = try? await PdfExporter.export(
             document: document,
             pageCount: viewModel.pageCount,
-            getDrawing: { viewModel.drawing(for: $0) },
-            getShapes: { viewModel.shapes(for: $0) },
-            getTexts: { viewModel.texts(for: $0) }
+            getDrawing: { viewModel.loadDrawing(pageIndex: $0) }
         ) else { return }
         self.exportedURL = url
         showExportSheet = true
     }
 }
 
-// MARK: - PDF Page View (PencilKit overlay)
+// MARK: - NativePdfView (UIViewRepresentable)
 
-private struct PdfPageView: View {
-    let document: PDFDocument
-    let pageIndex: Int
+private struct NativePdfView: UIViewRepresentable {
     @Bindable var viewModel: PdfViewerViewModel
-    let isCurrentPage: Bool
 
-    @State private var pageImage: UIImage? = nil
-    @State private var canvasKey: UUID = UUID()
+    /// Weak reference so search bar callbacks can reach the PDFView.
+    nonisolated(unsafe) static weak var pdfViewRef: PDFView?
 
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                if let img = pageImage {
-                    ZStack {
-                        // PDF page as background
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFit()
-
-                        // PencilKit canvas overlay (only on current page for performance)
-                        if isCurrentPage {
-                            PdfPencilKitCanvas(
-                                viewModel: viewModel,
-                                pageIndex: pageIndex
-                            )
-                            .id(canvasKey)
-                            .allowsHitTesting(viewModel.isDrawMode && viewModel.selectedTool.isInkTool || viewModel.isDrawMode && viewModel.selectedTool == .eraser)
-                        }
-
-                        // Shape overlay
-                        ShapeOverlay(
-                            shapes: isCurrentPage ? viewModel.shapeAnnotations : viewModel.shapes(for: pageIndex),
-                            selectedTool: viewModel.selectedTool,
-                            selectedColor: viewModel.selectedColor,
-                            strokeWidth: viewModel.strokeWidth,
-                            isActive: viewModel.isDrawMode && isCurrentPage && viewModel.selectedTool.isShapeTool,
-                            onAddShape: { viewModel.addShapeAnnotation($0) }
-                        )
-
-                        // Text annotation overlay
-                        TextAnnotationOverlay(
-                            annotations: isCurrentPage ? viewModel.textAnnotations : viewModel.texts(for: pageIndex),
-                            selectedColor: viewModel.selectedColor,
-                            isActive: viewModel.isDrawMode && isCurrentPage && viewModel.selectedTool == .text,
-                            onAddText: { viewModel.addTextAnnotation($0) },
-                            onUpdateText: { viewModel.updateTextAnnotation($0) },
-                            onRemoveText: { viewModel.removeTextAnnotation(id: $0) }
-                        )
-                    }
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .clipped()
-                } else {
-                    ProgressView()
-                        .tint(VitaColors.accent)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .frame(width: geo.size.width, height: geo.size.height)
-        }
-        .task(id: pageIndex) {
-            guard pageImage == nil else { return }
-            pageImage = await renderPage()
-        }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(viewModel: viewModel)
     }
 
-    private func renderPage() async -> UIImage? {
-        await Task.detached(priority: .userInitiated) {
-            guard let page = document.page(at: pageIndex) else { return nil }
-            let targetWidth: CGFloat = UIScreen.main.bounds.width * UIScreen.main.scale
-            let pageRect = page.bounds(for: .cropBox)
-            let scl = targetWidth / pageRect.width
-            let renderSize = CGSize(width: targetWidth, height: pageRect.height * scl)
+    func makeUIView(context: Context) -> PDFView {
+        let pdfView = PDFView()
+        pdfView.displayMode = .singlePageContinuous
+        pdfView.displayDirection = .vertical
+        pdfView.autoScales = true
+        pdfView.usePageViewController(false)
+        pdfView.backgroundColor = UIColor(VitaColors.surface)
+        pdfView.pageOverlayViewProvider = context.coordinator
+        pdfView.delegate = context.coordinator
+        context.coordinator.pdfView = pdfView
+        NativePdfView.pdfViewRef = pdfView
 
-            let renderer = UIGraphicsImageRenderer(size: renderSize)
-            return renderer.image { ctx in
-                UIColor.white.setFill()
-                ctx.fill(CGRect(origin: .zero, size: renderSize))
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.pageChanged(_:)),
+            name: .PDFViewPageChanged,
+            object: pdfView
+        )
 
-                let cgCtx = ctx.cgContext
-                // PDF coordinate system is bottom-left origin; flip to UIKit top-left
-                cgCtx.translateBy(x: 0, y: renderSize.height)
-                cgCtx.scaleBy(x: scl, y: -scl)
-                page.draw(with: .cropBox, to: cgCtx)
-            }
-        }.value
+        return pdfView
+    }
+
+    func updateUIView(_ pdfView: PDFView, context: Context) {
+        if pdfView.document !== viewModel.document {
+            pdfView.document = viewModel.document
+        }
+        // Scroll to page when thumbnail sidebar taps
+        context.coordinator.scrollToPage(viewModel.currentPage, in: pdfView)
+        // Toggle annotation mode on all visible canvases
+        context.coordinator.applyAnnotationMode(viewModel.isAnnotating)
+    }
+
+    static func dismantleUIView(_ pdfView: PDFView, coordinator: Coordinator) {
+        NotificationCenter.default.removeObserver(coordinator)
+        NativePdfView.pdfViewRef = nil
     }
 }
 
-// MARK: - PencilKit Canvas for PDF (UIViewRepresentable)
+// MARK: - Coordinator
 
-private struct PdfPencilKitCanvas: UIViewRepresentable {
-    @Bindable var viewModel: PdfViewerViewModel
-    let pageIndex: Int
+private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDelegate, PKCanvasViewDelegate {
+    let viewModel: PdfViewerViewModel
+    weak var pdfView: PDFView?
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
+    /// Tracks canvas per page so we can save/restore drawings and toggle tool picker.
+    var pageToCanvas: [PDFPage: PKCanvasView] = [:]
+    let toolPicker = PKToolPicker()
+
+    private var lastScrolledPage: Int = -1
+
+    init(viewModel: PdfViewerViewModel) {
+        self.viewModel = viewModel
+        super.init()
     }
 
-    func makeUIView(context: Context) -> PKCanvasView {
-        let canvas = PKCanvasView()
+    // MARK: PDFPageOverlayViewProvider
+
+    func pdfView(_ view: PDFView, overlayViewFor page: PDFPage) -> UIView? {
+        let canvas = PKCanvasView(frame: .zero)
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
         canvas.drawingPolicy = .anyInput
-        canvas.delegate = context.coordinator
-        canvas.alwaysBounceVertical = false
-        canvas.alwaysBounceHorizontal = false
-        canvas.showsVerticalScrollIndicator = false
-        canvas.showsHorizontalScrollIndicator = false
-        canvas.isScrollEnabled = false
-        canvas.minimumZoomScale = 1.0
-        canvas.maximumZoomScale = 1.0
+        canvas.delegate = self
+        canvas.isUserInteractionEnabled = viewModel.isAnnotating
+        pageToCanvas[page] = canvas
 
-        // Load existing drawing
-        canvas.drawing = viewModel.drawing(for: pageIndex)
+        // Load saved drawing from disk
+        if let pageIndex = view.document?.index(for: page),
+           let drawing = viewModel.loadDrawing(pageIndex: pageIndex) {
+            canvas.drawing = drawing
+        }
 
-        // Apply current tool
-        canvas.tool = viewModel.pkTool
+        if viewModel.isAnnotating {
+            toolPicker.setVisible(true, forFirstResponder: canvas)
+            toolPicker.addObserver(canvas)
+            canvas.becomeFirstResponder()
+        }
 
-        // Observe undo manager
-        let um = canvas.undoManager
-        NotificationCenter.default.addObserver(
-            context.coordinator,
-            selector: #selector(Coordinator.undoManagerChanged),
-            name: .NSUndoManagerDidCloseUndoGroup, object: um
-        )
-        NotificationCenter.default.addObserver(
-            context.coordinator,
-            selector: #selector(Coordinator.undoManagerChanged),
-            name: .NSUndoManagerDidUndoChange, object: um
-        )
-        NotificationCenter.default.addObserver(
-            context.coordinator,
-            selector: #selector(Coordinator.undoManagerChanged),
-            name: .NSUndoManagerDidRedoChange, object: um
-        )
-
-        context.coordinator.canvas = canvas
         return canvas
     }
 
-    func updateUIView(_ canvas: PKCanvasView, context: Context) {
-        canvas.tool = viewModel.pkTool
+    func pdfView(_ view: PDFView, willEndDisplayingOverlayView overlayView: UIView, for page: PDFPage) {
+        guard let canvas = overlayView as? PKCanvasView,
+              let pageIndex = view.document?.index(for: page) else { return }
+        // Save drawing before page scrolls off screen
+        viewModel.saveDrawing(canvas.drawing, pageIndex: pageIndex)
+        toolPicker.removeObserver(canvas)
+        pageToCanvas.removeValue(forKey: page)
+    }
 
-        // Undo/redo triggers from toolbar
-        if context.coordinator.lastUndoTrigger != viewModel.undoTrigger {
-            context.coordinator.lastUndoTrigger = viewModel.undoTrigger
-            canvas.undoManager?.undo()
-        }
-        if context.coordinator.lastRedoTrigger != viewModel.redoTrigger {
-            context.coordinator.lastRedoTrigger = viewModel.redoTrigger
-            canvas.undoManager?.redo()
+    // MARK: PKCanvasViewDelegate
+
+    func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+        // Autosave is handled on willEndDisplaying; mark saving indicator only
+        viewModel.isSaving = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(800))
+            self?.viewModel.isSaving = false
         }
     }
 
-    static func dismantleUIView(_ canvas: PKCanvasView, coordinator: Coordinator) {
-        NotificationCenter.default.removeObserver(coordinator)
-    }
+    // MARK: PDFViewDelegate — page change notification
 
-    final class Coordinator: NSObject, PKCanvasViewDelegate {
-        var parent: PdfPencilKitCanvas
-        weak var canvas: PKCanvasView?
-        var lastUndoTrigger: Int = 0
-        var lastRedoTrigger: Int = 0
-
-        init(_ parent: PdfPencilKitCanvas) {
-            self.parent = parent
-        }
-
-        func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-            parent.viewModel.updateDrawing(canvasView.drawing, for: parent.pageIndex)
-            updateUndoState(canvasView)
-        }
-
-        @objc func undoManagerChanged() {
-            guard let canvas else { return }
-            updateUndoState(canvas)
-        }
-
-        private func updateUndoState(_ canvas: PKCanvasView) {
-            parent.viewModel.canUndo = canvas.undoManager?.canUndo ?? false
-            parent.viewModel.canRedo = canvas.undoManager?.canRedo ?? false
-        }
-    }
-}
-
-// MARK: - PencilKit PDF Exporter
-
-enum PdfPencilKitExporter {
-    static func export(
-        document: PDFDocument,
-        pageCount: Int,
-        getDrawing: @escaping (Int) -> PKDrawing,
-        getShapes: @escaping (Int) -> [ShapeAnnotation],
-        getTexts: @escaping (Int) -> [TextAnnotation]
-    ) async throws -> URL {
-        try await Task.detached(priority: .userInitiated) {
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("annotated_\(UUID().uuidString).pdf")
-
-            let data = NSMutableData()
-            UIGraphicsBeginPDFContextToData(data, .zero, nil)
-
-            for pageIndex in 0..<pageCount {
-                guard let pdfPage = document.page(at: pageIndex) else { continue }
-
-                let renderWidth: CGFloat = 1080
-                let pageRect = pdfPage.bounds(for: .cropBox)
-                let scale = renderWidth / pageRect.width
-                let renderSize = CGSize(width: renderWidth, height: pageRect.height * scale)
-
-                UIGraphicsBeginPDFPageWithInfo(CGRect(origin: .zero, size: renderSize), nil)
-                guard let ctx = UIGraphicsGetCurrentContext() else { continue }
-
-                // Layer 1: PDF page
-                ctx.saveGState()
-                ctx.scaleBy(x: scale, y: scale)
-                pdfPage.draw(with: .cropBox, to: ctx)
-                ctx.restoreGState()
-
-                // Layer 2: PencilKit drawing
-                let drawing = getDrawing(pageIndex)
-                let pkImage = drawing.image(from: CGRect(origin: .zero, size: renderSize), scale: 1.0)
-                pkImage.draw(in: CGRect(origin: .zero, size: renderSize))
-
-                // Layer 3: Shapes
-                let shapes = getShapes(pageIndex)
-                PdfExporter.drawShapesPublic(shapes, in: ctx, scale: scale)
-
-                // Layer 4: Text
-                let texts = getTexts(pageIndex)
-                PdfExporter.drawTextsPublic(texts, in: ctx, scale: scale)
+    @objc func pageChanged(_ notification: Notification) {
+        guard let pdfView = notification.object as? PDFView,
+              let page = pdfView.currentPage,
+              let doc = pdfView.document else { return }
+        let pageIndex = doc.index(for: page)
+        if pageIndex != viewModel.currentPage {
+            Task { @MainActor [weak self] in
+                self?.viewModel.currentPage = pageIndex
             }
+        }
+    }
 
-            UIGraphicsEndPDFContext()
-            try (data as Data).write(to: tempURL)
-            return tempURL
-        }.value
+    // MARK: Helpers
+
+    func scrollToPage(_ pageIndex: Int, in pdfView: PDFView) {
+        guard lastScrolledPage != pageIndex,
+              let doc = pdfView.document,
+              let page = doc.page(at: pageIndex) else { return }
+        // Only scroll if this was triggered externally (thumbnail tap)
+        let currentIndex = pdfView.currentPage.flatMap { doc.index(for: $0) } ?? -1
+        if currentIndex != pageIndex {
+            lastScrolledPage = pageIndex
+            pdfView.go(to: page)
+        }
+    }
+
+    func applyAnnotationMode(_ annotating: Bool) {
+        for (_, canvas) in pageToCanvas {
+            canvas.isUserInteractionEnabled = annotating
+            if annotating {
+                toolPicker.setVisible(true, forFirstResponder: canvas)
+                toolPicker.addObserver(canvas)
+                canvas.becomeFirstResponder()
+            } else {
+                toolPicker.setVisible(false, forFirstResponder: canvas)
+                canvas.resignFirstResponder()
+                toolPicker.removeObserver(canvas)
+            }
+        }
     }
 }
 
@@ -391,9 +309,13 @@ private struct PdfTopBar: View {
     let currentPage: Int
     let pageCount: Int
     let isSaving: Bool
+    let isAnnotating: Bool
+    let isSearching: Bool
     let showThumbnailToggle: Bool
     let onBack: () -> Void
     let onToggleThumbnails: () -> Void
+    let onToggleAnnotating: () -> Void
+    let onToggleSearch: () -> Void
     let onExport: () -> Void
 
     var body: some View {
@@ -425,6 +347,22 @@ private struct PdfTopBar: View {
                     .monospacedDigit()
             }
 
+            // Search toggle
+            Button(action: onToggleSearch) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 18))
+                    .foregroundStyle(isSearching ? VitaColors.accent : VitaColors.textSecondary)
+                    .frame(width: 36, height: 36)
+            }
+
+            // Pencil toggle — shows/hides PKToolPicker
+            Button(action: onToggleAnnotating) {
+                Image(systemName: isAnnotating ? "pencil.circle.fill" : "pencil.circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(isAnnotating ? VitaColors.accent : VitaColors.textSecondary)
+                    .frame(width: 36, height: 36)
+            }
+
             if showThumbnailToggle {
                 Button(action: onToggleThumbnails) {
                     Image(systemName: "sidebar.left")
@@ -453,6 +391,78 @@ private struct PdfTopBar: View {
     }
 }
 
+// MARK: - Search Bar
+
+private struct PdfSearchBar: View {
+    @Binding var searchText: String
+    let resultCount: Int
+    let currentIndex: Int
+    @FocusState.Binding var isSearchFocused: Bool
+    let onPrevious: () -> Void
+    let onNext: () -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15))
+                .foregroundStyle(VitaColors.textTertiary)
+
+            TextField("Buscar no PDF…", text: $searchText)
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textPrimary)
+                .tint(VitaColors.accent)
+                .focused($isSearchFocused)
+                .submitLabel(.search)
+                .frame(maxWidth: .infinity)
+
+            if resultCount > 0 {
+                Text("\(currentIndex)/\(resultCount)")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .monospacedDigit()
+                    .fixedSize()
+            } else if !searchText.isEmpty {
+                Text("Sem resultados")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+
+            if resultCount > 0 {
+                Button(action: onPrevious) {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .frame(width: 30, height: 30)
+                }
+
+                Button(action: onNext) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .frame(width: 30, height: 30)
+                }
+            }
+
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(VitaColors.textTertiary)
+                    .frame(width: 30, height: 30)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(VitaColors.surfaceCard)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundStyle(VitaColors.surfaceBorder),
+            alignment: .bottom
+        )
+    }
+}
+
 // MARK: - Share Sheet
 
 private struct ShareSheet: UIViewControllerRepresentable {
@@ -462,3 +472,4 @@ private struct ShareSheet: UIViewControllerRepresentable {
     }
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+

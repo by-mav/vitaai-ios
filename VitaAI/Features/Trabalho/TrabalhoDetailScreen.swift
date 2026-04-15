@@ -47,6 +47,7 @@ struct TrabalhoDetailScreen: View {
             }
             .padding(.horizontal, 16)
         }
+        .refreshable { await loadDetail() }
         .task { await loadDetail() }
         .fullScreenCover(isPresented: $showEditor) {
             if #available(iOS 17, *) {

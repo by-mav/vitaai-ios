@@ -177,7 +177,8 @@ final class DisciplineDetailViewModel {
     }
 
     var professorName: String? {
-        subjectSchedule.compactMap(\.professor).first { !$0.isEmpty }
+        if let p = gradeSubject?.professor, !p.isEmpty { return p }
+        return subjectSchedule.compactMap(\.professor).first { !$0.isEmpty }
     }
 
     var room: String? {
@@ -223,7 +224,9 @@ final class DisciplineDetailViewModel {
         }
 
         if let gradesResponse {
-            gradeSubject = gradesResponse.current.first { matchesDiscipline($0.subjectName) }
+            gradeSubject = gradesResponse.current.first { $0.subjectId == disciplineId }
+                ?? gradesResponse.completed.first { $0.subjectId == disciplineId }
+                ?? gradesResponse.current.first { matchesDiscipline($0.subjectName) }
                 ?? gradesResponse.completed.first { matchesDiscipline($0.subjectName) }
         }
 

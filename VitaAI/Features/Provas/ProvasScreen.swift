@@ -240,6 +240,7 @@ private struct UploadTab: View {
             .padding(.horizontal, 16)
             .padding(.top, 4)
         }
+        .refreshable { await vm.loadAll() }
     }
 }
 
@@ -335,6 +336,7 @@ private struct ProfessoresTab: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
             }
+            .refreshable { await vm.loadAll() }
         }
     }
 }
@@ -437,6 +439,7 @@ private struct ProvasTab: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
             }
+            .refreshable { await vm.loadAll() }
         }
     }
 }

@@ -115,6 +115,13 @@ struct FlashcardTopicsScreen: View {
             }
             .padding(.horizontal, 16)
         }
+        .refreshable {
+            do {
+                topics = try await container.api.getFlashcardTopics(deckId: deckId)
+            } catch {
+                print("[FlashcardTopics] refresh error: \(error)")
+            }
+        }
         .task {
             do {
                 topics = try await container.api.getFlashcardTopics(deckId: deckId)

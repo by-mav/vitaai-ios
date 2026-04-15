@@ -90,6 +90,7 @@ struct FaculdadeProfessoresScreen: View {
                 Spacer().frame(height: 100)
             }
         }
+        .refreshable { await appData.forceRefresh() }
         .sheet(isPresented: $showProfessorSheet) {
             if let subjectId = selectedSubjectId {
                 ProfessorProfileSheet(subjectId: subjectId)

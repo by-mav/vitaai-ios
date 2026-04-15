@@ -169,6 +169,7 @@ final class QBankViewModel {
     var state = QBankUiState()
     private let api: VitaAPI
     private let gamificationEvents: GamificationEventManager
+    private let dataManager: AppDataManager
 
     /// Debounce task for dynamic count refresh
     private var countTask: Task<Void, Never>?
@@ -176,9 +177,15 @@ final class QBankViewModel {
     /// Track session start for duration calculation
     private var sessionStartDate = Date()
 
-    init(api: VitaAPI, gamificationEvents: GamificationEventManager) {
+    init(api: VitaAPI, gamificationEvents: GamificationEventManager, dataManager: AppDataManager) {
         self.api = api
         self.gamificationEvents = gamificationEvents
+        self.dataManager = dataManager
+    }
+
+    /// Disciplines sorted by VitaScore (highest risk first)
+    var sortedDisciplines: [QBankDiscipline] {
+        state.currentDisciplines.sorted { dataManager.vitaScore(for: $0.title) > dataManager.vitaScore(for: $1.title) }
     }
 
     // MARK: - Home

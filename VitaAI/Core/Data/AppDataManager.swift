@@ -53,13 +53,22 @@ final class AppDataManager {
 
     // MARK: - Private
 
+    /// VitaScore lookup by subject name (case/diacritics insensitive)
+    func vitaScore(for subjectName: String) -> Double {
+        let key = subjectName.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        return dashboardSubjects.first(where: {
+            ($0.name ?? "").folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) == key
+        })?.vitaScore ?? 0
+    }
+
     private func refreshAll() async {
         lastRefresh = Date()
         async let p: () = refreshProfile()
         async let g: () = refreshGrades()
         async let s: () = refreshSchedule()
         async let e: () = refreshEvents()
-        _ = await (p, g, s, e)
+        async let d: () = refreshDashboard()
+        _ = await (p, g, s, e, d)
     }
 
     private func refreshProfile() async {
@@ -85,6 +94,12 @@ final class AppDataManager {
         if let resp = try? await api.getAgenda(from: fmt.string(from: from), to: fmt.string(from: to)) {
             classSchedule = resp.schedule
             academicEvaluations = resp.evaluations
+        }
+    }
+
+    private func refreshDashboard() async {
+        if let resp = try? await api.getDashboard() {
+            dashboardSubjects = resp.subjects ?? []
         }
     }
 

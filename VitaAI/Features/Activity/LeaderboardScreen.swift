@@ -99,6 +99,7 @@ struct LeaderboardScreen: View {
                         }
                         .padding(.horizontal, 20)
                     }
+                    .refreshable { await vm.load(period: selectedPeriod) }
                 }
             } else {
                 Spacer()
