@@ -225,3 +225,113 @@ extension View {
             .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 6)
     }
 }
+
+// MARK: - Liquid Glass — translucent premium surfaces (iOS 17+)
+//
+// Real blur (Material) + tint + specular top highlight + soft shadow.
+// Used by VitaChat for bubbles, chips, input bar — gives "depth on glass"
+// instead of opaque cards. Single helper, multiple presets.
+
+struct LiquidGlassSurface<S: Shape>: ViewModifier {
+    let shape: S
+    let tint: Color
+    let tintOpacity: Double
+    let highlightStrength: Double   // 0 = none, 1 = strong specular
+    let strokeOpacity: Double
+    let shadowRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    shape.fill(.ultraThinMaterial)
+                    if tintOpacity > 0 {
+                        shape.fill(tint.opacity(tintOpacity))
+                    }
+                }
+                .compositingGroup()
+            }
+            .overlay {
+                shape.stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.32 * highlightStrength),
+                            Color.white.opacity(0.04 * highlightStrength),
+                            Color.white.opacity(0.12 * highlightStrength)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    lineWidth: 0.6
+                )
+                .blendMode(.plusLighter)
+            }
+            .overlay {
+                shape.stroke(tint.opacity(strokeOpacity), lineWidth: 0.5)
+            }
+            .clipShape(shape)
+            .shadow(color: .black.opacity(0.18), radius: shadowRadius, y: shadowRadius * 0.4)
+    }
+}
+
+extension View {
+    /// User bubble — gold-tinted liquid glass with strong highlight
+    func liquidGlassUserBubble(cornerRadius: CGFloat = 20) -> some View {
+        modifier(LiquidGlassSurface(
+            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            tint: VitaColors.accent,
+            tintOpacity: 0.32,
+            highlightStrength: 1.0,
+            strokeOpacity: 0.22,
+            shadowRadius: 10
+        ))
+    }
+
+    /// Assistant bubble — neutral glass, subtle highlight
+    func liquidGlassAssistantBubble(cornerRadius: CGFloat = 20) -> some View {
+        modifier(LiquidGlassSurface(
+            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            tint: VitaColors.accent,
+            tintOpacity: 0.04,
+            highlightStrength: 0.7,
+            strokeOpacity: 0.10,
+            shadowRadius: 6
+        ))
+    }
+
+    /// Suggestion / quick reply chip — capsule glass
+    func liquidGlassChip(cornerRadius: CGFloat = 22) -> some View {
+        modifier(LiquidGlassSurface(
+            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            tint: VitaColors.accent,
+            tintOpacity: 0.06,
+            highlightStrength: 0.9,
+            strokeOpacity: 0.16,
+            shadowRadius: 4
+        ))
+    }
+
+    /// Input bar capsule — adapts stroke when focused
+    func liquidGlassInput(focused: Bool, cornerRadius: CGFloat = 22) -> some View {
+        modifier(LiquidGlassSurface(
+            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            tint: VitaColors.accent,
+            tintOpacity: 0.05,
+            highlightStrength: 0.8,
+            strokeOpacity: focused ? 0.30 : 0.10,
+            shadowRadius: 8
+        ))
+    }
+
+    /// Circular orb (e.g. sparkles container in empty state)
+    func liquidGlassOrb(diameter: CGFloat) -> some View {
+        modifier(LiquidGlassSurface(
+            shape: Circle(),
+            tint: VitaColors.accent,
+            tintOpacity: 0.10,
+            highlightStrength: 1.0,
+            strokeOpacity: 0.20,
+            shadowRadius: 12
+        ))
+        .frame(width: diameter, height: diameter)
+    }
+}
