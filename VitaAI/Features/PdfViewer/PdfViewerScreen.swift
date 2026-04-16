@@ -16,6 +16,7 @@ struct PdfViewerScreen: View {
     @State private var showExportSheet: Bool = false
     @State private var exportedURL: URL? = nil
     @State private var searchDebounceTask: Task<Void, Never>? = nil
+    @State private var recognitionCopied: Bool = false
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
@@ -39,6 +40,9 @@ struct PdfViewerScreen: View {
                     .presentationDetents([.medium, .large])
             }
         }
+        .sheet(isPresented: $viewModel.showRecognitionResult) {
+            recognitionResultSheet
+        }
     }
 
     // MARK: - Main Content
@@ -57,6 +61,9 @@ struct PdfViewerScreen: View {
                 isSearching: viewModel.isSearching,
                 isBookmarked: viewModel.isCurrentPageBookmarked,
                 showThumbnailToggle: viewModel.pageCount > 1,
+                hasInkOnCurrentPage: viewModel.currentDrawingProvider?()?.strokes.isEmpty == false,
+                isRecognizing: viewModel.isRecognizing,
+                isLassoMode: viewModel.isLassoMode,
                 onBack: {
                     viewModel.saveAllAnnotations()
                     onBack()
@@ -72,8 +79,14 @@ struct PdfViewerScreen: View {
                     }
                 },
                 onToggleBookmark: viewModel.toggleBookmark,
+                onToggleLasso: viewModel.toggleLassoMode,
                 onExport: {
                     Task { await exportPDF(document: document) }
+                },
+                onTranscribe: {
+                    guard let drawing = viewModel.currentDrawingProvider?(),
+                          !drawing.strokes.isEmpty else { return }
+                    Task { await viewModel.recognizeHandwriting(drawing: drawing) }
                 }
             )
 
@@ -137,6 +150,126 @@ struct PdfViewerScreen: View {
             Button("Voltar", action: onBack)
                 .foregroundStyle(VitaColors.accent)
         }
+    }
+
+    // MARK: - Recognition Result Sheet
+
+    @ViewBuilder
+    private var recognitionResultSheet: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Texto Reconhecido")
+                    .font(VitaTypography.titleLarge)
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer()
+                Button {
+                    viewModel.showRecognitionResult = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+                .background(VitaColors.surfaceBorder)
+
+            // Recognized text
+            ScrollView {
+                if let text = viewModel.recognizedText {
+                    Text(text)
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .textSelection(.enabled)
+                } else {
+                    Text("Nenhum texto reconhecido.")
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .padding(16)
+                }
+            }
+            .frame(maxHeight: .infinity)
+
+            Divider()
+                .background(VitaColors.surfaceBorder)
+
+            // Action buttons
+            HStack(spacing: 12) {
+                Button {
+                    if let text = viewModel.recognizedText {
+                        UIPasteboard.general.string = text
+                        withAnimation { recognitionCopied = true }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .seconds(1.5))
+                            withAnimation { recognitionCopied = false }
+                        }
+                    }
+                } label: {
+                    Label(
+                        recognitionCopied ? "Copiado!" : "Copiar",
+                        systemImage: recognitionCopied ? "checkmark" : "doc.on.doc"
+                    )
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(recognitionCopied ? VitaColors.dataGreen : VitaColors.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(VitaColors.surfaceCard)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(recognitionCopied ? VitaColors.dataGreen : VitaColors.accentSubtle, lineWidth: 1)
+                    )
+                }
+
+                Button {
+                    guard let text = viewModel.recognizedText,
+                          let pdfView = NativePdfView.pdfViewRef,
+                          let page = pdfView.currentPage else { return }
+                    let pagePoint = CGPoint(x: page.bounds(for: .mediaBox).midX,
+                                           y: page.bounds(for: .mediaBox).midY)
+                    let lineCount = max(1, text.components(separatedBy: "\n").count)
+                    let height = max(40, CGFloat(lineCount) * 18 + 16)
+                    let width: CGFloat = min(300, page.bounds(for: .mediaBox).width * 0.8)
+                    let bounds = CGRect(
+                        x: pagePoint.x - width / 2,
+                        y: pagePoint.y - height / 2,
+                        width: width,
+                        height: height
+                    )
+                    let annotation = PDFAnnotation(bounds: bounds, forType: .freeText, withProperties: nil)
+                    annotation.font = UIFont.systemFont(ofSize: 13)
+                    annotation.fontColor = UIColor.white
+                    annotation.color = UIColor(white: 0.1, alpha: 0.85)
+                    annotation.border = PDFBorder()
+                    annotation.border?.lineWidth = 0.5
+                    annotation.border?.style = .solid
+                    annotation.isReadOnly = false
+                    annotation.contents = text
+                    page.addAnnotation(annotation)
+                    viewModel.saveHighlights()
+                    viewModel.showRecognitionResult = false
+                } label: {
+                    Label("Inserir como nota", systemImage: "note.text.badge.plus")
+                        .font(VitaTypography.labelMedium)
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(VitaColors.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .background(VitaColors.surfaceCard)
+        .presentationDetents([.medium, .large])
+        .presentationBackground(.ultraThinMaterial)
     }
 
     // MARK: - Export
@@ -213,6 +346,8 @@ private struct NativePdfView: UIViewRepresentable {
         context.coordinator.isHighlightMode = viewModel.isHighlightMode
         // Sync text mode into coordinator
         context.coordinator.isTextMode = viewModel.isTextMode
+        // Sync lasso mode — apply PKLassoTool or restore ink tool
+        context.coordinator.applyLassoMode(viewModel.isLassoMode)
     }
 
     static func dismantleUIView(_ pdfView: PDFView, coordinator: Coordinator) {
@@ -224,7 +359,7 @@ private struct NativePdfView: UIViewRepresentable {
 
 // MARK: - Coordinator
 
-private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDelegate, PKCanvasViewDelegate, UIGestureRecognizerDelegate {
+private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDelegate, PKCanvasViewDelegate, PKToolPickerObserver, UIGestureRecognizerDelegate {
     let viewModel: PdfViewerViewModel
     weak var pdfView: PDFView?
 
@@ -238,6 +373,9 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     /// Mirror of viewModel.isTextMode, updated from updateUIView
     var isTextMode: Bool = false
 
+    /// Mirror of viewModel.isLassoMode, updated from updateUIView
+    var isLassoMode: Bool = false
+
     /// Debounce task to avoid double-firing on selection change
     var highlightDebounceTask: Task<Void, Never>?
 
@@ -246,6 +384,16 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     init(viewModel: PdfViewerViewModel) {
         self.viewModel = viewModel
         super.init()
+        // Provide a closure so the screen/VM can pull the current page's drawing on demand.
+        viewModel.currentDrawingProvider = { [weak self] in
+            guard let self,
+                  let pdfView = self.pdfView,
+                  let page = pdfView.currentPage,
+                  let canvas = self.pageToCanvas[page] else { return nil }
+            return canvas.drawing
+        }
+        // Observe tool picker changes to auto-deactivate lasso when user switches tool
+        toolPicker.addObserver(self)
     }
 
     // MARK: PDFPageOverlayViewProvider
@@ -451,6 +599,29 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
             }
         }
     }
+
+    func applyLassoMode(_ lasso: Bool) {
+        guard isLassoMode != lasso else { return }
+        isLassoMode = lasso
+        for (_, canvas) in pageToCanvas {
+            if lasso {
+                canvas.tool = PKLassoTool()
+            } else {
+                // Restore the tool picker's currently selected tool
+                canvas.tool = toolPicker.selectedTool
+            }
+        }
+    }
+
+    // MARK: PKToolPickerObserver — deactivate lasso when user picks a different tool
+
+    func toolPickerSelectedToolItemDidChange(_ toolPicker: PKToolPicker) {
+        guard isLassoMode else { return }
+        // User switched tool via the picker — deactivate lasso mode
+        Task { @MainActor [weak self] in
+            self?.viewModel.isLassoMode = false
+        }
+    }
 }
 
 // MARK: - Top Bar
@@ -466,6 +637,9 @@ private struct PdfTopBar: View {
     let isSearching: Bool
     let isBookmarked: Bool
     let showThumbnailToggle: Bool
+    let hasInkOnCurrentPage: Bool
+    let isRecognizing: Bool
+    let isLassoMode: Bool
     let onBack: () -> Void
     let onToggleThumbnails: () -> Void
     let onToggleAnnotating: () -> Void
@@ -473,7 +647,9 @@ private struct PdfTopBar: View {
     let onToggleText: () -> Void
     let onToggleSearch: () -> Void
     let onToggleBookmark: () -> Void
+    let onToggleLasso: () -> Void
     let onExport: () -> Void
+    let onTranscribe: () -> Void
 
     var body: some View {
         HStack(spacing: 4) {
@@ -518,6 +694,35 @@ private struct PdfTopBar: View {
                     .font(.system(size: 22))
                     .foregroundStyle(isAnnotating ? VitaColors.accent : VitaColors.textSecondary)
                     .frame(width: 36, height: 36)
+            }
+
+            // Transcribe ink button — only when annotating and there's ink
+            if isAnnotating {
+                Button(action: onTranscribe) {
+                    Group {
+                        if isRecognizing {
+                            ProgressView()
+                                .tint(VitaColors.accent)
+                                .scaleEffect(0.75)
+                        } else {
+                            Image(systemName: "text.viewfinder")
+                                .font(.system(size: 18))
+                                .foregroundStyle(hasInkOnCurrentPage ? VitaColors.accent : VitaColors.textTertiary)
+                        }
+                    }
+                    .frame(width: 36, height: 36)
+                }
+                .disabled(!hasInkOnCurrentPage || isRecognizing)
+            }
+
+            // Lasso select — only when annotating
+            if isAnnotating {
+                Button(action: onToggleLasso) {
+                    Image(systemName: "lasso")
+                        .font(.system(size: 18))
+                        .foregroundStyle(isLassoMode ? VitaColors.accentHover : VitaColors.textSecondary)
+                        .frame(width: 36, height: 36)
+                }
             }
 
             // Highlight toggle
