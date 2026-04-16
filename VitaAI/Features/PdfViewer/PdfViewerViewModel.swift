@@ -17,6 +17,7 @@ final class PdfViewerViewModel {
     // MARK: - UI state
     var showThumbnails: Bool = false
     var isAnnotating: Bool = false
+    var isHighlightMode: Bool = false
 
     // MARK: - Search state
     var isSearching: Bool = false
@@ -89,13 +90,61 @@ final class PdfViewerViewModel {
 
         pageCount = document?.pageCount ?? 0
         loadBookmarks()
+        loadHighlights()
         isLoading = false
     }
 
     // MARK: - Annotation mode
 
-    func toggleAnnotating() { isAnnotating.toggle() }
+    func toggleAnnotating() {
+        isAnnotating.toggle()
+        if isAnnotating { isHighlightMode = false }
+    }
+
+    func toggleHighlightMode() {
+        isHighlightMode.toggle()
+        if isHighlightMode { isAnnotating = false }
+    }
+
     func toggleThumbnails() { showThumbnails.toggle() }
+
+    // MARK: - Highlight persistence (full document write, keyed by hash)
+
+    func highlightFileURL() -> URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("pdf_annotations", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("\(fileHash)_highlights.pdf")
+    }
+
+    func saveHighlights() {
+        guard let document else { return }
+        isSaving = true
+        let url = highlightFileURL()
+        document.write(to: url)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            self.isSaving = false
+        }
+    }
+
+    func loadHighlights() {
+        let url = highlightFileURL()
+        guard FileManager.default.fileExists(atPath: url.path),
+              let saved = PDFDocument(url: url),
+              let current = document else { return }
+        // Copy highlight annotations from saved doc into current doc
+        for i in 0..<min(saved.pageCount, current.pageCount) {
+            guard let savedPage = saved.page(at: i),
+                  let currentPage = current.page(at: i) else { continue }
+            for annotation in savedPage.annotations {
+                guard annotation.type == "Highlight" else { continue }
+                let copy = PDFAnnotation(bounds: annotation.bounds, forType: .highlight, withProperties: nil)
+                copy.color = annotation.color
+                currentPage.addAnnotation(copy)
+            }
+        }
+    }
 
     // MARK: - Search
 
