@@ -53,6 +53,7 @@ struct PdfViewerScreen: View {
                 isSaving: viewModel.isSaving,
                 isAnnotating: viewModel.isAnnotating,
                 isHighlightMode: viewModel.isHighlightMode,
+                isTextMode: viewModel.isTextMode,
                 isSearching: viewModel.isSearching,
                 isBookmarked: viewModel.isCurrentPageBookmarked,
                 showThumbnailToggle: viewModel.pageCount > 1,
@@ -63,6 +64,7 @@ struct PdfViewerScreen: View {
                 onToggleThumbnails: viewModel.toggleThumbnails,
                 onToggleAnnotating: viewModel.toggleAnnotating,
                 onToggleHighlight: viewModel.toggleHighlightMode,
+                onToggleText: viewModel.toggleTextMode,
                 onToggleSearch: {
                     viewModel.toggleSearch()
                     if viewModel.isSearching {
@@ -209,6 +211,8 @@ private struct NativePdfView: UIViewRepresentable {
         context.coordinator.applyAnnotationMode(viewModel.isAnnotating)
         // Sync highlight mode into coordinator
         context.coordinator.isHighlightMode = viewModel.isHighlightMode
+        // Sync text mode into coordinator
+        context.coordinator.isTextMode = viewModel.isTextMode
     }
 
     static func dismantleUIView(_ pdfView: PDFView, coordinator: Coordinator) {
@@ -230,6 +234,9 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
 
     /// Mirror of viewModel.isHighlightMode, updated from updateUIView
     var isHighlightMode: Bool = false
+
+    /// Mirror of viewModel.isTextMode, updated from updateUIView
+    var isTextMode: Bool = false
 
     /// Debounce task to avoid double-firing on selection change
     var highlightDebounceTask: Task<Void, Never>?
@@ -336,23 +343,77 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         viewModel.saveHighlights()
     }
 
-    // MARK: Tap to remove highlight
+    // MARK: Tap to remove highlight / place text box
 
     @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-        guard isHighlightMode,
-              let pdfView = gesture.view as? PDFView else { return }
+        guard let pdfView = gesture.view as? PDFView else { return }
         let point = gesture.location(in: pdfView)
         guard let page = pdfView.page(for: point, nearest: false) else { return }
         let pagePoint = pdfView.convert(point, to: page)
-        // Find highlight annotation at tap point
-        for annotation in page.annotations {
-            guard annotation.type == "Highlight" else { continue }
-            if annotation.bounds.contains(pagePoint) {
-                page.removeAnnotation(annotation)
-                viewModel.saveHighlights()
-                return
+
+        if isTextMode {
+            // Check if tapping an existing freeText annotation — show delete option
+            for annotation in page.annotations {
+                guard annotation.type == "FreeText" else { continue }
+                if annotation.bounds.contains(pagePoint) {
+                    showDeleteMenu(for: annotation, on: page, at: point, in: pdfView)
+                    return
+                }
+            }
+            // No existing annotation tapped — place a new text box
+            placeTextAnnotation(at: pagePoint, on: page)
+            return
+        }
+
+        if isHighlightMode {
+            // Find highlight annotation at tap point
+            for annotation in page.annotations {
+                guard annotation.type == "Highlight" else { continue }
+                if annotation.bounds.contains(pagePoint) {
+                    page.removeAnnotation(annotation)
+                    viewModel.saveHighlights()
+                    return
+                }
             }
         }
+    }
+
+    private func placeTextAnnotation(at pagePoint: CGPoint, on page: PDFPage) {
+        let width: CGFloat = 200
+        let height: CGFloat = 40
+        let bounds = CGRect(
+            x: pagePoint.x - width / 2,
+            y: pagePoint.y - height / 2,
+            width: width,
+            height: height
+        )
+        let annotation = PDFAnnotation(bounds: bounds, forType: .freeText, withProperties: nil)
+        annotation.font = UIFont.systemFont(ofSize: 13)
+        annotation.fontColor = UIColor.white
+        annotation.color = UIColor(white: 0.1, alpha: 0.85)
+        annotation.border = PDFBorder()
+        annotation.border?.lineWidth = 0.5
+        annotation.border?.style = .solid
+        annotation.color = UIColor(white: 0.1, alpha: 0.85)
+        annotation.isReadOnly = false
+        annotation.contents = ""
+        page.addAnnotation(annotation)
+        viewModel.saveHighlights()
+    }
+
+    private func showDeleteMenu(for annotation: PDFAnnotation, on page: PDFPage, at viewPoint: CGPoint, in pdfView: PDFView) {
+        guard let hostVC = pdfView.findViewController() else { return }
+        let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: "Excluir caixa de texto", style: .destructive) { [weak self] _ in
+            page.removeAnnotation(annotation)
+            self?.viewModel.saveHighlights()
+        })
+        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = pdfView
+            popover.sourceRect = CGRect(origin: viewPoint, size: .zero)
+        }
+        hostVC.present(alert, animated: true)
     }
 
     // MARK: UIGestureRecognizerDelegate — allow simultaneous recognition with PDFView's own gestures
@@ -401,6 +462,7 @@ private struct PdfTopBar: View {
     let isSaving: Bool
     let isAnnotating: Bool
     let isHighlightMode: Bool
+    let isTextMode: Bool
     let isSearching: Bool
     let isBookmarked: Bool
     let showThumbnailToggle: Bool
@@ -408,6 +470,7 @@ private struct PdfTopBar: View {
     let onToggleThumbnails: () -> Void
     let onToggleAnnotating: () -> Void
     let onToggleHighlight: () -> Void
+    let onToggleText: () -> Void
     let onToggleSearch: () -> Void
     let onToggleBookmark: () -> Void
     let onExport: () -> Void
@@ -462,6 +525,14 @@ private struct PdfTopBar: View {
                 Image(systemName: "highlighter")
                     .font(.system(size: 18))
                     .foregroundStyle(isHighlightMode ? VitaColors.accent : VitaColors.textSecondary)
+                    .frame(width: 36, height: 36)
+            }
+
+            // Text box toggle
+            Button(action: onToggleText) {
+                Image(systemName: "character.textbox")
+                    .font(.system(size: 18))
+                    .foregroundStyle(isTextMode ? VitaColors.accent : VitaColors.textSecondary)
                     .frame(width: 36, height: 36)
             }
 
@@ -581,5 +652,18 @@ private struct ShareSheet: UIViewControllerRepresentable {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - UIView helper
+
+private extension UIView {
+    func findViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while let r = responder {
+            if let vc = r as? UIViewController { return vc }
+            responder = r.next
+        }
+        return nil
+    }
 }
 

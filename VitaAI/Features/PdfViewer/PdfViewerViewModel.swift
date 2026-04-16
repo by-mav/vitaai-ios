@@ -18,6 +18,7 @@ final class PdfViewerViewModel {
     var showThumbnails: Bool = false
     var isAnnotating: Bool = false
     var isHighlightMode: Bool = false
+    var isTextMode: Bool = false
 
     // MARK: - Search state
     var isSearching: Bool = false
@@ -98,12 +99,26 @@ final class PdfViewerViewModel {
 
     func toggleAnnotating() {
         isAnnotating.toggle()
-        if isAnnotating { isHighlightMode = false }
+        if isAnnotating {
+            isHighlightMode = false
+            isTextMode = false
+        }
     }
 
     func toggleHighlightMode() {
         isHighlightMode.toggle()
-        if isHighlightMode { isAnnotating = false }
+        if isHighlightMode {
+            isAnnotating = false
+            isTextMode = false
+        }
+    }
+
+    func toggleTextMode() {
+        isTextMode.toggle()
+        if isTextMode {
+            isAnnotating = false
+            isHighlightMode = false
+        }
     }
 
     func toggleThumbnails() { showThumbnails.toggle() }
