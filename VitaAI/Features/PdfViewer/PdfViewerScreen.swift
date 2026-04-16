@@ -52,6 +52,7 @@ struct PdfViewerScreen: View {
                 pageCount: viewModel.pageCount,
                 isSaving: viewModel.isSaving,
                 isAnnotating: viewModel.isAnnotating,
+                isHighlightMode: viewModel.isHighlightMode,
                 isSearching: viewModel.isSearching,
                 isBookmarked: viewModel.isCurrentPageBookmarked,
                 showThumbnailToggle: viewModel.pageCount > 1,
@@ -61,6 +62,7 @@ struct PdfViewerScreen: View {
                 },
                 onToggleThumbnails: viewModel.toggleThumbnails,
                 onToggleAnnotating: viewModel.toggleAnnotating,
+                onToggleHighlight: viewModel.toggleHighlightMode,
                 onToggleSearch: {
                     viewModel.toggleSearch()
                     if viewModel.isSearching {
@@ -179,6 +181,21 @@ private struct NativePdfView: UIViewRepresentable {
             object: pdfView
         )
 
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.selectionChanged(_:)),
+            name: .PDFViewSelectionChanged,
+            object: pdfView
+        )
+
+        // Tap gesture to remove existing highlight annotations
+        let tapGesture = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleTap(_:))
+        )
+        tapGesture.delegate = context.coordinator
+        pdfView.addGestureRecognizer(tapGesture)
+
         return pdfView
     }
 
@@ -190,23 +207,32 @@ private struct NativePdfView: UIViewRepresentable {
         context.coordinator.scrollToPage(viewModel.currentPage, in: pdfView)
         // Toggle annotation mode on all visible canvases
         context.coordinator.applyAnnotationMode(viewModel.isAnnotating)
+        // Sync highlight mode into coordinator
+        context.coordinator.isHighlightMode = viewModel.isHighlightMode
     }
 
     static func dismantleUIView(_ pdfView: PDFView, coordinator: Coordinator) {
         NotificationCenter.default.removeObserver(coordinator)
         NativePdfView.pdfViewRef = nil
+        coordinator.highlightDebounceTask?.cancel()
     }
 }
 
 // MARK: - Coordinator
 
-private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDelegate, PKCanvasViewDelegate {
+private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDelegate, PKCanvasViewDelegate, UIGestureRecognizerDelegate {
     let viewModel: PdfViewerViewModel
     weak var pdfView: PDFView?
 
     /// Tracks canvas per page so we can save/restore drawings and toggle tool picker.
     var pageToCanvas: [PDFPage: PKCanvasView] = [:]
     let toolPicker = PKToolPicker()
+
+    /// Mirror of viewModel.isHighlightMode, updated from updateUIView
+    var isHighlightMode: Bool = false
+
+    /// Debounce task to avoid double-firing on selection change
+    var highlightDebounceTask: Task<Void, Never>?
 
     private var lastScrolledPage: Int = -1
 
@@ -275,6 +301,67 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         }
     }
 
+    // MARK: PDFViewSelectionChanged — auto-apply highlight
+
+    @objc func selectionChanged(_ notification: Notification) {
+        guard isHighlightMode,
+              let pdfView = notification.object as? PDFView,
+              let selection = pdfView.currentSelection,
+              !selection.pages.isEmpty else { return }
+
+        highlightDebounceTask?.cancel()
+        highlightDebounceTask = Task { @MainActor [weak self] in
+            // Small delay so PDFView fully commits the selection before we grab it
+            try? await Task.sleep(for: .milliseconds(80))
+            guard !Task.isCancelled, let self else { return }
+            guard self.isHighlightMode,
+                  let currentSel = pdfView.currentSelection,
+                  !currentSel.pages.isEmpty else { return }
+            self.applyHighlight(selection: currentSel, in: pdfView)
+        }
+    }
+
+    private func applyHighlight(selection: PDFSelection, in pdfView: PDFView) {
+        let highlightColor = UIColor(red: 1.0, green: 0.78, blue: 0.47, alpha: 0.35)
+        for page in selection.pages {
+            let bounds = selection.bounds(for: page)
+            guard bounds != .zero else { continue }
+            let annotation = PDFAnnotation(bounds: bounds, forType: .highlight, withProperties: nil)
+            annotation.color = highlightColor
+            page.addAnnotation(annotation)
+        }
+        // Clear selection after applying
+        pdfView.clearSelection()
+        // Persist highlights
+        viewModel.saveHighlights()
+    }
+
+    // MARK: Tap to remove highlight
+
+    @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+        guard isHighlightMode,
+              let pdfView = gesture.view as? PDFView else { return }
+        let point = gesture.location(in: pdfView)
+        guard let page = pdfView.page(for: point, nearest: false) else { return }
+        let pagePoint = pdfView.convert(point, to: page)
+        // Find highlight annotation at tap point
+        for annotation in page.annotations {
+            guard annotation.type == "Highlight" else { continue }
+            if annotation.bounds.contains(pagePoint) {
+                page.removeAnnotation(annotation)
+                viewModel.saveHighlights()
+                return
+            }
+        }
+    }
+
+    // MARK: UIGestureRecognizerDelegate — allow simultaneous recognition with PDFView's own gestures
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool { true }
+
     // MARK: Helpers
 
     func scrollToPage(_ pageIndex: Int, in pdfView: PDFView) {
@@ -313,12 +400,14 @@ private struct PdfTopBar: View {
     let pageCount: Int
     let isSaving: Bool
     let isAnnotating: Bool
+    let isHighlightMode: Bool
     let isSearching: Bool
     let isBookmarked: Bool
     let showThumbnailToggle: Bool
     let onBack: () -> Void
     let onToggleThumbnails: () -> Void
     let onToggleAnnotating: () -> Void
+    let onToggleHighlight: () -> Void
     let onToggleSearch: () -> Void
     let onToggleBookmark: () -> Void
     let onExport: () -> Void
@@ -365,6 +454,14 @@ private struct PdfTopBar: View {
                 Image(systemName: isAnnotating ? "pencil.circle.fill" : "pencil.circle")
                     .font(.system(size: 22))
                     .foregroundStyle(isAnnotating ? VitaColors.accent : VitaColors.textSecondary)
+                    .frame(width: 36, height: 36)
+            }
+
+            // Highlight toggle
+            Button(action: onToggleHighlight) {
+                Image(systemName: "highlighter")
+                    .font(.system(size: 18))
+                    .foregroundStyle(isHighlightMode ? VitaColors.accent : VitaColors.textSecondary)
                     .frame(width: 36, height: 36)
             }
 
