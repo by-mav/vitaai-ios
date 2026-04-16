@@ -1,6 +1,7 @@
 import SwiftUI
 import PDFKit
 import PencilKit
+import Vision
 
 @MainActor
 @Observable
@@ -19,6 +20,14 @@ final class PdfViewerViewModel {
     var isAnnotating: Bool = false
     var isHighlightMode: Bool = false
     var isTextMode: Bool = false
+    var isLassoMode: Bool = false
+
+    // MARK: - Handwriting recognition state
+    var recognizedText: String? = nil
+    var isRecognizing: Bool = false
+    var showRecognitionResult: Bool = false
+    /// Set by Coordinator so the screen can pull the current page's drawing on demand.
+    var currentDrawingProvider: (() -> PKDrawing?)? = nil
 
     // MARK: - Search state
     var isSearching: Bool = false
@@ -102,7 +111,14 @@ final class PdfViewerViewModel {
         if isAnnotating {
             isHighlightMode = false
             isTextMode = false
+        } else {
+            isLassoMode = false
         }
+    }
+
+    func toggleLassoMode() {
+        guard isAnnotating else { return }
+        isLassoMode.toggle()
     }
 
     func toggleHighlightMode() {
@@ -239,6 +255,51 @@ final class PdfViewerViewModel {
     func saveAllAnnotations() {
         // Coordinator calls saveDrawing per page as they scroll off-screen.
         // Nothing extra needed here — file writes are synchronous in coordinator.
+    }
+
+    // MARK: - Handwriting recognition
+
+    func recognizeHandwriting(drawing: PKDrawing) async {
+        guard !drawing.strokes.isEmpty else { return }
+        isRecognizing = true
+
+        let bounds = drawing.bounds
+        let renderer = UIGraphicsImageRenderer(bounds: bounds)
+        let image = renderer.image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(bounds)
+            drawing.image(from: bounds, scale: 2.0).draw(in: bounds)
+        }
+
+        guard let cgImage = image.cgImage else {
+            isRecognizing = false
+            return
+        }
+
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["pt-BR", "en-US"]
+        request.usesLanguageCorrection = true
+
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try handler.perform([request])
+            }.value
+
+            let observations = request.results ?? []
+            let text = observations.compactMap { obs in
+                obs.topCandidates(1).first?.string
+            }.joined(separator: "\n")
+
+            recognizedText = text.isEmpty ? nil : text
+            showRecognitionResult = !text.isEmpty
+        } catch {
+            recognizedText = nil
+        }
+
+        isRecognizing = false
     }
 
     // MARK: - Private helpers
