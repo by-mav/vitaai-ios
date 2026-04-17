@@ -9,6 +9,7 @@ struct VitaChatScreen: View {
     @State private var viewModel: ChatViewModel?
     @State private var showVoiceMode: Bool = false
     @FocusState private var isInputFocused: Bool
+    @Namespace private var mascotNS
 
     var body: some View {
         ZStack {
@@ -17,8 +18,16 @@ struct VitaChatScreen: View {
                 .fill(.ultraThinMaterial)
                 .environment(\.colorScheme, .dark)
 
-            // Subtle gold tint over blur
-            VitaColors.accent.opacity(0.03)
+            // Soft gold ambient — top fades in, bottom transparent
+            LinearGradient(
+                colors: [
+                    VitaColors.accent.opacity(0.07),
+                    VitaColors.accent.opacity(0.02),
+                    .clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
 
             if let viewModel {
                 chatContent(viewModel: viewModel)
@@ -70,15 +79,16 @@ struct VitaChatScreen: View {
 
                 // Messages or empty state
                 if viewModel.messages.isEmpty {
-                    EmptyState(viewModel: viewModel, isInputFocused: $isInputFocused)
+                    EmptyState(viewModel: viewModel, isInputFocused: $isInputFocused, mascotNS: mascotNS)
                 } else {
-                    MessagesList(viewModel: viewModel)
+                    MessagesList(viewModel: viewModel, mascotNS: mascotNS)
                 }
 
                 // Input bar
                 ChatInput(viewModel: viewModel, isInputFocused: $isInputFocused)
             }
             .ignoresSafeArea(.keyboard)
+            .animation(.spring(response: 0.65, dampingFraction: 0.78), value: viewModel.messages.isEmpty)
 
             // History sidebar overlay
             if viewModel.showHistory {
@@ -128,6 +138,7 @@ private struct ChatHeader: View {
 private struct EmptyState: View {
     let viewModel: ChatViewModel
     var isInputFocused: FocusState<Bool>.Binding
+    let mascotNS: Namespace.ID
 
     private let suggestions = [
         "O que estudar hoje?",
@@ -138,23 +149,16 @@ private struct EmptyState: View {
         VStack(spacing: 0) {
             Spacer()
 
-            VStack(spacing: 16) {
-                // Sparkles icon
-                ZStack {
-                    Circle()
-                        .fill(VitaColors.accent.opacity(0.08))
-                        .frame(width: 56, height: 56)
-                    Circle()
-                        .stroke(VitaColors.glassBorder, lineWidth: 1)
-                        .frame(width: 56, height: 56)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(VitaColors.accent.opacity(0.60))
-                }
+            VStack(spacing: 24) {
+                // Vita mascot — animated. Shares id with the first assistant
+                // avatar so it "flies" to the bubble when conversation starts.
+                VitaMascot(state: .awake, size: 100, showStaff: false)
+                    .matchedGeometryEffect(id: "vitaMascot", in: mascotNS, properties: .position)
+                    .frame(height: 120)
 
                 Text("Como posso te ajudar?")
-                    .font(.system(size: 14))
-                    .foregroundColor(VitaColors.textSecondary)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(VitaColors.textPrimary)
 
                 // Quick action chips
                 HStack(spacing: 8) {
@@ -170,15 +174,10 @@ private struct EmptyState: View {
                                 Text(text)
                                     .font(.system(size: 11, weight: .medium))
                             }
-                            .foregroundColor(VitaColors.accent.opacity(0.60))
+                            .foregroundColor(VitaColors.accent.opacity(0.75))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 9)
-                            .background(VitaColors.accent.opacity(0.04))
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(VitaColors.glassBorder, lineWidth: 1)
-                            )
+                            .liquidGlassChip(cornerRadius: 20)
                         }
                         .buttonStyle(.plain)
                     }
@@ -195,6 +194,11 @@ private struct EmptyState: View {
 
 private struct MessagesList: View {
     let viewModel: ChatViewModel
+    let mascotNS: Namespace.ID
+
+    private var firstAssistantId: String? {
+        viewModel.messages.first(where: { $0.role == "assistant" })?.id
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -204,6 +208,8 @@ private struct MessagesList: View {
                         MessageRow(
                             message: message,
                             isStreaming: viewModel.isStreaming && message.id == viewModel.messages.last?.id,
+                            isFirstAssistant: message.id == firstAssistantId,
+                            mascotNS: mascotNS,
                             onRetry: message.isError ? {
                                 Task { await viewModel.retryLastMessage() }
                             } : nil,
@@ -239,6 +245,8 @@ private struct MessagesList: View {
 private struct MessageRow: View {
     let message: ChatMessage
     let isStreaming: Bool
+    let isFirstAssistant: Bool
+    let mascotNS: Namespace.ID
     var onRetry: (() -> Void)?
     var onFeedback: ((Int) -> Void)?
     @State private var cursorVisible: Bool = true
@@ -292,22 +300,30 @@ private struct MessageRow: View {
             if message.content != "[Imagem]" || !message.hasImage {
                 Text(message.content)
                     .font(.system(size: 13))
-                    .foregroundColor(Color(red: 0.05, green: 0.03, blue: 0.01).opacity(0.95))
+                    .foregroundColor(VitaColors.textPrimary)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(VitaColors.accent.opacity(0.85))
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .liquidGlassUserBubble(cornerRadius: 20)
     }
 
+    @ViewBuilder
     private var assistantAvatar: some View {
-        Image("vita-btn-active")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 24, height: 24)
-            .clipShape(Circle())
-            .alignmentGuide(.bottom) { d in d[.bottom] }
+        if isFirstAssistant {
+            // Mascot flies from the empty-state center via matchedGeometry
+            VitaMascot(state: isStreaming ? .thinking : .awake, size: 32, showStaff: false)
+                .matchedGeometryEffect(id: "vitaMascot", in: mascotNS, properties: .position)
+                .frame(width: 40, height: 40)
+                .alignmentGuide(.bottom) { d in d[.bottom] }
+        } else {
+            Image("vita-btn-active")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+                .clipShape(Circle())
+                .alignmentGuide(.bottom) { d in d[.bottom] }
+        }
     }
 
     private var assistantBubble: some View {
@@ -334,12 +350,7 @@ private struct MessageRow: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VitaColors.glassBg)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
-        )
+        .liquidGlassAssistantBubble(cornerRadius: 20)
         .onAppear {
             if isStreaming { startCursorBlink() }
         }
@@ -725,15 +736,7 @@ private struct ChatInput: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(VitaColors.glassBg)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(
-                        isInputFocused.wrappedValue ? VitaColors.accent.opacity(0.18) : VitaColors.glassBorder,
-                        lineWidth: 1
-                    )
-            )
+            .liquidGlassInput(focused: isInputFocused.wrappedValue, cornerRadius: 22)
             .padding(.horizontal, 14)
             .padding(.bottom, 12)
             .padding(.top, 8)
