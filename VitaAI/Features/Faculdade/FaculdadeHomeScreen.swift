@@ -211,12 +211,18 @@ struct FaculdadeHomeScreen: View {
     }
 
     private var heroStatsStrip: some View {
-        HStack(spacing: 14) {
+        let cursando = appData.enrolledDisciplines.filter {
+            $0.status == nil || $0.status == "in_progress"
+        }.count
+        let aprov = appData.enrolledDisciplines.filter {
+            $0.status == "completed" || $0.status == "approved"
+        }.count
+        return HStack(spacing: 14) {
             heroStat(label: "CR", value: crValue)
             heroStatDivider
-            heroStat(label: "Aprov.", value: "\(appData.gradesResponse?.completed.count ?? 0)")
+            heroStat(label: "Aprov.", value: "\(aprov)")
             heroStatDivider
-            heroStat(label: "Cursando", value: "\(appData.gradesResponse?.current.count ?? 0)")
+            heroStat(label: "Cursando", value: "\(cursando)")
             Spacer()
         }
     }
@@ -241,14 +247,20 @@ struct FaculdadeHomeScreen: View {
     }
 
     private var crValue: String {
-        guard let avg = appData.gradesResponse?.summary.averageGrade else { return "—" }
+        let completedGrades = appData.enrolledDisciplines
+            .filter { $0.status == "completed" || $0.status == "approved" }
+            .compactMap { $0.finalGrade }
+        guard !completedGrades.isEmpty else { return "—" }
+        let avg = completedGrades.reduce(0, +) / Double(completedGrades.count)
         return String(format: "%.2f", avg)
     }
 
     // MARK: - Disciplines section (folder grid)
 
     private var disciplinesSection: some View {
-        let subjects = appData.gradesResponse?.current ?? []
+        let subjects = appData.enrolledDisciplines.filter {
+            $0.status == nil || $0.status == "in_progress"
+        }
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -291,11 +303,11 @@ struct FaculdadeHomeScreen: View {
                     ForEach(sorted) { subject in
                         Button {
                             router.navigate(to: .faculdadeDisciplinas)
-                            router.navigate(to: .disciplineDetail(disciplineId: subject.id, disciplineName: subject.subjectName))
+                            router.navigate(to: .disciplineDetail(disciplineId: subject.id, disciplineName: subject.displayName))
                         } label: {
                             DisciplineFolderCard(
-                                subjectName: subject.subjectName,
-                                vitaScore: Int(appData.vitaScore(for: subject.subjectName))
+                                subjectName: subject.displayName,
+                                vitaScore: Int(appData.vitaScore(for: subject.displayName))
                             )
                         }
                         .buttonStyle(.plain)
@@ -307,13 +319,13 @@ struct FaculdadeHomeScreen: View {
 
     // MARK: - Helpers
 
-    private func sortedByFavorite(_ subjects: [GradeSubject]) -> [GradeSubject] {
+    private func sortedByFavorite(_ subjects: [AcademicSubject]) -> [AcademicSubject] {
         let favs = DisciplineFolderCard.favorites()
         return subjects.sorted { a, b in
-            let aFav = favs.contains(a.subjectName)
-            let bFav = favs.contains(b.subjectName)
+            let aFav = favs.contains(a.displayName)
+            let bFav = favs.contains(b.displayName)
             if aFav != bFav { return aFav }
-            return a.subjectName < b.subjectName
+            return a.displayName < b.displayName
         }
     }
 

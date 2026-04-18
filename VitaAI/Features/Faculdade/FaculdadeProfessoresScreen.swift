@@ -182,11 +182,14 @@ struct FaculdadeProfessoresScreen: View {
             }
         }
 
-        // From grades — infer professor name from subject when not in schedule
-        for subject in (appData.gradesResponse?.current ?? []) {
-            // If subject already covered via schedule, skip
-            if nameToSubjects.values.flatMap({ $0 }).contains(subject.subjectName) { continue }
-            // Add a "subject-only" entry (no professor name, use subject as placeholder)
+        // From enrolled disciplines — pick up professor directly from academic_subjects
+        for subject in appData.enrolledDisciplines where subject.status == nil || subject.status == "in_progress" {
+            guard let prof = subject.professor, !prof.isEmpty else { continue }
+            let subName = subject.displayName
+            nameToSubjects[prof, default: []].append(subName)
+            if nameToSubjectId[prof] == nil {
+                nameToSubjectId[prof] = subject.id
+            }
         }
 
         // Deduplicate subjects per professor

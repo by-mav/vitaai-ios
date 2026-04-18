@@ -16,12 +16,19 @@ struct FaculdadeMateriasScreen: View {
     @State private var gradesFilter = 0 // 0 = Cursando, 1 = Aprovadas
     @State private var gradesTab = 0    // 0 = Notas, 1 = Freq
 
+    private var currentSubjects: [AcademicSubject] {
+        appData.enrolledDisciplines.filter { $0.status == nil || $0.status == "in_progress" }
+    }
+
+    private var completedSubjects: [AcademicSubject] {
+        appData.enrolledDisciplines.filter { $0.status == "completed" || $0.status == "approved" }
+    }
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 16) {
-                if let grades = appData.gradesResponse,
-                   (!grades.current.isEmpty || !grades.completed.isEmpty) {
-                    gradesCard(grades)
+                if !currentSubjects.isEmpty || !completedSubjects.isEmpty {
+                    gradesCard(current: currentSubjects, completed: completedSubjects)
                 } else {
                     emptyState
                 }
@@ -54,9 +61,9 @@ struct FaculdadeMateriasScreen: View {
 
     // MARK: - Grades card
 
-    private func gradesCard(_ grades: GradesCurrentResponse) -> some View {
-        let cr = computeCR(grades.completed)
-        let subjects = gradesFilter == 0 ? grades.current : grades.completed
+    private func gradesCard(current: [AcademicSubject], completed: [AcademicSubject]) -> some View {
+        let cr = computeCR(completed)
+        let subjects = gradesFilter == 0 ? current : completed
 
         return VitaGlassCard {
             VStack(spacing: 14) {
@@ -82,8 +89,8 @@ struct FaculdadeMateriasScreen: View {
 
                 // Filter pills + column toggle
                 HStack(spacing: 6) {
-                    filterPill("Cursando", count: grades.current.count, index: 0)
-                    filterPill("Aprovadas", count: grades.completed.count, index: 1)
+                    filterPill("Cursando", count: current.count, index: 0)
+                    filterPill("Aprovadas", count: completed.count, index: 1)
                     Spacer()
                     HStack(spacing: 0) {
                         tabButton("Notas", index: 0)
@@ -116,7 +123,7 @@ struct FaculdadeMateriasScreen: View {
 
                     ForEach(subjects) { subject in
                         Button {
-                            onNavigateToDiscipline?(subject.id, subject.subjectName)
+                            onNavigateToDiscipline?(subject.id, subject.displayName)
                         } label: {
                             if gradesTab == 0 {
                                 if gradesFilter == 0 {
@@ -196,9 +203,9 @@ struct FaculdadeMateriasScreen: View {
             .frame(height: 0.5)
     }
 
-    private func notasRow(_ s: GradeSubject) -> some View {
+    private func notasRow(_ s: AcademicSubject) -> some View {
         HStack(spacing: 4) {
-            Text(shortName(s.subjectName))
+            Text(shortName(s.displayName))
                 .font(.system(size: 12))
                 .foregroundStyle(VitaColors.textPrimary)
                 .lineLimit(1)
@@ -211,9 +218,9 @@ struct FaculdadeMateriasScreen: View {
         .padding(.vertical, 3)
     }
 
-    private func approvedRow(_ s: GradeSubject) -> some View {
+    private func approvedRow(_ s: AcademicSubject) -> some View {
         HStack(spacing: 4) {
-            Text(shortName(s.subjectName))
+            Text(shortName(s.displayName))
                 .font(.system(size: 12))
                 .foregroundStyle(VitaColors.textPrimary)
                 .lineLimit(1)
@@ -224,9 +231,9 @@ struct FaculdadeMateriasScreen: View {
         .padding(.vertical, 3)
     }
 
-    private func freqRow(_ s: GradeSubject) -> some View {
+    private func freqRow(_ s: AcademicSubject) -> some View {
         HStack(spacing: 4) {
-            Text(shortName(s.subjectName))
+            Text(shortName(s.displayName))
                 .font(.system(size: 12))
                 .foregroundStyle(VitaColors.textPrimary)
                 .lineLimit(1)
@@ -238,13 +245,13 @@ struct FaculdadeMateriasScreen: View {
                 .foregroundStyle(attendanceColor(s.attendance))
                 .frame(width: 48, alignment: .center)
 
-            Text(s.absences.map { String(format: "%.0f", $0) } ?? "—")
+            Text(s.absences.map { "\($0)" } ?? "—")
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(VitaColors.textWarm.opacity(0.60))
                 .frame(width: 48, alignment: .center)
 
-            Text(s.workload.map { String(format: "%.0f", $0) } ?? "—")
+            Text(s.workload.map { "\($0)" } ?? "—")
                 .font(.system(size: 12, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(VitaColors.textWarm.opacity(0.60))
@@ -282,13 +289,13 @@ struct FaculdadeMateriasScreen: View {
         return name.capitalized(with: Locale(identifier: "pt_BR"))
     }
 
-    private func computeCR(_ completed: [GradeSubject]) -> Double? {
+    private func computeCR(_ completed: [AcademicSubject]) -> Double? {
         let grades = completed.compactMap(\.finalGrade)
         guard !grades.isEmpty else { return nil }
-        let withWorkload = completed.filter { $0.finalGrade != nil && $0.workload != nil && $0.workload! > 0 }
+        let withWorkload = completed.filter { $0.finalGrade != nil && ($0.workload ?? 0) > 0 }
         if withWorkload.count > grades.count / 2 {
-            let totalWeight = withWorkload.reduce(0.0) { $0 + ($1.workload ?? 0) }
-            let weightedSum = withWorkload.reduce(0.0) { $0 + ($1.finalGrade ?? 0) * ($1.workload ?? 0) }
+            let totalWeight = withWorkload.reduce(0.0) { $0 + Double($1.workload ?? 0) }
+            let weightedSum = withWorkload.reduce(0.0) { $0 + ($1.finalGrade ?? 0) * Double($1.workload ?? 0) }
             return totalWeight > 0 ? weightedSum / totalWeight : nil
         }
         return grades.reduce(0, +) / Double(grades.count)

@@ -16,8 +16,12 @@ struct FaculdadeDisciplinasScreen: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 12) {
-                let current = appData.gradesResponse?.current ?? []
-                let completed = appData.gradesResponse?.completed ?? []
+                let current = appData.enrolledDisciplines.filter {
+                    $0.status == nil || $0.status == "in_progress"
+                }
+                let completed = appData.enrolledDisciplines.filter {
+                    $0.status == "completed" || $0.status == "approved"
+                }
 
                 if current.isEmpty && completed.isEmpty {
                     emptyState
@@ -80,13 +84,13 @@ struct FaculdadeDisciplinasScreen: View {
 
     // MARK: - List
 
-    private func disciplinesList(_ subjects: [GradeSubject]) -> some View {
+    private func disciplinesList(_ subjects: [AcademicSubject]) -> some View {
         VStack(spacing: 8) {
             ForEach(subjects) { subject in
                 Button {
                     router.navigate(to: .disciplineDetail(
                         disciplineId: subject.id,
-                        disciplineName: subject.subjectName
+                        disciplineName: subject.displayName
                     ))
                 } label: {
                     disciplineCard(subject)
@@ -98,9 +102,9 @@ struct FaculdadeDisciplinasScreen: View {
 
     // MARK: - Card
 
-    private func disciplineCard(_ subject: GradeSubject) -> some View {
-        let color = SubjectColors.colorFor(subject: subject.subjectName)
-        let shortName = subject.subjectName
+    private func disciplineCard(_ subject: AcademicSubject) -> some View {
+        let color = SubjectColors.colorFor(subject: subject.displayName)
+        let shortName = subject.displayName
             .replacingOccurrences(of: "(?i),.*$", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
 
