@@ -41,6 +41,12 @@ struct QBankUiState {
     // Status filter: "unanswered" | "wrong" | "correct" | nil
     var selectedStatus: String? = nil
 
+    // Home chip selection. nil => all enrolled disciplines (default scope).
+    // Holds the StudyOverviewSubject.id so UI and VM agree without embedding
+    // the full subject name in state.
+    var selectedSubjectId: String? = nil
+    var selectedSubjectName: String? = nil
+
     // Search (client-side)
     var institutionSearch: String = ""
     var topicSearch: String = ""
@@ -221,7 +227,7 @@ final class QBankViewModel {
         Task {
             state.progressLoading = true
             do {
-                let slugs = enrolledDisciplineSlugs
+                let slugs = scopedSlugsForHome()
                 async let progressTask = api.getQBankProgress(disciplineSlugs: slugs)
                 async let sessionsTask = api.getQBankSessions(limit: 5)
                 state.progress = try await progressTask
@@ -236,6 +242,26 @@ final class QBankViewModel {
             }
             state.progressLoading = false
         }
+    }
+
+    /// Home chip selection: scope progress to one enrolled subject, or clear
+    /// to show all enrolled. Recent sessions are filtered client-side in the
+    /// view so a single slug lookup is enough here.
+    func setSelectedSubject(id: String?, name: String?) {
+        state.selectedSubjectId = id
+        state.selectedSubjectName = name
+        loadHomeData()
+    }
+
+    /// Slugs to send to `/api/qbank/progress`. One slug when a chip is
+    /// selected, all enrolled slugs otherwise. Empty array = backend falls
+    /// back to global scope which we intentionally avoid here.
+    private func scopedSlugsForHome() -> [String] {
+        if let name = state.selectedSubjectName, !name.isEmpty {
+            let slug = Self.slugifyDisciplineTitle(name)
+            if !slug.isEmpty { return [slug] }
+        }
+        return enrolledDisciplineSlugs
     }
 
     func startSmartStudy() {
