@@ -238,6 +238,19 @@ struct AcademicSubject: Codable, Identifiable {
     /// server-side from qbank_topics. Replaces the need to cross-reference
     /// /api/qbank/filters.disciplines[] (deprecated).
     var questionCount: Int?
+    /// Attendance percent (0-100), copied from academic_subjects.attendancePercent.
+    /// Lets enrollment-aware screens stop cross-referencing /api/grades/current.
+    var attendance: Double?
+    /// Absence count, copied from academic_subjects.absences.
+    var absences: Int?
+    /// AP1/P1/N1 score derived server-side from academic_evaluations.
+    var grade1: Double?
+    /// AP2/P2/N2 score derived server-side from academic_evaluations.
+    var grade2: Double?
+    /// AP3/P3/N3 score derived server-side from academic_evaluations.
+    var grade3: Double?
+    /// Final/Média/Exame score derived server-side from academic_evaluations.
+    var finalGrade: Double?
 
     /// Prefer the canonical catalog name when present, fall back to the
     /// portal-sourced subject name.
