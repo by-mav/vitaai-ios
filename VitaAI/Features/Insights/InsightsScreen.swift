@@ -17,7 +17,7 @@ struct InsightsScreen: View {
         }
         .onAppear {
             if viewModel == nil {
-                viewModel = InsightsViewModel(api: container.api)
+                viewModel = InsightsViewModel(api: container.api, dataManager: container.dataManager)
                 Task { await viewModel?.load() }
             }
         }

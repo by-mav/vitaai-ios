@@ -7,6 +7,7 @@ import SwiftUI
 @Observable
 final class TrabalhoViewModel {
     private let api: VitaAPI
+    private weak var dataManager: AppDataManager?
 
     var pending: [TrabalhoItem] = []
     var completed: [TrabalhoItem] = []
@@ -16,8 +17,9 @@ final class TrabalhoViewModel {
     var selectedSegment: Int = 0
     var isLoading: Bool = true
 
-    init(api: VitaAPI) {
+    init(api: VitaAPI, dataManager: AppDataManager? = nil) {
         self.api = api
+        self.dataManager = dataManager
     }
 
     // MARK: - Load
@@ -45,8 +47,17 @@ final class TrabalhoViewModel {
     }
 
     private func fetchGrades() async {
-        do {
-            let portalResp = try await api.getGradesCurrent()
+        // Prefer the shared AppDataManager cache so Trabalhos doesn't issue a
+        // duplicate /api/grades/current call when Faculdade/Insights already
+        // hydrated it. Falls back to a direct fetch only when the store is
+        // empty (e.g. opened straight after launch).
+        let portalResp: GradesCurrentResponse?
+        if let cached = dataManager?.gradesResponse {
+            portalResp = cached
+        } else {
+            portalResp = try? await api.getGradesCurrent()
+        }
+        if let portalResp {
             let allSubjects = portalResp.current + portalResp.completed
             if !allSubjects.isEmpty {
                 grades = allSubjects.compactMap { gs -> GradeEntry? in
@@ -71,8 +82,6 @@ final class TrabalhoViewModel {
                 }
                 return
             }
-        } catch {
-            print("[TrabalhoViewModel] portal grades fallback: \(error)")
         }
 
         do {

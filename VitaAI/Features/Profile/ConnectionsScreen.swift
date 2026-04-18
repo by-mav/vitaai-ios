@@ -81,7 +81,7 @@ struct ConnectionsScreen: View {
         }
         .onAppear {
             if vm == nil {
-                let viewModel = ConnectorsViewModel(api: container.api)
+                let viewModel = ConnectorsViewModel(api: container.api, dataManager: container.dataManager)
                 vm = viewModel
                 Task { await viewModel.loadAll() }
             }

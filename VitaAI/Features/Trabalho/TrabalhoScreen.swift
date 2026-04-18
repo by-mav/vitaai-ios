@@ -24,7 +24,7 @@ struct TrabalhoScreen: View {
         }
         .onAppear {
             if viewModel == nil {
-                viewModel = TrabalhoViewModel(api: container.api)
+                viewModel = TrabalhoViewModel(api: container.api, dataManager: container.dataManager)
                 Task { await viewModel?.load() }
             }
         }

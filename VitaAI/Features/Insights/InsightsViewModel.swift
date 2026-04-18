@@ -5,6 +5,7 @@ import SwiftUI
 @Observable
 final class InsightsViewModel {
     private let api: VitaAPI
+    private weak var dataManager: AppDataManager?
 
     // MARK: - Study progress stats (from /progress)
     var streakDays: Int = 0
@@ -50,7 +51,10 @@ final class InsightsViewModel {
         !isLoading && error != nil && studyStats == nil
     }
 
-    init(api: VitaAPI) { self.api = api }
+    init(api: VitaAPI, dataManager: AppDataManager? = nil) {
+        self.api = api
+        self.dataManager = dataManager
+    }
 
     // MARK: - Load
 
@@ -143,8 +147,13 @@ final class InsightsViewModel {
         isLoading = false
     }
 
-    /// Fetches portal grades, returning nil on error (portal may not be connected).
+    /// Returns portal grades from the shared `AppDataManager` cache (populated
+    /// once per app session by the data manager's refresh cycle). Falls back to
+    /// a direct API hit only when the store has not been hydrated yet — keeps
+    /// Insights in sync with Faculdade/Dashboard instead of issuing a duplicate
+    /// `/api/grades/current` call on every screen open.
     private func tryFetchPortalGrades() async -> GradesCurrentResponse? {
+        if let cached = dataManager?.gradesResponse { return cached }
         do { return try await api.getGradesCurrent() } catch { return nil }
     }
 

@@ -9,6 +9,7 @@ struct DisciplinasConfigScreen: View {
     var onBack: (() -> Void)?
 
     @Environment(\.appContainer) private var container
+    @Environment(\.appData) private var appData
     @State private var subjects: [SubjectDifficultyItem] = []
     @State private var isLoading = true
 
@@ -144,6 +145,17 @@ struct DisciplinasConfigScreen: View {
 
     private func loadSubjects() async {
         isLoading = true
+        // SOT: AppDataManager.enrolledDisciplines (populated by the shared
+        // refresh cycle with status=in_progress). Screens must never issue
+        // their own /api/subjects call. Falls back to a direct fetch only
+        // when the store is still empty.
+        if !appData.enrolledDisciplines.isEmpty {
+            subjects = appData.enrolledDisciplines.map {
+                SubjectDifficultyItem(id: $0.id, name: $0.name, difficulty: $0.difficulty)
+            }
+            isLoading = false
+            return
+        }
         do {
             let resp = try await container.api.getSubjects(status: "cursando")
             subjects = resp.subjects.map {

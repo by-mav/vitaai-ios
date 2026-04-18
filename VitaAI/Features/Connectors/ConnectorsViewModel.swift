@@ -29,9 +29,11 @@ final class ConnectorsViewModel {
     var toastType: VitaToastType = .success
 
     private let api: VitaAPI
+    private weak var dataManager: AppDataManager?
 
-    init(api: VitaAPI) {
+    init(api: VitaAPI, dataManager: AppDataManager? = nil) {
         self.api = api
+        self.dataManager = dataManager
     }
 
     // MARK: - All integration connectors
@@ -75,7 +77,15 @@ final class ConnectorsViewModel {
 
     private func loadUniversityPortals() async {
         do {
-            let profile = try await api.getProfile()
+            // Reuse the cached profile from AppDataManager when present —
+            // avoids an extra /api/profile round-trip every time the user
+            // opens the connectors sheet.
+            let profile: ProfileResponse
+            if let cached = dataManager?.profile {
+                profile = cached
+            } else {
+                profile = try await api.getProfile()
+            }
             let uniId = profile.universityId
             let uniName = profile.university
             guard let uniId, !uniId.isEmpty else { return }

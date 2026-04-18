@@ -13,6 +13,7 @@ struct ProfileScreen: View {
     var onNavigateToAchievements:  (() -> Void)?
 
     @Environment(\.appContainer) private var container
+    @Environment(\.appData) private var appData
     @State private var gamStats: GamificationStatsResponse?
     @State private var profile: ProfileResponse?
 
@@ -441,6 +442,14 @@ struct ProfileScreen: View {
     }
 
     private func loadProfile() async {
+        // Read from the shared AppDataManager so this tab doesn't issue a
+        // duplicate /api/profile call when Faculdade/Dashboard already
+        // hydrated the cache. Falls back to a direct fetch if the store is
+        // still empty (e.g. user opens Perfil before any other tab loads).
+        if let cached = appData.profile {
+            profile = cached
+            return
+        }
         profile = try? await container.api.getProfile()
     }
 
