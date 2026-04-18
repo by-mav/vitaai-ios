@@ -217,10 +217,45 @@ actor CanvasSyncOrchestrator {
 
         // 8. POST to backend
         let response = try await vitaAPI.ingestCanvasData(payload)
-        report(.done, detail: nil, percent: 100)
-        NSLog("[CanvasSync] Ingest complete: traceId=%@ courses=%d, assignments=%d, files=%d, pdfs=%d",
-              response.traceId ?? "?", response.courses ?? 0, response.assignments ?? 0, response.files ?? 0, response.pdfExtracted ?? 0)
+        NSLog("[CanvasSync] Ingest complete: traceId=%@ syncId=%@ courses=%d files=%d",
+              response.traceId ?? "?", response.syncId ?? "nil",
+              response.courses ?? 0, response.files ?? 0)
+        if let syncId = response.syncId, !syncId.isEmpty {
+            await pollSyncProgress(syncId: syncId)
+        } else {
+            report(.done, detail: nil, percent: 100)
+        }
         return response
+    }
+
+    /// Polls backend sync-progress while Haiku + R2 downloads run in background,
+    /// surfacing real-time labels ("Baixando Canvas... 40/186", "Vita lendo
+    /// plano 2/5: Medicina Legal") to the UI via the orchestrator's progress
+    /// callback. Max 4min, 2s interval.
+    private func pollSyncProgress(syncId: String) async {
+        var elapsed = 0
+        while elapsed < 240 {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            elapsed += 2
+            let progress: SyncProgressResponse
+            do { progress = try await vitaAPI.getSyncProgress(syncId: syncId) }
+            catch { continue }
+            let percent = min(max(progress.percent ?? 0, 0), 100)
+            let phase = progress.phase ?? "discovering"
+            let mapped: Phase = {
+                switch phase {
+                case "connecting": return .starting
+                case "discovering": return .fetchingData
+                case "grades", "saving": return .uploading
+                case "done": return .done
+                case "error": return .error
+                default: return .uploading
+                }
+            }()
+            report(mapped, detail: progress.label, percent: percent)
+            if phase == "done" || phase == "error" { return }
+        }
+        report(.done, detail: nil, percent: 100)
     }
 
     // MARK: - PDF Name Matching

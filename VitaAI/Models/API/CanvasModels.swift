@@ -305,6 +305,7 @@ struct CanvasIngestResponse: Decodable {
     let ok: Bool?
     let success: Bool?
     let traceId: String?
+    let syncId: String?
     let courses: Int?
     let assignments: Int?
     let files: Int?
