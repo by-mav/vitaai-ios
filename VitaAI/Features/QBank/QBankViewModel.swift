@@ -383,42 +383,16 @@ final class QBankViewModel {
                         children: []
                     )
                 }
-                // ALWAYS overlay the discipline list with the student's actually enrolled
-                // subjects (from dashboard). The backend catalog (47 disciplines) is useful
-                // only for resolving slug/questionCount per subject — the UI must show what
-                // the student is STUDYING first.
-                if let dashboard = try? await api.getDashboard(),
-                   let subjects = dashboard.subjects, !subjects.isEmpty {
-                    state.filters.disciplines = subjects.enumerated().map { index, subject in
-                        let subjectName = subject.name ?? ""
-                        let matched = matchCatalog(subjectName: subjectName, catalog: rawCatalog)
-                        return QBankDiscipline(
-                            id: index + 1,
-                            title: subjectName,
-                            slug: matched?.slug,
-                            parentId: nil,
-                            level: 0,
-                            questionCount: matched?.questionCount ?? 0,
-                            children: []
-                        )
-                    }
-                }
+                // Overlay enrolled subjects from AppDataManager.enrolledDisciplines
+                // (SOT = /api/subjects, fetched once on app boot). That payload
+                // carries disciplineSlug + questionCount pre-computed from
+                // qbank_topics, so no fuzzy-match or second fetch is needed.
+                overlayEnrolledDisciplines()
                 state.filterError = nil
             } catch {
                 print("[QBank] loadFilters failed: \(error)")
-                if let dashboard = try? await api.getDashboard(),
-                   !(dashboard.subjects ?? []).isEmpty {
-                    state.filters.disciplines = (dashboard.subjects ?? []).enumerated().map { index, subject in
-                        QBankDiscipline(
-                            id: index + 1,
-                            title: subject.name ?? "",
-                            slug: nil,
-                            parentId: nil,
-                            level: 0,
-                            questionCount: 0,
-                            children: []
-                        )
-                    }
+                if !dataManager.enrolledDisciplines.isEmpty {
+                    overlayEnrolledDisciplines()
                 } else {
                     state.filters = .init()
                     state.filterError = "Filtros indisponiveis no momento."
@@ -426,6 +400,26 @@ final class QBankViewModel {
                 }
             }
             state.filtersLoading = false
+        }
+    }
+
+    /// Replace `state.filters.disciplines` with the enrolled block from
+    /// `AppDataManager.enrolledDisciplines` (SOT = /api/subjects with
+    /// `questionCount` pre-computed from qbank_topics). No second fetch, no
+    /// fuzzy-match — same endpoint the dashboard already reads on boot.
+    private func overlayEnrolledDisciplines() {
+        let subjects = dataManager.enrolledDisciplines
+        guard !subjects.isEmpty else { return }
+        state.filters.disciplines = subjects.enumerated().map { index, subject in
+            QBankDiscipline(
+                id: index + 1,
+                title: subject.displayName,
+                slug: subject.disciplineSlug,
+                parentId: nil,
+                level: 0,
+                questionCount: subject.questionCount ?? 0,
+                children: []
+            )
         }
     }
 

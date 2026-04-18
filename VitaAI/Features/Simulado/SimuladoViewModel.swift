@@ -174,40 +174,18 @@ final class SimuladoViewModel {
         state.templates = SimuladoTemplate.defaults
         state.disciplinesLoading = true
         Task { @MainActor in
-            do {
-                let filters = try await api.getQBankFilters()
-                let top = filters.disciplines
-                    .filter { $0.questionCount > 0 }
-                    .sorted { dataManager.vitaScore(for: $0.title) > dataManager.vitaScore(for: $1.title) }
-                    .prefix(12)
-                if !top.isEmpty {
-                    state.disciplines = top.map { SimuladoDiscipline(name: $0.title, count: $0.questionCount) }
-                } else {
-                    // Fallback: use user's real enrolled subjects from dashboard
-                    await loadDisciplinesFromDashboard()
-                }
-            } catch {
-                // Fallback: use user's real enrolled subjects from dashboard
-                await loadDisciplinesFromDashboard()
+            // SOT: AppDataManager.enrolledDisciplines → /api/subjects with
+            // questionCount pre-computed server-side from qbank_topics.
+            // No more /api/qbank/filters detour — same endpoint QBank uses.
+            if dataManager.enrolledDisciplines.isEmpty {
+                await dataManager.silentRefresh()
+            }
+            let enrolled = dataManager.enrolledDisciplines
+                .sorted { dataManager.vitaScore(for: $0.displayName) > dataManager.vitaScore(for: $1.displayName) }
+            state.disciplines = enrolled.map {
+                SimuladoDiscipline(name: $0.displayName, count: $0.questionCount ?? 0)
             }
             state.disciplinesLoading = false
-        }
-    }
-
-    private func loadDisciplinesFromDashboard() async {
-        // Read from AppDataManager.enrolledDisciplines (single source of truth)
-        // instead of duplicating the /api/subjects fetch. Trigger a silent
-        // refresh if the store is empty so a cold launch still works.
-        if dataManager.enrolledDisciplines.isEmpty {
-            await dataManager.silentRefresh()
-        }
-        let enrolled = dataManager.enrolledDisciplines
-        guard !enrolled.isEmpty else {
-            // No hardcoded fallback — let the UI show the empty state.
-            return
-        }
-        state.disciplines = enrolled.map {
-            SimuladoDiscipline(name: $0.displayName, count: 0)
         }
     }
 

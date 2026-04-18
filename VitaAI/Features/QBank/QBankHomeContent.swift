@@ -25,18 +25,17 @@ struct QBankHomeContent: View {
             .map { StudySubjectChipItem(id: $0.id, name: $0.subjectName) }
     }
 
-    /// Enrolled subjects paired with the catalog `questionCount` from
-    /// `vm.state.filters.disciplines`. Slug-matched so "Patologia Medica" on
-    /// the dashboard finds "patologia-geral" in the catalog when the backend
-    /// aliases them. Count falls back to 0 while filters are still loading.
+    /// Enrolled subjects paired with the `questionCount` the backend
+    /// already computes per subject in `/api/subjects` (SOT). No slug
+    /// roundtrip: we match by raw portal subject name, which is identical
+    /// between `grades/current` (source of `sortedSubjects`) and `subjects`.
     private var enrolledWithCounts: [(subject: StudySubjectChipItem, count: Int)] {
-        let flatDisc = QBankUiState.flattenDisciplines(vm.state.filters.disciplines)
+        let byName = Dictionary(
+            container.dataManager.enrolledDisciplines.map { ($0.name, $0.questionCount ?? 0) },
+            uniquingKeysWith: { a, _ in a }
+        )
         return sortedSubjects.map { subj in
-            let subjSlug = QBankViewModel.slugifyDisciplineTitle(subj.name)
-            let count = flatDisc.first { d in
-                QBankViewModel.slugifyDisciplineTitle(d.title) == subjSlug
-            }?.questionCount ?? 0
-            return (subj, count)
+            (subj, byName[subj.name] ?? 0)
         }
     }
 

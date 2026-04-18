@@ -234,6 +234,10 @@ struct AcademicSubject: Codable, Identifiable {
     var icon: String?
     /// True when the LLM normalizer couldn't place this subject in the catalog.
     var needsReview: Bool?
+    /// Total QBank questions available for this discipline slug, computed
+    /// server-side from qbank_topics. Replaces the need to cross-reference
+    /// /api/qbank/filters.disciplines[] (deprecated).
+    var questionCount: Int?
 
     /// Prefer the canonical catalog name when present, fall back to the
     /// portal-sourced subject name.
