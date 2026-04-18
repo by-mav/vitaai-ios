@@ -195,14 +195,20 @@ final class SimuladoViewModel {
     }
 
     private func loadDisciplinesFromDashboard() async {
-        // Use /api/subjects as source of truth for disciplines
-        if let subjectsResp = try? await api.getSubjects(status: "cursando"),
-           !subjectsResp.subjects.isEmpty {
-            state.disciplines = subjectsResp.subjects.map {
-                SimuladoDiscipline(name: $0.name, count: 0)
-            }
+        // Read from AppDataManager.enrolledDisciplines (single source of truth)
+        // instead of duplicating the /api/subjects fetch. Trigger a silent
+        // refresh if the store is empty so a cold launch still works.
+        if dataManager.enrolledDisciplines.isEmpty {
+            await dataManager.silentRefresh()
         }
-        // If subjects also fails, state.disciplines stays empty (no hardcoded fallback)
+        let enrolled = dataManager.enrolledDisciplines
+        guard !enrolled.isEmpty else {
+            // No hardcoded fallback — let the UI show the empty state.
+            return
+        }
+        state.disciplines = enrolled.map {
+            SimuladoDiscipline(name: $0.displayName, count: 0)
+        }
     }
 
     func selectSimuladoDiscipline(_ name: String?) {

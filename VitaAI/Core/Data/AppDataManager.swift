@@ -16,6 +16,13 @@ final class AppDataManager {
     var academicEvaluations: [AgendaEvaluation] = []
     var studyEvents: [StudyEventEntry] = []
     var dashboardSubjects: [DashboardSubject] = []
+    /// Canonical list of what the student is enrolled in RIGHT NOW — the
+    /// single source of truth for every screen that shows discipline chips
+    /// (QBank, Flashcards, Simulados, Transcrição, Estudos). Backed by
+    /// `GET /api/subjects?status=in_progress` and enriched server-side with
+    /// disciplineSlug + canonicalName + area + icon. Screens MUST read from
+    /// here instead of fetching `/api/subjects` on their own.
+    var enrolledDisciplines: [AcademicSubject] = []
 
     /// Subjects sorted by VitaScore descending (highest risk first)
     var subjectsByPriority: [DashboardSubject] {
@@ -32,7 +39,7 @@ final class AppDataManager {
     // MARK: - Full load (shows spinner)
 
     func loadIfNeeded() async {
-        guard gradesResponse == nil && classSchedule.isEmpty else { return }
+        guard gradesResponse == nil && classSchedule.isEmpty && enrolledDisciplines.isEmpty else { return }
         isLoading = true
         await refreshAll()
         isLoading = false
@@ -68,7 +75,14 @@ final class AppDataManager {
         async let s: () = refreshSchedule()
         async let e: () = refreshEvents()
         async let d: () = refreshDashboard()
-        _ = await (p, g, s, e, d)
+        async let en: () = refreshEnrolled()
+        _ = await (p, g, s, e, d, en)
+    }
+
+    private func refreshEnrolled() async {
+        if let resp = try? await api.getSubjects(status: "in_progress") {
+            enrolledDisciplines = resp.subjects
+        }
     }
 
     private func refreshProfile() async {

@@ -220,6 +220,24 @@ struct AcademicSubject: Codable, Identifiable {
     var status: String?
     var source: String?
     var difficulty: String?
+    /// Canonical discipline slug from vita.disciplines (96-row catalog).
+    /// Nullable while the normalizer hasn't mapped this subject yet.
+    var disciplineSlug: String?
+    /// Canonical name from vita.disciplines, joined on disciplineSlug.
+    var canonicalName: String?
+    var professor: String?
+    var semester: String?
+    var workload: Int?
+    /// Catalog area (basica, clinica, cirurgica, etc.) joined from vita.disciplines.
+    var area: String?
+    /// Icon slug from vita.disciplines, used for row rendering.
+    var icon: String?
+    /// True when the LLM normalizer couldn't place this subject in the catalog.
+    var needsReview: Bool?
+
+    /// Prefer the canonical catalog name when present, fall back to the
+    /// portal-sourced subject name.
+    var displayName: String { canonicalName ?? name }
 }
 
 // MARK: - Server-Driven UI (manual — generated uses different field names)
