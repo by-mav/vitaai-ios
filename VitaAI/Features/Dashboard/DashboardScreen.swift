@@ -103,7 +103,9 @@ struct DashboardScreen: View {
 
                 // ═══ MATÉRIAS ↔ AGENDA (swipe) ═══
                 MateriasAgendaWidget(
-                    subjects: appData.gradesResponse?.current ?? [],
+                    subjects: appData.enrolledDisciplines.filter {
+                        $0.status == nil || $0.status == "in_progress"
+                    },
                     schedule: appData.classSchedule,
                     evaluations: appData.academicEvaluations,
                     onNavigateToDiscipline: onNavigateToDisciplineDetail

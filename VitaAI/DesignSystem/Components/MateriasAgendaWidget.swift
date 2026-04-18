@@ -9,7 +9,12 @@ import SwiftUI
 // Wrapped in VitaGlassCard for unified glassmorphism across the app.
 
 struct MateriasAgendaWidget: View {
-    let subjects: [GradeSubject]
+    /// Enrolled disciplines from `AppDataManager.enrolledDisciplines` —
+    /// the single SOT for "what the student is studying". Contains
+    /// attendance, absences, and AP1/AP2/AP3/Média derived server-side
+    /// from academic_evaluations, so this widget stops cross-referencing
+    /// /api/grades/current.
+    let subjects: [AcademicSubject]
     let schedule: [AgendaClassBlock]
     let evaluations: [AgendaEvaluation]
     var onNavigateToDiscipline: ((String, String) -> Void)?
@@ -218,11 +223,12 @@ struct MateriasAgendaWidget: View {
     // MARK: - Row
 
     @ViewBuilder
-    private func materiaRow(_ subject: GradeSubject) -> some View {
-        let color = SubjectColors.colorFor(subject: subject.subjectName)
+    private func materiaRow(_ subject: AcademicSubject) -> some View {
+        let title = subject.displayName
+        let color = SubjectColors.colorFor(subject: title)
 
         Button {
-            onNavigateToDiscipline?(subject.id, subject.subjectName)
+            onNavigateToDiscipline?(subject.id, title)
         } label: {
             HStack(spacing: 0) {
                 Rectangle()
@@ -230,7 +236,7 @@ struct MateriasAgendaWidget: View {
                     .frame(width: 3, height: 24)
                     .clipShape(RoundedRectangle(cornerRadius: 1.5))
                     .padding(.trailing, 4)
-                Text(shortSubjectName(subject.subjectName))
+                Text(shortSubjectName(title))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(textWarm.opacity(0.85))
                     .lineLimit(1)

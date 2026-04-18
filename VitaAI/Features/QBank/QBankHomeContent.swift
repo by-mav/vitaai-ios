@@ -14,29 +14,28 @@ struct QBankHomeContent: View {
 
     /// Enrolled subjects ordered by VitaScore desc. Matches Dashboard.
     ///
-    /// SOT: `AppDataManager.gradesResponse.current` — same source the
-    /// Dashboard's MateriasAgendaWidget reads. One canonical disciplines list
-    /// across the whole app (per CLAUDE.md §AppDataManager is 4th SOT).
+    /// SOT: `AppDataManager.enrolledDisciplines` — the single canonical list
+    /// of what the student is studying (per CLAUDE.md §AppDataManager is 4th
+    /// SOT). Filters to currently-in-progress subjects so QBank only shows
+    /// chips for matérias cursando right now.
     private var sortedSubjects: [StudySubjectChipItem] {
-        let grades = container.dataManager.gradesResponse?.current ?? []
         let dm = container.dataManager
-        return grades
-            .sorted { dm.vitaScore(for: $0.subjectName) > dm.vitaScore(for: $1.subjectName) }
-            .map { StudySubjectChipItem(id: $0.id, name: $0.subjectName) }
+        return dm.enrolledDisciplines
+            .filter { $0.status == nil || $0.status == "in_progress" }
+            .sorted { dm.vitaScore(for: $0.displayName) > dm.vitaScore(for: $1.displayName) }
+            .map { StudySubjectChipItem(id: $0.id, name: $0.displayName) }
     }
 
-    /// Enrolled subjects paired with the `questionCount` the backend
-    /// already computes per subject in `/api/subjects` (SOT). No slug
-    /// roundtrip: we match by raw portal subject name, which is identical
-    /// between `grades/current` (source of `sortedSubjects`) and `subjects`.
+    /// Enrolled subjects paired with the `questionCount` the backend already
+    /// computes per subject in `/api/subjects`. Read directly off the same
+    /// `enrolledDisciplines` store — zero cross-reference, zero duplicate
+    /// lookup.
     private var enrolledWithCounts: [(subject: StudySubjectChipItem, count: Int)] {
-        let byName = Dictionary(
-            container.dataManager.enrolledDisciplines.map { ($0.name, $0.questionCount ?? 0) },
-            uniquingKeysWith: { a, _ in a }
-        )
-        return sortedSubjects.map { subj in
-            (subj, byName[subj.name] ?? 0)
-        }
+        let dm = container.dataManager
+        return dm.enrolledDisciplines
+            .filter { $0.status == nil || $0.status == "in_progress" }
+            .sorted { dm.vitaScore(for: $0.displayName) > dm.vitaScore(for: $1.displayName) }
+            .map { (StudySubjectChipItem(id: $0.id, name: $0.displayName), $0.questionCount ?? 0) }
     }
 
     var body: some View {
