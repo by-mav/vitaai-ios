@@ -290,11 +290,12 @@ struct FlashcardsListScreen: View {
             // "Suas disciplinas" = only decks matching user's current semester subjects
             // "Biblioteca" = everything else (AnKing library, other disciplines)
             //
-            // SOT: AppDataManager.gradesResponse.current — same source Dashboard
-            // uses. One canonical disciplines list across the app.
+            // SOT: AppDataManager.enrolledDisciplines — single store for what
+            // the student is studying, shared with Dashboard and QBank.
             let subjectIds = Set(
-                (container.dataManager.gradesResponse?.current ?? [])
-                    .compactMap { $0.subjectId }
+                container.dataManager.enrolledDisciplines
+                    .filter { $0.status == nil || $0.status == "in_progress" }
+                    .map { $0.id }
             )
             let scoreFor: (FlashcardDeckEntry) -> Double = { deck in
                 container.dataManager.vitaScore(for: deck.title)

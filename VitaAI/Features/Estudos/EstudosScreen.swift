@@ -91,15 +91,13 @@ private struct EstudosContent: View {
     let onNavigateToTranscricao:       (() -> Void)?
     let onNavigateToTrabalhos:         (() -> Void)?
 
-    /// Resolve disciplines: prefer appData grades (same source as Dashboard), fallback to viewModel.subjects
+    /// Resolve disciplines: prefer appData enrolledDisciplines (single SOT —
+    /// same store Dashboard reads), fallback to viewModel.subjects.
     private var resolvedSubjects: [AcademicSubject] {
-        let gradeSubjects = appData.gradesResponse?.current ?? []
-        if !gradeSubjects.isEmpty {
-            return gradeSubjects.map { gs in
-                AcademicSubject(id: gs.subjectName, name: gs.subjectName, status: nil, source: nil, difficulty: nil)
-            }
+        let enrolled = appData.enrolledDisciplines.filter {
+            $0.status == nil || $0.status == "in_progress"
         }
-        return viewModel.subjects
+        return enrolled.isEmpty ? viewModel.subjects : enrolled
     }
 
     /// Dashboard subjects with vitaScore — used by DisciplinesCarousel for score badges

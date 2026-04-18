@@ -159,40 +159,72 @@ DEPLOY_SUCCESS=1
 # STEP 4: Auto-resolve export compliance + report final state
 # -------------------------------------------------------------------------
 echo ""
-echo "[4/4] Waiting for ASC to process build $NEW_BUILD (up to 3min)..."
+echo "[4/4] Waiting for ASC to process build $NEW_BUILD + attach groups + submit review (up to 5min)..."
 python3 - <<PYEOF
 import jwt, time, json, urllib.request, ssl, sys
-with open("${ASC_KEY_FILE}", "r") as f: pk = f.read()
-token = jwt.encode({"iss": "${ASC_ISSUER_ID}", "iat": int(time.time()), "exp": int(time.time()) + 1800, "aud": "appstoreconnect-v1"}, pk, algorithm="ES256", headers={"kid": "${ASC_KEY_ID}"})
+with open("${ASC_KEY_FILE}", "r") as f: PK = f.read()
+KEY_ID="${ASC_KEY_ID}"; ISSUER="${ASC_ISSUER_ID}"; APP_ID="${ASC_APP_ID}"; BUILD_V="${NEW_BUILD}"
 ctx = ssl.create_default_context()
-url = "https://api.appstoreconnect.apple.com/v1/builds?filter%5Bapp%5D=${ASC_APP_ID}&filter%5Bversion%5D=${NEW_BUILD}&filter%5BpreReleaseVersion.platform%5D=IOS"
 
-for i in range(36):  # 36 * 5s = 180s max
+def fresh_token():
+    # Short-lived token, regenerated on every call so we never hit 401 after a long archive.
+    return jwt.encode({"iss": ISSUER, "iat": int(time.time()), "exp": int(time.time())+600, "aud": "appstoreconnect-v1"},
+                      PK, algorithm="ES256", headers={"kid": KEY_ID})
+
+def call(method, path, body=None):
+    data = json.dumps(body).encode() if body is not None else None
+    hdr = {"Authorization": f"Bearer {fresh_token()}"}
+    if body is not None: hdr["Content-Type"] = "application/json"
     try:
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-        resp = urllib.request.urlopen(req, context=ctx)
-        data = json.loads(resp.read())
-        if data.get("data"):
-            b = data["data"][0]
-            state = b["attributes"]["processingState"]
-            if state == "VALID":
-                # set compliance flag automatically
-                body = json.dumps({"data": {"type": "builds", "id": b["id"], "attributes": {"usesNonExemptEncryption": False}}}).encode()
-                req2 = urllib.request.Request(f"https://api.appstoreconnect.apple.com/v1/builds/{b['id']}", data=body, method="PATCH",
-                    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
-                urllib.request.urlopen(req2, context=ctx)
-                print(f"       VALID — compliance set, build live in TestFlight")
-                sys.exit(0)
-            elif state in ("FAILED", "INVALID"):
-                print(f"       ASC rejected build: state={state}")
-                sys.exit(1)
-            print(f"       ASC state: {state} ({(i+1)*5}s elapsed)", flush=True)
-        else:
-            print(f"       Build not indexed yet ({(i+1)*5}s)", flush=True)
-    except Exception as e:
-        print(f"       Poll error ({(i+1)*5}s): {str(e)[:80]}", flush=True)
+        r = urllib.request.urlopen(urllib.request.Request(f"https://api.appstoreconnect.apple.com{path}", data=data, method=method, headers=hdr), context=ctx)
+        b = r.read().decode()
+        return r.status, (json.loads(b) if b else {})
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()[:500]
+
+# Discover beta groups (internal + external) so the script stays portable across apps.
+code, data = call("GET", f"/v1/apps/{APP_ID}/betaGroups?limit=20")
+INTERNAL_ID = None; EXTERNAL_ID = None
+if code == 200:
+    for g in data.get("data", []):
+        if g["attributes"].get("isInternalGroup"): INTERNAL_ID = g["id"]
+        else: EXTERNAL_ID = g["id"]
+
+BUILD_ID = None
+for i in range(60):  # 60 * 5s = 300s max
+    code, data = call("GET", f"/v1/builds?filter%5Bapp%5D={APP_ID}&filter%5Bversion%5D={BUILD_V}&filter%5BpreReleaseVersion.platform%5D=IOS")
+    if code == 200 and data.get("data"):
+        b = data["data"][0]
+        state = b["attributes"]["processingState"]
+        if state == "VALID":
+            BUILD_ID = b["id"]; break
+        elif state in ("FAILED", "INVALID"):
+            print(f"       ASC rejected build: state={state}"); sys.exit(1)
+        print(f"       ASC state: {state} ({(i+1)*5}s)", flush=True)
+    else:
+        print(f"       Not indexed yet ({(i+1)*5}s)", flush=True)
     time.sleep(5)
-print("       Still processing after 3min — check TestFlight manually. Build was uploaded OK.")
+
+if not BUILD_ID:
+    print("       Still processing after 5min — propagation may be delayed. Check TestFlight.")
+    sys.exit(0)
+
+# 1. Compliance
+c, _ = call("PATCH", f"/v1/builds/{BUILD_ID}", {"data":{"type":"builds","id":BUILD_ID,"attributes":{"usesNonExemptEncryption":False}}})
+print(f"       compliance set: {c}")
+
+# 2. Attach to external group (internal is auto-attached by upload)
+if EXTERNAL_ID:
+    c, _ = call("POST", f"/v1/builds/{BUILD_ID}/relationships/betaGroups", {"data":[{"type":"betaGroups","id":EXTERNAL_ID}]})
+    print(f"       attached external group: {c}")
+
+# 3. Submit for beta review so external testers get access (no-op if no external group)
+if EXTERNAL_ID:
+    c, body = call("POST", "/v1/betaAppReviewSubmissions",
+                   {"data":{"type":"betaAppReviewSubmissions","relationships":{"build":{"data":{"type":"builds","id":BUILD_ID}}}}})
+    print(f"       beta review submitted: {c}")
+
+print(f"       VALID — build {BUILD_V} live in TestFlight (internal + external)")
 PYEOF
 
 echo ""

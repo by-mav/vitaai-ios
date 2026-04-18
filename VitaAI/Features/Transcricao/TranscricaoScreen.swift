@@ -48,12 +48,13 @@ private struct TranscricaoContent: View {
     @State private var selectedFilter: String? = nil
     @State private var selectedRecording: TranscricaoEntry? = nil
 
-    /// Disciplines from academic_subjects via gradesResponse (already loaded by AppDataManager)
+    /// Disciplines from `AppDataManager.enrolledDisciplines` — the single
+    /// SOT for what the student is studying. Shows every non-deleted subject
+    /// (current + completed) so the user can tag old lectures too.
     private var disciplines: [String] {
-        let current = appData.gradesResponse?.current ?? []
-        let completed = appData.gradesResponse?.completed ?? []
-        let all = current + completed
-        return all.map(\.subjectName).filter { !$0.isEmpty }
+        appData.enrolledDisciplines
+            .map(\.displayName)
+            .filter { !$0.isEmpty }
     }
 
     /// Whether the pipeline is actively processing (upload/transcribe/summarize/flashcards)
@@ -162,6 +163,6 @@ private struct TranscricaoContent: View {
         .sheet(item: $selectedRecording) { rec in
             TranscricaoDetailSheet(recording: rec)
         }
-        // Disciplines loaded from appData.gradesResponse (no separate API call needed)
+        // Disciplines loaded from appData.enrolledDisciplines (single SOT — no separate API call needed)
     }
 }
