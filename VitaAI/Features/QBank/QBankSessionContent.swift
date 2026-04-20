@@ -6,9 +6,17 @@ struct QBankSessionContent: View {
     @Bindable var vm: QBankViewModel
     let onBack: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     @State private var showFinishAlert = false
     @State private var showExplanationSheet = false
     @State private var timerTask: Task<Void, Never>? = nil
+
+    // Cap image height so it never overflows on iPad.
+    // iPhone: 260pt max. iPad (regular width): 400pt max.
+    private var maxImageHeight: CGFloat {
+        horizontalSizeClass == .regular ? 400 : 260
+    }
 
     var timerStr: String {
         let s = vm.state.elapsedSeconds
@@ -153,6 +161,7 @@ struct QBankSessionContent: View {
                                         image
                                             .resizable()
                                             .scaledToFit()
+                                            .frame(maxWidth: .infinity, maxHeight: maxImageHeight)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                     case .failure:
                                         HStack(spacing: 6) {

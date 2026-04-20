@@ -20,6 +20,7 @@ struct FlashcardSessionScreen: View {
 
     @Environment(\.appContainer) private var container
     @Environment(Router.self) private var router
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var viewModel: FlashcardViewModel?
     @State private var elapsedSeconds: Int = 0
     @State private var timerCancellable: (any Cancellable)?
@@ -118,8 +119,8 @@ struct FlashcardSessionScreen: View {
                     isFlipped: vm.isFlipped,
                     onFlip: { vm.flipCard() }
                 )
-                // Card scene height: 380px per mockup .card-scene
-                .frame(height: 380)
+                // Card scene height: 380pt iPhone, 520pt iPad
+                .frame(height: horizontalSizeClass == .regular ? 520 : 380)
                 .padding(.horizontal, 16)
             }
 

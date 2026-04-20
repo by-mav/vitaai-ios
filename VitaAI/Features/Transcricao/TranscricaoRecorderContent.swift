@@ -13,7 +13,12 @@ struct TranscricaoRecorderArea: View {
     let disciplines: [String]
     let onToggle: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var wavePhase: Bool = false
+
+    private var recorderButtonWidth: CGFloat {
+        horizontalSizeClass == .regular ? 200 : 155
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -119,7 +124,7 @@ struct TranscricaoRecorderArea: View {
                     Image("btn-transcricao")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 155)
+                        .frame(width: recorderButtonWidth)
                         .shadow(color: VitaColors.accent.opacity(0.30), radius: 20)
                         .opacity(isRecording ? 0.7 : 1.0)
                         .scaleEffect(isRecording ? 1.05 : 1.0)

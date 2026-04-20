@@ -233,6 +233,13 @@ private struct FlashcardTextSegment: View {
 
 private struct FlashcardImageSegment: View {
     let url: String
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    // Cap image height so it never overflows the card container.
+    // iPhone: 200pt max. iPad (regular width): 300pt max.
+    private var maxImageHeight: CGFloat {
+        horizontalSizeClass == .regular ? 300 : 200
+    }
 
     var body: some View {
         if let imageURL = URL(string: url) {
@@ -253,7 +260,7 @@ private struct FlashcardImageSegment: View {
                     image
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, maxHeight: maxImageHeight)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
 
                 case .failure:
