@@ -65,6 +65,7 @@ struct DashboardScreen: View {
                     async let dash: () = viewModel!.loadDashboard()
                     async let data: () = appData.loadIfNeeded()
                     _ = await (dash, data)
+                    ScreenLoadContext.finish(for: "Dashboard")
                     if let sub = viewModel?.subtitle, !sub.isEmpty {
                         onSubtitleLoaded?(sub)
                     }
@@ -73,6 +74,7 @@ struct DashboardScreen: View {
             // Silent background sync — keeps Mannesoft/Canvas data fresh
             SilentPortalSync.shared.syncIfNeeded(api: container.api)
         }
+        .trackScreen("Dashboard")
         // XP toasts now shown inline in VitaTopBar
     }
 

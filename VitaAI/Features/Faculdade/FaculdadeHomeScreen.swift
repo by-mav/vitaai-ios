@@ -52,13 +52,17 @@ struct FaculdadeHomeScreen: View {
         }
         .refreshable { await appData.forceRefresh() }
         .onAppear {
-            Task { await appData.silentRefresh() }
+            Task {
+                await appData.silentRefresh()
+                ScreenLoadContext.finish(for: "Faculdade")
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await appData.silentRefresh() }
             }
         }
+        .trackScreen("Faculdade")
     }
 
     // MARK: - Subtab row (navigation shortcuts)

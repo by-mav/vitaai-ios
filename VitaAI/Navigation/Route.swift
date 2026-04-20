@@ -29,7 +29,7 @@ enum Route: Hashable {
     case flashcardSession(deckId: String, tagFilter: String? = nil)
     case flashcardSettings
     case flashcardStats
-    case pdfViewer(url: String)
+    case pdfViewer(url: String, title: String? = nil)
 
     // MARK: - Atlas 3D
     case atlas3D

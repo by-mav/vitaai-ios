@@ -81,7 +81,11 @@ struct DisciplineDetailScreen: View {
             }
         }
         .refreshable { await vm?.load() }
-        .task { await vm?.load() }
+        .task {
+            await vm?.load()
+            ScreenLoadContext.finish(for: "DisciplineDetail")
+        }
+        .trackScreen("DisciplineDetail", extra: ["subject_id": disciplineId])
         .sheet(isPresented: $showProfessorSheet) {
             ProfessorProfileSheet(subjectId: disciplineId)
         }
@@ -916,7 +920,10 @@ struct DisciplineDetailScreen: View {
                         .padding(.horizontal, 16)
                 }
                 Button {
-                    router.navigate(to: .pdfViewer(url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file"))
+                    router.navigate(to: .pdfViewer(
+                        url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file",
+                        title: doc.title
+                    ))
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: docIcon(doc.fileName))

@@ -17,6 +17,7 @@
 		033497D017ECDF16FF61BCFF /* FsrsScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 494024FF2D4D0CEA176A7144 /* FsrsScheduler.swift */; };
 		038CF9875303C71EF60A4FB6 /* ProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0AA34DA1F2E5FE7046BB9C1 /* ProfileScreen.swift */; };
 		03963891743F4D270820E40D /* VitaNotifPopout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13E0DDDF5D64EFF6ABD99CAB /* VitaNotifPopout.swift */; };
+		042B3027A14F3834E0DCBC54 /* PdfToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6EFEEFBA17AF37F355A4848 /* PdfToolbar.swift */; };
 		06E94FB9C41A0031FD9D8556 /* DisciplineFolderCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E7557D01511F8DFA457E786 /* DisciplineFolderCard.swift */; };
 		0780E271D8611FDE00449801 /* AssinaturaScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F671C3A0DA731099C2B38F /* AssinaturaScreen.swift */; };
 		07B30BC927DFC5058114361F /* VitaErrorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CABC58C8177E84A757D6500E /* VitaErrorState.swift */; };
@@ -181,6 +182,7 @@
 		85D377DD25DF183BD93F64D8 /* LeaderboardScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 543CE1745019B2263757A4AF /* LeaderboardScreen.swift */; };
 		864F5D154DF68734D7D8BDBB /* VitaMenuPopout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F70F963371379D809067BD4 /* VitaMenuPopout.swift */; };
 		874C771120977CEF4A0F78A7 /* PageThumbnailSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC81D5F2654A52C372EB9A0D /* PageThumbnailSidebar.swift */; };
+		88EC1552E8AA59FCEAA822D1 /* ScreenTracking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3908944C6BDBECD98FFDB7 /* ScreenTracking.swift */; };
 		890FC31EC88EA15B242B0125 /* MonthlyCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA88B383AB1A6C7CDD0DAD1F /* MonthlyCalendarView.swift */; };
 		89DE9C4E45C859556AB97749 /* DashboardAgendaItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75D2869DE32815B6A7A2E1B /* DashboardAgendaItem.swift */; };
 		89E5E213E3113C09A90A1775 /* VitaAI.storekit in Resources */ = {isa = PBXBuildFile; fileRef = BBA019CD302ADAC93CAC7F13 /* VitaAI.storekit */; };
@@ -331,6 +333,7 @@
 		048A3804D263AE9EECDA3084 /* TrabalhoEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrabalhoEditorViewModel.swift; sourceTree = "<group>"; };
 		05B1E34202A8907EFFFFACD1 /* PdfScanOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfScanOverlay.swift; sourceTree = "<group>"; };
 		06FB6D9D262375144BC3E2EA /* MateriasAgendaWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MateriasAgendaWidget.swift; sourceTree = "<group>"; };
+		0A3908944C6BDBECD98FFDB7 /* ScreenTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTracking.swift; sourceTree = "<group>"; };
 		0AF6BA038BDF0C52FCB0549B /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
 		0BAB7AFA757139E38FAB0C32 /* DashboardXp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardXp.swift; sourceTree = "<group>"; };
 		0C79FDD1109E963526A23728 /* StudyTipCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyTipCard.swift; sourceTree = "<group>"; };
@@ -610,6 +613,7 @@
 		E3E4C62B51093D4EC3F94246 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E405E8F265D5EC67BC3497E8 /* Route+Breadcrumb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Route+Breadcrumb.swift"; sourceTree = "<group>"; };
 		E64F3F466E1AEC167C8E16C4 /* InsightsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsScreen.swift; sourceTree = "<group>"; };
+		E6EFEEFBA17AF37F355A4848 /* PdfToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfToolbar.swift; sourceTree = "<group>"; };
 		E70BF1F2E97BAFB99CB82BAA /* SentryConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryConfig.swift; sourceTree = "<group>"; };
 		E8B8F6A0A39DA9F089559142 /* StudyShellTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyShellTheme.swift; sourceTree = "<group>"; };
 		E924DCF6AA655A4D83A473DD /* VitaMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaMascot.swift; sourceTree = "<group>"; };
@@ -719,6 +723,7 @@
 				21F707CB00A1F232460531A0 /* PdfAnnotationModels.swift */,
 				FF7EA3D2C60F323F39E9AD1E /* PdfExporter.swift */,
 				05B1E34202A8907EFFFFACD1 /* PdfScanOverlay.swift */,
+				E6EFEEFBA17AF37F355A4848 /* PdfToolbar.swift */,
 				9998B44B0BDB981193E5EAF3 /* PdfViewerScreen.swift */,
 				543196E867D0B232733BEA7D /* PdfViewerViewModel.swift */,
 			);
@@ -1062,6 +1067,7 @@
 				3F7E09C6A6D9EF6518D7B05F /* NoteSyncManager.swift */,
 				D13553A87F15CE6B715760E9 /* PostHogConfig.swift */,
 				F4C7EE91AF90098D6FB1DAD0 /* PushManager.swift */,
+				0A3908944C6BDBECD98FFDB7 /* ScreenTracking.swift */,
 				E70BF1F2E97BAFB99CB82BAA /* SentryConfig.swift */,
 			);
 			path = Services;
@@ -1724,6 +1730,7 @@
 				2B71B46F6297F34ED5171AA3 /* PdfAnnotationModels.swift in Sources */,
 				512812408FF6DDA2FB4B5E1B /* PdfExporter.swift in Sources */,
 				DB5C2B7F9757B2683C89B850 /* PdfScanOverlay.swift in Sources */,
+				042B3027A14F3834E0DCBC54 /* PdfToolbar.swift in Sources */,
 				2966520886D5E54486E731A7 /* PdfViewerScreen.swift in Sources */,
 				F53094AF37BB3E9E9FE76CEA /* PdfViewerViewModel.swift in Sources */,
 				BCAD8532DDAE7A626FCB6341 /* PlannerScreen.swift in Sources */,
@@ -1763,6 +1770,7 @@
 				00BA6439DC936CB28EB48BAD /* Route.swift in Sources */,
 				7DD897E19F8B879E2247B3E8 /* Router.swift in Sources */,
 				CFC2B0D65DF8E6C231324A16 /* SSEEvent.swift in Sources */,
+				88EC1552E8AA59FCEAA822D1 /* ScreenTracking.swift in Sources */,
 				2EB9BC4DA508140BDB0F8D49 /* SectionHeader.swift in Sources */,
 				D416CCDB65FEBB0959BF26D0 /* SentryConfig.swift in Sources */,
 				BBA1BDB8F76188164D790688 /* SessionSummaryScreen.swift in Sources */,

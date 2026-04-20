@@ -46,12 +46,28 @@ final class PdfViewerViewModel {
     }
 
     func toggleBookmark() {
-        if bookmarkedPages.contains(currentPage) {
-            bookmarkedPages.remove(currentPage)
+        toggleBookmark(forPage: currentPage)
+    }
+
+    /// Toggle bookmark for any page index (used by thumbnail sidebar context menu).
+    func toggleBookmark(forPage index: Int) {
+        if bookmarkedPages.contains(index) {
+            bookmarkedPages.remove(index)
         } else {
-            bookmarkedPages.insert(currentPage)
+            bookmarkedPages.insert(index)
         }
         saveBookmarks()
+    }
+
+    /// Rotate a specific page by +90 / -90 / 180 degrees. Changes persist in
+    /// the in-memory PDFDocument; saveHighlights() writes them back to disk.
+    func rotatePage(at index: Int, byDegrees delta: Int) {
+        guard let document, let page = document.page(at: index) else { return }
+        // PDFPage.rotation is normalized to 0/90/180/270
+        let newRotation = ((page.rotation + delta) % 360 + 360) % 360
+        page.rotation = newRotation
+        isSaving = true
+        saveHighlights()
     }
 
     func loadBookmarks() {

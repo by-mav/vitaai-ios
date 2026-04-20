@@ -9,6 +9,8 @@ struct PageThumbnailSidebar: View {
     let isVisible: Bool
     let bookmarkedPages: Set<Int>
     let onPageSelected: (Int) -> Void
+    var onToggleBookmarkFor: ((Int) -> Void)? = nil
+    var onRotatePage: ((Int, Int) -> Void)? = nil
 
     @State private var filterBookmarks: Bool = false
 
@@ -75,6 +77,44 @@ struct PageThumbnailSidebar: View {
                                             onTap: { onPageSelected(index) }
                                         )
                                         .id(index)
+                                        .contextMenu {
+                                            Button {
+                                                onPageSelected(index)
+                                            } label: {
+                                                Label("Ir para página", systemImage: "arrow.right")
+                                            }
+                                            if let toggle = onToggleBookmarkFor {
+                                                Button {
+                                                    toggle(index)
+                                                } label: {
+                                                    Label(
+                                                        bookmarkedPages.contains(index) ? "Remover marcador" : "Marcar página",
+                                                        systemImage: bookmarkedPages.contains(index) ? "bookmark.slash" : "bookmark"
+                                                    )
+                                                }
+                                            }
+                                            if let rotate = onRotatePage {
+                                                Menu {
+                                                    Button {
+                                                        rotate(index, 90)
+                                                    } label: {
+                                                        Label("Girar à direita (90°)", systemImage: "rotate.right")
+                                                    }
+                                                    Button {
+                                                        rotate(index, -90)
+                                                    } label: {
+                                                        Label("Girar à esquerda (-90°)", systemImage: "rotate.left")
+                                                    }
+                                                    Button {
+                                                        rotate(index, 180)
+                                                    } label: {
+                                                        Label("Girar 180°", systemImage: "arrow.triangle.2.circlepath")
+                                                    }
+                                                } label: {
+                                                    Label("Rotacionar página", systemImage: "rotate.right")
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                                 .padding(.vertical, 8)

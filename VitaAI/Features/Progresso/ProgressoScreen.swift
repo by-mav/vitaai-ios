@@ -58,8 +58,10 @@ struct ProgressoScreen: View {
                 let viewModel = ProgressoViewModel(api: container.api)
                 vm = viewModel
                 await viewModel.load()
+                ScreenLoadContext.finish(for: "Progresso")
             }
         }
+        .trackScreen("Progresso")
     }
 
     private func content(vm: ProgressoViewModel) -> some View {

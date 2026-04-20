@@ -90,10 +90,12 @@ struct FaculdadeDocumentosScreen: View {
         }
         .task {
             await loadDocs()
+            ScreenLoadContext.finish(for: "FaculdadeDocumentos")
         }
         .refreshable {
             await loadDocs()
         }
+        .trackScreen("FaculdadeDocumentos")
     }
 
     // MARK: - States
@@ -239,7 +241,10 @@ struct FaculdadeDocumentosScreen: View {
 
     private func docRow(_ doc: VitaDocument) -> some View {
         Button {
-            router.navigate(to: .pdfViewer(url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file"))
+            router.navigate(to: .pdfViewer(
+                url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file",
+                title: doc.title
+            ))
         } label: {
             HStack(spacing: 12) {
                 ZStack {

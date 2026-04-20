@@ -473,12 +473,10 @@ struct MainTabView: View {
                 store: container.mindMapStore,
                 onBack: { router.goBack() }
             )
-        case .pdfViewer(let urlString):
+        case .pdfViewer(let urlString, let title):
             if let url = URL(string: urlString) {
-                let _ = print("[AppRouter] pdfViewer route hit, url=\(urlString)")
-                PdfViewerScreen(url: url, onBack: { router.goBack() })
+                PdfViewerScreen(url: url, initialTitle: title, onBack: { router.goBack() })
             } else {
-                let _ = print("[AppRouter] pdfViewer INVALID URL: \(urlString)")
                 EmptyView()
             }
         case .flashcardTopics(let deckId, let deckTitle):

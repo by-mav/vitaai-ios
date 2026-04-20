@@ -25,8 +25,9 @@ enum AppConfig {
     private static let defaultAPIBaseURL = "http://monstro.tail7e98e6.ts.net:3110/api"
     private static let defaultAuthBaseURL = "http://monstro.tail7e98e6.ts.net:3110"
     #else
-    private static let defaultAPIBaseURL = "https://vita-ai.cloud/api"
-    private static let defaultAuthBaseURL = "https://vita-ai.cloud"
+    // Temporary: TestFlight hits monstro dev while production is not fully set up
+    private static let defaultAPIBaseURL = "http://monstro.tail7e98e6.ts.net:3110/api"
+    private static let defaultAuthBaseURL = "http://monstro.tail7e98e6.ts.net:3110"
     #endif
 
     struct InjectedSession {

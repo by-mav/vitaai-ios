@@ -9,6 +9,7 @@ import Combine
 /// Works like GoodNotes: continuous scroll, pinch zoom, Apple Pencil + finger ink per page.
 struct PdfViewerScreen: View {
     let url: URL
+    var initialTitle: String? = nil
     let onBack: () -> Void
 
     @Environment(\.appContainer) private var container
@@ -70,12 +71,29 @@ struct PdfViewerScreen: View {
                             isScanMode = true
                             scanSelection = nil
                         }
+                        VitaPostHogConfig.capture(event: "pergunte_ao_vita_tap")
                     }
                 )
                 .transition(.opacity)
             }
         }
-        .task { await viewModel.load(url: url, tokenStore: container.tokenStore) }
+        .task {
+            // Prefer a human-friendly title from the caller (doc.title from Canvas)
+            // over the URL's last path component which is just "file".
+            if let initialTitle, !initialTitle.isEmpty {
+                viewModel.fileName = initialTitle
+            }
+            await viewModel.load(url: url, tokenStore: container.tokenStore)
+            if let initialTitle, !initialTitle.isEmpty {
+                viewModel.fileName = initialTitle   // load() overwrites fileName; restore
+            }
+            ScreenLoadContext.finish(for: "PdfViewer")
+            VitaPostHogConfig.capture(event: "pdf_opened", properties: [
+                "page_count": viewModel.pageCount,
+                "loaded": viewModel.document != nil
+            ])
+        }
+        .trackScreen("PdfViewer")
         .onDisappear { viewModel.saveAllAnnotations() }
         .navigationBarHidden(true)
         .ignoresSafeArea(.keyboard)
@@ -113,7 +131,7 @@ struct PdfViewerScreen: View {
     private func mainContent(document: PDFDocument) -> some View {
         VStack(spacing: 0) {
             if !isFullscreen {
-                PdfTopBar(
+                PdfToolbar(
                     fileName: viewModel.fileName,
                     currentPage: viewModel.currentPage + 1,
                     pageCount: viewModel.pageCount,
@@ -123,12 +141,11 @@ struct PdfViewerScreen: View {
                     isTextMode: viewModel.isTextMode,
                     isSearching: viewModel.isSearching,
                     isBookmarked: viewModel.isCurrentPageBookmarked,
-                    showThumbnailToggle: viewModel.pageCount > 1,
                     hasInkOnCurrentPage: viewModel.currentDrawingProvider?()?.strokes.isEmpty == false,
                     isRecognizing: viewModel.isRecognizing,
                     isLassoMode: viewModel.isLassoMode,
-                    isFullscreen: isFullscreen,
                     showMascot: showMascot,
+                    showThumbnailToggle: viewModel.pageCount > 1,
                     onBack: {
                         viewModel.saveAllAnnotations()
                         onBack()
@@ -137,6 +154,7 @@ struct PdfViewerScreen: View {
                     onToggleAnnotating: viewModel.toggleAnnotating,
                     onToggleHighlight: viewModel.toggleHighlightMode,
                     onToggleText: viewModel.toggleTextMode,
+                    onToggleLasso: viewModel.toggleLassoMode,
                     onToggleSearch: {
                         viewModel.toggleSearch()
                         if viewModel.isSearching {
@@ -144,7 +162,6 @@ struct PdfViewerScreen: View {
                         }
                     },
                     onToggleBookmark: viewModel.toggleBookmark,
-                    onToggleLasso: viewModel.toggleLassoMode,
                     onToggleFullscreen: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             isFullscreen.toggle()
@@ -217,6 +234,12 @@ struct PdfViewerScreen: View {
                     bookmarkedPages: viewModel.bookmarkedPages,
                     onPageSelected: { page in
                         viewModel.currentPage = page
+                    },
+                    onToggleBookmarkFor: { index in
+                        viewModel.toggleBookmark(forPage: index)
+                    },
+                    onRotatePage: { index, degrees in
+                        viewModel.rotatePage(at: index, byDegrees: degrees)
                     }
                 )
             }
@@ -296,6 +319,11 @@ struct PdfViewerScreen: View {
         }
 
         perguntaVitaImageData = image.jpegData(compressionQuality: 0.78)
+        VitaPostHogConfig.capture(event: "pergunte_ao_vita_confirmed", properties: [
+            "mode": rectInOverlay == nil ? "full_page" : "region",
+            "bytes": perguntaVitaImageData?.count ?? 0,
+            "page_index": viewModel.currentPage,
+        ])
         exitScanMode()
         // Small delay lets the overlay animation finish before the chat presents.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -622,9 +650,9 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         }
 
         if viewModel.isAnnotating {
+            canvas.becomeFirstResponder()
             toolPicker.setVisible(true, forFirstResponder: canvas)
             toolPicker.addObserver(canvas)
-            canvas.becomeFirstResponder()
         }
 
         return canvas
@@ -794,12 +822,28 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     }
 
     func applyAnnotationMode(_ annotating: Bool) {
+        // Critical: when annotating, PDFView's internal UIScrollView
+        // steals single-finger drags for scrolling BEFORE they reach the
+        // overlay canvas. Disable the scroll view's pan/pinch while annotating
+        // so the finger draws instead of scrolls. Two-finger scroll still works
+        // via the PDFView's other gesture recognizers.
+        if let pdfView = self.pdfView {
+            for subview in pdfView.subviews {
+                if let scrollView = subview as? UIScrollView {
+                    scrollView.panGestureRecognizer.isEnabled = !annotating
+                    scrollView.pinchGestureRecognizer?.isEnabled = !annotating
+                }
+            }
+        }
+
         for (_, canvas) in pageToCanvas {
             canvas.isUserInteractionEnabled = annotating
             if annotating {
+                // becomeFirstResponder BEFORE setVisible so the tool picker
+                // has a valid responder target when it renders.
+                canvas.becomeFirstResponder()
                 toolPicker.setVisible(true, forFirstResponder: canvas)
                 toolPicker.addObserver(canvas)
-                canvas.becomeFirstResponder()
             } else {
                 toolPicker.setVisible(false, forFirstResponder: canvas)
                 canvas.resignFirstResponder()
@@ -832,178 +876,6 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     }
 }
 
-// MARK: - Top Bar
-
-private struct PdfTopBar: View {
-    let fileName: String
-    let currentPage: Int
-    let pageCount: Int
-    let isSaving: Bool
-    let isAnnotating: Bool
-    let isHighlightMode: Bool
-    let isTextMode: Bool
-    let isSearching: Bool
-    let isBookmarked: Bool
-    let showThumbnailToggle: Bool
-    let hasInkOnCurrentPage: Bool
-    let isRecognizing: Bool
-    let isLassoMode: Bool
-    let isFullscreen: Bool
-    let showMascot: Bool
-    let onBack: () -> Void
-    let onToggleThumbnails: () -> Void
-    let onToggleAnnotating: () -> Void
-    let onToggleHighlight: () -> Void
-    let onToggleText: () -> Void
-    let onToggleSearch: () -> Void
-    let onToggleBookmark: () -> Void
-    let onToggleLasso: () -> Void
-    let onToggleFullscreen: () -> Void
-    let onToggleMascot: () -> Void
-    let onExport: () -> Void
-    let onTranscribe: () -> Void
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .frame(width: 40, height: 40)
-            }
-
-            Text(fileName)
-                .font(VitaTypography.titleMedium)
-                .foregroundStyle(VitaColors.textPrimary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if isSaving {
-                Text("Salvando…")
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(VitaColors.textTertiary)
-            }
-
-            if pageCount > 0 {
-                Text("\(currentPage) / \(pageCount)")
-                    .font(VitaTypography.labelMedium)
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .monospacedDigit()
-            }
-
-            // Search toggle
-            Button(action: onToggleSearch) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 18))
-                    .foregroundStyle(isSearching ? VitaColors.accent : VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-
-            // Pencil toggle — shows/hides PKToolPicker
-            Button(action: onToggleAnnotating) {
-                Image(systemName: isAnnotating ? "pencil.circle.fill" : "pencil.circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isAnnotating ? VitaColors.accent : VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-
-            // Transcribe ink button — only when annotating and there's ink
-            if isAnnotating {
-                Button(action: onTranscribe) {
-                    Group {
-                        if isRecognizing {
-                            ProgressView()
-                                .tint(VitaColors.accent)
-                                .scaleEffect(0.75)
-                        } else {
-                            Image(systemName: "text.viewfinder")
-                                .font(.system(size: 18))
-                                .foregroundStyle(hasInkOnCurrentPage ? VitaColors.accent : VitaColors.textTertiary)
-                        }
-                    }
-                    .frame(width: 36, height: 36)
-                }
-                .disabled(!hasInkOnCurrentPage || isRecognizing)
-            }
-
-            // Lasso select — only when annotating
-            if isAnnotating {
-                Button(action: onToggleLasso) {
-                    Image(systemName: "lasso")
-                        .font(.system(size: 18))
-                        .foregroundStyle(isLassoMode ? VitaColors.accentHover : VitaColors.textSecondary)
-                        .frame(width: 36, height: 36)
-                }
-            }
-
-            // Highlight toggle
-            Button(action: onToggleHighlight) {
-                Image(systemName: "highlighter")
-                    .font(.system(size: 18))
-                    .foregroundStyle(isHighlightMode ? VitaColors.accent : VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-
-            // Text box toggle
-            Button(action: onToggleText) {
-                Image(systemName: "character.textbox")
-                    .font(.system(size: 18))
-                    .foregroundStyle(isTextMode ? VitaColors.accent : VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-
-            // Bookmark toggle
-            Button(action: onToggleBookmark) {
-                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                    .font(.system(size: 16))
-                    .foregroundStyle(isBookmarked ? VitaColors.accentHover : VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-
-            if showThumbnailToggle {
-                Button(action: onToggleThumbnails) {
-                    Image(systemName: "sidebar.left")
-                        .font(.system(size: 16))
-                        .foregroundStyle(VitaColors.textSecondary)
-                        .frame(width: 36, height: 36)
-                }
-            }
-
-            // Pergunte ao Vita mascot toggle — for users who don't want the FAB.
-            Button(action: onToggleMascot) {
-                Image(systemName: showMascot ? "questionmark.bubble.fill" : "questionmark.bubble")
-                    .font(.system(size: 15))
-                    .foregroundStyle(showMascot ? VitaColors.accent : VitaColors.textTertiary)
-                    .frame(width: 36, height: 36)
-            }
-
-            // Fullscreen toggle — hides top bar so PDF fits the narrow iPhone portrait view.
-            Button(action: onToggleFullscreen) {
-                Image(systemName: isFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-
-            Button(action: onExport) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 16))
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(VitaColors.surfaceCard)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundStyle(VitaColors.surfaceBorder),
-            alignment: .bottom
-        )
-    }
-}
 
 // MARK: - Search Bar
 
