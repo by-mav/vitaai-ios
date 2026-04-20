@@ -39,7 +39,8 @@ actor TokenRefresher {
 
             var req = URLRequest(url: url)
             req.httpMethod = "GET"
-            req.setValue("__Secure-better-auth.session_token=\(currentToken)", forHTTPHeaderField: "Cookie")
+            req.setValue("\(AppConfig.sessionCookieName)=\(currentToken)", forHTTPHeaderField: "Cookie")
+            req.setValue(currentToken, forHTTPHeaderField: "X-Extension-Token")
             if let forwardedHost = AppConfig.localForwardedHostHeader {
                 req.setValue(forwardedHost, forHTTPHeaderField: "x-forwarded-host")
             }
