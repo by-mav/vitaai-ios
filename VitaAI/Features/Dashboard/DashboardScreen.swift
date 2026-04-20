@@ -120,7 +120,13 @@ struct DashboardScreen: View {
             }
         }
         .refreshable {
-            await viewModel.loadDashboard()
+            // Pull-to-refresh must also reload AppDataManager (grades, schedule,
+            // enrolled subjects). loadDashboard() alone does NOT touch gradesResponse,
+            // so the Matérias widget would keep stale cached scores. See shell.md
+            // Camada 1: "pull-to-refresh = forceRefresh()".
+            async let vm: Void = viewModel.loadDashboard()
+            async let data: Void = appData.forceRefresh()
+            _ = await (vm, data)
         }
     }
 
