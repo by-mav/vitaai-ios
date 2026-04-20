@@ -201,14 +201,24 @@ final class DisciplineDetailViewModel {
             difficulty = cached.difficulty
         }
 
+        // Prefer AppDataManager cache when hot (user came from Dashboard/Faculdade
+        // which already hydrated it). Falls back to direct API calls when the
+        // cache is cold (deep-link, push-notification-open, fresh install).
+        let cachedGrades = dataManager?.gradesResponse
+        let cachedSchedule = dataManager?.classSchedule ?? []
+        let cachedEvals = dataManager?.academicEvaluations ?? []
+        let agendaFromCache: AgendaResponse? = cachedSchedule.isEmpty
+            ? nil
+            : AgendaResponse(schedule: cachedSchedule, evaluations: cachedEvals)
+
         async let progressTask: ProgressResponse? = try? api.getProgress()
-        async let gradesTask: GradesCurrentResponse? = try? api.getGradesCurrent()
+        async let gradesTask: GradesCurrentResponse? = cachedGrades != nil ? cachedGrades : (try? api.getGradesCurrent())
         async let examsTask: ExamsResponse? = try? api.getExams()
         async let decksTask: [FlashcardDeckEntry]? = try? api.getFlashcardDecks()
         // Filter by subjectId server-side — was nil (all user docs, 100s of MB of PDFs).
         // This endpoint's payload was the #1 DisciplineDetail TTFD bottleneck.
         async let docsTask: [VitaDocument]? = try? api.getDocuments(subjectId: disciplineId)
-        async let agendaTask: AgendaResponse? = try? api.getAgenda()
+        async let agendaTask: AgendaResponse? = agendaFromCache != nil ? agendaFromCache : (try? api.getAgenda())
         async let trabalhosTask: TrabalhosResponse? = try? api.getTrabalhos()
 
         let (progressResponse, gradesResponse, examsResponse, decks, docs, agenda, trabalhosResp) = await (
