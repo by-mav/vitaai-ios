@@ -2,6 +2,7 @@ import SwiftUI
 import PDFKit
 import PencilKit
 import Vision
+import OSLog
 
 @MainActor
 @Observable
@@ -76,9 +77,19 @@ final class PdfViewerViewModel {
 
     // MARK: - Load
 
+    private static let logger = Logger(subsystem: "com.bymav.vitaai", category: "pdf")
+
     func load(url: URL, tokenStore: TokenStore? = nil) async {
         fileName = url.deletingPathExtension().lastPathComponent
         fileHash = computeHash(url.absoluteString)
+
+        let logger = Self.logger
+        logger.notice("[PDF.load] url=\(url.absoluteString, privacy: .public) hasToken=\(tokenStore != nil)")
+        SentryConfig.addBreadcrumb(
+            message: "pdf load start",
+            category: "pdf",
+            data: ["url": url.absoluteString, "hasTokenStore": tokenStore != nil]
+        )
 
         if let tokenStore, url.absoluteString.contains("/api/documents/") {
             do {
@@ -87,18 +98,41 @@ final class PdfViewerViewModel {
                 if let token {
                     request.setValue(token, forHTTPHeaderField: "X-Extension-Token")
                 }
+                logger.notice("[PDF.load] fetching with auth, tokenPresent=\(token != nil)")
                 let (data, response) = try await URLSession.shared.data(for: request)
-                if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                    document = PDFDocument(data: data)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                let contentType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") ?? "?"
+                logger.notice("[PDF.load] response status=\(status) contentType=\(contentType, privacy: .public) bytes=\(data.count)")
+
+                if status == 200 {
+                    // Validate PDF signature — backend can return 200 with HTML login page.
+                    let isPDF = data.count >= 4 && data[0] == 0x25 && data[1] == 0x50 && data[2] == 0x44 && data[3] == 0x46
+                    if isPDF {
+                        document = PDFDocument(data: data)
+                    } else {
+                        let preview = String(data: data.prefix(200), encoding: .utf8) ?? "<binary>"
+                        logger.error("[PDF.load] 200 but not a PDF. preview=\(preview, privacy: .public)")
+                        SentryConfig.capture(message: "PDF endpoint returned 200 with non-PDF body (first bytes=\(Array(data.prefix(4))))")
+                    }
+                } else {
+                    let body = String(data: data.prefix(500), encoding: .utf8) ?? "<binary>"
+                    logger.error("[PDF.load] non-200 status=\(status) body=\(body, privacy: .public)")
+                    SentryConfig.capture(message: "PDF fetch failed status=\(status) url=\(url.absoluteString)")
                 }
             } catch {
-                print("[PdfViewer] Auth fetch failed: \(error.localizedDescription)")
+                logger.error("[PDF.load] URLSession threw: \(error.localizedDescription, privacy: .public)")
+                SentryConfig.capture(error: error, context: ["url": url.absoluteString, "stage": "pdf-fetch"])
             }
         } else {
+            logger.notice("[PDF.load] no-auth path (PDFDocument(url:)) — \(tokenStore == nil ? "tokenStore nil" : "url not /api/documents/", privacy: .public)")
             document = PDFDocument(url: url)
+            if document == nil {
+                SentryConfig.capture(message: "PDFDocument(url:) returned nil (no-auth path) url=\(url.absoluteString)")
+            }
         }
 
         pageCount = document?.pageCount ?? 0
+        logger.notice("[PDF.load] done. document=\(self.document != nil) pages=\(self.pageCount)")
         loadBookmarks()
         loadHighlights()
         isLoading = false

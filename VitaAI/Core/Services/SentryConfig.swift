@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Sentry
 
 // MARK: - SentryConfig
@@ -6,14 +7,20 @@ import Sentry
 // Crash reporting and performance monitoring for VitaAI iOS.
 //
 // Configuration:
-//   - Skipped entirely in DEBUG builds (no noise in development)
-//   - tracesSampleRate = 0.2 (20% of transactions)
-//   - profilesSampleRate = 0.1 (10% of traced transactions)
-//   - environment = "production" (release) / "development" (debug)
+//   - ACTIVE in BOTH Debug and Release builds (so dev bugs reach Rafael's dashboard)
+//     Environment tag distinguishes them: "development" vs "production"
+//   - tracesSampleRate: 1.0 in debug (catch everything), 0.2 in release
+//   - profilesSampleRate = 0.1 (10% of traced transactions in release)
 //   - App hang tracking enabled (equivalent to ANR detection on Android)
 //   - Screenshot attachment enabled for crash context
+//
+// DSN comes from Info.plist key `SENTRY_DSN`, set in project.yml.
+// If DSN is missing in Release, we crash the boot (assertionFailure) —
+// silently running without observability bit us multiple times (incident 2026-04-20).
 
 enum SentryConfig {
+
+    private static let logger = Logger(subsystem: "com.bymav.vitaai", category: "sentry")
 
     // MARK: - DSN
     // Read from Info.plist so it is never hardcoded in source.
@@ -23,24 +30,36 @@ enum SentryConfig {
 
     // MARK: - Initialize
 
-    /// Bootstraps Sentry SDK. No-op in DEBUG builds.
+    /// Bootstraps Sentry SDK. Active in ALL build configurations.
     static func initialize() {
-        #if DEBUG
-        // Skip Sentry in debug builds to avoid noise.
-        return
-        #else
         guard !dsn.isEmpty else {
-            // DSN not configured yet -- safe to skip silently.
+            #if DEBUG
+            logger.error("SENTRY_DSN missing from Info.plist — observability disabled in debug. Fix project.yml.")
             return
+            #else
+            // In release this is a shipping-blocker: crash fast so it gets noticed.
+            assertionFailure("SENTRY_DSN missing from Info.plist in Release build")
+            return
+            #endif
         }
+
+        #if DEBUG
+        let environment = "development"
+        let tracesRate: Float = 1.0    // catch everything in dev
+        let profilesRate: Float = 0.5
+        #else
+        let environment = "production"
+        let tracesRate: Float = 0.2
+        let profilesRate: Float = 0.1
+        #endif
 
         SentrySDK.start { options in
             options.dsn = dsn
-            options.environment = "production"
+            options.environment = environment
 
             // Performance Monitoring
-            options.tracesSampleRate = 0.2
-            options.profilesSampleRate = 0.1
+            options.tracesSampleRate = NSNumber(value: tracesRate)
+            options.profilesSampleRate = NSNumber(value: profilesRate)
 
             // Crash & hang detection
             options.enableCrashHandler = true
@@ -67,56 +86,47 @@ enum SentryConfig {
             // Diagnostics -- only warnings and above
             options.diagnosticLevel = .warning
         }
-        #endif
+
+        logger.info("Sentry initialized (env=\(environment, privacy: .public))")
     }
 
     // MARK: - Capture Helpers
 
     /// Captures a non-fatal error manually (e.g. network errors, unexpected states).
     static func capture(error: Error, context: [String: Any]? = nil) {
-        #if !DEBUG
         SentrySDK.capture(error: error) { scope in
             if let context = context {
                 scope.setContext(value: context, key: "custom")
             }
         }
-        #endif
     }
 
     /// Captures a message at a given severity level.
     static func capture(message: String) {
-        #if !DEBUG
         SentrySDK.capture(message: message)
-        #endif
     }
 
     // MARK: - User Context
 
     /// Sets the authenticated user so Sentry events are attributed correctly.
     static func setUser(id: String, email: String?) {
-        #if !DEBUG
         let user = User(userId: id)
         user.email = email
         SentrySDK.setUser(user)
-        #endif
     }
 
     /// Clears the user context on logout.
     static func clearUser() {
-        #if !DEBUG
         SentrySDK.setUser(nil)
-        #endif
     }
 
     // MARK: - Breadcrumbs
 
     /// Adds a breadcrumb for debugging context.
     static func addBreadcrumb(message: String, category: String, data: [String: Any]? = nil) {
-        #if !DEBUG
         let crumb = Breadcrumb(level: .info, category: category)
         crumb.message = message
         crumb.data = data
         SentrySDK.addBreadcrumb(crumb)
-        #endif
     }
 }

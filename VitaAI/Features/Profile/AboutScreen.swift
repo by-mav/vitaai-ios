@@ -135,6 +135,35 @@ struct AboutScreen: View {
                 .opacity(legalOpacity)
                 .offset(y: legalOffset)
 
+                // Debug card — always visible so Rafael can see where app is hitting.
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Debug")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color(red: 1.0, green: 0.945, blue: 0.843).opacity(0.55))
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
+
+                    VitaGlassCard {
+                        VStack(alignment: .leading, spacing: 8) {
+                            DebugRow(label: "Environment", value: AppConfig.environment == .development ? "DEV" : "PROD")
+                            Divider().background(VitaColors.glassBorder)
+                            DebugRow(label: "API", value: AppConfig.apiBaseURL)
+                            Divider().background(VitaColors.glassBorder)
+                            DebugRow(label: "Auth", value: AppConfig.authBaseURL)
+                            Divider().background(VitaColors.glassBorder)
+                            DebugRow(
+                                label: "Build",
+                                value: "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))"
+                            )
+                        }
+                        .padding(16)
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .opacity(legalOpacity)
+
                 Spacer().frame(height: 100)
             }
         }
@@ -163,6 +192,27 @@ struct AboutScreen: View {
                 legalOpacity = 1
                 legalOffset = 0
             }
+        }
+    }
+}
+
+// MARK: - DebugRow
+
+private struct DebugRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .top) {
+            Text(label)
+                .font(VitaTypography.labelMedium)
+                .foregroundStyle(VitaColors.textTertiary)
+                .frame(width: 110, alignment: .leading)
+            Text(value)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(VitaColors.textSecondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

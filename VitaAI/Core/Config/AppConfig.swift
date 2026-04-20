@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 enum AppEnvironment {
     case development
@@ -6,6 +7,8 @@ enum AppEnvironment {
 }
 
 enum AppConfig {
+    private static let cfgLogger = Logger(subsystem: "com.bymav.vitaai", category: "config")
+
     #if DEBUG
     static let environment: AppEnvironment = .development
     #else
@@ -94,18 +97,29 @@ enum AppConfig {
 
     static var apiBaseURL: String {
         if let override = apiOverrideValue {
+            cfgLogger.notice("[APICFG.apiBaseURL] OVERRIDE path used: \(override, privacy: .public) (env=\(ProcessInfo.processInfo.environment["VITA_API_BASE_URL"] ?? "nil", privacy: .public), defaults=\(UserDefaults.standard.string(forKey: "vita_api_base_url") ?? "nil", privacy: .public))")
             return override
         }
+        #if DEBUG
+        let branch = "DEBUG"
+        #else
+        let branch = "RELEASE"
+        #endif
+        cfgLogger.notice("[APICFG.apiBaseURL] DEFAULT path used: \(defaultAPIBaseURL, privacy: .public) (compile branch=\(branch, privacy: .public))")
         return defaultAPIBaseURL
     }
 
     static var authBaseURL: String {
         if let override = authOverrideValue {
+            cfgLogger.notice("[APICFG.authBaseURL] OVERRIDE: \(override, privacy: .public)")
             return override
         }
         if let apiOverride = apiOverrideValue {
-            return authBaseURL(from: apiOverride)
+            let derived = authBaseURL(from: apiOverride)
+            cfgLogger.notice("[APICFG.authBaseURL] derived from API override: \(derived, privacy: .public)")
+            return derived
         }
+        cfgLogger.notice("[APICFG.authBaseURL] DEFAULT: \(defaultAuthBaseURL, privacy: .public)")
         return defaultAuthBaseURL
     }
 

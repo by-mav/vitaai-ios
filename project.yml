@@ -35,6 +35,7 @@ targets:
     info:
       path: VitaAI/Info.plist
       properties:
+        SENTRY_DSN: https://305f5aa7326a463a0a676bdff2458632@o4510763265097728.ingest.us.sentry.io/4511237378211840
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         NSHealthShareUsageDescription: "VitaAI usa dados de sono e exercicio para correlacionar com seu desempenho academico."

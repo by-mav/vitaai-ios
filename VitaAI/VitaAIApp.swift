@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 import SwiftData
 import UserNotifications
 
@@ -153,13 +154,29 @@ struct VitaAIApp: App {
         // Make scroll views transparent so VitaAmbientBackground shows through content gaps
         UIScrollView.appearance().backgroundColor = .clear
 
-        // Initialize Sentry for crash reporting and performance monitoring.
-        // No-op in DEBUG builds. Requires SENTRY_DSN in Info.plist.
+        // Boot observability FIRST so nothing else is invisible.
         SentryConfig.initialize()
+        Self.logBootConfig()
 
         #if DEBUG
         bootstrapLaunchState()
         #endif
+    }
+
+    /// Logs the active backend URL and build environment at boot.
+    /// Visible via `xcrun simctl spawn booted log stream --predicate 'subsystem == "com.bymav.vitaai"'`
+    /// (no Xcode debugger needed). Also breadcrumbed to Sentry for every session.
+    private static func logBootConfig() {
+        let logger = Logger(subsystem: "com.bymav.vitaai", category: "boot")
+        let env = AppConfig.environment == .development ? "DEV" : "PROD"
+        let api = AppConfig.apiBaseURL
+        let auth = AppConfig.authBaseURL
+        logger.notice("[BOOT] env=\(env, privacy: .public) api=\(api, privacy: .public) auth=\(auth, privacy: .public)")
+        SentryConfig.addBreadcrumb(
+            message: "app boot",
+            category: "boot",
+            data: ["environment": env, "apiBaseURL": api, "authBaseURL": auth]
+        )
     }
 
     @Environment(\.scenePhase) private var scenePhase
