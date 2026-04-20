@@ -171,32 +171,28 @@ struct QBankConfigContent: View {
     }
 
     private var availableCountBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 14))
-                .foregroundStyle(VitaColors.accent)
-            if vm.state.isLoadingCount {
-                ProgressView()
-                    .tint(VitaColors.accent)
-                    .scaleEffect(0.7)
-                Text("Calculando...")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(VitaColors.textSecondary)
-            } else {
-                Text("\(formatNumber(vm.state.displayAvailableCount)) questões disponíveis")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(VitaColors.accentLight)
+        VitaGlassCard(cornerRadius: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 14))
+                    .foregroundStyle(VitaColors.accent)
+                if vm.state.isLoadingCount {
+                    ProgressView()
+                        .tint(VitaColors.accent)
+                        .scaleEffect(0.7)
+                    Text("Calculando...")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(VitaColors.textSecondary)
+                } else {
+                    Text("\(formatNumber(vm.state.displayAvailableCount)) questões disponíveis")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(VitaColors.accentLight)
+                }
+                Spacer()
             }
-            Spacer()
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(VitaColors.accent.opacity(0.06))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(VitaColors.accent.opacity(0.15), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var questionCountSection: some View {
@@ -390,7 +386,7 @@ struct QBankConfigContent: View {
                 }
                 .padding(.vertical, 12)
             } else {
-                // Count + button
+                // Count + themed CTA (matches Home "Nova Sessão" glass amber)
                 HStack {
                     if vm.state.isLoadingCount {
                         ProgressView()
@@ -405,9 +401,11 @@ struct QBankConfigContent: View {
                 }
                 .padding(.horizontal, 16)
 
-                VitaButton(
-                    text: "Iniciar Sessão (\(vm.state.questionCount) questões)",
-                    action: { vm.createSession() }
+                StudyShellCTA(
+                    title: "Iniciar Sessão (\(vm.state.questionCount) questões)",
+                    theme: .questoes,
+                    action: { vm.createSession() },
+                    systemImage: "play.fill"
                 )
                 .padding(.horizontal, 16)
             }
@@ -638,20 +636,16 @@ struct QBankConfigContent: View {
     // MARK: - Helpers
 
     private func configGlassSection(title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(size: 11, weight: .bold))
-                .tracking(0.8)
-                .foregroundStyle(VitaColors.sectionLabel)
-            content()
+        VitaGlassCard(cornerRadius: 14) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(title)
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(0.8)
+                    .foregroundStyle(VitaColors.sectionLabel)
+                content()
+            }
+            .padding(14)
         }
-        .padding(14)
-        .background(VitaColors.glassBg)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     private func formatNumber(_ n: Int) -> String {
