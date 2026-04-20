@@ -32,10 +32,14 @@ struct CourseDetailScreen: View {
             if viewModel == nil {
                 let vm = CourseDetailViewModel(api: container.api, courseId: courseId)
                 viewModel = vm
-                Task { await vm.load() }
+                Task {
+                    await vm.load()
+                    ScreenLoadContext.finish(for: "CourseDetail")
+                }
             }
         }
         .navigationBarHidden(true)
+        .trackScreen("CourseDetail", extra: ["course_id": courseId])
     }
 }
 

@@ -36,6 +36,7 @@ struct ProvasScreen: View {
             }
         }
         .navigationBarHidden(true)
+        .trackScreen("Provas")
     }
 
     private func loadSelectedPhotos(_ items: [PhotosPickerItem], vm: ProvasViewModel) async {

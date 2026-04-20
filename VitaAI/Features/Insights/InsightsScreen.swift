@@ -18,9 +18,13 @@ struct InsightsScreen: View {
         .onAppear {
             if viewModel == nil {
                 viewModel = InsightsViewModel(api: container.api, dataManager: container.dataManager)
-                Task { await viewModel?.load() }
+                Task {
+                    await viewModel?.load()
+                    ScreenLoadContext.finish(for: "Insights")
+                }
             }
         }
+        .trackScreen("Insights")
     }
 
     @ViewBuilder

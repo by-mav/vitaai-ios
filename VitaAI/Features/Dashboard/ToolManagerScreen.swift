@@ -191,6 +191,7 @@ struct ToolManagerScreen: View {
         .onAppear {
             selectedIds = loadSelectedToolIds(userEmail: container.authManager.userEmail)
         }
+        .trackScreen("ToolManager")
     }
 
     // MARK: - Top Bar

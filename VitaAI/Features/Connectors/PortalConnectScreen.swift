@@ -43,6 +43,7 @@ struct PortalConnectScreen: View {
             guard let vm, vm.isOAuth else { return }
             Task { await vm.loadStatus() }
         }
+        .trackScreen("PortalConnect", extra: ["portal_type": portalType])
         // Portal WebView sheet
         .fullScreenCover(isPresented: $showPortalWebView) {
             WebAlunoWebViewScreen(

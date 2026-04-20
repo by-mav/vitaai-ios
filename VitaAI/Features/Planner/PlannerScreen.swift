@@ -29,6 +29,7 @@ struct PlannerScreen: View {
                 Task { await viewModel?.load() }
             }
         }
+        .trackScreen("Planner")
     }
 }
 

@@ -75,6 +75,7 @@ struct WebAlunoWebViewScreen: View {
             }
         }
         .navigationBarHidden(true)
+        .trackScreen("WebAlunoWebView")
     }
 
     // MARK: - Nav bar

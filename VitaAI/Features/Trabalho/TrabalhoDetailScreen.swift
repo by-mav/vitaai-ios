@@ -48,7 +48,11 @@ struct TrabalhoDetailScreen: View {
             .padding(.horizontal, 16)
         }
         .refreshable { await loadDetail() }
-        .task { await loadDetail() }
+        .task {
+            await loadDetail()
+            ScreenLoadContext.finish(for: "TrabalhoDetail")
+        }
+        .trackScreen("TrabalhoDetail", extra: ["assignment_id": assignmentId])
         .fullScreenCover(isPresented: $showEditor) {
             if #available(iOS 17, *) {
                 TrabalhoEditorView(

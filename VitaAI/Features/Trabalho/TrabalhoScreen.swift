@@ -49,6 +49,7 @@ struct TrabalhoScreen: View {
                 .background(VitaColors.surface)
             }
         }
+        .trackScreen("Trabalho")
     }
 
     // MARK: - Content
