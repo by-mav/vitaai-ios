@@ -114,7 +114,9 @@ struct LeaderboardScreen: View {
                 vm = LeaderboardViewModel(api: container.api)
             }
             await vm?.load(period: selectedPeriod)
+            ScreenLoadContext.finish(for: "Leaderboard")
         }
+        .trackScreen("Leaderboard")
     }
 }
 

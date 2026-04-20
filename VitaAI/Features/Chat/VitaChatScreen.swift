@@ -59,6 +59,7 @@ struct VitaChatScreen: View {
                 onDismiss: { showVoiceMode = false }
             )
         }
+        .trackScreen("VitaChat")
     }
 
     @ViewBuilder

@@ -26,9 +26,13 @@ struct AchievementsScreen: View {
         .onAppear {
             if viewModel == nil {
                 viewModel = AchievementsViewModel(api: container.api)
-                Task { await viewModel?.load() }
+                Task {
+                    await viewModel?.load()
+                    ScreenLoadContext.finish(for: "Achievements")
+                }
             }
         }
+        .trackScreen("Achievements")
     }
 }
 

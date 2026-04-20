@@ -120,7 +120,9 @@ struct ActivityFeedScreen: View {
                 vm = ActivityFeedViewModel(api: container.api)
             }
             await vm?.load()
+            ScreenLoadContext.finish(for: "ActivityFeed")
         }
+        .trackScreen("ActivityFeed")
     }
 }
 

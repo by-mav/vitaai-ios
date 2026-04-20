@@ -40,6 +40,7 @@ struct FaculdadeDisciplinasScreen: View {
             .padding(.top, 8)
         }
         .refreshable { await appData.forceRefresh() }
+        .trackScreen("FaculdadeDisciplinas")
     }
 
     // MARK: - Empty state

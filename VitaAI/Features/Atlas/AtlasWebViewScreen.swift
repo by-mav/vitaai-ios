@@ -70,6 +70,7 @@ struct AtlasWebViewScreen: View {
             tokenReady = true
             print("[AtlasWebView] token ready: \(sessionToken != nil ? "SET" : "NIL"), url: \(atlasURL)")
         }
+        .trackScreen("Atlas3D")
     }
 
     // MARK: - Top Nav

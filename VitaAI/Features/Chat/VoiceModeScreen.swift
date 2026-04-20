@@ -93,6 +93,7 @@ struct VoiceModeScreen: View {
         .task { await viewModel.onAppear() }
         .onDisappear { viewModel.onDisappear() }
         // sensoryFeedback removed (iOS 17+)
+        .trackScreen("VoiceMode")
     }
 
     // MARK: - Status Strings (matches Android string values)

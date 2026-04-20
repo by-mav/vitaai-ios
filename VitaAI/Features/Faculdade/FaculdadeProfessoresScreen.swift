@@ -96,6 +96,7 @@ struct FaculdadeProfessoresScreen: View {
                 ProfessorProfileSheet(subjectId: subjectId)
             }
         }
+        .trackScreen("FaculdadeProfessores")
     }
 
     // MARK: - Professor Row
