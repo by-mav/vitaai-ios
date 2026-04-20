@@ -56,37 +56,28 @@ struct SimuladoHomeScreen: View {
         ZStack {
             if vm.state.isLoading {
                 ProgressView().tint(SimuladoColors.tealPrimary)
-            } else if vm.state.attempts.isEmpty {
-                emptyState
             } else {
+                // Always render scrollContent so the Hero + CTA appear even
+                // when the user has zero attempts. Shell parity with QBank
+                // and Flashcards, which always show their hero.
                 scrollContent(vm: vm)
             }
         }
         .navigationBarHidden(true)
     }
 
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundStyle(SimuladoColors.tealPrimary.opacity(0.4))
+    private var emptyRecentsMessage: some View {
+        VStack(spacing: 8) {
             Text("Nenhum simulado ainda")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(SimuladoColors.textPrimary)
-            Text("Comece seu primeiro simulado para testar seus conhecimentos.")
-                .font(.system(size: 13))
+            Text("Use o botão acima pra começar seu primeiro.")
+                .font(.system(size: 12))
                 .foregroundStyle(SimuladoColors.textMuted)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            StudyShellCTA(
-                title: "Começar primeiro simulado",
-                theme: .simulados,
-                action: onNewSimulado
-            )
-            .padding(.horizontal, 16)
-            Spacer()
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 24)
     }
 
     @ViewBuilder
@@ -130,23 +121,27 @@ struct SimuladoHomeScreen: View {
                 .padding(.top, 16)
                 .padding(.bottom, 12)
 
-                // Attempt cards
-                ForEach(vm.state.filteredAttempts) { attempt in
-                    SimuladoAttemptCard(attempt: attempt) {
-                        if attempt.status == "finished" { onOpenResult(attempt.id) }
-                        else { onOpenSession(attempt.id) }
-                    }
-                    .padding(.horizontal, 16)
-                    .contextMenu {
-                        Button(role: .destructive) {
-                            vm.deleteAttempt(attempt.id)
-                        } label: {
-                            Label("Apagar", systemImage: "trash")
+                // Attempt cards (or empty message if user never started one)
+                if vm.state.filteredAttempts.isEmpty {
+                    emptyRecentsMessage
+                } else {
+                    ForEach(vm.state.filteredAttempts) { attempt in
+                        SimuladoAttemptCard(attempt: attempt) {
+                            if attempt.status == "finished" { onOpenResult(attempt.id) }
+                            else { onOpenSession(attempt.id) }
                         }
-                        Button {
-                            vm.archiveAttempt(attempt.id)
-                        } label: {
-                            Label("Arquivar", systemImage: "archivebox")
+                        .padding(.horizontal, 16)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                vm.deleteAttempt(attempt.id)
+                            } label: {
+                                Label("Apagar", systemImage: "trash")
+                            }
+                            Button {
+                                vm.archiveAttempt(attempt.id)
+                            } label: {
+                                Label("Arquivar", systemImage: "archivebox")
+                            }
                         }
                     }
                 }
