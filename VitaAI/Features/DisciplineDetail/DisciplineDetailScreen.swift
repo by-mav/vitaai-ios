@@ -76,7 +76,8 @@ struct DisciplineDetailScreen: View {
                 vm = DisciplineDetailViewModel(
                     api: container.api,
                     disciplineId: disciplineId,
-                    disciplineName: disciplineName
+                    disciplineName: disciplineName,
+                    dataManager: container.dataManager
                 )
             }
         }

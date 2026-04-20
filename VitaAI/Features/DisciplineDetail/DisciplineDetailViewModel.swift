@@ -9,6 +9,7 @@ import SwiftUI
 @Observable
 final class DisciplineDetailViewModel {
     private let api: VitaAPI
+    private weak var dataManager: AppDataManager?
     let disciplineId: String
     let disciplineName: String
 
@@ -32,8 +33,9 @@ final class DisciplineDetailViewModel {
 
     // MARK: - Init
 
-    init(api: VitaAPI, disciplineId: String, disciplineName: String) {
+    init(api: VitaAPI, disciplineId: String, disciplineName: String, dataManager: AppDataManager? = nil) {
         self.api = api
+        self.dataManager = dataManager
         self.disciplineId = disciplineId
         self.disciplineName = disciplineName
     }
@@ -191,6 +193,14 @@ final class DisciplineDetailViewModel {
         isLoading = true
         error = nil
 
+        // Read VitaScore + difficulty from AppDataManager cache (already hydrated
+        // by the Dashboard/Faculdade screen that led the user here). Was doing a
+        // full getDashboard() roundtrip for 2 fields — second-biggest TTFD waste.
+        if let cached = dataManager?.dashboardSubjects.first(where: { matchesDiscipline($0.name ?? "") }) {
+            vitaScore = Int(cached.vitaScore ?? 0)
+            difficulty = cached.difficulty
+        }
+
         async let progressTask: ProgressResponse? = try? api.getProgress()
         async let gradesTask: GradesCurrentResponse? = try? api.getGradesCurrent()
         async let examsTask: ExamsResponse? = try? api.getExams()
@@ -200,24 +210,16 @@ final class DisciplineDetailViewModel {
         async let docsTask: [VitaDocument]? = try? api.getDocuments(subjectId: disciplineId)
         async let agendaTask: AgendaResponse? = try? api.getAgenda()
         async let trabalhosTask: TrabalhosResponse? = try? api.getTrabalhos()
-        async let dashboardTask: Dashboard? = try? api.getDashboard()
 
-        let (progressResponse, gradesResponse, examsResponse, decks, docs, agenda, trabalhosResp, dash) = await (
+        let (progressResponse, gradesResponse, examsResponse, decks, docs, agenda, trabalhosResp) = await (
             progressTask,
             gradesTask,
             examsTask,
             decksTask,
             docsTask,
             agendaTask,
-            trabalhosTask,
-            dashboardTask
+            trabalhosTask
         )
-
-        // VitaScore + difficulty — read from server (canonical). Match by subject name.
-        if let dash, let matched = dash.subjects?.first(where: { matchesDiscipline($0.name) }) {
-            vitaScore = Int(matched.vitaScore ?? 0)
-            difficulty = matched.difficulty
-        }
 
         if let progressResponse {
             subjectProgress = progressResponse.subjects.first {
