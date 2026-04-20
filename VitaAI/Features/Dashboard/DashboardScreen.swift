@@ -60,15 +60,18 @@ struct DashboardScreen: View {
             if viewModel == nil {
                 viewModel = DashboardViewModel(api: container.api, dataManager: container.dataManager)
                 Task {
-                    // Load dashboard and appData in PARALLEL so disciplines
-                    // are available immediately, not after dashboard finishes
-                    async let dash: () = viewModel!.loadDashboard()
-                    async let data: () = appData.loadIfNeeded()
-                    _ = await (dash, data)
+                    // Close TTFD as soon as the dashboard's own data (getDashboard + getProgress)
+                    // is ready — the screen is *usable* at this point. AppDataManager.loadIfNeeded
+                    // hydrates in background (6 requests including -45d..+90d agenda and
+                    // -14d..+60d study events) without blocking perceived load time.
+                    // Before this change Dashboard P50 was 7.47s because TTFD waited on the
+                    // slowest of 7 parallel requests. See incidents/vitaai/2026-04-20_dashboard-ttfd-7s-diagnosis.md.
+                    await viewModel!.loadDashboard()
                     ScreenLoadContext.finish(for: "Dashboard")
                     if let sub = viewModel?.subtitle, !sub.isEmpty {
                         onSubtitleLoaded?(sub)
                     }
+                    await appData.loadIfNeeded()
                 }
             }
             // Silent background sync — keeps Mannesoft/Canvas data fresh
