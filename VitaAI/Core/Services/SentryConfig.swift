@@ -61,6 +61,22 @@ enum SentryConfig {
             options.tracesSampleRate = NSNumber(value: tracesRate)
             options.profilesSampleRate = NSNumber(value: profilesRate)
 
+            // TTID/TTFD for SwiftUI screens (gold standard 2026) — opt-in globally
+            // so SentryTracedView(waitForFullDisplay:) measures real load time.
+            // Paired with SentrySDK.reportFullyDisplayed() inside .task{} on
+            // every tracked screen.
+            options.enableTimeToFullDisplayTracing = true
+
+            // Distributed tracing: inject `sentry-trace` + `baggage` headers
+            // in outbound URLSession requests matching these hosts, so the
+            // backend (@sentry/nextjs) continues the same trace ID. Result:
+            // one waterfall iOS → Next.js → Drizzle → DB.
+            options.tracePropagationTargets = [
+                "monstro.tail7e98e6.ts.net",
+                "vita-ai.cloud",
+                "app.vita-ai.cloud"
+            ]
+
             // Crash & hang detection
             options.enableCrashHandler = true
             options.enableAppHangTracking = true

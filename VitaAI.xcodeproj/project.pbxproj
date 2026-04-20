@@ -139,7 +139,7 @@
 		63AE9747C5A3C87F4DA5FF7F /* AchievementsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2195501DA7E91A64A1786943 /* AchievementsScreen.swift */; };
 		64B0DF4FCFB02C986073F923 /* QBankResultContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE115A0772689E4DA94BD33 /* QBankResultContent.swift */; };
 		64BEEEA27A432C76D55DDD12 /* TrabalhoScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D945ADA906827F7F7509D5B /* TrabalhoScreen.swift */; };
-		65B3D9025C1304C171AA8537 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 4B4B1876310F69478EE49BD0 /* PostHog */; };
+		65B3D9025C1304C171AA8537 /* SentrySwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = E99C11A3C78FC200CABA2D4C /* SentrySwiftUI */; };
 		66989C425ACDD32B3EC1261F /* VitaMascot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E924DCF6AA655A4D83A473DD /* VitaMascot.swift */; };
 		672E26ACBF229968B2BB55F2 /* SubjectColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B4E6171DD72A7B7AC4F27C /* SubjectColors.swift */; };
 		67630DBBBFB4D18CFFFDEED0 /* OsceSseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0387CC7FD36268CA8C03B06 /* OsceSseClient.swift */; };
@@ -221,6 +221,7 @@
 		A0A8B500BA2934F4C94DB235 /* TrabalhoEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6F3E04E70C2FFA771693FE /* TrabalhoEditorView.swift */; };
 		A35836BA3CF896D989F761FF /* NotificationsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2CEACE238BB315B6B8609E /* NotificationsStep.swift */; };
 		A43DAF430E852C6A5900BEB5 /* TokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389BFCF2463F09D0B4DBBD16 /* TokenRefresher.swift */; };
+		A63BA82F96785DD38FE2EFD5 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 4B4B1876310F69478EE49BD0 /* PostHog */; };
 		A6663CFEF3202C1548440144 /* DashboardXp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BAB7AFA757139E38FAB0C32 /* DashboardXp.swift */; };
 		A8FDB522F11FC791CD275E72 /* View+SwipeBack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843A2E9941511F28FB5D2340 /* View+SwipeBack.swift */; };
 		A9660EB0D2F93B27F63FD890 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 071FF1B45D3A3121280AE457 /* Localizable.strings */; };
@@ -648,7 +649,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				E032B7AB430B778EB2CC814E /* Sentry in Frameworks */,
-				65B3D9025C1304C171AA8537 /* PostHog in Frameworks */,
+				65B3D9025C1304C171AA8537 /* SentrySwiftUI in Frameworks */,
+				A63BA82F96785DD38FE2EFD5 /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1495,6 +1497,7 @@
 			name = VitaAI;
 			packageProductDependencies = (
 				BE8487C3CD50772214487973 /* Sentry */,
+				E99C11A3C78FC200CABA2D4C /* SentrySwiftUI */,
 				4B4B1876310F69478EE49BD0 /* PostHog */,
 			);
 			productName = VitaAI;
@@ -2173,6 +2176,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B3F2C503FEE96A00E7D890E0 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
+		};
+		E99C11A3C78FC200CABA2D4C /* SentrySwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B3F2C503FEE96A00E7D890E0 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = SentrySwiftUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

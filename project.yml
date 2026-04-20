@@ -54,6 +54,9 @@ targets:
               - vitaai
     dependencies:
       - package: Sentry
+        product: Sentry
+      - package: Sentry
+        product: SentrySwiftUI
       - package: PostHog
     settings:
       base:
