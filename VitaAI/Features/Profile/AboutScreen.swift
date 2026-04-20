@@ -193,6 +193,7 @@ struct AboutScreen: View {
                 legalOffset = 0
             }
         }
+        .trackScreen("About")
     }
 }
 

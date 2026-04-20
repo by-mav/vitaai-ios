@@ -159,6 +159,7 @@ struct ConnectionsScreen: View {
                 vm?.toastMessage = nil
             }
         }
+        .trackScreen("Connections")
     }
 
     // MARK: - Main Content

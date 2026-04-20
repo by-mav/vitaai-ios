@@ -211,6 +211,7 @@ struct NotificationSettingsScreen: View {
         .onChange(of: studyEnabled) { _ in syncToBackend() }
         .onChange(of: reviewEnabled) { _ in syncToBackend() }
         .onChange(of: deadlineEnabled) { _ in syncToBackend() }
+        .trackScreen("NotificationSettings")
     }
 
     // MARK: - Helpers

@@ -269,6 +269,7 @@ struct VitaPaywallScreen: View {
             }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: selectedFeature?.id)
+        .trackScreen("VitaPaywall")
     }
 
     // MARK: - Subviews

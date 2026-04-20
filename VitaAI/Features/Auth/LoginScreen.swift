@@ -227,6 +227,7 @@ struct LoginScreen: View {
         .onChange(of: authManager.isLoading) { _, newValue in
             if !newValue { loadingProvider = .none }
         }
+        .trackScreen("Login")
     }
 }
 

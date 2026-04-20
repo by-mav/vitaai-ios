@@ -48,6 +48,7 @@ struct AssinaturaScreen: View {
         .sheet(isPresented: $showPaywall) {
             VitaPaywallScreen(onDismiss: { showPaywall = false })
         }
+        .trackScreen("Assinatura")
     }
 
     // MARK: - Header Bar

@@ -50,6 +50,7 @@ struct AppearanceScreen: View {
         }
         .background(VitaColors.surface.ignoresSafeArea())
         .navigationBarHidden(true)
+        .trackScreen("Appearance")
     }
 
     // MARK: - Header

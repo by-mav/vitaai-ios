@@ -53,7 +53,11 @@ struct DisciplinasConfigScreen: View {
                 Spacer().frame(height: 120)
             }
         }
-        .task { await loadSubjects() }
+        .task {
+            await loadSubjects()
+            ScreenLoadContext.finish(for: "DisciplinasConfig")
+        }
+        .trackScreen("DisciplinasConfig")
     }
 
     // MARK: - Header

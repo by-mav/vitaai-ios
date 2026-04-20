@@ -135,6 +135,7 @@ struct ConfiguracoesScreen: View {
             }
         }
         .background(VitaColors.surface.ignoresSafeArea())
+        .trackScreen("Configuracoes")
     }
 
     // MARK: - Header

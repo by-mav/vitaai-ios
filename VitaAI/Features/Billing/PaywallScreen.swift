@@ -54,6 +54,7 @@ struct PaywallScreen: View {
             // (user may have completed Stripe checkout in Safari).
             Task { await subStatus.refresh() }
         }
+        .trackScreen("Paywall")
     }
 
     // MARK: - Main content

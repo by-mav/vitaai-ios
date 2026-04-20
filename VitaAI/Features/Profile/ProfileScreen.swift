@@ -74,7 +74,9 @@ struct ProfileScreen: View {
             async let statsTask: () = loadStats()
             async let profileTask: () = loadProfile()
             _ = await (statsTask, profileTask)
+            ScreenLoadContext.finish(for: "Profile")
         }
+        .trackScreen("Profile")
     }
 
     // MARK: - Header
