@@ -93,6 +93,7 @@ struct FlashcardSessionScreen: View {
             router.activeFlashcardVM = viewModel
             router.activeFlashcardSettings = settings
         }
+        .trackScreen("FlashcardSession", extra: ["deck_id": deckId])
     }
 
     // MARK: Main Study Layout

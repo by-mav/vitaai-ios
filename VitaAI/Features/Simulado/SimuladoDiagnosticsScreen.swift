@@ -36,6 +36,7 @@ struct SimuladoDiagnosticsScreen: View {
             if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents, dataManager: container.dataManager) }
             vm?.loadDiagnostics(period: selectedPeriod)
         }
+        .trackScreen("SimuladoDiagnostics")
     }
 
     @ViewBuilder

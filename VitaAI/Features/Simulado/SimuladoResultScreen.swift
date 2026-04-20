@@ -32,6 +32,7 @@ struct SimuladoResultScreen: View {
                 vm.loadSession(attemptId)
             }
         }
+        .trackScreen("SimuladoResult", extra: ["attempt_id": attemptId])
     }
 
     private var loadingView: some View {

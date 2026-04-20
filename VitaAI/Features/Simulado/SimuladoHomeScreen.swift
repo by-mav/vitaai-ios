@@ -48,6 +48,7 @@ struct SimuladoHomeScreen: View {
             if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents, dataManager: container.dataManager) }
             vm?.loadAttempts()
         }
+        .trackScreen("SimuladoHome")
     }
 
     @ViewBuilder

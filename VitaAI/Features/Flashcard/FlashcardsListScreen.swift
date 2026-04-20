@@ -216,7 +216,9 @@ struct FlashcardsListScreen: View {
             await appData.loadIfNeeded()
             await container.studyOverviewStore.loadIfNeeded()
             await loadData()
+            ScreenLoadContext.finish(for: "FlashcardsList")
         }
+        .trackScreen("FlashcardsList")
     }
 
     // MARK: - Filtered decks

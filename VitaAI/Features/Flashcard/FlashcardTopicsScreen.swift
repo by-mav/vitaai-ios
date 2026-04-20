@@ -129,7 +129,9 @@ struct FlashcardTopicsScreen: View {
                 print("[FlashcardTopics] error: \(error)")
             }
             isLoading = false
+            ScreenLoadContext.finish(for: "FlashcardTopics")
         }
+        .trackScreen("FlashcardTopics", extra: ["deck_id": deckId])
     }
 
     // MARK: - Topic Row

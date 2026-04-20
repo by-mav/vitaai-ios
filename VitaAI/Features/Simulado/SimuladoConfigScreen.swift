@@ -22,6 +22,7 @@ struct SimuladoConfigScreen: View {
             vm?.loadConfigData()
         }
         .navigationBarHidden(true)
+        .trackScreen("SimuladoConfig")
     }
 
     // MARK: - Blue atmospheric background (simulado-config-v1.html)

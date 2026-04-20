@@ -94,6 +94,7 @@ struct SimuladoSessionScreen: View {
             startTimer()
         }
         .onDisappear { timerTask?.cancel() }
+        .trackScreen("SimuladoSession", extra: ["attempt_id": attemptId])
     }
 
     // MARK: - Loading

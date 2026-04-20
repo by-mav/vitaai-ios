@@ -34,6 +34,7 @@ struct SimuladoReviewScreen: View {
                 vm.loadSession(attemptId)
             }
         }
+        .trackScreen("SimuladoReview", extra: ["attempt_id": attemptId])
     }
 
     @ViewBuilder

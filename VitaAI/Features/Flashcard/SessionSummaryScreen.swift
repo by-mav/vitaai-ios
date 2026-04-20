@@ -65,6 +65,7 @@ struct SessionSummaryScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear.ignoresSafeArea())
         .onAppear { animateCounters() }
+        .trackScreen("FlashcardSummary")
     }
 
     // MARK: Trophy Icon
