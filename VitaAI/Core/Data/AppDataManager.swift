@@ -98,11 +98,12 @@ final class AppDataManager {
     }
 
     private func refreshSchedule() async {
-        // Wide window so the monthly calendar can show evaluations across the
-        // current month and adjacent months without re-fetching on every nav.
+        // Wide window: -180d includes overdue trabalhos from the whole semester
+        // (student needs to see late work, can submit past due). +90d covers
+        // the monthly calendar plus next term's early evaluations.
         let cal = Calendar.current
         let today = Date()
-        let from = cal.date(byAdding: .day, value: -45, to: today) ?? today
+        let from = cal.date(byAdding: .day, value: -180, to: today) ?? today
         let to = cal.date(byAdding: .day, value: 90, to: today) ?? today
         let fmt = ISO8601DateFormatter()
         if let resp = try? await api.getAgenda(from: fmt.string(from: from), to: fmt.string(from: to)) {
