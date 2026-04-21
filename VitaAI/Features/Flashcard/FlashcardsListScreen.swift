@@ -286,18 +286,18 @@ struct FlashcardsListScreen: View {
     private func loadData() async {
         isLoading = true
         do {
-            // deckLimit: 500 to see ALL user decks. Rafael has 534 total across
-            // the full library (5 current-semester slugs + library). Top 50 by
-            // updatedAt was hiding mfc-1/medicina-legal/patologia-geral/humanidades
-            // because many library decks (cardiologia, pediatria-1) had more
-            // recent updates. Backend cap raised to 500 in parallel.
-            var fetched = try await container.api.getFlashcardDecks(cardsLimit: 0, deckLimit: 1000)
+            // summary=true: backend returns deck metadata + totalCards + dueCount
+            // WITHOUT the cards[] array. 182KB JSON for 534 decks vs ~5.6MB when
+            // cards are hydrated. First-paint of Flashcards list drops from ~5s
+            // to <500ms. Cards load on-demand when the user taps a deck
+            // (FlashcardViewModel.fetchDeck uses the full path).
+            var fetched = try await container.api.getFlashcardDecks(deckLimit: 1000, summary: true)
 
             // Auto-seed if user has no decks yet (first open)
             if fetched.isEmpty {
                 // Trigger autoSeed — generates decks from QBank for user's disciplines
                 _ = try? await container.api.generateFlashcardsAutoSeed()
-                fetched = try await container.api.getFlashcardDecks(cardsLimit: 0, deckLimit: 1000)
+                fetched = try await container.api.getFlashcardDecks(deckLimit: 1000, summary: true)
             }
 
             // Filter out empty decks
