@@ -64,8 +64,8 @@ struct VitaNotifPopout: View {
             // Header
             HStack(spacing: 8) {
                 Text("Notificações")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.92))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.96))
 
                 if unreadCount > 0 {
                     Text("\(unreadCount)")
@@ -83,8 +83,8 @@ struct VitaNotifPopout: View {
                 if unreadCount > 0 {
                     Button(action: { markAllRead() }) {
                         Text("Marcar lidas")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(VitaColors.accentHover.opacity(0.60))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(VitaColors.accentHover.opacity(0.90))
                     }
                     .buttonStyle(.plain)
                 }
@@ -176,23 +176,23 @@ struct VitaNotifPopout: View {
                 .font(.system(size: 18))
                 .frame(width: 24)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(item.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(item.read ? Color.white.opacity(0.60) : Color.white.opacity(0.92))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(item.read ? Color.white.opacity(0.68) : Color.white.opacity(0.96))
                     .lineLimit(1)
 
                 Text(item.description)
-                    .font(.system(size: 12))
-                    .foregroundStyle(VitaColors.textWarm.opacity(item.read ? 0.55 : 0.78))
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(Color.white.opacity(item.read ? 0.55 : 0.80))
                     .lineLimit(2)
             }
 
             Spacer()
 
             Text(item.relativeTime)
-                .font(.system(size: 9))
-                .foregroundStyle(VitaColors.accentHover.opacity(0.35))
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(Color.white.opacity(0.50))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -228,11 +228,11 @@ struct VitaNotifPopout: View {
                 .font(.system(size: 24))
                 .foregroundStyle(VitaColors.textTertiary)
             Text("Tudo em dia!")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.60))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.80))
             Text("Nenhuma notificação.")
-                .font(.system(size: 10))
-                .foregroundStyle(VitaColors.textTertiary)
+                .font(.system(size: 12, weight: .regular))
+                .foregroundStyle(Color.white.opacity(0.55))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 32)
