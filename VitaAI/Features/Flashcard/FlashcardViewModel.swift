@@ -160,6 +160,11 @@ final class FlashcardViewModel {
         // API review with retry — session advances regardless, but we retry failures
         let cardId = card.id
         let responseTimeMs = Int64(Date().timeIntervalSince(cardStartDate) * 1000)
+        VitaPostHogConfig.capture(event: "flashcard_card_rated", properties: [
+            "card_id": cardId,
+            "rating": rating.rawValue,
+            "seconds_elapsed": Int(responseTimeMs / 1000),
+        ])
         let action = rating.isCorrect ? "flashcard_easy" : "flashcard_review"
         Task.detached { [api = self.api] in
             for attempt in 0..<3 {
@@ -352,6 +357,10 @@ final class FlashcardViewModel {
         correctCount = 0
         sessionStartDate = Date()
         cardStartDate = Date()
+        VitaPostHogConfig.capture(event: "flashcard_review_started", properties: [
+            "deck_id": deck.id,
+            "cards_count": deck.cards.count,
+        ])
 
         // Initialise FSRS-5 state from card metadata.
         // Cards that previously used SM-2 fields (easeFactor/interval) are migrated
@@ -399,6 +408,11 @@ final class FlashcardViewModel {
                 streakCount: correctCount
             )
             phase = .finished
+            VitaPostHogConfig.capture(event: "flashcard_review_ended", properties: [
+                "cards_reviewed": totalReviewed,
+                "correct_count": correctCount,
+                "seconds_elapsed": Int(elapsed / 1000),
+            ])
 
             // Log deck completion with study duration
             let durationMinutes = Int(elapsed / 60_000)

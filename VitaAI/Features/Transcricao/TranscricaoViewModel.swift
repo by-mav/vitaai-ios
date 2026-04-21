@@ -245,6 +245,12 @@ final class TranscricaoViewModel {
     // MARK: - Upload
 
     private func processUpload(fileURL: URL) async {
+        let uploadStart = Date()
+        let sizeBytes = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
+        VitaPostHogConfig.capture(event: "transcription_upload_started", properties: [
+            "file_size_mb": Double(sizeBytes) / 1_048_576.0,
+            "duration_seconds": Int(Date().timeIntervalSince(recordingStartDate)),
+        ])
         do {
             for try await event in await client.uploadAndStream(fileURL: fileURL) {
                 switch event {
@@ -259,6 +265,11 @@ final class TranscricaoViewModel {
                     progressPercent = 100
                     phase = .done
                     try? FileManager.default.removeItem(at: fileURL)
+                    VitaPostHogConfig.capture(event: "transcription_completed", properties: [
+                        "word_count": t.split(separator: " ").count,
+                        "flashcards_generated": cards.count,
+                        "seconds_elapsed": Int(Date().timeIntervalSince(uploadStart)),
+                    ])
 
                     // Log study session for gamification
                     let durationMinutes = Int(Date().timeIntervalSince(recordingStartDate) / 60)
@@ -274,11 +285,17 @@ final class TranscricaoViewModel {
                     }
                 case .error(let msg):
                     setError(msg)
+                    VitaPostHogConfig.capture(event: "transcription_upload_failed", properties: [
+                        "reason": msg,
+                    ])
                 }
             }
         } catch {
             guard !Task.isCancelled else { return }
             setError("Erro no envio: \(error.localizedDescription)")
+            VitaPostHogConfig.capture(event: "transcription_upload_failed", properties: [
+                "reason": error.localizedDescription,
+            ])
         }
     }
 

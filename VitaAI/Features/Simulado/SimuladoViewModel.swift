@@ -201,6 +201,12 @@ final class SimuladoViewModel {
         state.selectedQuestionCount = template.count
         state.timedMode = template.timed
         state.selectedDisciplineName = template.disciplineName
+        VitaPostHogConfig.capture(event: "simulado_template_selected", properties: [
+            "template_id": template.id,
+            "template_name": template.name,
+            "question_count": template.count,
+            "timed": template.timed,
+        ])
         generateSimulado()
     }
 
@@ -229,8 +235,19 @@ final class SimuladoViewModel {
                 state.sessionStartDate = now
                 state.questionStartDate = now
                 state.result = nil
+                VitaPostHogConfig.capture(event: "simulado_started", properties: [
+                    "simulado_id": response.id,
+                    "question_count": response.questions.count,
+                    "subject": subject,
+                    "difficulty": state.selectedDifficulty,
+                    "mode": state.timedMode ? "exam" : "immediate",
+                ])
             } catch {
                 state.error = "Erro ao gerar simulado: \(error.localizedDescription)"
+                VitaPostHogConfig.capture(event: "simulado_start_failed", properties: [
+                    "subject": subject,
+                    "reason": error.localizedDescription,
+                ])
             }
             state.isGenerating = false
         }
@@ -285,12 +302,19 @@ final class SimuladoViewModel {
               let chosenIdx = state.answers[question.id] else { return }
 
         let responseTimeMs = Int64(Date().timeIntervalSince(state.questionStartDate) * 1000)
+        let isCorrect = chosenIdx == question.correctIdx
+        VitaPostHogConfig.capture(event: "simulado_question_answered", properties: [
+            "simulado_id": state.currentAttemptId ?? "",
+            "question_index": state.currentQuestionIndex,
+            "seconds_elapsed": Int(responseTimeMs / 1000),
+            "correct": isCorrect,
+            "mode": state.isExamMode ? "exam" : "immediate",
+        ])
 
         if state.isExamMode {
             syncAnswerToAPI(questionId: question.id, chosenIdx: chosenIdx, responseTimeMs: responseTimeMs)
             advanceToNext()
         } else {
-            let isCorrect = chosenIdx == question.correctIdx
             state.showFeedback = true
             state.lastAnswerCorrect = isCorrect
             syncAnswerToAPI(questionId: question.id, chosenIdx: chosenIdx, responseTimeMs: responseTimeMs)
@@ -356,6 +380,17 @@ final class SimuladoViewModel {
                 let response = try await api.finishSimulado(attemptId: attemptId, timeTakenMs: ms)
                 state.result = response
                 state.error = nil
+
+                let percent = response.totalQ > 0
+                    ? Double(response.correctQ) / Double(response.totalQ)
+                    : 0.0
+                VitaPostHogConfig.capture(event: "simulado_submitted", properties: [
+                    "simulado_id": response.id,
+                    "correct_count": response.correctQ,
+                    "total_count": response.totalQ,
+                    "percent": percent,
+                    "seconds_elapsed": Int(ms / 1000),
+                ])
 
                 // Log simulado completion with study duration
                 let durationMinutes = Int(ms / 60_000)

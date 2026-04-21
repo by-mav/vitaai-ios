@@ -349,6 +349,12 @@ final class QBankViewModel {
                 state.elapsedSeconds = 0
                 state.activeScreen = .session
                 sessionStartDate = Date()
+                VitaPostHogConfig.capture(event: "qbank_session_started", properties: [
+                    "session_id": session.id,
+                    "question_count": session.questionIds.count,
+                    "disciplines_count": state.selectedDisciplineIds.count,
+                    "only_unanswered": state.onlyUnanswered,
+                ])
                 await loadCurrentQuestion()
             } catch {
                 state.error = "Erro ao criar sessão inteligente: \(error.localizedDescription)"
@@ -692,6 +698,12 @@ final class QBankViewModel {
                 state.elapsedSeconds = 0
                 state.activeScreen = .session
                 sessionStartDate = Date()
+                VitaPostHogConfig.capture(event: "qbank_session_started", properties: [
+                    "session_id": session.id,
+                    "question_count": session.questionIds.count,
+                    "disciplines_count": state.selectedDisciplineIds.count,
+                    "only_unanswered": state.onlyUnanswered,
+                ])
                 await loadCurrentQuestion()
             } catch {
                 let msg = "\(error)".contains("404") || "\(error)".contains("No questions")
@@ -762,6 +774,12 @@ final class QBankViewModel {
                 state.answerResult = result
                 state.sessionAnswers[question.id] = result
                 state.showFeedback = true
+                VitaPostHogConfig.capture(event: "qbank_question_answered", properties: [
+                    "question_id": question.id,
+                    "correct": result.isCorrect,
+                    "seconds_elapsed": Int(responseTimeMs / 1000),
+                    "session_id": state.session?.id ?? "",
+                ])
                 let action = result.isCorrect ? "question_answered" : "question_answered_wrong"
                 Task { [api, gamificationEvents] in
                     if let actResult = try? await api.logActivity(action: action) {
@@ -810,6 +828,13 @@ final class QBankViewModel {
         let correctCount = state.sessionAnswers.values.filter { $0.isCorrect }.count
         let totalAnswered = state.sessionAnswers.count
         let durationMinutes = Int(Date().timeIntervalSince(sessionStartDate) / 60)
+        VitaPostHogConfig.capture(event: "qbank_session_ended", properties: [
+            "session_id": session.id,
+            "answered_count": totalAnswered,
+            "correct_count": correctCount,
+            "total_count": session.questionIds.count,
+            "seconds_elapsed": Int(Date().timeIntervalSince(sessionStartDate)),
+        ])
 
         Task { [api, gamificationEvents] in
             // POST finish to backend

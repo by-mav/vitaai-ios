@@ -125,6 +125,11 @@ final class PortalConnectViewModel {
     // MARK: - Connect Mannesoft portal (server-side crawl)
 
     func connectMannesoft(cookie: String) {
+        let connectStart = Date()
+        VitaPostHogConfig.capture(event: "portal_connect_attempted", properties: [
+            "portal_type": "mannesoft",
+            "instance_url": instanceUrl,
+        ])
         Task {
             isConnecting = true
             isSyncing = true
@@ -164,12 +169,22 @@ final class PortalConnectViewModel {
                             mannesoftSyncDone = true
                             isConnected = true
                             isSyncing = false
+                            VitaPostHogConfig.capture(event: "portal_connect_succeeded", properties: [
+                                "portal_type": "mannesoft",
+                                "instance_url": instanceUrl,
+                                "seconds_elapsed": Int(Date().timeIntervalSince(connectStart)),
+                            ])
                             await loadStatus()
                             return
                         }
                         if progress.isError {
                             error = label
                             isSyncing = false
+                            VitaPostHogConfig.capture(event: "portal_connect_failed", properties: [
+                                "portal_type": "mannesoft",
+                                "instance_url": instanceUrl,
+                                "reason": label,
+                            ])
                             return
                         }
                     }
@@ -189,6 +204,11 @@ final class PortalConnectViewModel {
                 isConnecting = false
                 isSyncing = false
                 self.error = "Erro de conexão. Verifique sua internet."
+                VitaPostHogConfig.capture(event: "portal_connect_failed", properties: [
+                    "portal_type": "mannesoft",
+                    "instance_url": instanceUrl,
+                    "reason": error.localizedDescription,
+                ])
             }
         }
     }
@@ -217,6 +237,11 @@ final class PortalConnectViewModel {
     // MARK: - Connect Canvas (on-device orchestrator)
 
     func connectCanvas(cookies: String, instanceUrl: String) {
+        let canvasStart = Date()
+        VitaPostHogConfig.capture(event: "portal_connect_attempted", properties: [
+            "portal_type": "canvas",
+            "instance_url": instanceUrl,
+        ])
         syncTask?.cancel()
         syncTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -256,6 +281,13 @@ final class PortalConnectViewModel {
                     result.pdfExtracted.map { "\($0) PDFs processados" },
                 ].compactMap { $0 }.joined(separator: ", ")
                 self.successMessage = summary.isEmpty ? "Extracao completa!" : "Pronto! \(summary)"
+                VitaPostHogConfig.capture(event: "portal_connect_succeeded", properties: [
+                    "portal_type": "canvas",
+                    "instance_url": instanceUrl,
+                    "seconds_elapsed": Int(Date().timeIntervalSince(canvasStart)),
+                    "subjects_count": result.courses ?? 0,
+                    "evaluations_count": result.assignments ?? 0,
+                ])
                 await self.loadStatus()
             } catch is CancellationError {
                 // cancelled
@@ -263,6 +295,11 @@ final class PortalConnectViewModel {
                 self.isSyncing = false
                 self.canvasSyncPhase = .error
                 self.error = "Erro: \(error.localizedDescription)"
+                VitaPostHogConfig.capture(event: "portal_connect_failed", properties: [
+                    "portal_type": "canvas",
+                    "instance_url": instanceUrl,
+                    "reason": error.localizedDescription,
+                ])
             }
         }
     }
@@ -270,6 +307,11 @@ final class PortalConnectViewModel {
     // MARK: - Sync
 
     func sync() {
+        VitaPostHogConfig.capture(event: "portal_sync_triggered", properties: [
+            "portal_type": portalType,
+            "instance_url": instanceUrl,
+            "trigger": "manual",
+        ])
         Task {
             isSyncing = true
             error = nil

@@ -163,6 +163,12 @@ final class OnboardingViewModel {
             subjects: subjects,
             subjectDifficulties: subjectDifficulties
         )
+        VitaPostHogConfig.capture(event: "onboarding_completed", properties: [
+            "university_name": data.universityName,
+            "semester": data.semester,
+            "disciplines_count": subjects.count,
+            "portal_connected": !syncedSubjects.isEmpty,
+        ])
         await tokenStore.saveOnboardingData(data)
         await postOnboardingToBackend(data: data)
         isSaving = false
