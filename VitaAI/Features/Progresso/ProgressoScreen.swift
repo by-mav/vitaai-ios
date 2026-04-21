@@ -77,6 +77,12 @@ struct ProgressoScreen: View {
                 if !vm.subjects.isEmpty {
                     weakAreasSection(vm: vm)
                 }
+                if !vm.badges.isEmpty {
+                    achievementsSection(vm: vm)
+                }
+                if !vm.activity.isEmpty {
+                    activitySection(vm: vm)
+                }
                 leaderboardSection(vm: vm)
                 if !vm.heatmap.isEmpty {
                     heatmapSection(vm: vm)
@@ -87,113 +93,40 @@ struct ProgressoScreen: View {
         }
     }
 
-    // MARK: - Hero Card (XP ring + name + XP bar + streak)
+    // MARK: - Hero Card (unified with Dashboard/Faculdade style)
 
     private func heroCard(vm: ProgressoViewModel) -> some View {
         let level = vm.userProgress?.level ?? 1
         let currentXp = vm.userProgress?.currentLevelXp ?? vm.userProgress?.totalXp ?? 0
         let xpToNext = vm.userProgress?.xpToNextLevel ?? 100
         let totalXp = vm.userProgress?.totalXp ?? 0
+        let missing = max(xpToNext - currentXp, 0)
         let levelRatio = xpToNext > 0 ? Double(currentXp) / Double(xpToNext) : 0
 
-        return glassCard {
-            HStack(spacing: 16) {
-                // XP Ring
-                ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.06), lineWidth: 4)
-                        .frame(width: 72, height: 72)
+        let title = missing > 0
+            ? "Faltam \(missing) XP pra Nível \(level + 1)"
+            : "Pronto pra Nível \(level + 1)"
 
-                    Circle()
-                        .trim(from: 0, to: min(levelRatio, 1.0))
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 1.0, green: 0.784, blue: 0.392).opacity(0.90),
-                                    Color(red: 0.784, green: 0.588, blue: 0.235).opacity(0.70)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ),
-                            style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                        )
-                        .frame(width: 72, height: 72)
-                        .rotationEffect(.degrees(-90))
-                        .shadow(color: Color(red: 0.784, green: 0.627, blue: 0.314).opacity(0.20), radius: 6)
-
-                    Text("\(level)")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(goldMuted.opacity(0.95))
-                        .tracking(-0.5)
-
-                    // XP badge below ring
-                    Text("\(totalXp) XP")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(goldMuted.opacity(0.95))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            VitaColors.accent.opacity(0.35),
-                                            VitaColors.accentDark.opacity(0.25)
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(goldMuted.opacity(0.30), lineWidth: 1)
-                        )
-                        .offset(y: 40)
-                }
-                .frame(width: 72, height: 72)
-
-                // Info column
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(container.authManager.userName ?? "Estudante")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(textPrimary)
-                        .tracking(-0.3)
-
-                    Text("\(currentXp) / \(xpToNext) XP para nível \(level + 1)")
-                        .font(.system(size: 11))
-                        .foregroundStyle(textSec)
-
-                    // XP bar
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.white.opacity(0.06))
-                                .frame(height: 4)
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            VitaColors.accent.opacity(0.70),
-                                            goldPrimary.opacity(0.50)
-                                        ],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .frame(width: geo.size.width * min(levelRatio, 1.0), height: 4)
-                        }
-                    }
-                    .frame(height: 4)
-                    .padding(.top, 6)
-
-                    // Streak dots
-                    streakRow(vm: vm)
-                        .padding(.top, 10)
-                }
-            }
-            .padding(14)
+        var stats: [(text: String, icon: String?)] = [
+            ("\(totalXp) XP total", nil)
+        ]
+        if vm.streakDays > 0 {
+            stats.append(("\(vm.streakDays) \(vm.streakDays == 1 ? "dia" : "dias") seguidos", nil))
         }
+        if vm.totalQuestions > 0 {
+            stats.append(("\(vm.totalQuestions) respondidas", nil))
+        }
+
+        return VitaHeroCard(
+            label: "NÍVEL \(level)",
+            title: title,
+            subtitle: "\(currentXp) de \(xpToNext) XP",
+            progress: levelRatio,
+            stats: stats,
+            cta: "Ver ranking",
+            bgImage: "fundo-dashboard",
+            action: { /* scroll to leaderboard — no-op for now */ }
+        )
     }
 
     // MARK: - Empty-state helpers
@@ -206,37 +139,116 @@ struct ProgressoScreen: View {
         vm.weeklyActualHours > 0 || vm.weeklyHours.contains(where: { $0 > 0 })
     }
 
-    // MARK: - Streak Row
+    // MARK: - Achievements (Conquistas) — grid com inicial do badge, sem SF Symbol decorativo
 
-    private func streakRow(vm: ProgressoViewModel) -> some View {
-        let labels = ["S", "T", "Q", "Q", "S", "S", "D"]
-        let calendar = Calendar.current
-        // weekday: 1=Sunday, convert to 0=Monday index
-        let rawWeekday = calendar.component(.weekday, from: Date())
-        let todayIdx = (rawWeekday + 5) % 7 // Mon=0, Tue=1, ..., Sun=6
+    private func achievementsSection(vm: ProgressoViewModel) -> some View {
+        let unlocked = vm.badges.filter(\.unlocked)
+        return VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Conquistas \(unlocked.count)/\(vm.badges.count)")
 
-        return HStack(spacing: 4) {
-            ForEach(0..<7, id: \.self) { idx in
-                let isOn = idx < min(vm.streakDays, todayIdx)
-                let isNow = idx == todayIdx
-                streakDay(labels[idx], isOn: isOn, isNow: isNow)
+            glassCard {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4),
+                    spacing: 10
+                ) {
+                    ForEach(vm.badges.prefix(8)) { badge in
+                        badgeTile(badge)
+                    }
+                }
+                .padding(14)
             }
         }
     }
 
-    private func streakDay(_ label: String, isOn: Bool, isNow: Bool) -> some View {
-        let fgColor: Color = isNow ? goldMuted.opacity(0.95) : isOn ? goldMuted.opacity(0.90) : VitaColors.textWarm.opacity(0.25)
-        let bgColor: Color = isNow ? VitaColors.glassInnerLight.opacity(0.25) : isOn ? VitaColors.glassInnerLight.opacity(0.12) : Color.white.opacity(0.02)
-        let borderColor: Color = isNow ? goldPrimary.opacity(0.30) : isOn ? goldPrimary.opacity(0.18) : VitaColors.textWarm.opacity(0.04)
-        let shadowColor: Color = isNow ? VitaColors.glassInnerLight.opacity(0.15) : .clear
+    private func badgeTile(_ badge: BadgeWithStatus) -> some View {
+        let initial = String(badge.name.prefix(2)).uppercased()
+        let color: Color = badge.unlocked ? goldMuted.opacity(0.90) : VitaColors.textWarm.opacity(0.25)
+        return VStack(spacing: 6) {
+            Text(initial)
+                .font(.system(size: 13, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(color)
+                .frame(width: 48, height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(
+                            badge.unlocked
+                                ? VitaColors.glassInnerLight.opacity(0.18)
+                                : Color.white.opacity(0.02)
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(
+                            badge.unlocked
+                                ? goldPrimary.opacity(0.22)
+                                : VitaColors.textWarm.opacity(0.05),
+                            lineWidth: 1
+                        )
+                )
 
-        return Text(label)
-            .font(.system(size: 9, weight: .bold))
-            .foregroundStyle(fgColor)
-            .frame(width: 28, height: 28)
-            .background(RoundedRectangle(cornerRadius: 8).fill(bgColor))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(borderColor, lineWidth: 1))
-            .shadow(color: shadowColor, radius: 4)
+            Text(badge.name)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    // MARK: - Activity Feed — última atividade real do usuário
+
+    private func activitySection(vm: ProgressoViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Atividade recente")
+
+            glassCard {
+                VStack(spacing: 0) {
+                    ForEach(Array(vm.activity.prefix(5).enumerated()), id: \.offset) { idx, item in
+                        activityRow(item)
+                        if idx < min(vm.activity.count, 5) - 1 {
+                            dividerLine
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func activityRow(_ item: ActivityFeedItem) -> some View {
+        HStack(spacing: 12) {
+            Text(item.action)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.80))
+                .lineLimit(1)
+
+            Spacer()
+
+            if item.xpAwarded > 0 {
+                Text("+\(item.xpAwarded) XP")
+                    .font(.system(size: 11, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(goldMuted.opacity(0.75))
+            }
+
+            Text(relativeTime(from: item.createdAt))
+                .font(.system(size: 10))
+                .foregroundStyle(VitaColors.textWarm.opacity(0.40))
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private func relativeTime(from iso: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = formatter.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
+        guard let date else { return "" }
+        let seconds = Date().timeIntervalSince(date)
+        if seconds < 60 { return "agora" }
+        if seconds < 3600 { return "\(Int(seconds/60))min" }
+        if seconds < 86400 { return "\(Int(seconds/3600))h" }
+        return "\(Int(seconds/86400))d"
     }
 
     // MARK: - Stats Grid 2x2

@@ -33,6 +33,12 @@ final class ProgressoViewModel {
     // Leaderboard
     var leaderboard: [LeaderboardEntry] = []
 
+    // Achievements (badges)
+    var badges: [BadgeWithStatus] = []
+
+    // Activity feed (recent XP-earning actions)
+    var activity: [ActivityFeedItem] = []
+
     var myLeaderboardEntry: LeaderboardEntry? {
         leaderboard.first(where: { $0.isMe })
     }
@@ -113,6 +119,21 @@ final class ProgressoViewModel {
         // Load leaderboard
         await loadLeaderboard(period: leaderboardPeriod)
         if !leaderboard.isEmpty { anySuccess = true }
+
+        // Load achievements + recent activity (independent, partial success OK)
+        do {
+            badges = try await api.getAchievements()
+            if !badges.isEmpty { anySuccess = true }
+        } catch {
+            print("[PROGRESSO] getAchievements failed: \(error)")
+        }
+
+        do {
+            activity = try await api.getActivityFeed(limit: 8, offset: 0)
+            if !activity.isEmpty { anySuccess = true }
+        } catch {
+            print("[PROGRESSO] getActivityFeed failed: \(error)")
+        }
 
         if !anySuccess {
             self.error = "Não foi possível carregar os dados de progresso."
