@@ -1,4 +1,5 @@
 import SwiftUI
+import Sentry
 
 // Stub type for portal page capture (used by SilentPortalSync)
 struct CapturedPortalPage {
@@ -83,7 +84,10 @@ struct ConnectionsScreen: View {
             if vm == nil {
                 let viewModel = ConnectorsViewModel(api: container.api, dataManager: container.dataManager)
                 vm = viewModel
-                Task { await viewModel.loadAll() }
+                Task {
+                    await viewModel.loadAll()
+                    SentrySDK.reportFullyDisplayed()
+                }
             }
         }
         .task(id: "refresh-timer") {
@@ -854,7 +858,7 @@ struct ConnectionsScreen: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
         }
-        .background(VitaColors.surface.ignoresSafeArea())
+        .background(Color.clear)
     }
 
     // MARK: - Sheet Content
