@@ -7,6 +7,8 @@ import SwiftUI
 struct DashboardScreen: View {
     @Environment(\.appContainer) private var container
     @Environment(\.appData) private var appData
+    // ViewModel lives in AppContainer (singleton) so cache persists across
+    // tab navigations. Reassigned in .onAppear from container.dashboardViewModel.
     @State private var viewModel: DashboardViewModel?
     // XP toasts now shown inline in VitaTopBar
 
@@ -57,22 +59,19 @@ struct DashboardScreen: View {
             // Silent sync on every dashboard appear (returns from portal connect, tab switch, etc.)
             SilentPortalSync.shared.syncIfNeeded(api: container.api)
 
+            // Reuse the singleton VM from AppContainer so cached hero/subjects
+            // survive tab switches. loadDashboard() is SWR: renders cache
+            // instantly if <60s old, refreshes silently in background.
             if viewModel == nil {
-                viewModel = DashboardViewModel(api: container.api, dataManager: container.dataManager)
-                Task {
-                    // Close TTFD as soon as the dashboard's own data (getDashboard + getProgress)
-                    // is ready — the screen is *usable* at this point. AppDataManager.loadIfNeeded
-                    // hydrates in background (6 requests including -45d..+90d agenda and
-                    // -14d..+60d study events) without blocking perceived load time.
-                    // Before this change Dashboard P50 was 7.47s because TTFD waited on the
-                    // slowest of 7 parallel requests. See incidents/vitaai/2026-04-20_dashboard-ttfd-7s-diagnosis.md.
-                    await viewModel!.loadDashboard()
-                    ScreenLoadContext.finish(for: "Dashboard")
-                    if let sub = viewModel?.subtitle, !sub.isEmpty {
-                        onSubtitleLoaded?(sub)
-                    }
-                    await appData.loadIfNeeded()
+                viewModel = container.dashboardViewModel
+            }
+            Task {
+                await viewModel!.loadDashboard()
+                ScreenLoadContext.finish(for: "Dashboard")
+                if let sub = viewModel?.subtitle, !sub.isEmpty {
+                    onSubtitleLoaded?(sub)
                 }
+                await appData.loadIfNeeded()
             }
             // Silent background sync — keeps Mannesoft/Canvas data fresh
             SilentPortalSync.shared.syncIfNeeded(api: container.api)

@@ -20,6 +20,16 @@ final class AppContainer: ObservableObject {
     let dataManager: AppDataManager
     let studyOverviewStore: StudyOverviewStore
 
+    // Singleton DashboardViewModel so cache persists across tab navigations.
+    // Before: DashboardScreen owned @State var viewModel; when the tab lost
+    // focus SwiftUI tore the View down and the VM went to nil, forcing a
+    // full re-fetch on next return. Now the VM lives in AppContainer and the
+    // screen reads it via @Environment — SWR cache (60s TTL) renders
+    // instantly on return.
+    lazy var dashboardViewModel: DashboardViewModel = {
+        DashboardViewModel(api: api, dataManager: dataManager)
+    }()
+
     // MARK: - Billing / Subscription
     let subscriptionStatus: SubscriptionStatusProvider
 

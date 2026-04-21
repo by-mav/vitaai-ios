@@ -21,40 +21,60 @@ final class DashboardViewModel {
     var isLoading = true
     var error: String?
 
+    /// Stale-while-revalidate cache: keep last-load timestamp. If the view
+    /// reappears within TTL, render the stale data immediately (isLoading=false)
+    /// and refresh in background. Feels instant when user bounces between tabs.
+    private var lastLoadedAt: Date?
+    private static let cacheTTL: TimeInterval = 60  // seconds — aggressive refresh
+
     init(api: VitaAPI, dataManager: AppDataManager? = nil) {
         self.api = api
         self.dataManager = dataManager
     }
 
     func loadDashboard() async {
-        isLoading = true
+        // Cache hit: already have data and it is fresh. Render instantly,
+        // refresh silently in background.
+        if let last = lastLoadedAt, !heroCards.isEmpty,
+           Date().timeIntervalSince(last) < Self.cacheTTL {
+            isLoading = false
+            Task { [weak self] in await self?.fetchAndApply(silent: true) }
+            return
+        }
+        // Cold start or stale beyond TTL — full refresh with spinner.
+        await fetchAndApply(silent: false)
+    }
+
+    /// Pull-to-refresh: force fetch even if cache is warm.
+    func refresh() async {
+        await fetchAndApply(silent: false)
+    }
+
+    private func fetchAndApply(silent: Bool) async {
+        if !silent { isLoading = true }
         error = nil
 
-        // Load dashboard (greeting, exams, subjects, agenda)
-        do {
-            let resp = try await api.getDashboard()
+        async let dashTask: DashboardResponse? = try? api.getDashboard()
+        async let progressTask: ProgressResponse? = try? api.getProgress()
+        let (dashResp, progressResp) = await (dashTask, progressTask)
+
+        if let resp = dashResp {
             NSLog("[Dashboard] loaded hero=\(resp.hero?.count ?? 0) subjects=\(resp.subjects?.count ?? 0)")
             apply(dashboard: resp)
-        } catch {
-            NSLog("[Dashboard] getDashboard FAILED: \(error)")
+            lastLoadedAt = Date()
+        } else if !silent {
+            NSLog("[Dashboard] getDashboard FAILED")
         }
 
-        // Load progress data (subjects, exams, flashcards)
-        do {
-            let progress = try await api.getProgress()
+        if let progress = progressResp {
             apply(progress: progress, preserveExistingSubjects: true)
-        } catch {
-            // Silently continue — dashboard data may be enough
         }
-
-        // NOTE: vitaScore is now computed server-side in /api/dashboard.
-        // Clients just read `subject.vitaScore` — DO NOT recompute here.
 
         if subjects.isEmpty && upcomingExams.isEmpty && greeting.isEmpty {
             self.error = "Não foi possível carregar o dashboard."
         }
 
-        isLoading = false
+        if !silent { isLoading = false }
     }
 
     private func apply(dashboard: DashboardResponse) {

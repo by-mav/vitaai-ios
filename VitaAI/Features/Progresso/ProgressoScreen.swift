@@ -68,8 +68,12 @@ struct ProgressoScreen: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 14) {
                 heroCard(vm: vm)
-                statsGrid(vm: vm)
-                weeklyChart(vm: vm)
+                if hasAnyStats(vm: vm) {
+                    statsGrid(vm: vm)
+                }
+                if hasWeeklyData(vm: vm) {
+                    weeklyChart(vm: vm)
+                }
                 if !vm.subjects.isEmpty {
                     weakAreasSection(vm: vm)
                 }
@@ -188,8 +192,18 @@ struct ProgressoScreen: View {
                         .padding(.top, 10)
                 }
             }
-            .padding(18)
+            .padding(14)
         }
+    }
+
+    // MARK: - Empty-state helpers
+
+    private func hasAnyStats(vm: ProgressoViewModel) -> Bool {
+        vm.streakDays > 0 || vm.totalStudyHours > 0 || vm.avgAccuracy > 0 || vm.totalQuestions > 0
+    }
+
+    private func hasWeeklyData(vm: ProgressoViewModel) -> Bool {
+        vm.weeklyActualHours > 0 || vm.weeklyHours.contains(where: { $0 > 0 })
     }
 
     // MARK: - Streak Row
@@ -232,61 +246,40 @@ struct ProgressoScreen: View {
             ? "\(Int(vm.totalStudyHours * 60))min"
             : String(format: "%.0fh", vm.totalStudyHours)
         let accuracyText = "\(Int(vm.avgAccuracy * 100))%"
-        let flashcardsText = "\(vm.totalQuestions)" // totalAnswered from API
+        let flashcardsText = "\(vm.totalQuestions)"
+
+        let items: [(String, String, Color, Bool)] = [
+            ("\(vm.streakDays)", "Dias streak", goldMuted.opacity(0.90), vm.streakDays > 0),
+            (studyHoursText, "Estudo total", goldMuted.opacity(0.90), vm.totalStudyHours > 0),
+            (accuracyText, "Acerto médio", greenStat.opacity(0.85), vm.avgAccuracy > 0),
+            (flashcardsText, "Respondidas", goldMuted.opacity(0.90), vm.totalQuestions > 0)
+        ].filter { $0.3 }
 
         return LazyVGrid(
             columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
             spacing: 8
         ) {
-            statCard(icon: "chart.bar.fill", value: "\(vm.streakDays)", label: "Dias streak",
-                     valueColor: goldMuted.opacity(0.90))
-            statCard(icon: "clock.fill", value: studyHoursText, label: "Estudo total",
-                     valueColor: goldMuted.opacity(0.90))
-            statCard(icon: "checkmark.square.fill", value: accuracyText, label: "Acerto medio",
-                     valueColor: greenStat.opacity(0.85))
-            statCard(icon: "text.badge.checkmark", value: flashcardsText, label: "Respondidas",
-                     valueColor: goldMuted.opacity(0.90))
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                statCard(value: item.0, label: item.1, valueColor: item.2)
+            }
         }
     }
 
-    private func statCard(icon: String, value: String, label: String, valueColor: Color) -> some View {
+    private func statCard(value: String, label: String, valueColor: Color) -> some View {
         glassCard {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundStyle(VitaColors.accentLight.opacity(0.85))
-                    .frame(width: 36, height: 36)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        VitaColors.glassInnerLight.opacity(0.25),
-                                        VitaColors.accentDark.opacity(0.10)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(goldPrimary.opacity(0.14), lineWidth: 1)
-                    )
-                    .shadow(color: Color.black.opacity(0.25), radius: 5)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(value)
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(valueColor)
-                        .tracking(-0.3)
-                    Text(label)
-                        .font(.system(size: 9))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.35))
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(value)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(valueColor)
+                    .tracking(-0.3)
+                    .monospacedDigit()
+                Text(label)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(VitaColors.sectionLabel)
+                    .textCase(.uppercase)
+                    .kerning(0.8)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
         }
     }
@@ -526,6 +519,8 @@ struct ProgressoScreen: View {
     private func lbTab(_ text: String, index: Int) -> some View {
         Button {
             selectedLeaderboardTab = index
+            let period = ["weekly", "monthly", "total"][index]
+            Task { await vm?.loadLeaderboard(period: period) }
         } label: {
             Text(text)
                 .font(.system(size: 10, weight: .bold))
@@ -637,24 +632,14 @@ struct ProgressoScreen: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(VitaColors.textWarm.opacity(0.40))
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(VitaColors.sectionLabel)
             .textCase(.uppercase)
-            .tracking(0.8)
+            .kerning(0.8)
     }
 
     private func glassCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(glassBg)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(glassBorder, lineWidth: 0.5)
-            )
-            .shadow(color: .black.opacity(0.40), radius: 20, y: 8)
+        VitaGlassCard(cornerRadius: 16) { content() }
     }
 
     private func rankColorForPosition(_ rank: Int) -> Color {

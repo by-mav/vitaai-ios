@@ -111,16 +111,24 @@ final class ProgressoViewModel {
         }
 
         // Load leaderboard
-        do {
-            leaderboard = try await api.getLeaderboard(period: "weekly", limit: 10)
-            anySuccess = true
-        } catch {
-            print("[PROGRESSO] getLeaderboard failed: \(error)")
-        }
+        await loadLeaderboard(period: leaderboardPeriod)
+        if !leaderboard.isEmpty { anySuccess = true }
 
         if !anySuccess {
             self.error = "Não foi possível carregar os dados de progresso."
         }
         isLoading = false
+    }
+
+    // Selected leaderboard period (weekly/monthly/total). UI binds to this.
+    var leaderboardPeriod: String = "weekly"
+
+    func loadLeaderboard(period: String) async {
+        leaderboardPeriod = period
+        do {
+            leaderboard = try await api.getLeaderboard(period: period, limit: 10)
+        } catch {
+            print("[PROGRESSO] getLeaderboard(\(period)) failed: \(error)")
+        }
     }
 }
