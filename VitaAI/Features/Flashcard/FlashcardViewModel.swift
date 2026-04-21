@@ -421,10 +421,13 @@ final class FlashcardViewModel {
     // MARK: - API fetch with domain mapping
 
     private func fetchDeck(deckId: String, tagFilter: String? = nil) async throws -> FlashcardDeck {
-        // When filtering by tag, request all matching cards (no server-side limit)
+        // When filtering by tag, request all matching cards (no server-side limit).
+        // deckLimit=1000 so we can find ANY user deck, not just the 100 most
+        // recently updated (Rafael had 534 decks; clicking an older FARMACOLOGIA
+        // deck threw URLError.resourceUnavailable because it was past the top 100).
         let limit = tagFilter != nil ? 9999 : nil
-        async let allTask = api.getFlashcardDecks(tag: tagFilter, cardsLimit: limit)
-        async let dueTask = api.getFlashcardDecks(dueOnly: true, tag: tagFilter, cardsLimit: limit)
+        async let allTask = api.getFlashcardDecks(tag: tagFilter, cardsLimit: limit, deckLimit: 1000)
+        async let dueTask = api.getFlashcardDecks(dueOnly: true, tag: tagFilter, cardsLimit: limit, deckLimit: 1000)
         let (allDecks, dueDecks) = try await (allTask, dueTask)
 
         guard let deck = allDecks.first(where: { $0.id == deckId }) else {
