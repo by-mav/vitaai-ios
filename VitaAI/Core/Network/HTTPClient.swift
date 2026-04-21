@@ -142,9 +142,69 @@ actor HTTPClient {
 
     // MARK: - Convenience
 
+    /// In-flight GET coalescing. When two screens ask for the same URL
+    /// at the same time, only the FIRST request actually hits the server
+    /// and the second one awaits the same Task. Released when the task
+    /// finishes. Before this, Rafael navigating Dashboard → Flashcards
+    /// caused 3× identical GET /api/study/flashcards in a 4-second window
+    /// (EstudosViewModel + FlashcardsListScreen + AppDataManager triggers)
+    /// which pushed backend tail latency to 11s under contention.
+    ///
+    /// Only applies to GET (mutation responses can't be coalesced safely).
+    private var inFlightGets: [String: Task<Data, Error>] = [:]
+
     func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem]? = nil) async throws -> T {
         NSLog("[HTTPClient] GET %@ (type: %@)", path, String(describing: T.self))
-        return try await request("GET", path: path, queryItems: queryItems)
+
+        // Build the same URL the request() helper would.
+        guard var components = URLComponents(string: AppConfig.apiBaseURL + "/" + path) else {
+            throw APIError.invalidURL
+        }
+        if let queryItems, !queryItems.isEmpty { components.queryItems = queryItems }
+        guard let url = components.url else { throw APIError.invalidURL }
+        let key = "GET \(url.absoluteString)"
+
+        // If an identical GET is already in flight, await its Data and decode locally.
+        if let existing = inFlightGets[key] {
+            NSLog("[HTTPClient] COALESCED GET %@", path)
+            let data = try await existing.value
+            do {
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                throw APIError.decodingError(error)
+            }
+        }
+
+        // First request — spawn the network Task, stash it, release on completion.
+        let task = Task<Data, Error> { [weak self] in
+            guard let self else { throw APIError.invalidURL }
+            let (data, _) = try await self.performWithRetry {
+                var req = URLRequest(url: url)
+                req.httpMethod = "GET"
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                if let token = await self.tokenStore.token {
+                    req.setValue("\(AppConfig.sessionCookieName)=\(token)", forHTTPHeaderField: "Cookie")
+                    req.setValue(token, forHTTPHeaderField: "X-Extension-Token")
+                }
+                if let forwardedHost = AppConfig.localForwardedHostHeader {
+                    req.setValue(forwardedHost, forHTTPHeaderField: "x-forwarded-host")
+                }
+                let traceId = UUID().uuidString.prefix(8).lowercased()
+                req.setValue(String(traceId), forHTTPHeaderField: "X-Trace-Id")
+                return req
+            }
+            return data
+        }
+        inFlightGets[key] = task
+        defer { inFlightGets[key] = nil }
+
+        let data = try await task.value
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            NSLog("[HTTPClient] DECODE FAILED for %@: %@", String(describing: T.self), "\(error)")
+            throw APIError.decodingError(error)
+        }
     }
 
     func post<T: Decodable>(_ path: String, body: (any Encodable)? = nil, timeoutInterval: TimeInterval? = nil) async throws -> T {
