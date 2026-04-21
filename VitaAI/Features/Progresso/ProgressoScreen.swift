@@ -118,13 +118,13 @@ struct ProgressoScreen: View {
                         .shadow(color: Color(red: 0.784, green: 0.627, blue: 0.314).opacity(0.20), radius: 6)
 
                     Text("\(level)")
-                        .font(.system(size: 22, weight: .heavy))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(goldMuted.opacity(0.95))
                         .tracking(-0.5)
 
                     // XP badge below ring
                     Text("\(totalXp) XP")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(goldMuted.opacity(0.95))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -152,7 +152,7 @@ struct ProgressoScreen: View {
                 // Info column
                 VStack(alignment: .leading, spacing: 2) {
                     Text(container.authManager.userName ?? "Estudante")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(textPrimary)
                         .tracking(-0.3)
 
@@ -357,7 +357,7 @@ struct ProgressoScreen: View {
             .shadow(color: isToday ? VitaColors.accent.opacity(0.18) : .clear, radius: 6, y: -2)
 
             Text(label)
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(isToday ? goldMuted.opacity(0.70) : VitaColors.textWarm.opacity(0.28))
         }
         .frame(maxWidth: .infinity)
@@ -498,7 +498,7 @@ struct ProgressoScreen: View {
 
                             HStack {
                                 Text("SUA POSICAO")
-                                    .font(.system(size: 8, weight: .bold))
+                                    .font(.system(size: 10, weight: .bold))
                                     .foregroundStyle(VitaColors.textWarm.opacity(0.25))
                                     .tracking(0.5)
                                 Spacer()
@@ -560,7 +560,7 @@ struct ProgressoScreen: View {
     private func lbRow(rank: Int, initials: String, name: String, xp: String, rankColor: Color, avatarBg: Color, isMe: Bool = false) -> some View {
         HStack(spacing: 10) {
             Text("\(rank)")
-                .font(.system(size: 13, weight: .heavy))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(rankColor)
                 .frame(width: 22)
 

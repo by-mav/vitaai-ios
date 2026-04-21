@@ -181,8 +181,8 @@ struct MateriasAgendaWidget: View {
                     Text("AS").frame(width: 34, alignment: .center)
                     Text("FREQ").frame(width: 40, alignment: .center)
                 }
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(textWarm.opacity(0.35))
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(textWarm.opacity(0.60))
                 .kerning(0.3)
                 .padding(.horizontal, 8)
 

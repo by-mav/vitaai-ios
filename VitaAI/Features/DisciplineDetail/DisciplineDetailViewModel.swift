@@ -123,12 +123,21 @@ final class DisciplineDetailViewModel {
     var subjectDecks: [FlashcardDeckEntry] {
         flashcardDecks.filter { deck in
             if let sid = deck.subjectId, sid == disciplineId { return true }
+            // Also match by disciplineSlug (auto-seeded decks have subjectId=null).
+            if let slug = deck.disciplineSlug,
+               let enrolled = dataManager?.enrolledDisciplines.first(where: { $0.id == disciplineId }),
+               enrolled.disciplineSlug == slug {
+                return true
+            }
             return matchesDiscipline(deck.title)
         }
     }
 
+    /// Uses server-computed dueCount (summary=true path). Fallback to manual
+    /// card filter kept for the full-path cases that still hydrate cards[].
     var flashcardsDue: Int {
         subjectDecks.reduce(0) { total, deck in
+            if let due = deck.dueCount { return total + due }
             let due = deck.cards.filter { card in
                 guard let next = card.nextReviewAt,
                       let date = ISO8601DateFormatter().date(from: next) else {
@@ -140,8 +149,10 @@ final class DisciplineDetailViewModel {
         }
     }
 
+    /// cardCount prefers server totalCards over cards.count (both present in
+    /// the model). summary=true populates totalCards; full path has cards[].
     var flashcardsTotal: Int {
-        subjectDecks.reduce(0) { $0 + $1.cards.count }
+        subjectDecks.reduce(0) { $0 + $1.cardCount }
     }
 
     // MARK: - Computed: trabalhos
@@ -214,7 +225,11 @@ final class DisciplineDetailViewModel {
         async let progressTask: ProgressResponse? = try? api.getProgress()
         async let gradesTask: GradesCurrentResponse? = cachedGrades != nil ? cachedGrades : (try? api.getGradesCurrent())
         async let examsTask: ExamsResponse? = try? api.getExams()
-        async let decksTask: [FlashcardDeckEntry]? = try? api.getFlashcardDecks()
+        // summary=true: metadata + totalCards + dueCount only, no cards[] array.
+        // Drops payload from ~5.6MB to 182KB and removes one of the biggest
+        // contributors to DisciplineDetail TTFD. See
+        // incidents/vitaai/2026-04-21_flashcards-list-slow-duplicate-requests.md
+        async let decksTask: [FlashcardDeckEntry]? = try? api.getFlashcardDecks(deckLimit: 1000, summary: true)
         // Filter by subjectId server-side — was nil (all user docs, 100s of MB of PDFs).
         // This endpoint's payload was the #1 DisciplineDetail TTFD bottleneck.
         async let docsTask: [VitaDocument]? = try? api.getDocuments(subjectId: disciplineId)

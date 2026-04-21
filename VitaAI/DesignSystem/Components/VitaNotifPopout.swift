@@ -152,7 +152,7 @@ struct VitaNotifPopout: View {
 
     /// Height for ~5 visible notification rows
     private var notifListHeight: CGFloat {
-        let rowHeight: CGFloat = 62
+        let rowHeight: CGFloat = 70
         let visibleCount = min(notifications.count, 5)
         return CGFloat(visibleCount) * rowHeight + 16
     }
@@ -178,13 +178,13 @@ struct VitaNotifPopout: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(item.read ? Color.white.opacity(0.50) : Color.white.opacity(0.88))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(item.read ? Color.white.opacity(0.60) : Color.white.opacity(0.92))
                     .lineLimit(1)
 
                 Text(item.description)
-                    .font(.system(size: 10))
-                    .foregroundStyle(VitaColors.textWarm.opacity(item.read ? 0.20 : 0.35))
+                    .font(.system(size: 12))
+                    .foregroundStyle(VitaColors.textWarm.opacity(item.read ? 0.55 : 0.78))
                     .lineLimit(2)
             }
 

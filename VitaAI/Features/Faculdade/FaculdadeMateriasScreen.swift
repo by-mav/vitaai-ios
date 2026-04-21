@@ -183,9 +183,9 @@ struct FaculdadeMateriasScreen: View {
         HStack(spacing: 4) {
             ForEach(Array(columns.enumerated()), id: \.offset) { _, col in
                 Text(col.0)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .textCase(.uppercase)
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.65))
                     .frame(maxWidth: col.2 == 1.0 ? .infinity : nil, alignment: col.1 == .leading ? .leading : .center)
                     .frame(width: col.2 < 1.0 ? 48 : nil)
             }
