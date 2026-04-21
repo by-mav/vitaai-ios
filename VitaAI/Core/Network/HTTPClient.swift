@@ -20,8 +20,57 @@ actor HTTPClient {
         self.tokenRefresher = TokenRefresher(tokenStore: tokenStore)
         self.decoder = JSONDecoder()
         self.decoder.keyDecodingStrategy = .convertFromSnakeCase
-        self.decoder.dateDecodingStrategy = .iso8601
+        // Permissive date decoder: accepts ISO8601 (with or without fractional
+        // seconds), Postgres-style "2026-04-13 17:56:11.365+00", and bare dates.
+        // Before this, a single endpoint (e.g. /api/study/overview returning
+        // lastReviewAt in Postgres format) would throw DecodingError.dataCorrupted
+        // and silently null out the entire StudyOverviewResponse — that is why
+        // the Flashcards hero was stuck at 0 even after the hydrate fix.
+        self.decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+
+            // Fast paths
+            if let d = HTTPClient.iso8601Fractional.date(from: raw) { return d }
+            if let d = HTTPClient.iso8601Plain.date(from: raw) { return d }
+
+            // Postgres-style "YYYY-MM-DD HH:MM:SS[.frac][+00]" — normalize to ISO
+            var normalized = raw.replacingOccurrences(of: " ", with: "T")
+            if normalized.hasSuffix("+00") { normalized += ":00" }
+            else if normalized.hasSuffix("-00") { normalized += ":00" }
+            if let d = HTTPClient.iso8601Fractional.date(from: normalized) { return d }
+            if let d = HTTPClient.iso8601Plain.date(from: normalized) { return d }
+
+            // Bare date "YYYY-MM-DD"
+            if let d = HTTPClient.dateOnly.date(from: raw) { return d }
+
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Cannot decode date: \(raw)"
+            )
+        }
     }
+
+    private static let iso8601Fractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private static let iso8601Plain: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    private static let dateOnly: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 
     func setOnUnauthorized(_ handler: @escaping @Sendable @MainActor () -> Void) {
         self.onUnauthorized = handler
