@@ -33,8 +33,6 @@ struct ConnectorCard: View {
     // State-derived colors
     private var dotColor: Color {
         switch status {
-        case .connected where isStale:
-            return VitaColors.dataAmber.opacity(0.75)
         case .connected:
             return Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.75)
         case .expired:
@@ -46,8 +44,6 @@ struct ConnectorCard: View {
 
     private var dotGlow: Color {
         switch status {
-        case .connected where isStale:
-            return VitaColors.dataAmber.opacity(0.30)
         case .connected:
             return Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.30)
         case .expired:
@@ -145,7 +141,6 @@ struct ConnectorCard: View {
 
     private var statusLabelColor: Color {
         switch status {
-        case .connected where isStale: VitaColors.dataAmber.opacity(0.65)
         case .connected: Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.65)
         case .expired: Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.65)
         default: isPrimary ? color.opacity(0.8) : goldSubtle.opacity(0.35)
@@ -229,24 +224,21 @@ struct ConnectorCard: View {
 
     private var syncTextColor: Color {
         if status == .expired { return VitaColors.dataAmber.opacity(0.75) }
-        if isStale { return VitaColors.dataAmber.opacity(0.70) }
         return Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55)
     }
 
     private var syncIconName: String {
-        (status == .expired || isStale) ? "exclamationmark.triangle.fill" : "clock"
+        status == .expired ? "exclamationmark.triangle.fill" : "clock"
     }
 
     private var syncIconColor: Color {
-        (status == .expired || isStale)
+        status == .expired
             ? VitaColors.dataAmber.opacity(0.50)
             : goldSubtle.opacity(0.25)
     }
 
     private var syncPrefix: String {
-        if status == .expired { return "Expirado · dados " }
-        if isStale { return "Dados " }
-        return ""
+        status == .expired ? "Expirado · dados " : ""
     }
 
     private var metaRow: some View {
