@@ -110,22 +110,24 @@ struct VitaNotifPopout: View {
             if notifications.isEmpty {
                 emptyState
             } else {
-                ScrollView(.vertical) {
-                    VStack(spacing: 3) {
-                        ForEach(notifications) { item in
-                            Button {
-                                tapNotification(item)
-                            } label: {
-                                notifRow(item)
-                            }
-                            .buttonStyle(NotifButtonStyle())
+                List {
+                    ForEach(notifications) { item in
+                        Button {
+                            tapNotification(item)
+                        } label: {
+                            notifRow(item)
                         }
+                        .buttonStyle(NotifButtonStyle())
+                        .listRowInsets(EdgeInsets(top: 1.5, leading: 8, bottom: 1.5, trailing: 8))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 8)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .scrollIndicators(.visible)
                 .frame(maxHeight: notifListHeight)
+                .refreshable { await refresh() }
             }
         }
         .frame(width: UIScreen.main.bounds.width * 0.78)
@@ -239,6 +241,12 @@ struct VitaNotifPopout: View {
     }
 
     // MARK: - Actions
+
+    /// Pull-to-refresh: force backend GET /notifications (bypasses cache).
+    private func refresh() async {
+        await PushManager.shared.refreshUnreadCount()
+        notifications = pushManager.cachedNotifications
+    }
 
     private func tapNotification(_ item: VitaNotification) {
         if !item.read {
