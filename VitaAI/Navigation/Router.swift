@@ -58,6 +58,7 @@ final class Router {
             "/study/grades": (.faculdade, .faculdadeMaterias),
             "/study/flashcards": (.estudos, .flashcardHome()),
             "/study/trabalhos": (.faculdade, .trabalhos),
+            "/study/provas": (.faculdade, .provas),
             "/materiais": (.faculdade, .faculdadeDocumentos),
             "/planner": (.estudos, .planner),
             "/faculdade": (.faculdade, nil),

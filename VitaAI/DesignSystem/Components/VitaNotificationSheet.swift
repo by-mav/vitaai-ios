@@ -18,6 +18,8 @@ struct VitaNotification: Identifiable, Decodable {
         switch type {
         case "gradePosted": return "\u{1F4CA}"
         case "examAlert", "exam": return "\u{1F4DD}"
+        case "assignment": return "\u{1F4CB}"
+        case "seminar": return "\u{1F399}\u{FE0F}"
         case "attendanceAlert": return "\u{26A0}\u{FE0F}"
         case "newMaterial": return "\u{1F4DA}"
         case "badge": return "\u{1F3C6}"
