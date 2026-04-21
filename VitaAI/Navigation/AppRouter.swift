@@ -308,7 +308,7 @@ struct MainTabView: View {
                     userImageURL: authManager.userImage.flatMap(URL.init(string:)),
                     onProfile: { router.navigate(to: .profile) },
                     onNotifications: { showMenuPopout = false; showNotifPopout = true },
-                    onAgenda: { router.selectedTab = .faculdade },
+                    onAgenda: { router.navigate(to: .agenda) },
                     onConfiguracoes: { router.navigate(to: .configuracoes) },
                     onAppearance: { router.navigate(to: .appearance) },
                     onConnections: { router.navigate(to: .connections) },
@@ -574,6 +574,8 @@ struct MainTabView: View {
             )
         case .about:
             AboutScreen()
+        case .agenda:
+            AgendaScreen()
         case .appearance:
             AppearanceScreen()
         case .notifications:
