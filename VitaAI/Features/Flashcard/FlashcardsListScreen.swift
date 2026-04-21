@@ -286,16 +286,18 @@ struct FlashcardsListScreen: View {
     private func loadData() async {
         isLoading = true
         do {
-            // deckLimit: 50 covers the 5 current disciplines (farmacologia alone
-            // has 26 decks). Backend default is 20, which capped the list to
-            // only farmacologia decks and hid mfc-1/medicina-legal/patologia-geral/humanidades.
-            var fetched = try await container.api.getFlashcardDecks(cardsLimit: 0, deckLimit: 50)
+            // deckLimit: 500 to see ALL user decks. Rafael has 534 total across
+            // the full library (5 current-semester slugs + library). Top 50 by
+            // updatedAt was hiding mfc-1/medicina-legal/patologia-geral/humanidades
+            // because many library decks (cardiologia, pediatria-1) had more
+            // recent updates. Backend cap raised to 500 in parallel.
+            var fetched = try await container.api.getFlashcardDecks(cardsLimit: 0, deckLimit: 500)
 
             // Auto-seed if user has no decks yet (first open)
             if fetched.isEmpty {
                 // Trigger autoSeed — generates decks from QBank for user's disciplines
                 _ = try? await container.api.generateFlashcardsAutoSeed()
-                fetched = try await container.api.getFlashcardDecks(cardsLimit: 0, deckLimit: 50)
+                fetched = try await container.api.getFlashcardDecks(cardsLimit: 0, deckLimit: 500)
             }
 
             // Filter out empty decks
