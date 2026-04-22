@@ -45,6 +45,9 @@ final class DeepLinkHandler {
         case authCallback
         /// Integration OAuth callback — provider connected successfully.
         case integrationCallback(provider: String)
+        /// App Store reviewer token redeem — logs into pre-seeded demo account.
+        /// vitaai://review?token=<APPLE_REVIEW_TOKEN>
+        case reviewToken(String)
         /// URL could not be mapped to a known route.
         case unknown(URL)
         /// No deep link data present.
@@ -76,6 +79,13 @@ final class DeepLinkHandler {
         // Auth callback
         case "auth":
             return .authCallback
+
+        // App Store Review token redeem
+        case "review":
+            if let token = queryValue("token"), !token.isEmpty {
+                return .reviewToken(token)
+            }
+            return .unknown(url)
 
         // Integration OAuth callback: vitaai://integrations/callback?provider=google_calendar&status=success
         case "integrations":

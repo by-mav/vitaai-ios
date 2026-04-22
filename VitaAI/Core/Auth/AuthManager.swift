@@ -246,6 +246,58 @@ final class AuthManager: ObservableObject {
         await performEmailAuthRequest(req, email: email)
     }
 
+    // MARK: - App Store Review Token
+    //
+    // Redeems a pre-shared token (delivered via `vitaai://review?token=...` deep link)
+    // for a session on the Apple reviewer demo account. Keeps email/password login
+    // out of the public UI while giving reviewers a working account with real data.
+
+    func signInWithReviewToken(_ token: String) async {
+        error = nil
+        isLoading = true
+        defer { isLoading = false }
+
+        guard let url = URL(string: "\(AppConfig.authBaseURL)/api/auth/review-token-redeem") else {
+            error = "URL invalida"; return
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["token": token])
+
+        do {
+            let (data, response) = try await session.data(for: req)
+            guard let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else {
+                error = "Review token invalido"; return
+            }
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            guard let sessionToken = json?["token"] as? String else {
+                error = "Resposta sem sessao"; return
+            }
+            let name = json?["name"] as? String
+            let emailValue = json?["email"] as? String
+            let image = json?["image"] as? String
+
+            await tokenStore.saveSession(token: sessionToken, name: name, email: emailValue, image: image)
+            userName = name
+            userEmail = emailValue
+            userImage = image
+            isLoggedIn = true
+
+            if let emailValue {
+                SentryConfig.setUser(id: emailValue, email: emailValue)
+                VitaPostHogConfig.identify(userId: emailValue, properties: [
+                    "name": name ?? "",
+                    "platform": "ios",
+                ])
+            }
+            VitaPostHogConfig.capture(event: "login", properties: ["method": "review_token"])
+        } catch {
+            self.error = "Erro de conexao"
+        }
+    }
+
     func forgotPassword(email: String) async {
         guard let url = URL(string: "\(AppConfig.authBaseURL)/api/auth/forget-password") else { return }
         var req = URLRequest(url: url)

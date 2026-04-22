@@ -28,18 +28,24 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>80</string>
+	<string>84</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>VitaAI usa a camera quando voce escolhe tirar foto de uma questao ou anotacao para enviar no chat Vita.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>VitaAI usa dados de sono e exercicio para correlacionar com seu desempenho academico.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>VitaAI pode registrar sessoes de estudo como atividade mindfulness na Saude, so com sua permissao.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>VitaAI precisa do microfone para gravar suas aulas e gerar transcricoes automaticas.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>VitaAI acessa sua galeria quando voce escolhe anexar uma imagem no chat Vita.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>VitaAI usa reconhecimento de fala para transcrever suas aulas em tempo real.</string>
 	<key>SENTRY_DSN</key>

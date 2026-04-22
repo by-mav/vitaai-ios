@@ -156,8 +156,6 @@
 		7211533225678DCDD34327F1 /* ConfiguracoesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB516FEEE3F8C5A3FB28626 /* ConfiguracoesScreen.swift */; };
 		72AA2C1A529171ACC522ED97 /* VoiceModeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72CE7EA9BA0EA4B90790643F /* VoiceModeScreen.swift */; };
 		7319EEAD250EC8A9D70605FD /* VitaGlassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231B6498AE9ECCFB21DB6A6E /* VitaGlassCard.swift */; };
-		DEC57FCEEC784BFABCDE28D1 /* AgendaScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9FFC0C65AB46CCB8C56080 /* AgendaScreen.swift */; };
-		EBAD5D7A4F0347FA8240EF9B /* VitaHeroCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A461F9DC20E84DA3A650A0B7 /* VitaHeroCard.swift */; };
 		744B59A0953409788797B5A3 /* ActivityFeedViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 318005B6285DC5F01E5C3374 /* ActivityFeedViewModel.swift */; };
 		75FD4C9F78B87E64D4F99EF0 /* DisciplineImages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA25EA393E9B3AA9F89CB2C /* DisciplineImages.swift */; };
 		763F6589B281D91E84ABF11D /* PaywallViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9337F6DFB8D1F778A754664 /* PaywallViewModel.swift */; };
@@ -292,8 +290,10 @@
 		DD418FDA220081A89C78B51E /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BDFDAD7DC6888C96464781E /* FlowLayout.swift */; };
 		DD54025EF50E0E5227E2CAB4 /* RetentionChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5A89A1B0CCEDB9EF3722420 /* RetentionChartView.swift */; };
 		DEBC36D19EA98D5B4B2B297A /* VitaAmbientBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1130013BF0504A0F42C04360 /* VitaAmbientBackground.swift */; };
+		DEC57FCEEC784BFABCDE28D1 /* AgendaScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9FFC0C65AB46CCB8C56080 /* AgendaScreen.swift */; };
 		DECDA0E1A8B2FD483D001ACC /* CanvasSyncOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DBC6A00C517673F53DDAA5A /* CanvasSyncOrchestrator.swift */; };
 		E032B7AB430B778EB2CC814E /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = BE8487C3CD50772214487973 /* Sentry */; };
+		E05F7C2514518637743B31B7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = EC8DDA9180557E4FF75C1BD0 /* PrivacyInfo.xcprivacy */; };
 		E06056BD261CF86083640CC2 /* ScreenshotAllTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8846B84EB4BB6E8296E2C099 /* ScreenshotAllTabs.swift */; };
 		E0A65FE7D1902E9547EDEA95 /* SwipeBackGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDFDAA413F2758CCA0283E9C /* SwipeBackGesture.swift */; };
 		E0BDC0DABF96620D39D576EE /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AF6BA038BDF0C52FCB0549B /* TokenStore.swift */; };
@@ -305,6 +305,7 @@
 		E498180A7AF2942286123C91 /* GamificationOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B6383885FE4CA9D45C9592 /* GamificationOverlays.swift */; };
 		E529109D0803E34CB4DC0B2D /* MindMapListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6487870DA0185F897228C92 /* MindMapListViewModel.swift */; };
 		E9CB954DF22CC9B832B690FD /* ConnectorsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C06511C1120C3D564023F3 /* ConnectorsViewModel.swift */; };
+		EBAD5D7A4F0347FA8240EF9B /* VitaHeroCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A461F9DC20E84DA3A650A0B7 /* VitaHeroCard.swift */; };
 		ED4FCA6A681400D2B2E82598 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E96A2F8EC619718B744BFD6 /* APIError.swift */; };
 		ED940D904DE51599BECDDBF3 /* TranscricaoProfessorSignals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 195A69CD6776A957B920D6E0 /* TranscricaoProfessorSignals.swift */; };
 		EDD8F6E728065C3FF6BDE691 /* VitaMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = C84201C4AE38526C62B3DFD1 /* VitaMarkdown.swift */; };
@@ -363,8 +364,6 @@
 		2195501DA7E91A64A1786943 /* AchievementsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsScreen.swift; sourceTree = "<group>"; };
 		21F707CB00A1F232460531A0 /* PdfAnnotationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfAnnotationModels.swift; sourceTree = "<group>"; };
 		231B6498AE9ECCFB21DB6A6E /* VitaGlassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaGlassCard.swift; sourceTree = "<group>"; };
-		EE9FFC0C65AB46CCB8C56080 /* AgendaScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgendaScreen.swift; path = VitaAI/Features/Agenda/AgendaScreen.swift; sourceTree = SOURCE_ROOT; };
-		A461F9DC20E84DA3A650A0B7 /* VitaHeroCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaHeroCard.swift; sourceTree = "<group>"; };
 		2373B8651D45CEF182E7E602 /* ConnectorCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorCard.swift; sourceTree = "<group>"; };
 		25016496DB7CB8AF6A989AE9 /* NotebookListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookListScreen.swift; sourceTree = "<group>"; };
 		25536906AEE09C4D76CCA5BB /* SharedPortalWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedPortalWebView.swift; sourceTree = "<group>"; };
@@ -538,6 +537,7 @@
 		A1611D36BC820AF3CB70BD36 /* StudyOverviewSubject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyOverviewSubject.swift; sourceTree = "<group>"; };
 		A20A68F955FFD87D1B3A1BE0 /* NotebookModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookModels.swift; sourceTree = "<group>"; };
 		A2D2ABE74986AE1F7A75D3FA /* NotebookEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookEntity.swift; sourceTree = "<group>"; };
+		A461F9DC20E84DA3A650A0B7 /* VitaHeroCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaHeroCard.swift; sourceTree = "<group>"; };
 		A4F671C3A0DA731099C2B38F /* AssinaturaScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssinaturaScreen.swift; sourceTree = "<group>"; };
 		A64B7AFF614D70112CC3B1D8 /* CourseDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseDetailViewModel.swift; sourceTree = "<group>"; };
 		A75E96FF57B89B2EE5967448 /* InsightsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsViewModel.swift; sourceTree = "<group>"; };
@@ -622,12 +622,14 @@
 		E70BF1F2E97BAFB99CB82BAA /* SentryConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryConfig.swift; sourceTree = "<group>"; };
 		E8B8F6A0A39DA9F089559142 /* StudyShellTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyShellTheme.swift; sourceTree = "<group>"; };
 		E924DCF6AA655A4D83A473DD /* VitaMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaMascot.swift; sourceTree = "<group>"; };
+		EC8DDA9180557E4FF75C1BD0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		EC8FE94587B7F5721A573CFB /* EmailAuthSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAuthSheet.swift; sourceTree = "<group>"; };
 		ECA6A8C8C58763ADD42697C2 /* GradeAlertMeta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradeAlertMeta.swift; sourceTree = "<group>"; };
 		ED0343F16BF93C40BA29E8D8 /* AboutScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutScreen.swift; sourceTree = "<group>"; };
 		ED8EF772B3F18F7D47F42DB0 /* FlashcardSessionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardSessionScreen.swift; sourceTree = "<group>"; };
 		EDB92BC16796C4B64D408AF8 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		EE5394B30AB656D1D85DF9FD /* PortalFilterFiles200Response.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalFilterFiles200Response.swift; sourceTree = "<group>"; };
+		EE9FFC0C65AB46CCB8C56080 /* AgendaScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgendaScreen.swift; path = VitaAI/Features/Agenda/AgendaScreen.swift; sourceTree = SOURCE_ROOT; };
 		EEC63CEAFB878B94BBCE32D8 /* VitaNotificationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaNotificationSheet.swift; sourceTree = "<group>"; };
 		EF8A54B9484818C1A97D4814 /* RegisterPushTokenRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterPushTokenRequest.swift; sourceTree = "<group>"; };
 		F1D1E6D867F79AAC73B53994 /* SpeechRecognitionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionManager.swift; sourceTree = "<group>"; };
@@ -945,6 +947,7 @@
 				F67298E3C7A450E1CD520258 /* Models */,
 				D51A6B06E3096EFDF08669C5 /* Navigation */,
 				F8C24BEF44E7DACF462987FD /* Resources */,
+				EC8DDA9180557E4FF75C1BD0 /* PrivacyInfo.xcprivacy */,
 			);
 			path = VitaAI;
 			sourceTree = "<group>";
@@ -1482,8 +1485,6 @@
 				3F7FD2A6B35DB3CF75D10AF9 /* PBXTargetDependency */,
 			);
 			name = VitaAIUITests;
-			packageProductDependencies = (
-			);
 			productName = VitaAIUITests;
 			productReference = 71A803CD05ACDB97E5A85BD7 /* VitaAIUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -1563,6 +1564,7 @@
 				C1ED533F060E9256EA81DB91 /* Assets.xcassets in Resources */,
 				A9660EB0D2F93B27F63FD890 /* Localizable.strings in Resources */,
 				89E5E213E3113C09A90A1775 /* VitaAI.storekit in Resources */,
+				E05F7C2514518637743B31B7 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1919,7 +1921,7 @@
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 80;
+				CURRENT_PROJECT_VERSION = 84;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;
@@ -1963,7 +1965,7 @@
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 80;
+				CURRENT_PROJECT_VERSION = 84;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;

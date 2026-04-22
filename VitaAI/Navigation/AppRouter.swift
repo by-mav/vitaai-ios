@@ -173,6 +173,9 @@ struct AppRouter: View {
                 router.navigate(to: .connections)
                 // Post notification so ConnectorsViewModel reloads
                 NotificationCenter.default.post(name: .integrationOAuthCompleted, object: provider)
+            case .reviewToken(let token):
+                // App Store reviewer deep link — sign into demo account.
+                Task { await authManager.signInWithReviewToken(token) }
             default: break
             }
         }

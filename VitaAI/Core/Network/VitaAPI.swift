@@ -757,6 +757,16 @@ actor VitaAPI {
     func syncPushPreferences(_ prefs: PushPreferencesRequest) async throws {
         let _: EmptyResponse = try await client.post("push/preferences", body: prefs)
     }
+
+    // MARK: - Account Deletion (LGPD / App Store §5.1.1(v))
+
+    func deleteUserData() async throws -> DeleteUserDataResponse {
+        try await client.request(
+            "DELETE",
+            path: "user/delete-data",
+            body: DeleteUserDataRequest(confirmation: "DELETE")
+        )
+    }
 }
 
 // MARK: - Request Types
@@ -794,3 +804,14 @@ struct WhatsAppVerifyResponse: Decodable {
 }
 
 struct EmptyBody: Encodable {}
+
+// MARK: - Account Deletion types
+
+private struct DeleteUserDataRequest: Encodable {
+    let confirmation: String
+}
+
+struct DeleteUserDataResponse: Decodable, Sendable {
+    let success: Bool
+    let message: String?
+}
