@@ -321,6 +321,7 @@
 		FBF36CDB79AA06BA641672CF /* VitaBottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA356FDD5A63C0ACB7467A1D /* VitaBottomSheet.swift */; };
 		FE43857DB04F620C6AD212AE /* TranscricaoAudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330A738D52A76441153C62B0 /* TranscricaoAudioPlayer.swift */; };
 		FF5F9DE2BBAA57DD89FF7FE2 /* TranscricaoKaraokeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F636E362403357CDFBA6A2CF /* TranscricaoKaraokeText.swift */; };
+		4D8E29251018433D88921241 /* VitaTypingMascot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FAA707AA80C46FF82D6CF91 /* VitaTypingMascot.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -646,6 +647,7 @@
 		F5CBDEBE92E57751092C2AD1 /* DisciplineDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisciplineDetailScreen.swift; sourceTree = "<group>"; };
 		F5F50F25FBC60669076E52AA /* SimuladoDiagnosticsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimuladoDiagnosticsScreen.swift; sourceTree = "<group>"; };
 		F636E362403357CDFBA6A2CF /* TranscricaoKaraokeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoKaraokeText.swift; sourceTree = "<group>"; };
+		6FAA707AA80C46FF82D6CF91 /* VitaTypingMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaTypingMascot.swift; sourceTree = "<group>"; };
 		F6487870DA0185F897228C92 /* MindMapListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapListViewModel.swift; sourceTree = "<group>"; };
 		F8148AB4E3DEEA822C47120B /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		FB3CAA9D7ADA613A3FDC5EBD /* VitaColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaColors.swift; sourceTree = "<group>"; };
@@ -1126,6 +1128,7 @@
 				330A738D52A76441153C62B0 /* TranscricaoAudioPlayer.swift */,
 				D08D6E184B50BFEE6FF44E77 /* TranscricaoDetailSheet.swift */,
 				F636E362403357CDFBA6A2CF /* TranscricaoKaraokeText.swift */,
+				6FAA707AA80C46FF82D6CF91 /* VitaTypingMascot.swift */,
 				195A69CD6776A957B920D6E0 /* TranscricaoProfessorSignals.swift */,
 				C06A39AB6561313018C22261 /* TranscricaoRecorderContent.swift */,
 				87EA1E56084FA3D11CAD0F7E /* TranscricaoScreen.swift */,
@@ -1851,6 +1854,7 @@
 				AEEC20C37390C592A9616E30 /* TranscricaoClient.swift in Sources */,
 				7CE20889319B3D0E09BAA6DD /* TranscricaoDetailSheet.swift in Sources */,
 				FF5F9DE2BBAA57DD89FF7FE2 /* TranscricaoKaraokeText.swift in Sources */,
+				4D8E29251018433D88921241 /* VitaTypingMascot.swift in Sources */,
 				ED940D904DE51599BECDDBF3 /* TranscricaoProfessorSignals.swift in Sources */,
 				C7D54158E4BD8D03FC9E5CAB /* TranscricaoRecorderContent.swift in Sources */,
 				9498CF9FCCC1FF64AD017D5A /* TranscricaoScreen.swift in Sources */,

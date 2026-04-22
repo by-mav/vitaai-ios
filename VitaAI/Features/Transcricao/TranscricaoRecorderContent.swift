@@ -121,14 +121,7 @@ struct TranscricaoRecorderArea: View {
                 if !isRecording { onToggle() }
             }) {
                 VStack(spacing: 4) {
-                    Image("btn-transcricao")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: recorderButtonWidth)
-                        .shadow(color: VitaColors.accent.opacity(0.30), radius: 20)
-                        .opacity(isRecording ? 0.7 : 1.0)
-                        .scaleEffect(isRecording ? 1.05 : 1.0)
-                        .animation(.easeInOut(duration: 0.4), value: isRecording)
+                    VitaTypingMascot(isRecording: isRecording, size: recorderButtonWidth)
 
                     Text(isRecording ? "Gravando..." : "Toque para gravar")
                         .font(.system(size: 10, weight: .medium))
