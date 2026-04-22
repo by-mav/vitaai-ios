@@ -500,14 +500,35 @@ struct PortalWebView: UIViewRepresentable {
             )
             guard isOnPortalDomain else { return }
 
-            // On portal domain: check if we're past the login page
-            let isLoginPage = currentPath.contains("/login") || currentPath.contains("/auth")
-            let isPortalDashboard = !isLoginPage
+            // On portal domain: check if we're past the login page.
+            // Path heuristic catches Canvas/Moodle/SIGAA (distinct /login routes) but
+            // NOT portals like Mannesoft/WebAluno that render the login form inline
+            // on "/webaluno/" itself. So we ALSO probe the DOM for a password input —
+            // if one exists, user hasn't logged in yet and the PHPSESSID we'd capture
+            // is a guest cookie (120 bytes of tracking, not an auth session).
+            let isLoginPath = currentPath.contains("/login") || currentPath.contains("/auth")
+            let isLikelyDashboardByPath = !isLoginPath
 
-            // Capture if: on portal dashboard (login complete) OR 2+ navs on portal domain
-            guard isPortalDashboard || navigationCount >= 3 else { return }
+            // Short-circuit: ≥3 navs on portal domain = trust the state (SSO bounce finished)
+            if navigationCount >= 3 {
+                captureCookiesNow(webView, currentHost: currentHost, currentURL: currentURL)
+                return
+            }
 
-            // Capture ALL cookies from the portal domain — backend decides which ones matter
+            guard isLikelyDashboardByPath else { return }
+
+            // Still ambiguous: probe for a password field. Dashboard pages never have one.
+            webView.evaluateJavaScript("document.querySelector('input[type=\"password\"]') !== null") { [weak self] result, _ in
+                guard let self, !self.capturedSession else { return }
+                if let hasPasswordField = result as? Bool, hasPasswordField {
+                    NSLog("[PortalWebView] %@: login form detected on %@ — waiting for user to authenticate", self.portalType, currentURL)
+                    return
+                }
+                self.captureCookiesNow(webView, currentHost: currentHost, currentURL: currentURL)
+            }
+        }
+
+        private func captureCookiesNow(_ webView: WKWebView, currentHost: String, currentURL: String) {
             webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
                 guard let self, !self.capturedSession else { return }
 
@@ -544,11 +565,20 @@ struct OnboardingPortalFlow: View {
     let portalType: String
     let university: University?
     let api: VitaAPI
+    let userEmail: String?
     let onBack: () -> Void
     let onConnected: () -> Void
 
     @State private var phase: FlowPhase = .login
     @State private var syncVM: PortalConnectViewModel?
+    @State private var extractedPagesCount: Int = 0
+    @State private var extractionSyncMessage: String = "Vita extraindo dados..."
+    // Counters shown on the done screen so the user sees exactly what got imported.
+    @State private var importedGrades: Int = 0
+    @State private var importedSchedule: Int = 0
+    @State private var importedSubjects: Int = 0
+    @State private var importedEvaluations: Int = 0
+    @State private var importedDocuments: Int = 0
 
     private enum FlowPhase {
         case login
@@ -614,11 +644,13 @@ struct OnboardingPortalFlow: View {
                             progress: vm.canvasSyncProgress
                         )
                     } else {
-                        // WebAluno and others use vita-crawl polling
+                        // WebAluno/Mannesoft: surface the real phase + label from /api/portal/sync-progress
+                        // that the bridge pipeline is pushing into the ViewModel. "Login detectado"
+                        // no longer sticks while the LLM is actually extracting grades.
                         ConnectorSyncView(
                             connectorName: portalName,
-                            steps: SyncStep.webalunoSteps(phase: "login"),
-                            message: "Vita extraindo dados..."
+                            steps: SyncStep.webalunoSteps(phase: vm.mannesoftSyncPhase),
+                            message: (vm.mannesoftSyncMessage?.isEmpty == false) ? vm.mannesoftSyncMessage : extractionSyncMessage
                         )
                     }
                 } else {
@@ -638,43 +670,132 @@ struct OnboardingPortalFlow: View {
     // MARK: - Login Phase (WebView)
 
     private var loginPhase: some View {
-        VStack(spacing: 0) {
-            // URL bar
-            HStack(spacing: 8) {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.white.opacity(0.3))
-                Text(portalURL.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: ""))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.35))
-                    .lineLimit(1)
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.white.opacity(0.03))
+        Group {
+            if portalType == "webaluno" || portalType == "mannesoft" {
+                // Mannesoft/WebAluno: use the bridge.js-powered flow (same as Settings).
+                // WebAlunoWebViewScreen injects bridge.js, waits for user login, extracts all
+                // required pages, and fires onPagesExtracted with the HTML → /api/portal/extract.
+                WebAlunoWebViewScreen(
+                    onBack: onBack,
+                    onSessionCaptured: { cookie in
+                        handleMannesoftSessionCaptured(cookie)
+                    },
+                    onPagesExtracted: { pages in
+                        handleMannesoftPagesExtracted(pages)
+                    },
+                    userEmail: userEmail,
+                    portalInstanceUrl: portalURL
+                )
+            } else {
+                // Canvas (SSO Google) + other portals: classic PortalWebView with cookie capture.
+                // The DOM password probe added in PortalWebView prevents false positives for portals
+                // that render login inline.
+                VStack(spacing: 0) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.white.opacity(0.3))
+                        Text(portalURL.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: ""))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.03))
 
-            PortalWebView(
-                portalType: portalType,
-                portalURL: portalURL,
-                onSessionCaptured: { cookie in
-                    handleSessionCaptured(cookie)
+                    PortalWebView(
+                        portalType: portalType,
+                        portalURL: portalURL,
+                        onSessionCaptured: { cookie in
+                            handleSessionCaptured(cookie)
+                        }
+                    )
                 }
-            )
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
+    }
+
+    // MARK: - Mannesoft (bridge.js path)
+
+    /// Cookie captured from Mannesoft after user logs in. Registers the session with backend
+    /// but does NOT mark done — bridge.js will later fire `onPagesExtracted` with the real HTML.
+    private func handleMannesoftSessionCaptured(_ cookie: String) {
+        Task {
+            let instanceUrl = portalURL.hasPrefix("http") ? portalURL : "https://\(portalURL)"
+            // cookie already is "PHPSESSID=..." from bridge-aware WebView, pass as-is
+            _ = try? await api.startVitaCrawl(cookies: cookie, instanceUrl: instanceUrl)
+        }
+    }
+
+    /// Bridge.js finished extracting pages. Send to /api/portal/extract and poll sync-progress.
+    /// Mirrors how Settings → ConnectionsScreen keeps the mannesoftSyncPhase/Message updated
+    /// so the user sees "Buscando notas" etc. instead of a stuck "Login detectado".
+    private func handleMannesoftPagesExtracted(_ pages: [CapturedPortalPage]) {
+        extractedPagesCount = pages.count
+        extractionSyncMessage = "Vita analisando \(pages.count) páginas..."
+        syncVM?.mannesoftSyncPhase = "extracting"
+        syncVM?.mannesoftSyncMessage = "Vita analisando \(pages.count) páginas..."
+        withAnimation { phase = .syncing }
+
+        Task {
+            let apiPages = pages.map {
+                PortalExtractRequestPagesInner(type: $0.type, html: $0.html, linkText: $0.linkText)
+            }
+            let instanceUrl = portalURL.hasPrefix("http") ? portalURL : "https://\(portalURL)"
+            do {
+                let result = try await api.extractPortalPages(
+                    pages: apiPages,
+                    instanceUrl: instanceUrl,
+                    university: university?.name ?? ""
+                )
+                await MainActor.run {
+                    importedGrades = result.grades ?? 0
+                    importedSchedule = result.schedule ?? 0
+                }
+                if let syncId = result.syncId {
+                    for _ in 0..<90 {
+                        try? await Task.sleep(for: .seconds(2))
+                        guard let progress = try? await api.getSyncProgress(syncId: syncId) else { continue }
+                        let label = (progress.label ?? "").isEmpty ? "Vita trabalhando..." : (progress.label ?? "")
+                        await MainActor.run {
+                            syncVM?.mannesoftSyncMessage = label
+                            let lowered = label.lowercased()
+                            if lowered.contains("disciplina") || lowered.contains("matéria") || lowered.contains("materia") {
+                                syncVM?.mannesoftSyncPhase = "disciplines"
+                            } else if lowered.contains("nota") || lowered.contains("grade") {
+                                syncVM?.mannesoftSyncPhase = "grades"
+                            } else if lowered.contains("horário") || lowered.contains("horario") || lowered.contains("schedule") || lowered.contains("aula") {
+                                syncVM?.mannesoftSyncPhase = "schedule"
+                            } else if lowered.contains("extrai") || lowered.contains("extract") || lowered.contains("analisan") || lowered.contains("process") || lowered.contains("parser") || lowered.contains("página") || lowered.contains("pagina") {
+                                syncVM?.mannesoftSyncPhase = "extracting"
+                            }
+                        }
+                        if progress.isDone || progress.isError { break }
+                    }
+                }
+            } catch {
+                NSLog("[OnboardingPortalFlow] extractPortalPages failed: %@", error.localizedDescription)
+            }
+            await MainActor.run {
+                syncVM?.mannesoftSyncPhase = "done"
+                withAnimation { phase = .done }
+            }
+        }
     }
 
     // MARK: - Done Phase
 
     private var donePhase: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             Spacer()
 
             ZStack {
@@ -690,9 +811,32 @@ struct OnboardingPortalFlow: View {
                 .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(.white.opacity(0.9))
 
-            Text("Seus dados foram importados com sucesso.")
-                .font(.system(size: 14))
-                .foregroundStyle(.white.opacity(0.5))
+            let stats = importedStats
+            if stats.isEmpty {
+                Text("Seus dados foram importados com sucesso.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.5))
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(stats, id: \.label) { item in
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(VitaColors.dataGreen)
+                                .frame(width: 16)
+                            Text("\(item.count) \(item.label)")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.white.opacity(0.75))
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                .padding(.horizontal, 32)
+            }
 
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -712,6 +856,18 @@ struct OnboardingPortalFlow: View {
         }
     }
 
+    /// Breakdown of what actually got saved, shown on the done screen so the user
+    /// sees "58 notas · 32 horários" instead of a generic success text.
+    private var importedStats: [(count: Int, label: String)] {
+        var items: [(Int, String)] = []
+        if importedSubjects > 0 { items.append((importedSubjects, importedSubjects == 1 ? "matéria" : "matérias")) }
+        if importedGrades > 0 { items.append((importedGrades, importedGrades == 1 ? "nota" : "notas")) }
+        if importedSchedule > 0 { items.append((importedSchedule, importedSchedule == 1 ? "horário" : "horários")) }
+        if importedEvaluations > 0 { items.append((importedEvaluations, importedEvaluations == 1 ? "avaliação" : "avaliações")) }
+        if importedDocuments > 0 { items.append((importedDocuments, importedDocuments == 1 ? "documento" : "documentos")) }
+        return items
+    }
+
     // MARK: - Session Handler
 
     private func handleSessionCaptured(_ cookie: String) {
@@ -723,10 +879,19 @@ struct OnboardingPortalFlow: View {
             let instanceUrl = portalURL.hasPrefix("http") ? portalURL : "https://\(portalURL)"
             vm.connectCanvas(cookies: cookie, instanceUrl: instanceUrl)
 
-            // Watch for completion
+            // Watch for completion, then snapshot the stats from /api/portal/status
+            // so the done screen can show "6 matérias · 10 avaliações · 210 documentos".
             Task {
                 while vm.canvasSyncPhase != .done && vm.canvasSyncPhase != .error {
                     try? await Task.sleep(for: .seconds(0.5))
+                }
+                if let status = try? await api.getCanvasStatus() {
+                    await MainActor.run {
+                        importedSubjects = status.totals?.subjects ?? 0
+                        importedEvaluations = status.totals?.evaluations ?? 0
+                        importedDocuments = status.totals?.documents ?? 0
+                        importedSchedule = status.totals?.schedule ?? 0
+                    }
                 }
                 withAnimation { phase = .done }
             }

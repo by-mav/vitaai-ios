@@ -428,6 +428,8 @@ final class AuthManager: ObservableObject {
             userImage = nil
             isLoggedIn = false
             lastLoginAt = nil
+            // Clear onboarding resume marker so next login starts clean.
+            UserDefaults.standard.removeObject(forKey: "vita_onboarding_last_step")
             SentryConfig.clearUser()
             VitaPostHogConfig.capture(event: "logout")
             VitaPostHogConfig.reset()

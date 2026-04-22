@@ -11,6 +11,9 @@ private struct PortalSheetItem: Identifiable {
 
 struct VitaOnboarding: View {
     @Environment(\.appContainer) private var container
+    // Persist current step so if the app restarts mid-onboarding the user
+    // resumes where they stopped instead of going back to the sleep intro.
+    @AppStorage("vita_onboarding_last_step") private var lastStepRaw: Int = OnboardingStep.sleep.rawValue
     @State private var step: OnboardingStep = .sleep
     @State private var mascotState: MascotState = .sleeping
     @State private var viewModel: OnboardingViewModel?
@@ -98,18 +101,34 @@ struct VitaOnboarding: View {
                     .transition(.opacity)
                 }
 
-                // Mascot (tap to wake on sleep step, hidden during inline portal connect)
+                // Mascot (tap to wake on sleep step, hidden during inline portal connect,
+                // shrinks while user is actively searching a university so the dropdown
+                // has room to show multiple results without the keyboard clipping it).
+                let shrinkForSearch = step == .welcome
+                    && !(viewModel?.universityQuery.isEmpty ?? true)
+                    && viewModel?.selectedUniversity == nil
                 if !(step == .connect && inlineConnectPortal != nil) {
-                    VitaMascot(state: mascotState, size: step == .sleep ? 120 : 100)
+                    VitaMascot(
+                        state: mascotState,
+                        size: step == .sleep ? 120 : (shrinkForSearch ? 44 : 100)
+                    )
                         .scaleEffect(mascotScale)
-                        .padding(.top, step == .sleep ? 60 : 16)
-                        .padding(.bottom, step == .sleep ? 0 : 8)
+                        .padding(.top, step == .sleep ? 60 : (shrinkForSearch ? 0 : 16))
+                        .padding(.bottom, step == .sleep ? 0 : (shrinkForSearch ? 0 : 8))
+                        .overlay(alignment: .top) {
+                            if step == .sleep && mascotState == .sleeping {
+                                SleepingZs()
+                                    .offset(x: 34, y: 6)
+                                    .allowsHitTesting(false)
+                            }
+                        }
                         .onTapGesture {
                             if step == .sleep {
                                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 wakeUp()
                             }
                         }
+                        .animation(.easeInOut(duration: 0.25), value: shrinkForSearch)
                 }
 
                 // Speech bubble + content
@@ -163,6 +182,19 @@ struct VitaOnboarding: View {
                 viewModel = OnboardingViewModel(tokenStore: container.tokenStore, api: container.api)
                 Task { await viewModel?.loadUniversities() }
             }
+            // Resume from the last step the user reached (unless they'd fully completed it —
+            // .done means the flow is over and we'd never be shown anyway).
+            if let saved = OnboardingStep(rawValue: lastStepRaw),
+               saved != .sleep,
+               saved != .done {
+                step = saved
+                mascotState = .awake
+                showContent = true
+            }
+        }
+        .onChange(of: step) { newStep in
+            // Persist every transition so a mid-flow restart resumes exactly here.
+            lastStepRaw = newStep.rawValue
         }
     }
 
@@ -185,6 +217,7 @@ struct VitaOnboarding: View {
                     portalType: activePortal,
                     university: viewModel?.selectedUniversity,
                     api: container.api,
+                    userEmail: container.authManager.userEmail,
                     onBack: { withAnimation { inlineConnectPortal = nil } },
                     onConnected: {
                         withAnimation { inlineConnectPortal = nil }
@@ -475,6 +508,9 @@ struct VitaOnboarding: View {
         guard let vm = viewModel else { return }
         await vm.complete()
         AppConfig.setOnboardingComplete(true)
+        // Onboarding finished — clear the resume marker so a future fresh login
+        // (or an account reset) starts from .sleep again.
+        lastStepRaw = OnboardingStep.sleep.rawValue
     }
 
     private func requestNotificationPermission() {
@@ -485,5 +521,36 @@ struct VitaOnboarding: View {
                 }
             }
         }
+    }
+}
+
+// Cascade of 3 Z's drifting up+fading right above the mascot's head —
+// classic sleeping cartoon vibe. Only shown while it's actually asleep.
+private struct SleepingZs: View {
+    @State private var animate = false
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            zLetter(size: 12, delay: 0.0)
+            zLetter(size: 16, delay: 0.6).offset(x: 9)
+            zLetter(size: 20, delay: 1.2).offset(x: 20)
+        }
+        .frame(width: 52, height: 36, alignment: .bottomLeading)
+        .onAppear { animate = true }
+    }
+
+    @ViewBuilder
+    private func zLetter(size: CGFloat, delay: Double) -> some View {
+        Text("Z")
+            .font(.system(size: size, weight: .heavy, design: .rounded))
+            .foregroundStyle(Color.white.opacity(0.55))
+            .offset(y: animate ? -26 : 0)
+            .opacity(animate ? 0 : 1)
+            .animation(
+                .easeOut(duration: 1.8)
+                    .repeatForever(autoreverses: false)
+                    .delay(delay),
+                value: animate
+            )
     }
 }
