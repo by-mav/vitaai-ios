@@ -6,11 +6,12 @@ enum OnboardingStep: Int, CaseIterable {
     case sleep = 0
     case welcome = 1
     case connect = 2
-    case syncing = 3
-    case subjects = 4
-    case notifications = 5
-    case trial = 6
-    case done = 7
+    case extras = 3           // WhatsApp, Google Drive, Calendar, Spotify — tudo opcional
+    case syncing = 4
+    case subjects = 5
+    case notifications = 6
+    case trial = 7
+    case done = 8
 }
 
 // MARK: - Speech Bubble

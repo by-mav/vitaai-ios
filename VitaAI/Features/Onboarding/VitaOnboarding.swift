@@ -27,6 +27,13 @@ struct VitaOnboarding: View {
     @State private var mascotScale: CGFloat = 1.0
     @State private var showManualEntry = false
     @State private var typeTextId: UUID = UUID()
+    // WhatsApp quick-link sheet, used by the ExtrasStep.
+    @State private var showExtrasWAsheet = false
+    @State private var waPhone = ""
+    @State private var waCode = ""
+    @State private var waStep = 0
+    @State private var waSending = false
+    @State private var waError: String?
     var userName: String = ""
     var onLogout: (() -> Void)?
     var onComplete: () -> Void
@@ -177,6 +184,20 @@ struct VitaOnboarding: View {
                 }
             }
         }
+        .sheet(isPresented: $showExtrasWAsheet) {
+            OnboardingWhatsAppLinkSheet(
+                phone: $waPhone,
+                code: $waCode,
+                stepIndex: $waStep,
+                sending: $waSending,
+                error: $waError,
+                onSendCode: sendWACode,
+                onVerify: verifyWACode,
+                onClose: { showExtrasWAsheet = false }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
         .onAppear {
             if viewModel == nil {
                 viewModel = OnboardingViewModel(tokenStore: container.tokenStore, api: container.api)
@@ -232,6 +253,24 @@ struct VitaOnboarding: View {
                 }
             }
 
+        case .extras:
+            ExtrasStep(
+                api: container.api,
+                onConnectWhatsApp: {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    waStep = 0; waPhone = ""; waCode = ""; waError = nil
+                    showExtrasWAsheet = true
+                },
+                onConnectIntegration: { provider in
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    Task {
+                        // Kicks off OAuth; ConnectorsScreen will show the
+                        // result when the user lands on it post-onboarding.
+                        _ = try? await container.api.startIntegrationOAuth(provider)
+                    }
+                }
+            )
+
         case .syncing:
             if let vm = viewModel {
                 SyncingStep(api: container.api, viewModel: vm)
@@ -286,7 +325,7 @@ struct VitaOnboarding: View {
             .disabled(step == .welcome && viewModel?.selectedUniversity == nil)
             .opacity(step == .welcome && viewModel?.selectedUniversity == nil ? 0.3 : 1)
 
-            if step == .welcome || step == .connect || step == .subjects {
+            if step == .welcome || step == .connect || step == .extras || step == .subjects {
                 Button(action: {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     nextStep()
@@ -307,6 +346,7 @@ struct VitaOnboarding: View {
         case .sleep: return ""
         case .welcome: return String(localized: "onboarding_btn_continue")
         case .connect: return String(localized: "onboarding_btn_continue")
+        case .extras: return String(localized: "onboarding_btn_continue")
         case .syncing: return String(localized: "onboarding_btn_continue")
         case .subjects: return String(localized: "onboarding_btn_continue")
         case .notifications: return String(localized: "onboarding_btn_notifications")
@@ -519,6 +559,34 @@ struct VitaOnboarding: View {
                 DispatchQueue.main.async {
                     UIApplication.shared.registerForRemoteNotifications()
                 }
+            }
+        }
+    }
+
+    // MARK: - WhatsApp sheet actions (used by ExtrasStep)
+
+    private func sendWACode() {
+        Task {
+            await MainActor.run { waSending = true; waError = nil }
+            do {
+                try await container.api.linkWhatsApp(phone: waPhone)
+                await MainActor.run { waStep = 1; waSending = false }
+            } catch {
+                await MainActor.run { waError = "Erro ao enviar código"; waSending = false }
+            }
+        }
+    }
+
+    private func verifyWACode() {
+        Task {
+            await MainActor.run { waSending = true; waError = nil }
+            do {
+                _ = try await container.api.verifyWhatsApp(code: waCode)
+                await MainActor.run { waStep = 2; waSending = false }
+                try? await Task.sleep(for: .seconds(2))
+                await MainActor.run { showExtrasWAsheet = false }
+            } catch {
+                await MainActor.run { waError = "Código inválido ou expirado"; waSending = false }
             }
         }
     }
