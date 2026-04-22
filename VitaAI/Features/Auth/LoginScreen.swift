@@ -30,7 +30,7 @@ struct LoginScreen: View {
         let mascotY = h * (0.98 - 0.58 * p)
 
         // State: sleeping -> waking -> awake, tap = happy
-        let mascotState: MascotState = {
+        let mascotState: VitaMascotState = {
             if vitaTapped { return .happy }
             if p > 0.5 { return .awake }
             if p > 0.1 { return .waking }

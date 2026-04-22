@@ -15,7 +15,7 @@ struct VitaOnboarding: View {
     // resumes where they stopped instead of going back to the sleep intro.
     @AppStorage("vita_onboarding_last_step") private var lastStepRaw: Int = OnboardingStep.sleep.rawValue
     @State private var step: OnboardingStep = .sleep
-    @State private var mascotState: MascotState = .sleeping
+    @State private var mascotState: VitaMascotState = .sleeping
     @State private var viewModel: OnboardingViewModel?
     @State private var speechText = ""
     @State private var showContent = false
