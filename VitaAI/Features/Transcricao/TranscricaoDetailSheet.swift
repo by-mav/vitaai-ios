@@ -101,6 +101,16 @@ struct TranscricaoDetailSheet: View {
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Enquanto o pipeline cloud tá em voo (status != "ready") o sheet faz
+    /// polling a cada 2s pra re-carregar detail + outputs. Quando status vira
+    /// "ready" (ou "failed") o loop encerra. User pode abrir o sheet enquanto
+    /// a transcrição ainda tá rolando e vai ver as seções aparecendo uma a uma.
+    @State private var isPollingForReady = false
+
+    private var isReady: Bool {
+        sourceDetail?.status == "ready"
+    }
+
     var body: some View {
         ZStack {
             Color(red: 0.04, green: 0.03, blue: 0.02).ignoresSafeArea()
@@ -117,14 +127,14 @@ struct TranscricaoDetailSheet: View {
                                 .padding(.top, 4)
                         }
 
-                        if isLoading {
+                        if isLoading && sourceDetail == nil {
                             loadingView
-                        } else if let error = errorMessage {
+                        } else if let error = errorMessage, sourceDetail == nil {
                             errorView(error)
-                        } else if recording.isTranscribed {
-                            transcribedContent
                         } else {
-                            TranscricaoPendingContent()
+                            // Progressive content — mostra o que tem, placeholder
+                            // pro resto. Polling vai preenchendo.
+                            progressiveContent
                         }
                     }
                     .padding(16)
@@ -135,7 +145,10 @@ struct TranscricaoDetailSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .presentationBackground(.ultraThinMaterial)
-        .task { await loadData() }
+        .task {
+            await loadData()
+            await pollUntilReady()
+        }
     }
 
     // MARK: - Header
@@ -342,6 +355,115 @@ struct TranscricaoDetailSheet: View {
         .padding(.vertical, 20)
     }
 
+    // MARK: - Progressive Content (polls until ready)
+
+    /// Renderiza o que já tiver carregado — transcript se houver chunks,
+    /// outputs (summary + flashcards) se já geraram. Seções em progresso
+    /// mostram skeleton com label "Transcrevendo…" / "Gerando resumo…".
+    @ViewBuilder
+    private var progressiveContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Live status banner — só aparece enquanto não tá ready.
+            if !isReady, let status = sourceDetail?.status {
+                pipelineBanner(status: status)
+            }
+
+            // Professor signals (só quando transcript tá carregado)
+            if !professorSignals.isEmpty {
+                ProfessorSignalsSummary(signals: professorSignals)
+            }
+
+            // Transcript: mostra real se tem chunks, skeleton senão.
+            if !fullTranscript.isEmpty {
+                if !allWords.isEmpty && showKaraoke {
+                    TranscricaoKaraokeTranscriptSection(
+                        words: allWords,
+                        signals: professorSignals,
+                        player: audioPlayer
+                    )
+                } else {
+                    TranscricaoRealTranscriptSection(
+                        text: fullTranscript,
+                        signals: professorSignals,
+                        hasKaraoke: !allWords.isEmpty,
+                        onToggleKaraoke: { showKaraoke = true }
+                    )
+                }
+            } else if !isReady {
+                sectionSkeleton(title: "TRANSCRIÇÃO", hint: "Transcrevendo áudio…")
+            }
+
+            // Outputs existentes (summary, flashcards).
+            if !outputs.isEmpty {
+                TranscricaoOutputsSection(outputs: outputs)
+            } else if !isReady && !fullTranscript.isEmpty {
+                // Transcript pronto mas LLM ainda roda — mostra skeleton do resumo.
+                sectionSkeleton(title: "RESUMO", hint: "Gerando resumo…")
+            }
+
+            // Actions menu só quando ready (gerar mais outputs exige source pronto).
+            if isReady {
+                TranscricaoActionsMenu(
+                    sourceId: recording.id,
+                    existingOutputTypes: Set(outputs.map(\.outputType)),
+                    onGenerated: { newOutput in
+                        outputs.append(newOutput)
+                    }
+                )
+            }
+        }
+    }
+
+    private func pipelineBanner(status: String) -> some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .tint(VitaColors.accentLight)
+                .scaleEffect(0.8)
+            Text(bannerLabel(for: status))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(VitaColors.accentLight)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(VitaColors.accent.opacity(0.08))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(VitaColors.accent.opacity(0.30), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func bannerLabel(for status: String) -> String {
+        switch status {
+        case "processing": return "Transcrevendo e gerando resumo…"
+        case "pending", "uploading": return "Enviando áudio…"
+        case "failed": return "Falhou — tente de novo"
+        default: return "Processando…"
+        }
+    }
+
+    private func sectionSkeleton(title: String, hint: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                .tracking(0.5)
+            HStack(spacing: 10) {
+                ProgressView()
+                    .tint(VitaColors.accentLight)
+                    .scaleEffect(0.75)
+                Text(hint)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.white.opacity(0.45))
+                Spacer()
+            }
+            .padding(14)
+            .background(Color.white.opacity(0.03))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
     // MARK: - Transcribed Content (real data)
 
     private var transcribedContent: some View {
@@ -436,6 +558,30 @@ struct TranscricaoDetailSheet: View {
             errorMessage = "Erro ao carregar: \(error.localizedDescription)"
         }
         isLoading = false
+    }
+
+    /// Pole GET /studio/sources/:id até status=ready (ou failed / task cancelled).
+    /// Enquanto a seção não estiver completa, cada tick re-chama loadData()
+    /// pra preencher transcript/outputs progressivamente.
+    private func pollUntilReady() async {
+        guard !isPollingForReady else { return }
+        isPollingForReady = true
+        defer { isPollingForReady = false }
+
+        // Se já veio ready na primeira carga, encerra.
+        if sourceDetail?.status == "ready" || sourceDetail?.status == "failed" { return }
+
+        // Polling com timeout de 180s (3x whisper+LLM) — se passou disso algo
+        // tá muito errado no servidor, melhor abortar e mostrar botão retry.
+        let deadline = Date().addingTimeInterval(180)
+        while !Task.isCancelled, Date() < deadline {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { break }
+            await loadData()
+            if let status = sourceDetail?.status, status == "ready" || status == "failed" {
+                break
+            }
+        }
     }
 }
 

@@ -14,16 +14,20 @@ struct TranscricaoLocalDraftsSection: View {
     let onTranscribe: (LocalRecording) -> Void
     let onDelete: (LocalRecording) -> Void
 
+    private var hasInFlight: Bool {
+        drafts.contains(where: { isInFlight($0.cloudStatus) })
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "iphone")
+                Image(systemName: hasInFlight ? "arrow.up.circle" : "iphone")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.55))
+                    .foregroundStyle(hasInFlight ? VitaColors.accent : VitaColors.textWarm.opacity(0.55))
 
-                Text("RASCUNHOS LOCAIS")
+                Text(hasInFlight ? "EM PROCESSAMENTO" : "RASCUNHOS LOCAIS")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.55))
+                    .foregroundStyle(hasInFlight ? VitaColors.accent : VitaColors.textWarm.opacity(0.55))
                     .tracking(0.5)
 
                 Text("\(drafts.count)")
@@ -54,10 +58,30 @@ struct TranscricaoLocalDraftsSection: View {
 
 // MARK: - Card
 
+/// Se `cloudStatus` ≠ nil && ≠ "ready" && ≠ "failed", a entry tá no meio do
+/// pipeline cloud em background. UI mostra spinner + label correspondente.
+fileprivate func isInFlight(_ status: String?) -> Bool {
+    guard let s = status else { return false }
+    return s == "uploading" || s == "transcribing" || s == "summarizing" || s == "generating_flashcards"
+}
+
+fileprivate func inFlightLabel(_ status: String?) -> String {
+    switch status {
+    case "uploading": return "Enviando áudio"
+    case "transcribing": return "Transcrevendo"
+    case "summarizing": return "Resumindo"
+    case "generating_flashcards": return "Gerando flashcards"
+    default: return ""
+    }
+}
+
 private struct LocalDraftCard: View {
     let draft: LocalRecording
     let onTranscribe: () -> Void
     let onDelete: () -> Void
+
+    private var inFlight: Bool { isInFlight(draft.cloudStatus) }
+    private var failed: Bool { draft.cloudStatus == "failed" }
 
     private var durationLabel: String {
         let m = draft.durationSeconds / 60
@@ -84,14 +108,24 @@ private struct LocalDraftCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Icon
+            // Icon (spinner quando upload em voo)
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.white.opacity(0.04))
                     .frame(width: 36, height: 36)
-                Image(systemName: "waveform")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.55))
+                if inFlight {
+                    ProgressView()
+                        .tint(VitaColors.accent)
+                        .scaleEffect(0.8)
+                } else if failed {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color.red.opacity(0.80))
+                } else {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.55))
+                }
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -100,25 +134,45 @@ private struct LocalDraftCard: View {
                     .foregroundStyle(Color.white.opacity(0.85))
                     .lineLimit(1)
 
-                HStack(spacing: 6) {
-                    Text(dateLabel)
-                    Text("·")
-                    Text(durationLabel)
-                    Text("·")
-                    Text(sizeLabel)
+                if inFlight {
+                    HStack(spacing: 6) {
+                        Text(inFlightLabel(draft.cloudStatus))
+                            .foregroundStyle(VitaColors.accent)
+                        Text("·")
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.35))
+                        Text(durationLabel)
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                } else if failed {
+                    HStack(spacing: 6) {
+                        Text("Falhou — toque pra tentar de novo")
+                            .foregroundStyle(Color.red.opacity(0.80))
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                } else {
+                    HStack(spacing: 6) {
+                        Text(dateLabel)
+                        Text("·")
+                        Text(durationLabel)
+                        Text("·")
+                        Text(sizeLabel)
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.45))
                 }
-                .font(.system(size: 11))
-                .foregroundStyle(VitaColors.textWarm.opacity(0.45))
             }
 
             Spacer()
 
             // Actions menu (⋯)
             Menu {
-                Button {
-                    onTranscribe()
-                } label: {
-                    Label("Transcrever agora", systemImage: "sparkles")
+                if !inFlight {
+                    Button {
+                        onTranscribe()
+                    } label: {
+                        Label(failed ? "Tentar novamente" : "Transcrever agora", systemImage: "sparkles")
+                    }
                 }
 
                 Button(role: .destructive) {
@@ -143,7 +197,7 @@ private struct LocalDraftCard: View {
                 .fill(Color.white.opacity(0.03))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
+                        .stroke(inFlight ? VitaColors.accent.opacity(0.35) : Color.white.opacity(0.05), lineWidth: inFlight ? 1.0 : 0.5)
                 )
         )
     }

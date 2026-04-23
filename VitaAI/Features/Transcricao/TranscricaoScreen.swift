@@ -72,16 +72,6 @@ private struct TranscricaoContent: View {
         return all.map(\.subjectName).filter { !$0.isEmpty }
     }
 
-    /// Whether the pipeline is actively processing (upload/transcribe/summarize/flashcards)
-    private var isProcessing: Bool {
-        switch viewModel.phase {
-        case .uploading, .transcribing, .summarizing, .generatingFlashcards:
-            return true
-        default:
-            return false
-        }
-    }
-
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -92,56 +82,17 @@ private struct TranscricaoContent: View {
                         onRetry: { viewModel.reset() }
                     )
 
-                case .done:
-                    TranscricaoDonePhase(
-                        transcript: viewModel.transcript,
-                        summary: viewModel.summary,
-                        flashcards: viewModel.flashcards,
-                        onReset: { viewModel.reset() }
-                    )
-
                 default:
-                    // idle, recording, and processing phases all show the main scroll
+                    // idle, recording, paused — tudo mostra a mesma lista. O
+                    // pipeline cloud roda 100% em background, sem toast no
+                    // topo. Cards da lista (locais) carregam o spinner de
+                    // "transcrevendo" via `cloudStatus`.
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
-                            // Processing toast overlay (inline, not full-screen)
-                            if isProcessing {
-                                TranscricaoProcessingToast(
-                                    phase: viewModel.phase,
-                                    elapsedSeconds: viewModel.processingSeconds,
-                                    stage: viewModel.progressStage
-                                )
-                                .padding(.horizontal, 16)
-                                .padding(.top, 10)
-                                .padding(.bottom, 6)
-                                .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-
                             // Recorder card (mode toggle + recorder area)
                             VStack(spacing: 12) {
                                 TranscricaoModeToggle(selected: $selectedMode)
-                                    .disabled(viewModel.phase == .recording || isProcessing)
-                                    .opacity(isProcessing ? 0.5 : 1.0)
-
-                                // Toggle "Transcrever com IA" — quando OFF, áudio
-                                // fica só no device (Documents/audios/), sem
-                                // upload/Whisper/LLM. User pode promover depois.
-                                Toggle(isOn: Binding(
-                                    get: { viewModel.transcribeWithAI },
-                                    set: { viewModel.transcribeWithAI = $0 }
-                                )) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: viewModel.transcribeWithAI ? "sparkles" : "iphone")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundStyle(VitaColors.accent)
-                                        Text(viewModel.transcribeWithAI ? "Transcrever com Vita" : "Só rascunho local")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundStyle(Color.white.opacity(0.75))
-                                    }
-                                }
-                                .toggleStyle(SwitchToggleStyle(tint: VitaColors.accent))
-                                .disabled(viewModel.phase == .recording || isProcessing)
-                                .opacity(viewModel.phase == .recording || isProcessing ? 0.5 : 1.0)
+                                    .disabled(viewModel.phase == .recording)
 
                                 TranscricaoRecorderArea(
                                     elapsedSeconds: (viewModel.phase == .recording || viewModel.phase == .paused) ? viewModel.elapsedSeconds : 0,
@@ -172,13 +123,39 @@ private struct TranscricaoContent: View {
                                         }
                                     }
                                 )
-                                .disabled(isProcessing)
-                                .opacity(isProcessing ? 0.6 : 1.0)
                             }
                             .padding(16)
                             .glassCard(cornerRadius: 20)
                             .padding(.horizontal, 16)
-                            .padding(.top, isProcessing ? 4 : 10)
+                            .padding(.top, 10)
+
+                            // Toggle "Transcrever com Vita" — FORA do recorder
+                            // card. Antes tava dentro e a tap area do Toggle
+                            // (Label expande) sobrepunha com o botão central
+                            // do recorder → user tocava e começava a gravar.
+                            // Agora é uma row separada abaixo, sem conflito.
+                            HStack(spacing: 10) {
+                                Image(systemName: viewModel.transcribeWithAI ? "sparkles" : "iphone")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(VitaColors.accent)
+                                Text(viewModel.transcribeWithAI ? "Transcrever com Vita" : "Só rascunho local")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(Color.white.opacity(0.85))
+                                Spacer()
+                                Toggle("", isOn: Binding(
+                                    get: { viewModel.transcribeWithAI },
+                                    set: { viewModel.transcribeWithAI = $0 }
+                                ))
+                                .labelsHidden()
+                                .toggleStyle(SwitchToggleStyle(tint: VitaColors.accent))
+                                .disabled(viewModel.phase == .recording)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.04))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
 
                             // Live transcript (if in live mode and recording)
                             if viewModel.phase == .recording && selectedMode == .live && !viewModel.liveTranscript.isEmpty {
@@ -187,9 +164,10 @@ private struct TranscricaoContent: View {
                                     .padding(.top, 8)
                             }
 
-                            // Rascunhos locais (não transcritos) — mostrados
-                            // acima da lista cloud. Cada card tem "Transcrever
-                            // agora" (promove pro pipeline R2) ou "Apagar".
+                            // Rascunhos locais + uploads em background — cada
+                            // card mostra cloudStatus ("Enviando", "Transcrevendo",
+                            // "Resumindo…") via spinner/badge. Quando ready,
+                            // entry migra pra lista cloud automaticamente.
                             if !viewModel.localRecordings.isEmpty {
                                 TranscricaoLocalDraftsSection(
                                     drafts: viewModel.localRecordings,
@@ -220,7 +198,6 @@ private struct TranscricaoContent: View {
                         }
                         .padding(.bottom, 120)
                     }
-                    .animation(.easeInOut(duration: 0.3), value: isProcessing)
                     .refreshable { await viewModel.loadRecordings(force: true) }
                 }
             }

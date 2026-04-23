@@ -21,6 +21,15 @@ struct LocalRecording: Codable, Identifiable {
     var language: String        // pt, en, etc.
     var discipline: String?     // "Farmacologia" | nil
     var createdAt: Date
+    /// Status do upload em background quando user gravou com
+    /// `transcribeWithAI=true`. `nil` = rascunho puro (user escolheu só local);
+    /// `"uploading"`/`"transcribing"`/`"summarizing"` = pipeline em voo;
+    /// `"ready"` = pronto (entry já foi migrada pra cloud list, só ainda não
+    /// foi deletada); `"failed"` = erro, user pode tentar de novo via menu.
+    var cloudStatus: String?
+    /// `studio_sources.id` do backend depois que o upload iniciou. Permite
+    /// abrir detail screen e polling direto enquanto cloudStatus != "ready".
+    var cloudSourceId: String?
 }
 
 @MainActor
@@ -77,13 +86,25 @@ final class TranscricaoLocalStore {
             fileSize: size,
             language: language,
             discipline: discipline,
-            createdAt: Date()
+            createdAt: Date(),
+            cloudStatus: nil,
+            cloudSourceId: nil
         )
 
         var all = loadAll()
         all.insert(rec, at: 0)
         try writeIndex(all)
         return rec
+    }
+
+    /// Atualiza `cloudStatus` e `cloudSourceId` do rascunho enquanto o upload
+    /// roda em background. UI re-renderiza via `loadLocalRecordings()` no VM.
+    func updateCloudStatus(id: String, status: String?, sourceId: String? = nil) throws {
+        var all = loadAll()
+        guard let idx = all.firstIndex(where: { $0.id == id }) else { return }
+        all[idx].cloudStatus = status
+        if let sourceId { all[idx].cloudSourceId = sourceId }
+        try writeIndex(all)
     }
 
     /// List all local recordings, sorted newest first.

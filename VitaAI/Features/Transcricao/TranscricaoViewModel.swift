@@ -38,11 +38,6 @@ final class TranscricaoViewModel {
 
     private(set) var phase: Phase = .idle
     private(set) var elapsedSeconds: Int = 0
-    /// Real wall-clock counter that starts when the user hits "Stop
-    /// recording". Replaces the old hardcoded "~2 minutos" label on the
-    /// processing toast — no more lying about ETAs we can't predict.
-    private(set) var processingSeconds: Int = 0
-    private(set) var progressStage: String = ""
     /// Live waveform levels (0.0…1.0), length = `waveformBarCount`.
     /// Oldest sample is at index 0, newest at the end. Updated from the audio
     /// tap while recording.
@@ -83,24 +78,7 @@ final class TranscricaoViewModel {
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "pt-BR"))
     private var recordingURL: URL?
     private var timerTask: Task<Void, Never>?
-    private var uploadTask: Task<Void, Never>?
     private var recordingStartDate = Date()
-    /// Ticks `processingSeconds` while the upload/transcribe/persist
-    /// pipeline is running. Cancelled on `.done` / `.error` / `reset()`.
-    private var processingTimerTask: Task<Void, Never>?
-    /// Polls GET /studio/sources/:id once we have the sourceId. The SSE
-    /// stream from /api/ai/transcribe sometimes gets buffered or the
-    /// server closes without URLSession.AsyncBytes emitting EOF — when
-    /// that happens the UI would freeze forever. This poll independently
-    /// observes the DB row and transitions us to `.done` as soon as the
-    /// server marks it `ready`.
-    private var pollingTask: Task<Void, Never>?
-    /// Watchdog — after N seconds with no visible progress we give up on
-    /// the live stream, flip the UI to `.done` (assuming server finished
-    /// server-side) and refresh the list. 60s is well past whisper+LLM
-    /// wall clock for a normal lecture clip; if it's still running the
-    /// user can still check in "Transcrições".
-    private var watchdogTask: Task<Void, Never>?
 
     init(client: TranscricaoClient, api: VitaAPI? = nil, gamificationEvents: GamificationEventManager? = nil) {
         self.client = client
@@ -175,94 +153,53 @@ final class TranscricaoViewModel {
             return
         }
 
-        // Branch: cloud (Whisper + LLM) vs só local. Default é cloud.
-        // Modo local: user marcou o toggle "Transcrever com IA" OFF. Salva
-        // o m4a em Documents/audios/ e pula o pipeline R2+transcribe.
-        if !transcribeWithAI {
-            saveLocalOnly(from: url)
+        // Gold standard (Otter/Airgram/Voice Memos): gravação termina →
+        // card aparece na lista em <100ms. Pipeline cloud roda em background
+        // silencioso. User NUNCA fica preso numa tela de "enviando áudio...".
+        //
+        // 1. Sempre salva local primeiro (checkpoint — se app crashar no meio
+        //    do upload, o áudio não é perdido).
+        // 2. phase → .done imediato.
+        // 3. Se transcribeWithAI: Task background sobe pro R2 + Whisper + LLM,
+        //    atualizando localRecordings[i].cloudStatus durante o caminho.
+        //    Quando `ready`, a entry migra pra lista cloud e é removida local.
+        let title = Self.defaultTitleForNow()
+        let duration = Int(Date().timeIntervalSince(recordingStartDate))
+        let localRec: LocalRecording
+        do {
+            localRec = try TranscricaoLocalStore.shared.save(
+                tempURL: url,
+                title: title,
+                durationSeconds: duration,
+                language: selectedLanguage,
+                discipline: selectedDiscipline == "Auto-detectar" ? nil : selectedDiscipline
+            )
+        } catch {
+            setError("Não foi possível salvar: \(error.localizedDescription)")
             return
         }
 
-        phase = .uploading
-        progressStage = ""
-        processingSeconds = 0
-        startProcessingTimer()
-        startProcessingWatchdog()
-        uploadTask = Task { [weak self] in
-            await self?.processUpload(fileURL: url)
-        }
-    }
+        recordingURL = nil
+        phase = .idle
+        elapsedSeconds = 0
+        liveTranscript = ""
+        audioLevels = Array(repeating: 0, count: Self.waveformBarCount)
+        loadLocalRecordings()
 
-    /// 1-Hz counter that drives the "Enviando áudio — 0:07" label on the
-    /// processing toast. Started when upload begins, cancelled on done /
-    /// error / reset. Real seconds — no prediction.
-    private func startProcessingTimer() {
-        processingTimerTask?.cancel()
-        processingTimerTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
-                guard !Task.isCancelled else { break }
-                await MainActor.run { self?.processingSeconds += 1 }
+        if transcribeWithAI {
+            VitaPostHogConfig.capture(event: "transcription_upload_started", properties: [
+                "file_size_mb": Double(localRec.fileSize) / 1_048_576.0,
+                "duration_seconds": duration,
+                "background": true,
+            ])
+            Task.detached(priority: .userInitiated) { [weak self] in
+                await self?.uploadLocalInBackground(id: localRec.id)
             }
-        }
-    }
-
-    private func stopProcessingTimer() {
-        processingTimerTask?.cancel()
-        processingTimerTask = nil
-    }
-
-    /// If 60 seconds pass without a terminal SSE event, assume the server
-    /// finished server-side (our backend is resilient to client disconnects)
-    /// and pop the UI out of the processing state. One last loadRecordings
-    /// guarantees the new row shows up under "Transcrições de hoje".
-    private func startProcessingWatchdog() {
-        watchdogTask?.cancel()
-        watchdogTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(60))
-            guard !Task.isCancelled, let self else { return }
-            if self.phase == .uploading || self.phase == .transcribing
-                || self.phase == .summarizing || self.phase == .generatingFlashcards {
-                NSLog("[TranscricaoVM] watchdog fired — forcing done + refresh")
-                self.uploadTask?.cancel()
-                self.pollingTask?.cancel()
-                self.phase = .done
-                self.stopProcessingTimer()
-                await self.loadRecordings(force: true)
-            }
-        }
-    }
-
-    /// Independent of the SSE stream, polls the DB row every 2s once we
-    /// know its id. If the server marks it ready before (or after) SSE
-    /// completes we pick that up and transition here. This is what stops
-    /// "transcrevendo forever" dead.
-    private func startPolling(sourceId: String) {
-        pollingTask?.cancel()
-        pollingTask = Task { [weak self] in
-            guard let api = await self?.api else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
-                guard !Task.isCancelled else { break }
-                if let detail = try? await api.getStudioSourceDetail(id: sourceId),
-                   detail.status == "ready" {
-                    await MainActor.run {
-                        guard let self else { return }
-                        if self.phase != .done {
-                            NSLog("[TranscricaoVM] polling saw status=ready — transitioning to done")
-                            self.phase = .done
-                            self.transcript = detail.chunks?
-                                .sorted(by: { $0.chunkIndex < $1.chunkIndex })
-                                .map(\.content)
-                                .joined(separator: "\n\n") ?? self.transcript
-                            self.stopProcessingTimer()
-                            self.watchdogTask?.cancel()
-                            Task { await self.loadRecordings(force: true) }
-                        }
-                    }
-                    return
-                }
-            }
+        } else {
+            VitaPostHogConfig.capture(event: "transcription_saved_local", properties: [
+                "duration_seconds": duration,
+                "file_size_mb": Double(localRec.fileSize) / 1_048_576.0,
+            ])
         }
     }
 
@@ -272,64 +209,112 @@ final class TranscricaoViewModel {
         localRecordings.removeAll { $0.id == id }
     }
 
-    // MARK: - Local recordings (modo rascunho, sem upload/transcrição)
-
-    /// Salva áudio só no device quando `transcribeWithAI == false`. Pula
-    /// pipeline R2+Whisper+LLM. User pode promover depois via
-    /// `promoteLocalToCloud(id:)` ou apagar via `deleteLocalRecording(id:)`.
-    private func saveLocalOnly(from tempURL: URL) {
-        let title = Self.defaultTitleForNow()
-        let duration = Int(Date().timeIntervalSince(recordingStartDate))
-        do {
-            let rec = try TranscricaoLocalStore.shared.save(
-                tempURL: tempURL,
-                title: title,
-                durationSeconds: duration,
-                language: selectedLanguage,
-                discipline: selectedDiscipline == "Auto-detectar" ? nil : selectedDiscipline
-            )
-            NSLog("[TranscricaoVM] salvou local id=%@ title=%@ dur=%ds size=%d", rec.id, rec.title, rec.durationSeconds, rec.fileSize)
-            recordingURL = nil
-            // Go straight to .done — sem phase de upload/transcribing.
-            phase = .done
-            loadLocalRecordings()
-            VitaPostHogConfig.capture(event: "transcription_saved_local", properties: [
-                "duration_seconds": duration,
-                "file_size_mb": Double(rec.fileSize) / 1_048_576.0,
-            ])
-        } catch {
-            setError("Não foi possível salvar localmente: \(error.localizedDescription)")
-        }
-    }
+    // MARK: - Local recordings (rascunhos + uploads em background)
 
     /// Recarrega a lista de gravações locais do disco.
     func loadLocalRecordings() {
         localRecordings = TranscricaoLocalStore.shared.loadAll()
     }
 
-    /// Promove uma gravação local pro pipeline cloud — faz upload R2 +
-    /// Whisper + LLM. Quando completa, deleta a versão local automaticamente
-    /// (a cloud passa a ser fonte única).
+    /// Promove uma gravação local pro pipeline cloud (user clicou "Transcrever
+    /// agora" num rascunho puro). Roda em background, sem bloquear a UI.
     func promoteLocalToCloud(id: String) async {
-        guard let fileURL = TranscricaoLocalStore.shared.promote(id: id) else {
+        guard TranscricaoLocalStore.shared.fileURL(for: id) != nil else {
             setError("Arquivo local não encontrado.")
             return
         }
-        let local = localRecordings.first(where: { $0.id == id })
-        recordingStartDate = local?.createdAt ?? Date()
-        phase = .uploading
-        progressStage = ""
-        processingSeconds = 0
-        startProcessingTimer()
-        startProcessingWatchdog()
-        uploadTask = Task { [weak self] in
-            await self?.processUpload(fileURL: fileURL)
-            // Se o upload deu OK, deleta a cópia local (cloud é o SOT).
-            if await self?.phase == .done {
-                try? TranscricaoLocalStore.shared.delete(id: id)
-                await MainActor.run { self?.loadLocalRecordings() }
+        await uploadLocalInBackground(id: id)
+    }
+
+    /// Pipeline cloud silencioso — sobe áudio pro R2 + dispara Whisper + LLM
+    /// atualizando `cloudStatus` no LocalStore durante o caminho. UI se
+    /// atualiza porque `loadLocalRecordings()` é chamado a cada transição.
+    ///
+    /// Quando termina com `ready`: deleta entry local + refresh cloud list.
+    /// Se falha: marca `cloudStatus="failed"` — user vê badge vermelho no card
+    /// e pode tentar de novo pelo menu.
+    func uploadLocalInBackground(id: String) async {
+        guard let fileURL = TranscricaoLocalStore.shared.fileURL(for: id) else {
+            NSLog("[TranscricaoVM] uploadLocalInBackground: arquivo sumiu id=%@", id)
+            return
+        }
+        try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: "uploading")
+        loadLocalRecordings()
+
+        let uploadStart = Date()
+        var finalStatus = "ready"
+        var sourceIdSeen: String?
+        do {
+            for try await event in await client.uploadAndStream(
+                fileURL: fileURL,
+                language: localRecordings.first(where: { $0.id == id })?.language ?? selectedLanguage,
+                discipline: localRecordings.first(where: { $0.id == id })?.discipline ?? selectedDiscipline
+            ) {
+                switch event {
+                case .progress(let stage, _):
+                    let mapped = backgroundStatusFromStage(stage)
+                    try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: mapped)
+                    loadLocalRecordings()
+                case .sourceCreated(let cloudId):
+                    sourceIdSeen = cloudId
+                    try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: "uploading", sourceId: cloudId)
+                    loadLocalRecordings()
+                case .complete(let t, let s, let cards):
+                    try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: "ready", sourceId: sourceIdSeen)
+                    VitaPostHogConfig.capture(event: "transcription_completed", properties: [
+                        "word_count": t.split(separator: " ").count,
+                        "flashcards_generated": cards.count,
+                        "seconds_elapsed": Int(Date().timeIntervalSince(uploadStart)),
+                        "background": true,
+                    ])
+                    _ = s
+                case .error(let msg):
+                    finalStatus = "failed"
+                    try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: "failed")
+                    loadLocalRecordings()
+                    VitaPostHogConfig.capture(event: "transcription_upload_failed", properties: [
+                        "reason": msg,
+                        "background": true,
+                    ])
+                }
+            }
+        } catch {
+            finalStatus = "failed"
+            try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: "failed")
+            loadLocalRecordings()
+            VitaPostHogConfig.capture(event: "transcription_upload_failed", properties: [
+                "reason": error.localizedDescription,
+                "background": true,
+            ])
+        }
+
+        if finalStatus == "ready" {
+            // Cloud virou a fonte única — apaga a cópia local e refresh a lista
+            // cloud pra mostrar a entry nova.
+            let duration = localRecordings.first(where: { $0.id == id })?.durationSeconds ?? 0
+            try? TranscricaoLocalStore.shared.delete(id: id)
+            loadLocalRecordings()
+            await loadRecordings(force: true)
+
+            // Gamification: study session log (mesmo que processUpload antigo fazia).
+            let durationMinutes = duration / 60
+            if let api, let gamificationEvents, durationMinutes > 0 {
+                if let result = try? await api.logActivity(
+                    action: "study_session_end",
+                    metadata: ["durationMinutes": String(durationMinutes)]
+                ) {
+                    await gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+                }
             }
         }
+    }
+
+    private func backgroundStatusFromStage(_ stage: String) -> String {
+        let lower = stage.lowercased()
+        if lower.contains("transcri") { return "transcribing" }
+        if lower.contains("resum") { return "summarizing" }
+        if lower.contains("flash") { return "generating_flashcards" }
+        return "uploading"
     }
 
     /// Apaga gravação local (m4a + index entry). Irreversível.
@@ -363,22 +348,12 @@ final class TranscricaoViewModel {
 
     func reset() {
         timerTask?.cancel()
-        uploadTask?.cancel()
-        processingTimerTask?.cancel()
-        pollingTask?.cancel()
-        watchdogTask?.cancel()
         timerTask = nil
-        uploadTask = nil
-        processingTimerTask = nil
-        pollingTask = nil
-        watchdogTask = nil
         endAudioCapture()
         if let url = recordingURL { try? FileManager.default.removeItem(at: url) }
         recordingURL = nil
         phase = .idle
         elapsedSeconds = 0
-        processingSeconds = 0
-        progressStage = ""
         liveTranscript = ""
         transcript = ""
         summary = ""
@@ -555,95 +530,6 @@ final class TranscricaoViewModel {
         }
     }
 
-    // MARK: - Upload
-
-    private func processUpload(fileURL: URL) async {
-        let uploadStart = Date()
-        let sizeBytes = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int) ?? 0
-        VitaPostHogConfig.capture(event: "transcription_upload_started", properties: [
-            "file_size_mb": Double(sizeBytes) / 1_048_576.0,
-            "duration_seconds": Int(Date().timeIntervalSince(recordingStartDate)),
-        ])
-        do {
-            for try await event in await client.uploadAndStream(
-                fileURL: fileURL,
-                language: selectedLanguage,
-                discipline: selectedDiscipline
-            ) {
-                switch event {
-                case .progress(let stage, _):
-                    progressStage = stage
-                    phase = phaseFromStage(stage)
-                case .sourceCreated(let id):
-                    // Start polling now — if the SSE stream stalls or the
-                    // TCP pipe buffers, the poll still observes the DB
-                    // going to status=ready and wakes the UI up.
-                    startPolling(sourceId: id)
-                case .complete(let t, let s, let cards):
-                    transcript = t
-                    summary = s
-                    flashcards = cards
-                    phase = .done
-                    try? FileManager.default.removeItem(at: fileURL)
-                    stopProcessingTimer()
-                    pollingTask?.cancel()
-                    watchdogTask?.cancel()
-                    // Kick a list refresh so the new recording shows up under
-                    // "Transcrições de hoje" without the user needing to
-                    // navigate away and back. Runs concurrently with the
-                    // gamification ping below.
-                    Task { await self.loadRecordings(force: true) }
-                    VitaPostHogConfig.capture(event: "transcription_completed", properties: [
-                        "word_count": t.split(separator: " ").count,
-                        "flashcards_generated": cards.count,
-                        "seconds_elapsed": Int(Date().timeIntervalSince(uploadStart)),
-                    ])
-
-                    // Log study session for gamification
-                    let durationMinutes = Int(Date().timeIntervalSince(recordingStartDate) / 60)
-                    if let api, let gamificationEvents {
-                        Task {
-                            if let result = try? await api.logActivity(
-                                action: "study_session_end",
-                                metadata: ["durationMinutes": String(durationMinutes)]
-                            ) {
-                                await gamificationEvents.handleActivityResponse(result, previousLevel: nil)
-                            }
-                        }
-                    }
-                case .error(let msg):
-                    // If the server reported an error AFTER whisper already
-                    // persisted the transcript, the poll catches the ready
-                    // row separately and flips us to `.done`. Don't mark
-                    // error if polling already succeeded in parallel.
-                    if phase != .done {
-                        setError(msg)
-                        stopProcessingTimer()
-                    }
-                    // Either way, refresh the list so the user sees whatever
-                    // did land server-side.
-                    Task { await self.loadRecordings(force: true) }
-                    VitaPostHogConfig.capture(event: "transcription_upload_failed", properties: [
-                        "reason": msg,
-                    ])
-                }
-            }
-        } catch {
-            guard !Task.isCancelled else { return }
-            setError("Erro no envio: \(error.localizedDescription)")
-            VitaPostHogConfig.capture(event: "transcription_upload_failed", properties: [
-                "reason": error.localizedDescription,
-            ])
-        }
-    }
-
-    private func phaseFromStage(_ stage: String) -> Phase {
-        let lower = stage.lowercased()
-        if lower.contains("transcri") { return .transcribing }
-        if lower.contains("resum") { return .summarizing }
-        if lower.contains("flash") { return .generatingFlashcards }
-        return .uploading
-    }
 
     private func setError(_ msg: String) {
         phase = .error
