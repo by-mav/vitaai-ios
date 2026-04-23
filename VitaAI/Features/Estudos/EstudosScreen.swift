@@ -627,7 +627,10 @@ private struct ToolCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            ZStack(alignment: .bottom) {
+            // 2026-04-23: removido overlay de Text(label) + scrim gradient —
+            // as imagens `tool-*` já trazem o rótulo desenhado. Manter
+            // accessibilityLabel pra VoiceOver.
+            Group {
                 if UIImage(named: imageName) != nil {
                     Color.clear
                         .frame(height: cardHeight)
@@ -647,19 +650,6 @@ private struct ToolCard: View {
                                 .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
                         )
                 }
-
-                // Label scrim
-                LinearGradient(
-                    colors: [Color.clear, Color.black.opacity(0.60)],
-                    startPoint: .center,
-                    endPoint: .bottom
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-
-                Text(label)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.90))
-                    .padding(.bottom, 7)
             }
             .frame(height: cardHeight)
             .frame(maxWidth: .infinity)
@@ -677,7 +667,9 @@ private struct AtlasTallCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            ZStack(alignment: .bottom) {
+            // 2026-04-23: removido overlay de Text("Atlas 3D") + scrim —
+            // imagem `tool-atlas3d` já traz o rótulo desenhado.
+            Group {
                 if UIImage(named: "tool-atlas3d") != nil {
                     Color.clear
                         .overlay {
@@ -704,19 +696,6 @@ private struct AtlasTallCard: View {
                                 .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
                         )
                 }
-
-                // Label scrim
-                LinearGradient(
-                    colors: [Color.clear, Color.black.opacity(0.60)],
-                    startPoint: .center,
-                    endPoint: .bottom
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-
-                Text("Atlas 3D")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.90))
-                    .padding(.bottom, 7)
             }
             .shadow(color: .black.opacity(0.30), radius: 6, y: 4)
         }

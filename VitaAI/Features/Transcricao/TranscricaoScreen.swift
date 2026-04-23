@@ -23,18 +23,17 @@ struct TranscricaoScreen: View {
                     .background(Color.clear.ignoresSafeArea())
             }
         }
-        .onAppear {
+        .task {
+            // 2026-04-23: trocado .onAppear por .task — SwiftUI re-dispara
+            // .onAppear em múltiplos eventos (sheet dismiss, layout recalc,
+            // tab switch), causando 6 chamadas a loadRecordings() por
+            // abertura. `.task` dispara 1× por vida da view e cancela no
+            // dismiss. Debounce de 2s no ViewModel cobre navigation retornada.
             if viewModel == nil {
                 viewModel = TranscricaoViewModel(client: container.transcricaoClient, api: container.api, gamificationEvents: container.gamificationEvents)
             }
-            // Always refresh the list on re-enter so transcriptions that
-            // finished while the user was on another tab show up immediately.
-            // Before this the list was only seeded on first mount and a user
-            // that navigated away mid-processing returned to a blank state.
-            Task {
-                await viewModel?.loadRecordings()
-                SentrySDK.reportFullyDisplayed()
-            }
+            await viewModel?.loadRecordings()
+            SentrySDK.reportFullyDisplayed()
         }
         .onDisappear {
             // If the user is still recording, stop capture so the mic is
@@ -186,7 +185,7 @@ private struct TranscricaoContent: View {
                         .padding(.bottom, 120)
                     }
                     .animation(.easeInOut(duration: 0.3), value: isProcessing)
-                    .refreshable { await viewModel.loadRecordings() }
+                    .refreshable { await viewModel.loadRecordings(force: true) }
                 }
             }
         }
@@ -196,7 +195,7 @@ private struct TranscricaoContent: View {
             TranscricaoDetailSheet(
                 recording: rec,
                 onRenamed: { newTitle in
-                    Task { await viewModel.loadRecordings() }
+                    Task { await viewModel.loadRecordings(force: true) }
                     _ = newTitle
                 },
                 onDeleted: {
