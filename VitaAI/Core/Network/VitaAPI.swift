@@ -188,6 +188,16 @@ actor VitaAPI {
         try await client.get("studio/sources/\(id)")
     }
 
+    private struct RenameStudioSourceBody: Encodable { let title: String }
+
+    func renameStudioSource(id: String, title: String) async throws {
+        try await client.patch("studio/sources/\(id)", body: RenameStudioSourceBody(title: title))
+    }
+
+    func deleteStudioSource(id: String) async throws {
+        try await client.delete("studio/sources/\(id)")
+    }
+
     func getStudioOutputs(sourceId: String) async throws -> StudioOutputsResponse {
         try await client.get("studio/outputs", queryItems: [
             URLQueryItem(name: "sourceId", value: sourceId),

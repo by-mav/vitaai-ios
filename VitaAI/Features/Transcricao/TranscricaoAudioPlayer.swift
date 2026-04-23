@@ -31,6 +31,23 @@ final class TranscricaoAudioPlayer: ObservableObject {
 
     // MARK: - Public
 
+    /// Prepare audio from a presigned R2 GET URL (gold standard — no backend
+    /// roundtrip needed, backend attaches the URL to the source metadata).
+    func prepareFromUrl(_ signedUrl: String, words: [WhisperWord] = []) {
+        cleanup()
+        self.words = words
+        isLoading = true
+        error = nil
+
+        guard let url = URL(string: signedUrl) else {
+            error = "URL inválida"
+            isLoading = false
+            return
+        }
+        let asset = AVURLAsset(url: url)
+        setupPlayer(with: asset)
+    }
+
     /// Prepare audio from R2 via /api/files/:id/download (gold standard)
     func prepareFromFileId(fileId: String, tokenStore: TokenStore, words: [WhisperWord] = []) {
         cleanup()

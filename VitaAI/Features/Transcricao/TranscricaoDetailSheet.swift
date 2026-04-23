@@ -4,6 +4,12 @@ import SwiftUI
 
 struct TranscricaoDetailSheet: View {
     let recording: TranscricaoEntry
+    /// Called after a successful rename so the parent list can refresh without
+    /// a full reload.
+    var onRenamed: ((String) -> Void)? = nil
+    /// Called after a successful delete so the parent list can drop the row.
+    var onDeleted: (() -> Void)? = nil
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appContainer) private var container
 
@@ -17,6 +23,24 @@ struct TranscricaoDetailSheet: View {
     @State private var professorSignals: [ProfessorSignals.Signal] = []
     @State private var showKaraoke = false
     @State private var hasAudioFile = false
+
+    // Actions menu state.
+    @State private var liveTitle: String
+    @State private var showRenameDialog = false
+    @State private var renameValue: String = ""
+    @State private var showDeleteConfirm = false
+    @State private var showShareSheet = false
+    @State private var actionBusy = false
+    @State private var actionError: String?
+
+    init(recording: TranscricaoEntry,
+         onRenamed: ((String) -> Void)? = nil,
+         onDeleted: (() -> Void)? = nil) {
+        self.recording = recording
+        self.onRenamed = onRenamed
+        self.onDeleted = onDeleted
+        self._liveTitle = State(initialValue: recording.title)
+    }
 
     private var displayStatus: RecordingStatus {
         recording.isTranscribed ? .transcribed : .pending
@@ -133,7 +157,7 @@ struct TranscricaoDetailSheet: View {
             .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(recording.title.isEmpty ? "Gravação" : recording.title)
+                Text(liveTitle.isEmpty ? "Gravação" : liveTitle)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.90))
                     .lineLimit(1)
@@ -153,6 +177,8 @@ struct TranscricaoDetailSheet: View {
 
             Spacer()
             TranscricaoStatusBadge(status: displayStatus)
+
+            actionsMenu
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
@@ -160,6 +186,127 @@ struct TranscricaoDetailSheet: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(VitaColors.accent.opacity(0.10)).frame(height: 1)
         }
+    }
+
+    // MARK: - Actions menu
+
+    private var actionsMenu: some View {
+        Menu {
+            Button {
+                renameValue = liveTitle
+                showRenameDialog = true
+            } label: {
+                Label("Renomear", systemImage: "pencil")
+            }
+            Button {
+                UIPasteboard.general.string = fullTranscript
+            } label: {
+                Label("Copiar transcrição", systemImage: "doc.on.doc")
+            }
+            .disabled(fullTranscript.isEmpty)
+            Button {
+                showShareSheet = true
+            } label: {
+                Label("Compartilhar", systemImage: "square.and.arrow.up")
+            }
+            .disabled(fullTranscript.isEmpty)
+            Divider()
+            Button(role: .destructive) {
+                showDeleteConfirm = true
+            } label: {
+                Label("Excluir", systemImage: "trash")
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(VitaColors.accent.opacity(0.08))
+                    .frame(width: 32, height: 32)
+                    .overlay(Circle().stroke(VitaColors.accent.opacity(0.18), lineWidth: 1))
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.70))
+            }
+            .frame(minWidth: 44, minHeight: 44)
+        }
+        .disabled(actionBusy)
+        .alert("Renomear gravação", isPresented: $showRenameDialog) {
+            TextField("Título", text: $renameValue)
+            Button("Cancelar", role: .cancel) { }
+            Button("Salvar") { Task { await performRename() } }
+                .disabled(renameValue.trimmingCharacters(in: .whitespaces).isEmpty)
+        } message: {
+            Text("Defina um nome mais fácil de encontrar depois.")
+        }
+        .confirmationDialog(
+            "Excluir esta gravação?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Excluir", role: .destructive) { Task { await performDelete() } }
+            Button("Cancelar", role: .cancel) { }
+        } message: {
+            Text("O áudio, a transcrição e os resumos gerados serão removidos. Não dá pra desfazer.")
+        }
+        .sheet(isPresented: $showShareSheet) {
+            TranscricaoShareSheet(items: shareItems)
+        }
+        .overlay(alignment: .bottom) {
+            if let err = actionError {
+                Text(err)
+                    .font(.system(size: 11))
+                    .foregroundStyle(VitaColors.dataRed.opacity(0.9))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.thinMaterial)
+                    .clipShape(Capsule())
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private var shareItems: [Any] {
+        var items: [Any] = []
+        let title = liveTitle.isEmpty ? "Gravação" : liveTitle
+        let body = fullTranscript.isEmpty ? title : "\(title)\n\n\(fullTranscript)"
+        items.append(body)
+        return items
+    }
+
+    private func performRename() async {
+        let newTitle = renameValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newTitle.isEmpty else { return }
+        actionBusy = true
+        actionError = nil
+        do {
+            try await container.api.renameStudioSource(id: recording.id, title: newTitle)
+            liveTitle = newTitle
+            onRenamed?(newTitle)
+        } catch {
+            actionError = "Falha ao renomear"
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                await MainActor.run { actionError = nil }
+            }
+        }
+        actionBusy = false
+    }
+
+    private func performDelete() async {
+        actionBusy = true
+        actionError = nil
+        do {
+            try await container.api.deleteStudioSource(id: recording.id)
+            onDeleted?()
+            dismiss()
+        } catch {
+            actionError = "Falha ao excluir"
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                await MainActor.run { actionError = nil }
+            }
+        }
+        actionBusy = false
     }
 
     // MARK: - Loading
@@ -261,10 +408,14 @@ struct TranscricaoDetailSheet: View {
                 professorSignals = ProfessorSignals.detect(in: transcript)
             }
 
-            // Prepare audio player if we have a file
+            // Prepare audio player if we have a file. Preferred path is the
+            // presigned R2 URL the backend bakes into metadata — no extra
+            // /files roundtrip needed.
             if detail.type == "audio" {
-                if let audioFileId = detail.metadata?.audioFileId {
-                    // Gold standard: stream from R2 via files API
+                if let audioUrl = detail.metadata?.audioUrl, !audioUrl.isEmpty {
+                    hasAudioFile = true
+                    audioPlayer.prepareFromUrl(audioUrl, words: allWords)
+                } else if let audioFileId = detail.metadata?.audioFileId {
                     hasAudioFile = true
                     audioPlayer.prepareFromFileId(
                         fileId: audioFileId,
@@ -272,7 +423,6 @@ struct TranscricaoDetailSheet: View {
                         words: allWords
                     )
                 } else if let fileName = detail.metadata?.fileName {
-                    // Legacy: stream from studio upload
                     hasAudioFile = true
                     audioPlayer.prepare(
                         fileName: fileName,
@@ -287,6 +437,18 @@ struct TranscricaoDetailSheet: View {
         }
         isLoading = false
     }
+}
+
+// MARK: - Share Sheet (UIActivityViewController bridge)
+
+private struct TranscricaoShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Real Transcript Section
