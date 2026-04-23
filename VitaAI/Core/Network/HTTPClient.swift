@@ -242,6 +242,12 @@ actor HTTPClient {
         try await request("PATCH", path: path, body: body)
     }
 
+    /// Fire-and-forget PATCH (204 No Content). Use when the server returns
+    /// no body and we just want to know it succeeded.
+    func patch(_ path: String, body: (any Encodable)? = nil) async throws {
+        let _: EmptyResponse = try await request("PATCH", path: path, body: body)
+    }
+
     func delete(_ path: String) async throws {
         let _: EmptyResponse = try await request("DELETE", path: path)
     }

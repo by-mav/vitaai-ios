@@ -26,14 +26,25 @@ struct TranscricaoScreen: View {
         .onAppear {
             if viewModel == nil {
                 viewModel = TranscricaoViewModel(client: container.transcricaoClient, api: container.api, gamificationEvents: container.gamificationEvents)
-                Task {
-                    await viewModel?.loadRecordings()
-                    SentrySDK.reportFullyDisplayed()
-                }
+            }
+            // Always refresh the list on re-enter so transcriptions that
+            // finished while the user was on another tab show up immediately.
+            // Before this the list was only seeded on first mount and a user
+            // that navigated away mid-processing returned to a blank state.
+            Task {
+                await viewModel?.loadRecordings()
+                SentrySDK.reportFullyDisplayed()
             }
         }
         .onDisappear {
-            viewModel?.reset()
+            // If the user is still recording, stop capture so the mic is
+            // released; but NEVER reset the processing pipeline — upload /
+            // transcribe / summary runs server-side and the list refresh on
+            // re-enter will show the result. Calling reset() here was the
+            // root cause of "ficou transcrevendo pra sempre".
+            if viewModel?.phase == .recording {
+                viewModel?.stopRecording()
+            }
         }
         .trackScreen("Transcricao")
     }
@@ -182,7 +193,16 @@ private struct TranscricaoContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Detail sheet when tapping a recording
         .sheet(item: $selectedRecording) { rec in
-            TranscricaoDetailSheet(recording: rec)
+            TranscricaoDetailSheet(
+                recording: rec,
+                onRenamed: { newTitle in
+                    Task { await viewModel.loadRecordings() }
+                    _ = newTitle
+                },
+                onDeleted: {
+                    withAnimation { viewModel.removeRecordingLocally(id: rec.id) }
+                }
+            )
         }
         // Disciplines loaded from appData.gradesResponse (no separate API call needed)
     }

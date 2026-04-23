@@ -112,9 +112,12 @@ struct StudioSourceMetadata: Decodable {
     let segments: [WhisperSegment]?
     let audioFileId: String?
     let audioR2Key: String?
+    /// Short-lived presigned R2 GET URL for the audio file. Backend attaches
+    /// it on GET /api/studio/sources/:id so AVPlayer can stream directly.
+    let audioUrl: String?
 
     enum CodingKeys: String, CodingKey {
-        case duration, fileName, fileSize, whisperModel, segments, audioFileId, audioR2Key
+        case duration, durationSeconds, fileName, fileSize, whisperModel, segments, audioFileId, audioR2Key, audioUrl
     }
 
     init(from decoder: Decoder) throws {
@@ -125,14 +128,23 @@ struct StudioSourceMetadata: Decodable {
         segments = try c.decodeIfPresent([WhisperSegment].self, forKey: .segments)
         audioFileId = try c.decodeIfPresent(String.self, forKey: .audioFileId)
         audioR2Key = try c.decodeIfPresent(String.self, forKey: .audioR2Key)
+        audioUrl = try c.decodeIfPresent(String.self, forKey: .audioUrl)
 
-        // duration can be Double (seconds) or String ("~60min")
-        if let d = try? c.decodeIfPresent(Double.self, forKey: .duration) {
+        // `duration` is the legacy key and may be Double (seconds) or String
+        // ("~60min"). The new backend also writes `durationSeconds` directly —
+        // we prefer that when present.
+        let rawDurationSeconds = try? c.decodeIfPresent(Double.self, forKey: .durationSeconds)
+        let rawDurationAsDouble = try? c.decodeIfPresent(Double.self, forKey: .duration)
+        let rawDurationAsString = try? c.decodeIfPresent(String.self, forKey: .duration)
+        if let d = rawDurationSeconds.flatMap({ $0 }) {
             durationSeconds = d
             durationLabel = nil
-        } else if let s = try? c.decodeIfPresent(String.self, forKey: .duration) {
-            durationLabel = s
+        } else if let d = rawDurationAsDouble.flatMap({ $0 }) {
+            durationSeconds = d
+            durationLabel = nil
+        } else if let s = rawDurationAsString.flatMap({ $0 }) {
             durationSeconds = nil
+            durationLabel = s
         } else {
             durationSeconds = nil
             durationLabel = nil
@@ -516,34 +528,57 @@ actor TranscricaoClient {
         throw APIError.unknown
     }
 
-    /// Shared SSE consumer — reads `event:` / `data:` pairs and emits parsed events.
+    /// Shared SSE consumer — reads `data:` frames. The backend emits
+    /// `data: {"type":"...", ...}\n\n` without an `event:` prefix, so the
+    /// discriminator lives inside the JSON payload.
     private func consumeSSE(
         bytes: URLSession.AsyncBytes,
         continuation: AsyncThrowingStream<TranscricaoSSEEvent, Error>.Continuation
     ) async throws {
-        var eventType = ""
         var dataLines: [String] = []
+        var accumulatedTranscript = ""
+        var accumulatedSummary = ""
+        var accumulatedCards: [TranscriptionFlashcard] = []
         for try await line in bytes.lines {
-            if line.hasPrefix("event:") {
-                eventType = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
-            } else if line.hasPrefix("data:") {
+            if line.hasPrefix("data:") {
                 let content = String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces)
                 dataLines.append(content)
             } else if line.isEmpty, !dataLines.isEmpty {
                 let rawJSON = dataLines.joined(separator: "\n")
                 dataLines = []
-                if let event = Self.parse(type: eventType, data: rawJSON) {
+                let parsed = Self.parseFrame(
+                    rawJSON: rawJSON,
+                    transcript: &accumulatedTranscript,
+                    summary: &accumulatedSummary,
+                    cards: &accumulatedCards
+                )
+                switch parsed {
+                case .yield(let event):
                     continuation.yield(event)
-                    switch event {
-                    case .complete, .error:
-                        continuation.finish()
-                        return
-                    default:
-                        break
-                    }
+                case .finishOK:
+                    continuation.yield(.complete(
+                        transcript: accumulatedTranscript,
+                        summary: accumulatedSummary,
+                        flashcards: accumulatedCards
+                    ))
+                    continuation.finish()
+                    return
+                case .finishError(let msg):
+                    continuation.yield(.error(message: msg))
+                    continuation.finish()
+                    return
+                case .ignore:
+                    break
                 }
-                eventType = ""
             }
+        }
+        // Stream closed without message_stop → treat as best-effort complete.
+        if !accumulatedTranscript.isEmpty {
+            continuation.yield(.complete(
+                transcript: accumulatedTranscript,
+                summary: accumulatedSummary,
+                flashcards: accumulatedCards
+            ))
         }
         continuation.finish()
     }
@@ -572,33 +607,61 @@ actor TranscricaoClient {
 
     // MARK: - SSE Parser
 
-    private static func parse(type: String, data: String) -> TranscricaoSSEEvent? {
-        guard let jsonData = data.data(using: .utf8),
+    /// Internal parse result. Backend streams individual frames
+    /// (progress/transcript/summary/flashcards/source_created/message_stop/error)
+    /// and finishes with `message_stop`; we accumulate partials here and emit
+    /// `.complete` once we see `message_stop`.
+    private enum ParsedFrame {
+        case yield(TranscricaoSSEEvent)
+        case finishOK
+        case finishError(String)
+        case ignore
+    }
+
+    private static func parseFrame(
+        rawJSON: String,
+        transcript: inout String,
+        summary: inout String,
+        cards: inout [TranscriptionFlashcard]
+    ) -> ParsedFrame {
+        guard let jsonData = rawJSON.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-        else { return nil }
+        else { return .ignore }
+        let type = (json["type"] as? String) ?? ""
 
         switch type {
         case "progress":
-            return .progress(
+            return .yield(.progress(
                 stage: json["stage"] as? String ?? "",
                 percent: json["percent"] as? Int ?? 0
-            )
-        case "complete":
-            let transcript = json["transcript"] as? String ?? ""
-            let summary = json["summary"] as? String ?? ""
+            ))
+        case "transcript":
+            transcript = (json["content"] as? String) ?? transcript
+            return .ignore
+        case "summary":
+            summary = (json["content"] as? String) ?? summary
+            return .ignore
+        case "flashcards":
             let rawCards = json["flashcards"] as? [[String: String]] ?? []
-            let cards = rawCards.enumerated().map { idx, card in
+            cards = rawCards.enumerated().map { idx, card in
                 TranscriptionFlashcard(
                     id: card["id"] ?? "\(idx)",
                     front: card["front"] ?? "",
                     back: card["back"] ?? ""
                 )
             }
-            return .complete(transcript: transcript, summary: summary, flashcards: cards)
+            return .ignore
+        case "source_created":
+            return .ignore
+        case "message_stop":
+            return .finishOK
         case "error":
-            return .error(message: json["message"] as? String ?? "Erro desconhecido")
+            let msg = (json["content"] as? String)
+                ?? (json["message"] as? String)
+                ?? "Erro desconhecido"
+            return .finishError(msg)
         default:
-            return nil
+            return .ignore
         }
     }
 }
