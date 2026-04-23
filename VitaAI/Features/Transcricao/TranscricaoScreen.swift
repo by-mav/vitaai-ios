@@ -123,6 +123,26 @@ private struct TranscricaoContent: View {
                                     .disabled(viewModel.phase == .recording || isProcessing)
                                     .opacity(isProcessing ? 0.5 : 1.0)
 
+                                // Toggle "Transcrever com IA" — quando OFF, áudio
+                                // fica só no device (Documents/audios/), sem
+                                // upload/Whisper/LLM. User pode promover depois.
+                                Toggle(isOn: Binding(
+                                    get: { viewModel.transcribeWithAI },
+                                    set: { viewModel.transcribeWithAI = $0 }
+                                )) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: viewModel.transcribeWithAI ? "sparkles" : "iphone")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(VitaColors.accent)
+                                        Text(viewModel.transcribeWithAI ? "Transcrever com Vita" : "Só rascunho local")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(Color.white.opacity(0.75))
+                                    }
+                                }
+                                .toggleStyle(SwitchToggleStyle(tint: VitaColors.accent))
+                                .disabled(viewModel.phase == .recording || isProcessing)
+                                .opacity(viewModel.phase == .recording || isProcessing ? 0.5 : 1.0)
+
                                 TranscricaoRecorderArea(
                                     elapsedSeconds: (viewModel.phase == .recording || viewModel.phase == .paused) ? viewModel.elapsedSeconds : 0,
                                     isRecording: viewModel.phase == .recording,
@@ -167,7 +187,23 @@ private struct TranscricaoContent: View {
                                     .padding(.top, 8)
                             }
 
-                            // Recordings list
+                            // Rascunhos locais (não transcritos) — mostrados
+                            // acima da lista cloud. Cada card tem "Transcrever
+                            // agora" (promove pro pipeline R2) ou "Apagar".
+                            if !viewModel.localRecordings.isEmpty {
+                                TranscricaoLocalDraftsSection(
+                                    drafts: viewModel.localRecordings,
+                                    onTranscribe: { draft in
+                                        Task { await viewModel.promoteLocalToCloud(id: draft.id) }
+                                    },
+                                    onDelete: { draft in
+                                        withAnimation { viewModel.deleteLocalRecording(id: draft.id) }
+                                    }
+                                )
+                                .padding(.top, 10)
+                            }
+
+                            // Recordings list (cloud)
                             TranscricaoRecordingsListSection(
                                 recordings: viewModel.recordings,
                                 isLoading: viewModel.recordingsLoading,

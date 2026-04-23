@@ -53,6 +53,14 @@ final class TranscricaoViewModel {
     /// server will classify from context (future Fase 2) — today it's just
     /// stored as metadata and used by the filter picker.
     var selectedDiscipline: String = "Auto-detectar"
+    /// Quando `true` (default): áudio sobe pro R2 + Whisper + LLM resumo/flashcards.
+    /// Quando `false`: áudio fica só no device (Documents/audios/), user pode
+    /// promover pra cloud depois via botão "Transcrever agora". Util pra rascunho
+    /// rápido, conteúdo sensível ou gravação sem wifi.
+    var transcribeWithAI: Bool = true
+    /// Gravações salvas só no device (quando transcribeWithAI=false). Carregadas
+    /// por `loadLocalRecordings()` e merged com `recordings` na UI.
+    private(set) var localRecordings: [LocalRecording] = []
     /// Real-time SFSpeechRecognizer partial transcript shown during recording.
     private(set) var liveTranscript: String = ""
     private(set) var transcript: String = ""
@@ -110,6 +118,10 @@ final class TranscricaoViewModel {
     /// Load saved recordings from the API. Debounced 2s; `force: true` pula
     /// o debounce (pull-to-refresh, callback pós-completion).
     func loadRecordings(force: Bool = false) async {
+        // Local recordings first — disk access é sync e instantâneo, não faz
+        // sentido esperar o network pra mostrar o que já existe no device.
+        loadLocalRecordings()
+
         guard let api else { return }
         if !force && Date().timeIntervalSince(lastLoadAt) < 2 {
             NSLog("[TranscricaoVM] loadRecordings debounced (last=%.1fs)", Date().timeIntervalSince(lastLoadAt))
@@ -162,6 +174,15 @@ final class TranscricaoViewModel {
             setError("Arquivo de gravação não encontrado.")
             return
         }
+
+        // Branch: cloud (Whisper + LLM) vs só local. Default é cloud.
+        // Modo local: user marcou o toggle "Transcrever com IA" OFF. Salva
+        // o m4a em Documents/audios/ e pula o pipeline R2+transcribe.
+        if !transcribeWithAI {
+            saveLocalOnly(from: url)
+            return
+        }
+
         phase = .uploading
         progressStage = ""
         processingSeconds = 0
@@ -248,6 +269,96 @@ final class TranscricaoViewModel {
     /// Remove a recording from the local list (optimistic delete)
     func removeRecordingLocally(id: String) {
         recordings.removeAll { $0.id == id }
+        localRecordings.removeAll { $0.id == id }
+    }
+
+    // MARK: - Local recordings (modo rascunho, sem upload/transcrição)
+
+    /// Salva áudio só no device quando `transcribeWithAI == false`. Pula
+    /// pipeline R2+Whisper+LLM. User pode promover depois via
+    /// `promoteLocalToCloud(id:)` ou apagar via `deleteLocalRecording(id:)`.
+    private func saveLocalOnly(from tempURL: URL) {
+        let title = Self.defaultTitleForNow()
+        let duration = Int(Date().timeIntervalSince(recordingStartDate))
+        do {
+            let rec = try TranscricaoLocalStore.shared.save(
+                tempURL: tempURL,
+                title: title,
+                durationSeconds: duration,
+                language: selectedLanguage,
+                discipline: selectedDiscipline == "Auto-detectar" ? nil : selectedDiscipline
+            )
+            NSLog("[TranscricaoVM] salvou local id=%@ title=%@ dur=%ds size=%d", rec.id, rec.title, rec.durationSeconds, rec.fileSize)
+            recordingURL = nil
+            // Go straight to .done — sem phase de upload/transcribing.
+            phase = .done
+            loadLocalRecordings()
+            VitaPostHogConfig.capture(event: "transcription_saved_local", properties: [
+                "duration_seconds": duration,
+                "file_size_mb": Double(rec.fileSize) / 1_048_576.0,
+            ])
+        } catch {
+            setError("Não foi possível salvar localmente: \(error.localizedDescription)")
+        }
+    }
+
+    /// Recarrega a lista de gravações locais do disco.
+    func loadLocalRecordings() {
+        localRecordings = TranscricaoLocalStore.shared.loadAll()
+    }
+
+    /// Promove uma gravação local pro pipeline cloud — faz upload R2 +
+    /// Whisper + LLM. Quando completa, deleta a versão local automaticamente
+    /// (a cloud passa a ser fonte única).
+    func promoteLocalToCloud(id: String) async {
+        guard let fileURL = TranscricaoLocalStore.shared.promote(id: id) else {
+            setError("Arquivo local não encontrado.")
+            return
+        }
+        let local = localRecordings.first(where: { $0.id == id })
+        recordingStartDate = local?.createdAt ?? Date()
+        phase = .uploading
+        progressStage = ""
+        processingSeconds = 0
+        startProcessingTimer()
+        startProcessingWatchdog()
+        uploadTask = Task { [weak self] in
+            await self?.processUpload(fileURL: fileURL)
+            // Se o upload deu OK, deleta a cópia local (cloud é o SOT).
+            if await self?.phase == .done {
+                try? TranscricaoLocalStore.shared.delete(id: id)
+                await MainActor.run { self?.loadLocalRecordings() }
+            }
+        }
+    }
+
+    /// Apaga gravação local (m4a + index entry). Irreversível.
+    func deleteLocalRecording(id: String) {
+        do {
+            try TranscricaoLocalStore.shared.delete(id: id)
+            loadLocalRecordings()
+        } catch {
+            NSLog("[TranscricaoVM] deleteLocalRecording failed: %@", "\(error)")
+        }
+    }
+
+    /// Renomeia gravação local.
+    func renameLocalRecording(id: String, newTitle: String) {
+        do {
+            try TranscricaoLocalStore.shared.rename(id: id, to: newTitle)
+            loadLocalRecordings()
+        } catch {
+            NSLog("[TranscricaoVM] renameLocalRecording failed: %@", "\(error)")
+        }
+    }
+
+    /// "Gravação DD/MM HH:MM" — mesmo formato que o backend gera no deriveTitle.
+    static func defaultTitleForNow() -> String {
+        let now = Date()
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "pt_BR")
+        fmt.dateFormat = "dd/MM HH:mm"
+        return "Gravação \(fmt.string(from: now))"
     }
 
     func reset() {
