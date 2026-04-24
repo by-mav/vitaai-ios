@@ -23,7 +23,7 @@ struct TranscricaoRecorderArea: View {
     private var isActive: Bool { isRecording || isPaused }
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             // Timer gigante no topo, centralizado.
             Text(formatTranscricaoElapsed(elapsedSeconds))
                 .font(.system(size: 54, weight: .bold, design: .default))
@@ -36,28 +36,27 @@ struct TranscricaoRecorderArea: View {
                 )
                 .shadow(color: isRecording ? VitaColors.accent.opacity(0.4) : .clear, radius: 32)
 
-            // Status label abaixo do timer.
-            Text(statusLabel)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(
-                    isActive
-                        ? VitaColors.accentLight.opacity(0.70)
-                        : Color.white.opacity(0.35)
-                )
+            // Status label secundário — só aparece enquanto gravando/pausado
+            // (quando .idle o "Toque para gravar" do orb já cobre o estado).
+            if isActive {
+                Text(statusLabel)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.70))
+                    .transition(.opacity)
+            }
 
-            // Orb/mascote CENTRAL como botão de gravar principal (Rafael/
-            // ChatGPT review: "gravar não tava predominante, orb central
-            // faz mais sentido que lateral").
+            // Orb/mascote CENTRAL como botão principal. Label "Toque para
+            // gravar / parar" mais forte abaixo, sem duplicar o statusLabel.
             Button(action: onToggle) {
-                VStack(spacing: 6) {
+                VStack(spacing: 10) {
                     VitaTypingMascot(isRecording: isActive, size: recorderButtonWidth)
 
                     Text(mascotLabel)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(
                             isActive
-                                ? VitaColors.accentLight.opacity(0.70)
-                                : Color.white.opacity(0.30)
+                                ? VitaColors.accentLight.opacity(0.85)
+                                : Color.white.opacity(0.55)
                         )
                 }
             }
