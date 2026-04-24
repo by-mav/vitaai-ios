@@ -142,50 +142,17 @@ private struct EstudosContent: View {
 
     private var estudosHeroCard: some View {
         ZStack(alignment: .topLeading) {
-            // Base gradient
-            LinearGradient(
-                colors: [
-                    Color(red: 0.10, green: 0.07, blue: 0.045),
-                    Color(red: 0.05, green: 0.035, blue: 0.022)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            // Gold accent glow top-right
-            RadialGradient(
-                colors: [goldPrimary.opacity(0.22), Color.clear],
-                center: UnitPoint(x: 1.0, y: 0.0),
-                startRadius: 0,
-                endRadius: 140
-            )
             // Book motif — background decoration
             Image(systemName: "books.vertical.fill")
                 .font(.system(size: 64, weight: .ultraLight))
-                .foregroundStyle(goldPrimary.opacity(0.08))
+                .foregroundStyle(goldPrimary.opacity(0.10))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(.top, 14)
                 .padding(.trailing, 16)
-            // Content
             heroCardContent
         }
         .frame(height: 162)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            goldPrimary.opacity(0.40),
-                            goldPrimary.opacity(0.10),
-                            goldPrimary.opacity(0.25)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: .black.opacity(0.30), radius: 14, y: 6)
+        .glassCard(cornerRadius: 18)
     }
 
     private var heroCardContent: some View {
@@ -214,7 +181,7 @@ private struct EstudosContent: View {
                     .foregroundStyle(goldMuted.opacity(0.75))
                 Text("Acompanhe sua evolução")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.72))
+                    .foregroundStyle(Color.white.opacity(0.88))
             }
             .padding(.top, 3)
 

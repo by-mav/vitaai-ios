@@ -173,46 +173,79 @@ extension View {
         }
     }
 
-    /// Lightweight glass card — matches mockup D4 "CARVED":
-    ///   background: linear-gradient(180deg, rgba(30,22,15,0.92) → rgba(14,10,7,0.92))
-    ///   border: 1px rgba(200,160,80,0.22)
-    ///   box-shadow: inset top highlight rgba(255,230,180,0.18),
-    ///               inset bottom shadow rgba(0,0,0,0.5),
-    ///               drop 0 6px 16px rgba(0,0,0,0.5)
+    /// D4 "Carved" glass card — full 3-layer match com VitaGlassCard wrapper.
+    /// Use em qualquer View pra visual consistente com cards que envelopam via `VitaGlassCard { }`.
     func glassCard(cornerRadius: CGFloat = 18) -> some View {
         self
             .background {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 30/255, green: 22/255, blue: 15/255).opacity(0.92),
-                                Color(red: 14/255, green: 10/255, blue: 7/255).opacity(0.92)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
+                ZStack {
+                    // ── Layer 1: Base dark warm gradient ──
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 30/255, green: 22/255, blue: 15/255).opacity(0.92),
+                                    Color(red: 14/255, green: 10/255, blue: 7/255).opacity(0.92)
+                                ],
+                                startPoint: UnitPoint(x: 0.46, y: 0.0),
+                                endPoint: UnitPoint(x: 0.54, y: 1.0)
+                            )
                         )
-                    )
+
+                    // ── Layer 2: Inner glow — 4 radial gradients (D4 carved warmth) ──
+                    Canvas { context, size in
+                        let rect = CGRect(origin: .zero, size: size)
+                        let clip = Path(roundedRect: rect, cornerRadius: cornerRadius)
+                        context.clip(to: clip)
+
+                        let glowGold120 = Color(red: 1.0, green: 200/255, blue: 120/255)
+                        let glowGold100 = Color(red: 1.0, green: 180/255, blue: 100/255)
+                        let glowWarm210 = Color(red: 1.0, green: 240/255, blue: 210/255)
+
+                        func drawRadial(center: CGPoint, radiusFraction: CGFloat, color: Color, alpha: Double) {
+                            let r = max(size.width, size.height) * radiusFraction
+                            context.drawLayer { ctx in
+                                ctx.fill(
+                                    Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r*2, height: r*2)),
+                                    with: .radialGradient(
+                                        Gradient(colors: [color.opacity(alpha), .clear]),
+                                        center: center, startRadius: 0, endRadius: r
+                                    )
+                                )
+                            }
+                        }
+                        drawRadial(center: CGPoint(x: size.width * 0.15, y: 0), radiusFraction: 0.50, color: glowGold120, alpha: 0.08)
+                        drawRadial(center: CGPoint(x: size.width * 0.85, y: 0), radiusFraction: 0.40, color: glowGold120, alpha: 0.05)
+                        drawRadial(center: CGPoint(x: size.width * 0.50, y: size.height), radiusFraction: 0.35, color: glowGold100, alpha: 0.04)
+                        drawRadial(center: CGPoint(x: size.width * 0.50, y: size.height * 0.50), radiusFraction: 0.70, color: glowWarm210, alpha: 0.015)
+                    }
+                    .allowsHitTesting(false)
+
+                    // ── Layer 2b: Inset top highlight + bottom shadow (carved bevel) ──
+                    VStack(spacing: 0) {
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [.clear, Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.18), .clear],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(height: 1)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 1)
+                        Spacer()
+                        Capsule()
+                            .fill(Color.black.opacity(0.5))
+                            .frame(height: 1)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 1)
+                    }
+                    .allowsHitTesting(false)
+                }
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            // Inset top highlight — linha clara que simula luz de cima (bevel)
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.18),
-                                Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.04),
-                                .clear
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 1
-                    )
-                    .blendMode(.plusLighter)
-            )
-            // Border gold solid 22% — visível mas não gritante
+            // ── Layer 3: Border gold solid 22% ──
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(
@@ -220,7 +253,7 @@ extension View {
                         lineWidth: 1
                     )
             )
-            // Drop shadows — mais fortes pra card "sentar"
+            // ── Shadows D4 ──
             .shadow(color: .black.opacity(0.50), radius: 16, x: 0, y: 6)
             .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 1)
     }

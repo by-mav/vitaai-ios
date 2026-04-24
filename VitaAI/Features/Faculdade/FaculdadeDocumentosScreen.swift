@@ -76,8 +76,7 @@ struct FaculdadeDocumentosScreen: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(VitaColors.glassBg))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.glassBorder, lineWidth: 1))
+                    .glassCard(cornerRadius: 10)
                     .padding(.horizontal, 16)
                 }
 
@@ -227,14 +226,7 @@ struct FaculdadeDocumentosScreen: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(VitaColors.surfaceCard.opacity(0.45))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
-                )
+                .glassCard(cornerRadius: 12)
             }
             .buttonStyle(.plain)
 
@@ -303,14 +295,7 @@ struct FaculdadeDocumentosScreen: View {
                     .foregroundStyle(VitaColors.textWarm.opacity(0.25))
             }
             .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(VitaColors.surfaceCard.opacity(0.55))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
-            )
+            .glassCard(cornerRadius: 12)
         }
         .buttonStyle(.plain)
     }

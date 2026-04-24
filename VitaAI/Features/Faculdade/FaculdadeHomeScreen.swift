@@ -109,75 +109,21 @@ struct FaculdadeHomeScreen: View {
 
     private var heroCard: some View {
         ZStack(alignment: .topLeading) {
-            heroSolidBackground
-            heroGoldAccent
             heroBuildingMotif
             heroContent
         }
         .frame(height: 162)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        // D4 inset top highlight — bevel claro em gold 18%
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.18),
-                            Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.04),
-                            .clear
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 1
-                )
-                .blendMode(.plusLighter)
-        )
-        // D4 border — gold solid 22%
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(
-                    Color(red: 200/255, green: 160/255, blue: 80/255).opacity(0.22),
-                    lineWidth: 1
-                )
-        )
-        // D4 shadows — card "sentado" na tela
-        .shadow(color: .black.opacity(0.50), radius: 16, x: 0, y: 6)
-        .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 1)
+        .glassCard(cornerRadius: 18)
     }
 
-    // Motif generalizado: ícone de prédio discreto no canto superior direito,
-    // fora da zona de texto, baixa opacidade.
+    // Motif generalizado: ícone de prédio discreto no canto superior direito.
     private var heroBuildingMotif: some View {
         Image(systemName: "building.columns.fill")
             .font(.system(size: 64, weight: .ultraLight))
-            .foregroundStyle(goldPrimary.opacity(0.08))
+            .foregroundStyle(goldPrimary.opacity(0.10))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             .padding(.top, 14)
             .padding(.trailing, 16)
-    }
-
-    // D4 "carved" gradient — obsidiana quente top → preto quente base
-    private var heroSolidBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 30/255, green: 22/255, blue: 15/255).opacity(0.92),
-                Color(red: 14/255, green: 10/255, blue: 7/255).opacity(0.92)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-
-    // Accent dourado minúsculo no canto superior direito — só uma luz suave,
-    // longe da zona do texto, dá sensação premium sem interferir na leitura.
-    private var heroGoldAccent: some View {
-        RadialGradient(
-            colors: [goldPrimary.opacity(0.22), Color.clear],
-            center: UnitPoint(x: 1.0, y: 0.0),
-            startRadius: 0,
-            endRadius: 140
-        )
     }
 
     private var heroContent: some View {
@@ -210,7 +156,7 @@ struct FaculdadeHomeScreen: View {
                     .foregroundStyle(goldMuted.opacity(0.75))
                 Text(courseName)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.72))
+                    .foregroundStyle(Color.white.opacity(0.88))
             }
             .padding(.top, 3)
 

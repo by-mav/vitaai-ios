@@ -302,92 +302,55 @@ struct DashboardScreen: View {
     ) -> some View {
         let isAlert = labelColor != VitaColors.accentHover
 
-        ZStack(alignment: .leading) {
-            Image(bgImage)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(height: 165)
-                .clipped()
+        VStack(alignment: .leading, spacing: 8) {
+            Spacer()
 
-            LinearGradient(
-                stops: [
-                    .init(color: Color(red: 0.031, green: 0.024, blue: 0.016).opacity(isAlert ? 0.92 : 0.85), location: 0),
-                    .init(color: Color(red: 0.031, green: 0.024, blue: 0.016).opacity(isAlert ? 0.55 : 0.40), location: 0.45),
-                    .init(color: Color(red: 0.031, green: 0.024, blue: 0.016).opacity(isAlert ? 0.20 : 0.10), location: 1),
-                ],
-                startPoint: .leading, endPoint: .trailing
-            )
-
-            VStack(alignment: .leading, spacing: 8) {
-                Spacer()
-
-                Text(label)
-                    .font(.system(size: 9, weight: .bold))
-                    .kerning(1.2)
-                    .foregroundStyle(labelColor.opacity(isAlert ? 0.85 : 0.70))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(labelColor.opacity(isAlert ? 0.10 : 0.06))
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(labelColor.opacity(isAlert ? 0.20 : 0.12), lineWidth: 1))
-                    )
-
-                Text(title)
-                    .font(.system(size: 20, weight: .bold))
-                    .tracking(-0.04 * 20)
-                    .lineLimit(2)
-                    .foregroundStyle(Color(red: 1, green: 0.988, blue: 0.973).opacity(0.97))
-
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.55))
-                        .lineLimit(1)
-                }
-
-                HStack(spacing: 6) {
-                    ForEach(Array(pills.prefix(3).enumerated()), id: \.offset) { _, pill in
-                        heroPill(icon: pill.0, text: pill.1)
-                    }
-                }
-
-                Text(cta)
-                    .font(.system(size: 12, weight: .semibold))
-                    .tracking(0.24)
-                    .foregroundStyle(Color(red: 1, green: 0.902, blue: 0.706).opacity(0.80))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.04))
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.accentHover.opacity(0.12), lineWidth: 1))
-                    )
-            }
-            .padding(18)
-        }
-        .frame(height: 165)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    AngularGradient(
-                        gradient: Gradient(stops: [
-                            .init(color: (isAlert ? labelColor : VitaColors.accentHover).opacity(0.40), location: 0.0),
-                            .init(color: VitaColors.accentHover.opacity(0.12), location: 0.19),
-                            .init(color: Color.white.opacity(0.04), location: 0.33),
-                            .init(color: Color.white.opacity(0.025), location: 0.50),
-                            .init(color: Color.white.opacity(0.04), location: 0.64),
-                            .init(color: VitaColors.accentHover.opacity(0.12), location: 0.78),
-                            .init(color: (isAlert ? labelColor : VitaColors.accentHover).opacity(0.40), location: 1.0),
-                        ]),
-                        center: UnitPoint(x: 0.4, y: 0.8)
-                    ),
-                    lineWidth: 1
+            Text(label)
+                .font(.system(size: 9, weight: .bold))
+                .kerning(1.2)
+                .foregroundStyle(labelColor.opacity(isAlert ? 0.95 : 0.85))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(labelColor.opacity(isAlert ? 0.14 : 0.10))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(labelColor.opacity(isAlert ? 0.28 : 0.18), lineWidth: 1))
                 )
-        )
-        .shadow(color: .black.opacity(0.50), radius: 28, x: 0, y: 11)
-        .shadow(color: Color(red: 0.706, green: 0.549, blue: 0.235).opacity(0.08), radius: 22, x: 0, y: 5)
+
+            Text(title)
+                .font(.system(size: 20, weight: .bold))
+                .tracking(-0.04 * 20)
+                .lineLimit(2)
+                .foregroundStyle(Color.white)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.78))
+                    .lineLimit(1)
+            }
+
+            HStack(spacing: 6) {
+                ForEach(Array(pills.prefix(3).enumerated()), id: \.offset) { _, pill in
+                    heroPill(icon: pill.0, text: pill.1)
+                }
+            }
+
+            Text(cta)
+                .font(.system(size: 12, weight: .semibold))
+                .tracking(0.24)
+                .foregroundStyle(Color(red: 1, green: 0.902, blue: 0.706).opacity(0.92))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.06))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.accentHover.opacity(0.18), lineWidth: 1))
+                )
+        }
+        .padding(18)
+        .frame(height: 165)
+        .glassCard(cornerRadius: 20)
     }
 
     @ViewBuilder

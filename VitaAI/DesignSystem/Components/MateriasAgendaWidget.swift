@@ -22,10 +22,6 @@ struct MateriasAgendaWidget: View {
     private let textWarm = VitaColors.textWarm
     private let textDim = VitaColors.textWarm.opacity(0.25)
 
-    // Conic border colors (same as VitaGlassCard for consistency)
-    private let conicGold120 = Color(red: 1.0, green: 200/255, blue: 120/255)
-    private let conicGold100 = Color(red: 1.0, green: 180/255, blue: 100/255)
-
     var body: some View {
         VStack(spacing: 0) {
             tabBar
@@ -58,67 +54,7 @@ struct MateriasAgendaWidget: View {
             )
         }
         .padding(.bottom, 4)
-        .background {
-            ZStack {
-                // Real blur — lets background bleed through
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                // Dark warm tint to keep gold brand feel
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(red: 12/255, green: 9/255, blue: 7/255).opacity(0.72))
-                // Subtle gold inner glow (top-left)
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(
-                        RadialGradient(
-                            colors: [goldPrimary.opacity(0.06), .clear],
-                            center: UnitPoint(x: 0.15, y: 0.0),
-                            startRadius: 0,
-                            endRadius: 200
-                        )
-                    )
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        // Specular top highlight
-        .overlay {
-            VStack(spacing: 0) {
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [.clear, Color.white.opacity(0.05), .clear],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(height: 0.5)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 1)
-                Spacer()
-            }
-            .allowsHitTesting(false)
-        }
-        // Conic gold border (same angular gradient as VitaGlassCard)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(
-                    AngularGradient(
-                        gradient: Gradient(stops: [
-                            .init(color: conicGold120.opacity(0.12), location: 0.0),
-                            .init(color: conicGold100.opacity(0.04), location: 0.25),
-                            .init(color: conicGold120.opacity(0.07), location: 0.40),
-                            .init(color: conicGold100.opacity(0.02), location: 0.60),
-                            .init(color: conicGold120.opacity(0.09), location: 0.80),
-                            .init(color: conicGold120.opacity(0.12), location: 1.0),
-                        ]),
-                        center: .center,
-                        startAngle: .degrees(200),
-                        endAngle: .degrees(200 + 360)
-                    ),
-                    lineWidth: 0.5
-                )
-        )
-        .shadow(color: .black.opacity(0.30), radius: 16, x: 0, y: 10)
-        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 3)
+        .glassCard(cornerRadius: 16)
         .animation(.easeInOut(duration: 0.2), value: activeTab)
     }
 

@@ -646,7 +646,7 @@ struct MainTabView: View {
         case .paywall:
             VitaPaywallScreen(onDismiss: { router.goBack() })
         case .atlas3D:
-            AtlasWebViewScreen(
+            AtlasSceneScreen(
                 onBack: { router.goBack() },
                 onAskVita: { _ in
                     router.goBack()

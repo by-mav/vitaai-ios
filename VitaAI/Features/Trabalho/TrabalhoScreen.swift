@@ -11,6 +11,7 @@ struct TrabalhoScreen: View {
     // Editor navigation state
     @State private var showEditor: Bool = false
     @State private var editorAssignmentId: String? = nil
+    @State private var overdueExpanded: Bool = false
 
     private let segments = ["Tarefas", "Notas por Disciplina"]
 
@@ -146,23 +147,11 @@ struct TrabalhoScreen: View {
             )
         } else {
             VStack(spacing: 16) {
-                // Overdue section
-                if !vm.overdue.isEmpty {
-                    trabalhoSection(
-                        vm: vm,
-                        title: "Atrasados",
-                        subtitle: "\(vm.overdue.count)",
-                        icon: "exclamationmark.triangle.fill",
-                        iconColor: VitaColors.dataRed,
-                        items: vm.overdue
-                    )
-                }
-
-                // Pending section
+                // Pending first — acionável, prioridade visual
                 if !vm.pending.isEmpty {
                     trabalhoSection(
                         vm: vm,
-                        title: "Pendentes",
+                        title: "A fazer",
                         subtitle: "\(vm.pending.count)",
                         icon: "clock.fill",
                         iconColor: VitaColors.accent,
@@ -170,7 +159,7 @@ struct TrabalhoScreen: View {
                     )
                 }
 
-                // Completed section
+                // Completed — histórico neutro
                 if !vm.completed.isEmpty {
                     trabalhoSection(
                         vm: vm,
@@ -181,6 +170,51 @@ struct TrabalhoScreen: View {
                         items: vm.completed
                     )
                 }
+
+                // Overdue — histórico (aluno não pode agir). Colapsado, opacity
+                // reduzida, sem CTA primário. Ver agent-brain/vitaai-source-of-truth.md
+                // §Regras de estado de avaliações, lei 5.
+                if !vm.overdue.isEmpty {
+                    overdueCollapsedSection(items: vm.overdue)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func overdueCollapsedSection(items: [TrabalhoItem]) -> some View {
+        VStack(spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    overdueExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textTertiary)
+                    Text("Vencidos")
+                        .font(VitaTypography.labelMedium)
+                        .foregroundStyle(VitaColors.textTertiary)
+                    Text("\(items.count)")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textTertiary.opacity(0.6))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(VitaColors.textTertiary.opacity(0.5))
+                        .rotationEffect(.degrees(overdueExpanded ? 90 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+
+            if overdueExpanded {
+                ForEach(items) { item in
+                    TrabalhoRow(item: item)
+                        .opacity(0.5)
+                        .allowsHitTesting(false)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
