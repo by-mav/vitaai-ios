@@ -68,6 +68,7 @@
 		271D540E46AA5496E55DD23C /* Dashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485BEB54F0BB6FBE9E6B48EC /* Dashboard.swift */; };
 		2793E992735A428B383FF975 /* Route+Breadcrumb.swift in Sources */ = {isa = PBXBuildFile; fileRef = E405E8F265D5EC67BC3497E8 /* Route+Breadcrumb.swift */; };
 		27A9F88AC2272C4E6F46D62F /* FlashcardsListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88B15A689607DCAD7FE78706 /* FlashcardsListScreen.swift */; };
+		2840BF9C5DCE83E4F0F11BF8 /* TranscricaoFilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BBF0AB4655314F4784C8DC3 /* TranscricaoFilterSheet.swift */; };
 		28E2FA2F1ED48B82D36736B1 /* ActivityFeedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF12D5921A98D0BDABA0DCD3 /* ActivityFeedScreen.swift */; };
 		293030CACD73997F2D07E775 /* SimuladoResultScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2D3EB80742D1C6FEBED532 /* SimuladoResultScreen.swift */; };
 		2963C9B8E4E9B4CC79CA91C1 /* NotebookModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20A68F955FFD87D1B3A1BE0 /* NotebookModels.swift */; };
@@ -351,6 +352,7 @@
 		0A3908944C6BDBECD98FFDB7 /* ScreenTracking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTracking.swift; sourceTree = "<group>"; };
 		0AF6BA038BDF0C52FCB0549B /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
 		0BAB7AFA757139E38FAB0C32 /* DashboardXp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardXp.swift; sourceTree = "<group>"; };
+		0BBF0AB4655314F4784C8DC3 /* TranscricaoFilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoFilterSheet.swift; sourceTree = "<group>"; };
 		0C79FDD1109E963526A23728 /* StudyTipCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyTipCard.swift; sourceTree = "<group>"; };
 		0D92FFBD8336F674485A7AA3 /* DashboardHeroCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardHeroCard.swift; sourceTree = "<group>"; };
 		1070781C3ADCC296E31A5731 /* MindMapSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapSyncManager.swift; sourceTree = "<group>"; };
@@ -1140,6 +1142,7 @@
 				330A738D52A76441153C62B0 /* TranscricaoAudioPlayer.swift */,
 				2A4C53F34FC1FDE66D790775 /* TranscricaoControls.swift */,
 				D08D6E184B50BFEE6FF44E77 /* TranscricaoDetailSheet.swift */,
+				0BBF0AB4655314F4784C8DC3 /* TranscricaoFilterSheet.swift */,
 				F636E362403357CDFBA6A2CF /* TranscricaoKaraokeText.swift */,
 				EE5BEA4B75E6F09D49B33A81 /* TranscricaoLocalDraftsSection.swift */,
 				04AF0D9125424788BDB91ECA /* TranscricaoLocalStore.swift */,
@@ -1873,6 +1876,7 @@
 				AEEC20C37390C592A9616E30 /* TranscricaoClient.swift in Sources */,
 				FA6A48A92EB08C41F55D6766 /* TranscricaoControls.swift in Sources */,
 				7CE20889319B3D0E09BAA6DD /* TranscricaoDetailSheet.swift in Sources */,
+				2840BF9C5DCE83E4F0F11BF8 /* TranscricaoFilterSheet.swift in Sources */,
 				FF5F9DE2BBAA57DD89FF7FE2 /* TranscricaoKaraokeText.swift in Sources */,
 				C4FE5801DC924D28D9EDCF15 /* TranscricaoLocalDraftsSection.swift in Sources */,
 				39C35D782AF51ACE6CB14BDC /* TranscricaoLocalStore.swift in Sources */,

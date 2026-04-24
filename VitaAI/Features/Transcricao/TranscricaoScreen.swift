@@ -125,12 +125,12 @@ private struct TranscricaoContent: View {
     @State private var selectedFilter: String? = nil
     @State private var selectedRecording: TranscricaoEntry? = nil
 
-    /// Disciplines from academic_subjects via gradesResponse (already loaded by AppDataManager)
+    /// Disciplines do semestre ATUAL apenas. `completed` (semestres passados)
+    /// ficavam acumuladas e poluíam o filtro.
     private var disciplines: [String] {
-        let current = appData.gradesResponse?.current ?? []
-        let completed = appData.gradesResponse?.completed ?? []
-        let all = current + completed
-        return all.map(\.subjectName).filter { !$0.isEmpty }
+        (appData.gradesResponse?.current ?? [])
+            .map(\.subjectName)
+            .filter { !$0.isEmpty }
     }
 
     var body: some View {

@@ -361,9 +361,12 @@ struct TranscricaoRecordingsListSection: View {
         return result
     }
 
+    @State private var showFilterSheet = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Header: "GRAVAÇÕES · 48" inline.
+            // Header: "GRAVAÇÕES · N" + botão filtro à direita (padrão Apple
+            // Mail/Notes). Quando filtro ativo, mostra pill removível.
             HStack(spacing: 6) {
                 Text("GRAVAÇÕES")
                     .font(.system(size: 13, weight: .bold))
@@ -378,15 +381,54 @@ struct TranscricaoRecordingsListSection: View {
                 }
 
                 Spacer()
+
+                // Pill removível mostrando filtro ativo.
+                if let active = selectedFilter {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedFilter = nil
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "book.closed.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(active)
+                                .font(.system(size: 11, weight: .semibold))
+                                .lineLimit(1)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .opacity(0.6)
+                        }
+                        .foregroundStyle(VitaColors.accentLight)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(VitaColors.accent.opacity(0.14)))
+                        .overlay(Capsule().stroke(VitaColors.accent.opacity(0.30), lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button {
+                    showFilterSheet = true
+                } label: {
+                    Image(systemName: selectedFilter == nil
+                          ? "line.3.horizontal.decrease.circle"
+                          : "line.3.horizontal.decrease.circle.fill")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(
+                            selectedFilter == nil
+                                ? VitaColors.textWarm.opacity(0.45)
+                                : VitaColors.accentLight
+                        )
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
-
-            // Filter chips — tab-style row pequenos (tipografia 10pt), wrap
-            // em múltiplas linhas se não couberem. User vê todas as disciplinas
-            // sem precisar scrollar lateralmente.
-            if !filterChips.isEmpty {
-                TranscricaoFilterChips(chips: filterChips, selected: $selectedFilter)
-                    .padding(.horizontal, 16)
+            .sheet(isPresented: $showFilterSheet) {
+                TranscricaoFilterSheet(
+                    disciplines: filterChips,
+                    selected: $selectedFilter
+                )
             }
 
             if isLoading {
@@ -452,128 +494,6 @@ struct TranscricaoRecordingsListSection: View {
     }
 }
 
-// MARK: - Filter Chips
-
-struct TranscricaoFilterChips: View {
-    let chips: [String]
-    @Binding var selected: String?
-
-    var body: some View {
-        // Wrap chips em múltiplas linhas (FlowLayout iOS 16+). User vê
-        // TODAS as disciplinas de uma vez, sem scroll horizontal nem
-        // indicadores feios de "tem mais pra ver".
-        TranscricaoChipsFlow(spacing: 6, lineSpacing: 6) {
-            chipButton(label: "Todas", isSelected: selected == nil) {
-                withAnimation(.easeInOut(duration: 0.15)) { selected = nil }
-            }
-
-            ForEach(chips, id: \.self) { chip in
-                chipButton(label: chip, isSelected: selected == chip) {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        selected = (selected == chip) ? nil : chip
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func chipButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            FilterChipLabel(label: label, isSelected: isSelected)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-/// Extracted view p/ o compilador não engasgar com a árvore de modifiers
-/// dentro do Button label inline.
-private struct FilterChipLabel: View {
-    let label: String
-    let isSelected: Bool
-
-    private var fg: Color {
-        isSelected
-            ? VitaColors.accentLight.opacity(0.95)
-            : VitaColors.textWarm.opacity(0.55)
-    }
-    private var bgFill: Color {
-        isSelected ? VitaColors.accent.opacity(0.14) : Color.white.opacity(0.03)
-    }
-    private var bgStroke: Color {
-        isSelected ? VitaColors.accent.opacity(0.35) : Color.white.opacity(0.05)
-    }
-
-    var body: some View {
-        Text(label.uppercased())
-            .font(.system(size: 10, weight: .semibold))
-            .tracking(0.4)
-            .lineLimit(1)
-            .foregroundStyle(fg)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(Capsule().fill(bgFill))
-            .overlay(Capsule().stroke(bgStroke, lineWidth: 0.5))
-    }
-}
-
-// MARK: - FlowLayout pros filter chips
-
-/// Layout que quebra os filhos em múltiplas linhas quando não cabem na
-/// largura disponível — igual ao CSS `flex-wrap: wrap`. Usado pros chips
-/// de disciplina pra mostrar todos visíveis sem scroll horizontal.
-struct TranscricaoChipsFlow: Layout {
-    var spacing: CGFloat = 6
-    var lineSpacing: CGFloat = 6
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
-        let rows = computeRows(subviews: subviews, maxWidth: maxWidth)
-        let height = rows.reduce(0) { acc, row in acc + row.height } +
-            CGFloat(max(0, rows.count - 1)) * lineSpacing
-        return CGSize(width: maxWidth == .infinity ? 0 : maxWidth, height: height)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let rows = computeRows(subviews: subviews, maxWidth: bounds.width)
-        var y = bounds.minY
-        for row in rows {
-            var x = bounds.minX
-            for idx in row.indices {
-                let size = subviews[idx].sizeThatFits(.unspecified)
-                subviews[idx].place(
-                    at: CGPoint(x: x, y: y),
-                    proposal: ProposedViewSize(size)
-                )
-                x += size.width + spacing
-            }
-            y += row.height + lineSpacing
-        }
-    }
-
-    private func computeRows(subviews: Subviews, maxWidth: CGFloat) -> [Row] {
-        var rows: [Row] = []
-        var current = Row()
-        var currentX: CGFloat = 0
-        for (i, sub) in subviews.enumerated() {
-            let s = sub.sizeThatFits(.unspecified)
-            let needed = (current.indices.isEmpty ? 0 : spacing) + s.width
-            if currentX + needed > maxWidth && !current.indices.isEmpty {
-                rows.append(current)
-                current = Row()
-                currentX = 0
-            }
-            if !current.indices.isEmpty { currentX += spacing }
-            current.indices.append(i)
-            current.height = max(current.height, s.height)
-            currentX += s.width
-        }
-        if !current.indices.isEmpty { rows.append(current) }
-        return rows
-    }
-
-    private struct Row { var indices: [Int] = []; var height: CGFloat = 0 }
-}
 
 // MARK: - Teal Glass Recording Card
 
