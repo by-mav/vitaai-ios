@@ -113,25 +113,51 @@ struct FaculdadeDisciplinasScreen: View {
     private func disciplinesList(_ subjects: [GradeSubject]) -> some View {
         VStack(spacing: 8) {
             ForEach(subjects) { subject in
-                Button {
-                    router.navigate(to: .disciplineDetail(
-                        disciplineId: subject.id,
-                        disciplineName: displayText(for: subject)
-                    ))
-                } label: {
-                    disciplineCard(subject)
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    if let sid = subject.subjectId {
-                        Button {
-                            renameTarget = RenameTarget(
-                                id: sid,
-                                currentName: displayText(for: subject)
-                            )
-                        } label: {
-                            Label("Renomear", systemImage: "pencil")
+                ZStack(alignment: .topTrailing) {
+                    Button {
+                        router.navigate(to: .disciplineDetail(
+                            disciplineId: subject.id,
+                            disciplineName: displayText(for: subject)
+                        ))
+                    } label: {
+                        disciplineCard(subject)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        if let sid = subject.subjectId {
+                            Button {
+                                renameTarget = RenameTarget(
+                                    id: sid,
+                                    currentName: displayText(for: subject)
+                                )
+                            } label: {
+                                Label("Renomear", systemImage: "pencil")
+                            }
                         }
+                    }
+
+                    // Explicit affordance — long-press isn't discoverable enough, especially
+                    // in the Simulator where it needs a held mouse click. Matches Notion /
+                    // Linear / Apple Files-style "more actions" dot button.
+                    if let sid = subject.subjectId {
+                        Menu {
+                            Button {
+                                renameTarget = RenameTarget(
+                                    id: sid,
+                                    currentName: displayText(for: subject)
+                                )
+                            } label: {
+                                Label("Renomear", systemImage: "pencil")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                                .frame(width: 32, height: 32)
+                                .contentShape(Rectangle())
+                        }
+                        .offset(x: -4, y: 4)
+                        .accessibilityLabel("Mais ações da disciplina")
                     }
                 }
             }

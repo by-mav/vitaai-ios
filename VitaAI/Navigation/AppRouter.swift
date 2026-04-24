@@ -299,7 +299,17 @@ struct MainTabView: View {
             if !isImmersiveMode {
                 VStack {
                     Spacer()
-                    VitaTabBar(selectedTab: $router.selectedTab, onCenterTap: {
+                    VitaTabBar(selectedTab: Binding(
+                        get: { router.selectedTab },
+                        set: { newTab in
+                            // Switching to a different tab must always start at that tab's
+                            // root — otherwise the NavigationStack re-uses the path from
+                            // the previous tab and the user lands on a stale sub-page
+                            // (bug noted 2026-04-24 when Faculdade re-opened an old screen).
+                            if newTab != router.selectedTab { router.popToRoot() }
+                            router.selectedTab = newTab
+                        }
+                    ), onCenterTap: {
                         withAnimation(.easeInOut(duration: 0.25)) { showChat.toggle() }
                     }, onTabReselect: { _ in
                         router.popToRoot()
