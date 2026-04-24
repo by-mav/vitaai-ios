@@ -253,6 +253,27 @@ private struct TranscricaoContent: View {
                                     withAnimation {
                                         viewModel.removeRecordingLocally(id: rec.id)
                                     }
+                                },
+                                onGenerate: { rec, type in
+                                    // Haptic feedback: user confirma quick-action
+                                    let gen = UIImpactFeedbackGenerator(style: .medium)
+                                    gen.impactOccurred()
+                                    // Quick-action direta: gera sem abrir sheet.
+                                    // Feedback pro user vem por toast/notificação (TODO).
+                                    // Resultado vai pro DB; user vê o output na próxima
+                                    // abertura do sheet ou via notificação push.
+                                    Task {
+                                        do {
+                                            _ = try await api.generateStudioOutput(
+                                                sourceId: rec.id,
+                                                outputType: type
+                                            )
+                                            // Refresh lista pra pegar output novo.
+                                            await viewModel.loadRecordings(force: true)
+                                        } catch {
+                                            NSLog("[Transcricao] onGenerate error: %@", error.localizedDescription)
+                                        }
+                                    }
                                 }
                             )
                             .padding(.top, 10)

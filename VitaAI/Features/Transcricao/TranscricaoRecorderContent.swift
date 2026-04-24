@@ -327,6 +327,9 @@ struct TranscricaoRecordingsListSection: View {
     let filterChips: [String]
     let onTap: (TranscricaoEntry) -> Void
     let onDelete: (TranscricaoEntry) -> Void
+    /// Context menu action: dispara geração direto (summary, flashcards, questions,
+    /// concepts, mindmap). Sem precisar abrir sheet + tab de ações.
+    var onGenerate: ((TranscricaoEntry, String) -> Void)? = nil
 
     private var filteredRecordings: [TranscricaoEntry] {
         guard let filter = selectedFilter else { return recordings }
@@ -485,6 +488,57 @@ struct TranscricaoRecordingsListSection: View {
                                     .padding(.horizontal, 16)
                                     .contentShape(Rectangle())
                                     .onTapGesture { onTap(rec) }
+                                    // Long press → context menu com todas ações quick-access.
+                                    // Pattern Apple Mail/Photos: hold revela menu contextual
+                                    // sem precisar abrir sheet inteiro.
+                                    .contextMenu {
+                                        // Ver detalhes (mesmo que tap)
+                                        Button {
+                                            onTap(rec)
+                                        } label: {
+                                            Label("Ver detalhes", systemImage: "doc.text.magnifyingglass")
+                                        }
+
+                                        Divider()
+
+                                        // Gerar conteúdo — 5 ações direto, sem sheet
+                                        if rec.isTranscribed, let onGenerate {
+                                            Button {
+                                                onGenerate(rec, "summary")
+                                            } label: {
+                                                Label("Gerar resumo", systemImage: "doc.text")
+                                            }
+                                            Button {
+                                                onGenerate(rec, "flashcards")
+                                            } label: {
+                                                Label("Gerar flashcards", systemImage: "rectangle.stack")
+                                            }
+                                            Button {
+                                                onGenerate(rec, "questions")
+                                            } label: {
+                                                Label("Gerar questões", systemImage: "questionmark.circle")
+                                            }
+                                            Button {
+                                                onGenerate(rec, "concepts")
+                                            } label: {
+                                                Label("Extrair conceitos-chave", systemImage: "key")
+                                            }
+                                            Button {
+                                                onGenerate(rec, "mindmap")
+                                            } label: {
+                                                Label("Gerar mindmap", systemImage: "point.3.connected.trianglepath.dotted")
+                                            }
+
+                                            Divider()
+                                        }
+
+                                        // Excluir (destructive, sempre disponível)
+                                        Button(role: .destructive) {
+                                            onDelete(rec)
+                                        } label: {
+                                            Label("Excluir", systemImage: "trash")
+                                        }
+                                    }
                             }
                         }
                     }
