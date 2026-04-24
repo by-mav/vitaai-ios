@@ -141,12 +141,7 @@ struct SessionSummaryScreen: View {
                     .foregroundStyle(VitaColors.textPrimary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(VitaColors.glassBg)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(VitaColors.glassBorder, lineWidth: 1)
-                    )
+                    .glassCard(cornerRadius: 12)
             }
             .buttonStyle(.plain)
 
@@ -210,11 +205,6 @@ private struct StatCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(16)
-        .background(VitaColors.glassBg)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 12)
     }
 }

@@ -205,12 +205,7 @@ private struct GlassStatsSection<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VitaColors.glassBg)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 14)
     }
 }
 
@@ -245,12 +240,7 @@ private struct MiniStatCard: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
         .padding(.horizontal, 8)
-        .background(VitaColors.glassBg)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 12)
     }
 }
 

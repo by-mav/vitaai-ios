@@ -436,12 +436,7 @@ private struct FileRow: View {
                 Spacer()
             }
             .padding(14)
-            .background(VitaColors.glassBg)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(VitaColors.glassBorder, lineWidth: 1)
-            )
+            .glassCard(cornerRadius: 14)
         }
         .buttonStyle(.plain)
     }
@@ -527,12 +522,7 @@ private struct AssignmentRow: View {
             Spacer()
         }
         .padding(14)
-        .background(VitaColors.glassBg)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 14)
     }
 }
 

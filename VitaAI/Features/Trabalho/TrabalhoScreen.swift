@@ -126,12 +126,7 @@ struct TrabalhoScreen: View {
                 .background(vm.selectedSegment == i ? VitaColors.accent : Color.clear)
             }
         }
-        .background(VitaColors.glassBg)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 12)
     }
 
     // MARK: - Assignments Tab

@@ -331,12 +331,7 @@ private struct VoiceTranscriptArea: View {
                         .lineLimit(4)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .background(VitaColors.glassBg)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(VitaColors.glassBorder, lineWidth: 1)
-                        )
+                        .glassCard(cornerRadius: 16)
                     Spacer()
                 }
                 .transition(.opacity.combined(with: .move(edge: .leading)))

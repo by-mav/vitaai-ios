@@ -540,12 +540,7 @@ struct TrabalhoEditorView: View {
                         .foregroundStyle(VitaColors.textPrimary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(VitaColors.glassBg)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(VitaColors.glassBorder, lineWidth: 0.5)
-                        )
+                        .glassCard(cornerRadius: 12)
                 }
 
                 Button {
@@ -628,12 +623,7 @@ struct TrabalhoEditorView: View {
                             .foregroundStyle(VitaColors.textPrimary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(VitaColors.glassBg)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(VitaColors.glassBorder, lineWidth: 0.5)
-                            )
+                            .glassCard(cornerRadius: 12)
                     }
 
                     Button {
@@ -700,12 +690,7 @@ private struct _AiAssistantPanel: View {
                     .tint(VitaColors.accent)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
-                    .background(VitaColors.glassBg)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(VitaColors.glassBorder, lineWidth: 0.5)
-                    )
+                    .glassCard(cornerRadius: 12)
 
                 Button {
                     guard !prompt.isEmpty else { return }

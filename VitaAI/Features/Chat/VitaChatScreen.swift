@@ -348,12 +348,7 @@ private struct MessageRow: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VitaColors.glassBg)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(VitaColors.glassBorder, lineWidth: 1)
-        )
+        .glassCard(cornerRadius: 18)
         .onAppear {
             if isStreaming { startCursorBlink() }
         }
