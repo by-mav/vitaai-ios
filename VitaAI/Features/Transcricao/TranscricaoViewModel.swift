@@ -533,12 +533,11 @@ final class TranscricaoViewModel {
               String(describing: recognizer?.isAvailable ?? false),
               String(describing: recognizer?.supportsOnDeviceRecognition ?? false))
 
-        // Fallback defensivo: prefere on-device quando o device suporta.
-        // Evita depender de internet pro live show (SFSpeechRecognizer default
-        // tenta Apple cloud primeiro — simulador às vezes fica pendurado).
-        if recognizer?.supportsOnDeviceRecognition == true {
-            request.requiresOnDeviceRecognition = true
-        }
+        // NÃO força on-device: iOS Simulator tem bug conhecido onde o asset
+        // Siri Understanding vem incompleto e kLSRErrorDomain=300 fecha o
+        // recognizer silencioso. Deixa Apple escolher — device real usa
+        // on-device automático, sim cai pro cloud (requer rede).
+        request.requiresOnDeviceRecognition = false
 
         recognitionTask = recognizer?.recognitionTask(with: request) { [weak self] result, error in
             if let error {
