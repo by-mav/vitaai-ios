@@ -426,10 +426,12 @@ struct MainTabView: View {
                     }
                 },
                 onNavigateToTranscricao: {
-                    router.selectedTab = .estudos
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        router.navigate(to: .transcricao)
-                    }
+                    // Empurra Transcrição direto no stack atual (Home).
+                    // Antes forçava selectedTab = .estudos → breadcrumb virava
+                    // "Estudos > Transcrição" e swipe back voltava pra Estudos
+                    // em vez de Home. Navigate basta — o NavigationStack é
+                    // compartilhado entre tabs.
+                    router.navigate(to: .transcricao)
                 },
                 onNavigateToAtlas3D: {
                     router.selectedTab = .estudos
