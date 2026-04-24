@@ -74,35 +74,23 @@ struct TranscricaoRecorderArea: View {
                         HStack(spacing: 8) {
                             Image(systemName: transcribeWithAI ? "cloud.fill" : "iphone")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(
-                                    transcribeWithAI
-                                        ? VitaColors.accent
-                                        : Color.white.opacity(0.45)
-                                )
+                                .foregroundStyle(VitaColors.accent)
                                 .frame(width: 16)
-                            Text(transcribeWithAI ? "VitaCLOUD" : "Só no dispositivo")
+                            Text(transcribeWithAI ? "VITACloud" : "Só no dispositivo")
                                 .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.75))
                                 .lineLimit(1)
                             Spacer()
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.system(size: 9, weight: .medium))
                                 .foregroundStyle(Color.white.opacity(0.30))
                         }
-                        .foregroundStyle(
-                            transcribeWithAI
-                                ? VitaColors.accentLight.opacity(0.85)
-                                : Color.white.opacity(0.65)
-                        )
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(
-                                    transcribeWithAI
-                                        ? VitaColors.accent.opacity(0.10)
-                                        : Color.white.opacity(0.03)
-                                )
+                                .fill(Color.white.opacity(0.03))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
                                         .stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5)

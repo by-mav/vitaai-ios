@@ -30,12 +30,11 @@ struct TranscricaoDisciplinePicker: View {
             HStack(spacing: 8) {
                 Image(systemName: "book.closed.fill")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(
-                        isAuto ? Color.white.opacity(0.45) : VitaColors.accent
-                    )
+                    .foregroundStyle(VitaColors.accent)
                     .frame(width: 16)
                 Text(selected.isEmpty ? autoLabel : selected)
                     .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.75))
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer()
@@ -43,17 +42,12 @@ struct TranscricaoDisciplinePicker: View {
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.30))
             }
-            .foregroundStyle(
-                isAuto ? Color.white.opacity(0.65) : VitaColors.accentLight.opacity(0.85)
-            )
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(
-                        isAuto ? Color.white.opacity(0.03) : VitaColors.accent.opacity(0.10)
-                    )
+                    .fill(Color.white.opacity(0.03))
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5)
@@ -309,10 +303,13 @@ struct TranscricaoPauseResumeButton: View {
                     .font(.system(size: 10, weight: .bold))
                 Text(isPaused ? "Retomar" : "Pausar")
                     .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
             .foregroundStyle(VitaColors.accentHover.opacity(0.88))
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
             .background(Capsule().fill(VitaColors.accent.opacity(0.10)))
             .overlay(Capsule().stroke(VitaColors.accent.opacity(0.22), lineWidth: 1))
         }
