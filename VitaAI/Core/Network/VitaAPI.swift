@@ -194,6 +194,38 @@ actor VitaAPI {
         try await client.patch("studio/sources/\(id)", body: RenameStudioSourceBody(title: title))
     }
 
+    /// PATCH /api/studio/sources/:id — update folder/favorite.
+    /// `disciplineSlug: nil` = não muda; passe "" se quiser REMOVER a pasta
+    /// (envia null no JSON).
+    func updateStudioSource(
+        id: String,
+        disciplineSlug: String? = nil,
+        clearDiscipline: Bool = false,
+        favorite: Bool? = nil
+    ) async throws {
+        struct Body: Encodable {
+            let disciplineSlug: String?
+            let favorite: Bool?
+            var hasClearDiscipline: Bool
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.container(keyedBy: CK.self)
+                if hasClearDiscipline {
+                    try c.encodeNil(forKey: .disciplineSlug)
+                } else if let s = disciplineSlug {
+                    try c.encode(s, forKey: .disciplineSlug)
+                }
+                if let f = favorite { try c.encode(f, forKey: .favorite) }
+            }
+            enum CK: String, CodingKey { case disciplineSlug, favorite }
+        }
+        let body = Body(
+            disciplineSlug: disciplineSlug,
+            favorite: favorite,
+            hasClearDiscipline: clearDiscipline
+        )
+        try await client.patch("studio/sources/\(id)", body: body)
+    }
+
     func deleteStudioSource(id: String) async throws {
         try await client.delete("studio/sources/\(id)")
     }

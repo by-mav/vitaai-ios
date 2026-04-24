@@ -535,13 +535,10 @@ struct TealGlassRecordingCard: View {
 
             Spacer()
 
-            // Status + chevron
-            VStack(spacing: 6) {
-                TranscricaoStatusBadge(status: displayStatus)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.20))
-            }
+            // Status badge only — chevron removed (data+duration já fica
+            // abaixo do título, indicador visual de tappable é o próprio
+            // glassCard com hover state).
+            TranscricaoStatusBadge(status: displayStatus)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)

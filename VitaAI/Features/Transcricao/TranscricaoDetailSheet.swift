@@ -30,8 +30,11 @@ struct TranscricaoDetailSheet: View {
     @State private var renameValue: String = ""
     @State private var showDeleteConfirm = false
     @State private var showShareSheet = false
+    @State private var showMoveSheet = false
     @State private var actionBusy = false
     @State private var actionError: String?
+    @State private var isFavorite: Bool = false
+    @State private var currentDisciplineSlug: String? = nil
 
     init(recording: TranscricaoEntry,
          onRenamed: ((String) -> Void)? = nil,
@@ -206,11 +209,25 @@ struct TranscricaoDetailSheet: View {
     private var actionsMenu: some View {
         Menu {
             Button {
+                Task { await toggleFavorite() }
+            } label: {
+                Label(
+                    isFavorite ? "Remover dos favoritos" : "Favoritar",
+                    systemImage: isFavorite ? "star.slash" : "star"
+                )
+            }
+            Button {
+                showMoveSheet = true
+            } label: {
+                Label("Mover pra disciplina…", systemImage: "folder")
+            }
+            Button {
                 renameValue = liveTitle
                 showRenameDialog = true
             } label: {
                 Label("Renomear", systemImage: "pencil")
             }
+            Divider()
             Button {
                 UIPasteboard.general.string = fullTranscript
             } label: {
@@ -263,6 +280,15 @@ struct TranscricaoDetailSheet: View {
         .sheet(isPresented: $showShareSheet) {
             TranscricaoShareSheet(items: shareItems)
         }
+        .sheet(isPresented: $showMoveSheet) {
+            TranscricaoMovePickerSheet(
+                currentSlug: currentDisciplineSlug,
+                onPick: { slug in
+                    showMoveSheet = false
+                    Task { await moveToDiscipline(slug: slug) }
+                }
+            )
+        }
         .overlay(alignment: .bottom) {
             if let err = actionError {
                 Text(err)
@@ -297,6 +323,46 @@ struct TranscricaoDetailSheet: View {
             onRenamed?(newTitle)
         } catch {
             actionError = "Falha ao renomear"
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                await MainActor.run { actionError = nil }
+            }
+        }
+        actionBusy = false
+    }
+
+    private func toggleFavorite() async {
+        let newValue = !isFavorite
+        actionBusy = true
+        actionError = nil
+        do {
+            try await container.api.updateStudioSource(
+                id: recording.id,
+                favorite: newValue
+            )
+            isFavorite = newValue
+        } catch {
+            actionError = "Falha ao favoritar"
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                await MainActor.run { actionError = nil }
+            }
+        }
+        actionBusy = false
+    }
+
+    private func moveToDiscipline(slug: String?) async {
+        actionBusy = true
+        actionError = nil
+        do {
+            try await container.api.updateStudioSource(
+                id: recording.id,
+                disciplineSlug: slug,
+                clearDiscipline: slug == nil
+            )
+            currentDisciplineSlug = slug
+        } catch {
+            actionError = "Falha ao mover"
             Task {
                 try? await Task.sleep(for: .seconds(3))
                 await MainActor.run { actionError = nil }
@@ -518,6 +584,10 @@ struct TranscricaoDetailSheet: View {
             let (detail, outputsResp) = try await (detailTask, outputsTask)
             sourceDetail = detail
             outputs = outputsResp.outputs
+
+            // Sync favorite + discipline state from metadata (PATCH updates).
+            isFavorite = detail.metadata?.favorite ?? false
+            currentDisciplineSlug = detail.metadata?.disciplineSlug
 
             // Extract all words from segments for karaoke
             if let segments = detail.metadata?.segments {

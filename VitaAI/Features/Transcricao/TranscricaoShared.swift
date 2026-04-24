@@ -45,48 +45,65 @@ struct TranscricaoStatusBadge: View {
     let status: RecordingStatus
 
     var body: some View {
-        Text(label.uppercased())
-            .font(.system(size: 10, weight: .semibold))
-            .tracking(0.5)
-            .foregroundStyle(foregroundColor)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(backgroundColor)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .stroke(borderColor, lineWidth: 1)
-            )
+        HStack(spacing: 5) {
+            if status == .transcribed {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 9, weight: .bold))
+            } else if status == .pending {
+                ProgressView()
+                    .scaleEffect(0.5)
+                    .tint(foregroundColor)
+                    .frame(width: 9, height: 9)
+            } else {
+                Circle().fill(foregroundColor).frame(width: 6, height: 6)
+            }
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.2)
+        }
+        .foregroundStyle(foregroundColor)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            ZStack {
+                Capsule().fill(.ultraThinMaterial)
+                Capsule().fill(backgroundColor)
+            }
+        )
+        .overlay(
+            Capsule()
+                .stroke(borderColor, lineWidth: 0.5)
+        )
     }
 
     private var label: String {
         switch status {
-        case .transcribed: return "Transcrito"
-        case .pending:     return "Não transcrito"
+        case .transcribed: return "Pronto"
+        case .pending:     return "Processando"
         case .recording:   return "Gravando"
         }
     }
 
     private var foregroundColor: Color {
         switch status {
-        case .transcribed: return TealColors.badgeGreen.opacity(0.80)
-        case .pending:     return TealColors.badgePending.opacity(0.80)
+        case .transcribed: return VitaColors.accentLight
+        case .pending:     return VitaColors.accentLight.opacity(0.70)
         case .recording:   return TealColors.badgeRecording.opacity(0.85)
         }
     }
 
     private var backgroundColor: Color {
         switch status {
-        case .transcribed: return TealColors.badgeGreen.opacity(0.10)
-        case .pending:     return TealColors.badgePending.opacity(0.10)
+        case .transcribed: return VitaColors.accent.opacity(0.08)
+        case .pending:     return VitaColors.accent.opacity(0.06)
         case .recording:   return TealColors.badgeRecording.opacity(0.10)
         }
     }
 
     private var borderColor: Color {
         switch status {
-        case .transcribed: return TealColors.badgeGreen.opacity(0.14)
-        case .pending:     return TealColors.badgePending.opacity(0.14)
+        case .transcribed: return VitaColors.accent.opacity(0.22)
+        case .pending:     return VitaColors.accent.opacity(0.18)
         case .recording:   return TealColors.badgeRecording.opacity(0.20)
         }
     }
