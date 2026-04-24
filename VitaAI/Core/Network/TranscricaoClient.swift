@@ -237,6 +237,9 @@ struct StudioQuestion: Decodable, Identifiable {
 
 enum TranscricaoSSEEvent: Sendable {
     case progress(stage: String, percent: Int)
+    /// Upload bytes pro R2 avançando — `pct` 0-100. Emitido antes de
+    /// `sourceCreated`. UI mostra "Enviando 45%" no card local.
+    case uploadProgress(pct: Int)
     /// Emitted as soon as the server seeds / finds the `studio_sources` row
     /// for this recording. The ViewModel uses this id to start a parallel
     /// poll against GET /api/studio/sources/:id so if the SSE stream stalls
@@ -297,7 +300,9 @@ actor TranscricaoClient {
     func uploadAndStream(
         fileURL: URL,
         language: String = "pt",
-        discipline: String? = nil
+        discipline: String? = nil,
+        liveTranscript: String = "",
+        durationSeconds: Int = 0
     ) -> AsyncThrowingStream<TranscricaoSSEEvent, Error> {
         AsyncThrowingStream { continuation in
             Task {
@@ -316,10 +321,27 @@ actor TranscricaoClient {
                         fileSize: fileData.count
                     ) {
                         do {
-                            try await self.putToR2(presignedUrl: uploadInfo.presignedPutUrl, data: fileData)
-                            // No fake "5% — Preparando..." lie here; just
-                            // hand off to the server and let the real SSE
-                            // stream drive the UI.
+                            try await self.putToR2(
+                                presignedUrl: uploadInfo.presignedPutUrl,
+                                data: fileData,
+                                onProgress: { pct in
+                                    continuation.yield(.uploadProgress(pct: pct))
+                                }
+                            )
+                            // Fast-path: live já transcreveu — skipa Whisper batch.
+                            if !liveTranscript.isEmpty {
+                                try await self.persistFromLive(
+                                    sourceId: uploadInfo.sourceId,
+                                    r2Key: uploadInfo.r2Key,
+                                    transcript: liveTranscript,
+                                    language: language,
+                                    discipline: discipline,
+                                    durationSeconds: durationSeconds,
+                                    continuation: continuation
+                                )
+                                return
+                            }
+                            // Sem live: pipeline completo.
                             try await self.streamTranscribeJson(
                                 r2Key: uploadInfo.r2Key,
                                 sourceId: uploadInfo.sourceId,
@@ -397,18 +419,70 @@ actor TranscricaoClient {
     /// Step 2: PUT the m4a bytes straight to R2. Uses the plain URLSession
     /// (not the auth'd session) because the presigned URL carries the auth
     /// in its query string and CF would reject extra headers.
-    private func putToR2(presignedUrl: String, data: Data) async throws {
+    private func putToR2(
+        presignedUrl: String,
+        data: Data,
+        onProgress: (@Sendable (Int) -> Void)? = nil
+    ) async throws {
         guard let url = URL(string: presignedUrl) else { throw APIError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("audio/m4a", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 300
-        let putSession = URLSession(configuration: .default)
+        let delegate = R2UploadProgressDelegate(onProgress: onProgress)
+        let putSession = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        defer { putSession.finishTasksAndInvalidate() }
         let (_, response) = try await putSession.upload(for: request, from: data)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             let code = (response as? HTTPURLResponse)?.statusCode ?? -1
             throw APIError.serverError(code)
         }
+    }
+
+    /// Fast-path: POST /api/ai/transcribe/from-live com transcript pronto.
+    /// Emite sourceCreated + complete sintéticos.
+    private func persistFromLive(
+        sourceId: String,
+        r2Key: String,
+        transcript: String,
+        language: String,
+        discipline: String?,
+        durationSeconds: Int,
+        continuation: AsyncThrowingStream<TranscricaoSSEEvent, Error>.Continuation
+    ) async throws {
+        guard let url = URL(string: AppConfig.apiBaseURL + "/ai/transcribe/from-live") else {
+            throw APIError.invalidURL
+        }
+        var body: [String: Any] = [
+            "sourceId": sourceId,
+            "r2Key": r2Key,
+            "transcript": transcript,
+            "language": language,
+        ]
+        if let discipline, !discipline.isEmpty, discipline != "Auto-detectar" {
+            body["discipline"] = discipline
+        }
+        if durationSeconds > 0 { body["durationSeconds"] = durationSeconds }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = await self.tokenStore.token {
+            request.setValue("__Secure-better-auth.session_token=\(token)", forHTTPHeaderField: "Cookie")
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.timeoutInterval = 30
+
+        continuation.yield(.sourceCreated(id: sourceId))
+        let (_, response) = try await self.session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            continuation.yield(.error(message: "Falha ao salvar (\(code))"))
+            continuation.finish()
+            return
+        }
+        continuation.yield(.complete(transcript: transcript, summary: "", flashcards: []))
+        continuation.finish()
     }
 
     /// Step 3: trigger the Whisper+LLM pipeline with the R2 key.
@@ -692,3 +766,32 @@ actor TranscricaoClient {
 private extension String {
     var utf8Data: Data { data(using: .utf8) ?? Data() }
 }
+
+// MARK: - R2 Upload Progress Delegate
+
+/// URLSessionTaskDelegate que intercepta `didSendBodyData` do PUT R2 e
+/// traduz bytes enviados em % (0-100). Callback roda em background queue.
+final class R2UploadProgressDelegate: NSObject, URLSessionTaskDelegate {
+    let onProgress: (@Sendable (Int) -> Void)?
+    private var lastPct: Int = -1
+
+    init(onProgress: (@Sendable (Int) -> Void)?) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didSendBodyData bytesSent: Int64,
+        totalBytesSent: Int64,
+        totalBytesExpectedToSend: Int64
+    ) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        let pct = Int(Double(totalBytesSent) / Double(totalBytesExpectedToSend) * 100.0)
+        if pct != lastPct {
+            lastPct = pct
+            onProgress?(pct)
+        }
+    }
+}
+

@@ -30,6 +30,9 @@ struct LocalRecording: Codable, Identifiable {
     /// `studio_sources.id` do backend depois que o upload iniciou. Permite
     /// abrir detail screen e polling direto enquanto cloudStatus != "ready".
     var cloudSourceId: String?
+    /// Percentual (0-100) do upload R2 em andamento. Só preenchido quando
+    /// cloudStatus == "uploading". UI mostra "Enviando 45%".
+    var uploadProgress: Int?
 }
 
 @MainActor
@@ -88,7 +91,8 @@ final class TranscricaoLocalStore {
             discipline: discipline,
             createdAt: Date(),
             cloudStatus: nil,
-            cloudSourceId: nil
+            cloudSourceId: nil,
+            uploadProgress: nil
         )
 
         var all = loadAll()
@@ -104,6 +108,15 @@ final class TranscricaoLocalStore {
         guard let idx = all.firstIndex(where: { $0.id == id }) else { return }
         all[idx].cloudStatus = status
         if let sourceId { all[idx].cloudSourceId = sourceId }
+        if status != "uploading" { all[idx].uploadProgress = nil }
+        try writeIndex(all)
+    }
+
+    /// Atualiza apenas o percentual do upload (0-100).
+    func updateUploadProgress(id: String, pct: Int) throws {
+        var all = loadAll()
+        guard let idx = all.firstIndex(where: { $0.id == id }) else { return }
+        all[idx].uploadProgress = max(0, min(100, pct))
         try writeIndex(all)
     }
 

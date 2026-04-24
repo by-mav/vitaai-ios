@@ -191,6 +191,11 @@ final class TranscricaoViewModel {
             return
         }
 
+        // Captura o transcript AO VIVO antes de resetar — passa pro upload
+        // background. Backend usa fast-path /ai/transcribe/from-live e pula
+        // Whisper (economia 2-9s/áudio). Vazio = pipeline completo.
+        let capturedLive = liveTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+
         recordingURL = nil
         phase = .idle
         elapsedSeconds = 0
@@ -203,9 +208,10 @@ final class TranscricaoViewModel {
                 "file_size_mb": Double(localRec.fileSize) / 1_048_576.0,
                 "duration_seconds": duration,
                 "background": true,
+                "has_live_transcript": !capturedLive.isEmpty,
             ])
             Task.detached(priority: .userInitiated) { [weak self] in
-                await self?.uploadLocalInBackground(id: localRec.id)
+                await self?.uploadLocalInBackground(id: localRec.id, liveTranscript: capturedLive)
             }
         } else {
             VitaPostHogConfig.capture(event: "transcription_saved_local", properties: [
@@ -249,7 +255,7 @@ final class TranscricaoViewModel {
             setError("Arquivo local não encontrado.")
             return
         }
-        await uploadLocalInBackground(id: id)
+        await uploadLocalInBackground(id: id, liveTranscript: "")
     }
 
     /// Pipeline cloud silencioso — sobe áudio pro R2 + dispara Whisper + LLM
@@ -259,7 +265,7 @@ final class TranscricaoViewModel {
     /// Quando termina com `ready`: deleta entry local + refresh cloud list.
     /// Se falha: marca `cloudStatus="failed"` — user vê badge vermelho no card
     /// e pode tentar de novo pelo menu.
-    func uploadLocalInBackground(id: String) async {
+    func uploadLocalInBackground(id: String, liveTranscript: String = "") async {
         guard let fileURL = TranscricaoLocalStore.shared.fileURL(for: id) else {
             NSLog("[TranscricaoVM] uploadLocalInBackground: arquivo sumiu id=%@", id)
             return
@@ -274,12 +280,17 @@ final class TranscricaoViewModel {
             for try await event in await client.uploadAndStream(
                 fileURL: fileURL,
                 language: localRecordings.first(where: { $0.id == id })?.language ?? selectedLanguage,
-                discipline: localRecordings.first(where: { $0.id == id })?.discipline ?? selectedDiscipline
+                discipline: localRecordings.first(where: { $0.id == id })?.discipline ?? selectedDiscipline,
+                liveTranscript: liveTranscript,
+                durationSeconds: localRecordings.first(where: { $0.id == id })?.durationSeconds ?? 0
             ) {
                 switch event {
                 case .progress(let stage, _):
                     let mapped = backgroundStatusFromStage(stage)
                     try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: mapped)
+                    loadLocalRecordings()
+                case .uploadProgress(let pct):
+                    try? TranscricaoLocalStore.shared.updateUploadProgress(id: id, pct: pct)
                     loadLocalRecordings()
                 case .sourceCreated(let cloudId):
                     sourceIdSeen = cloudId

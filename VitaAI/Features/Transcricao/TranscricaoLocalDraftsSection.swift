@@ -65,9 +65,11 @@ fileprivate func isInFlight(_ status: String?) -> Bool {
     return s == "uploading" || s == "transcribing" || s == "summarizing" || s == "generating_flashcards"
 }
 
-fileprivate func inFlightLabel(_ status: String?) -> String {
+fileprivate func inFlightLabel(_ status: String?, progress: Int? = nil) -> String {
     switch status {
-    case "uploading": return "Enviando áudio"
+    case "uploading":
+        if let p = progress, p > 0 { return "Enviando \(p)%" }
+        return "Enviando áudio"
     case "transcribing": return "Transcrevendo"
     case "summarizing": return "Resumindo"
     case "generating_flashcards": return "Gerando flashcards"
@@ -136,7 +138,7 @@ private struct LocalDraftCard: View {
 
                 if inFlight {
                     HStack(spacing: 6) {
-                        Text(inFlightLabel(draft.cloudStatus))
+                        Text(inFlightLabel(draft.cloudStatus, progress: draft.uploadProgress))
                             .foregroundStyle(VitaColors.accent)
                         Text("·")
                             .foregroundStyle(VitaColors.textWarm.opacity(0.35))

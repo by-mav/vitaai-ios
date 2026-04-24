@@ -204,31 +204,51 @@ private struct TranscricaoContent: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 10)
 
-                            // Toggle "Transcrever com Vita" — FORA do recorder
-                            // card. Antes tava dentro e a tap area do Toggle
-                            // (Label expande) sobrepunha com o botão central
-                            // do recorder → user tocava e começava a gravar.
-                            // Agora é uma row separada abaixo, sem conflito.
-                            HStack(spacing: 10) {
-                                Image(systemName: viewModel.transcribeWithAI ? "sparkles" : "iphone")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(VitaColors.accent)
-                                Text(viewModel.transcribeWithAI ? "Transcrever com Vita" : "Só rascunho local")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(Color.white.opacity(0.85))
-                                Spacer()
-                                Toggle("", isOn: Binding(
-                                    get: { viewModel.transcribeWithAI },
-                                    set: { viewModel.transcribeWithAI = $0 }
-                                ))
-                                .labelsHidden()
-                                .toggleStyle(SwitchToggleStyle(tint: VitaColors.accent))
-                                .disabled(viewModel.phase == .recording)
+                            // Cloud / Local chip segmented — dois botões grandes
+                            // lado a lado, o ativo com accent. Antes era Toggle
+                            // sutil que user não via (Rafael: "onde escolho?").
+                            HStack(spacing: 6) {
+                                ForEach([true, false], id: \.self) { cloudMode in
+                                    let isSelected = viewModel.transcribeWithAI == cloudMode
+                                    Button {
+                                        if viewModel.phase != .recording {
+                                            viewModel.transcribeWithAI = cloudMode
+                                        }
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: cloudMode ? "sparkles" : "iphone")
+                                                .font(.system(size: 11, weight: .semibold))
+                                            Text(cloudMode ? "Cloud (Vita)" : "Só local")
+                                                .font(.system(size: 11, weight: .semibold))
+                                        }
+                                        .foregroundStyle(
+                                            isSelected
+                                                ? VitaColors.accentLight
+                                                : Color.white.opacity(0.40)
+                                        )
+                                        .frame(maxWidth: .infinity, minHeight: 30)
+                                        .background(
+                                            isSelected
+                                                ? RoundedRectangle(cornerRadius: 8)
+                                                    .fill(VitaColors.accent.opacity(0.14))
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 8)
+                                                            .stroke(VitaColors.accent.opacity(0.28), lineWidth: 1)
+                                                    )
+                                                : nil
+                                        )
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color.white.opacity(0.04))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding(4)
+                            .background(Color.white.opacity(0.03))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(VitaColors.accent.opacity(0.08), lineWidth: 1)
+                            )
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
 
