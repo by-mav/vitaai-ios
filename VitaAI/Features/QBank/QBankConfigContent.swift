@@ -113,12 +113,7 @@ struct QBankConfigContent: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
-                            .background(VitaColors.glassBg)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(VitaColors.glassBorder, lineWidth: 1)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .glassCard(cornerRadius: 10)
                         }
 
                         // Error
@@ -462,12 +457,7 @@ struct QBankConfigContent: View {
                 }
             }
             .padding(4)
-            .background(VitaColors.glassBg)
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(VitaColors.glassBorder, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .glassCard(cornerRadius: 14)
         }
     }
 
@@ -788,12 +778,7 @@ private struct QBankInstitutionSheet: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(VitaColors.glassBg)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(VitaColors.glassBorder, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .glassCard(cornerRadius: 10)
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
 

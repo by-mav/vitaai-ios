@@ -112,12 +112,7 @@ struct QBankDisciplineContent: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
-                .background(VitaColors.glassBg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(VitaColors.glassBorder, lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .glassCard(cornerRadius: 10)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
 
