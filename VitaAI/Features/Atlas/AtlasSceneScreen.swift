@@ -3,6 +3,7 @@ import SceneKit
 import GLTFKit2
 import Sentry
 import OSLog
+import UIKit
 
 // MARK: - Atlas 3D — Native SceneKit screen
 //
@@ -29,6 +30,7 @@ struct AtlasSceneScreen: View {
     @State private var selectedMesh: MeshInfo?
     @State private var resetTrigger = 0
     @State private var currentLayer: AtlasLayer = .arthrology
+    @State private var cachedLayers: Set<AtlasLayer> = []
 
     var body: some View {
         // No opaque base — the AppRouter's VitaAmbientBackground shows through.
@@ -55,10 +57,16 @@ struct AtlasSceneScreen: View {
         .navigationBarHidden(true)
         .task(id: "\(loadAttempt)-\(currentLayer.rawValue)") { await loadLayer() }
         .task { await loadLookupIfNeeded() }
+        .onAppear { refreshCachedLayers() }
         .sheet(item: $selectedMesh) { info in
             MeshDetailSheet(
                 info: info,
                 onAskVita: {
+                    VitaPostHogConfig.capture(event: "atlas_ask_vita", properties: [
+                        "layer": currentLayer.rawValue,
+                        "structure": info.pt,
+                        "system": info.system,
+                    ])
                     selectedMesh = nil
                     onAskVita?(info.pt)
                 },
@@ -72,32 +80,40 @@ struct AtlasSceneScreen: View {
     }
 
     private func handleMeshTap(_ meshName: String) {
-        // Try exact match, then strip GLTFKit2's ".j.N" suffix, then try the
-        // parent node's name (many arthrology meshes are grouped).
-        if let info = lookup[meshName] {
-            selectedMesh = info
-            return
-        }
         let stripped = meshName
             .replacingOccurrences(of: #"\.j\.\d+$"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"_\d+$"#, with: "", options: .regularExpression)
-        if let info = lookup[stripped] {
-            selectedMesh = info
-            return
+
+        let info: MeshInfo
+        let hit: Bool
+        if let direct = lookup[meshName] {
+            info = direct
+            hit = true
+        } else if let stripped = lookup[stripped] {
+            info = stripped
+            hit = true
+        } else {
+            atlasLog.notice("[Atlas] tap mesh '\(meshName, privacy: .public)' no lookup hit")
+            info = MeshInfo(
+                id: stripped,
+                pt: stripped.replacingOccurrences(of: ".", with: " "),
+                en: stripped,
+                system: currentLayer.rawValue,
+                exam: "low",
+                description: nil,
+                tip: nil,
+                curiosity: "Essa estrutura ainda não tem tradução no catálogo — pergunta pra VITA que ela explica."
+            )
+            hit = false
         }
-        // No dictionary match — still surface the structure's English label so
-        // the user can at least see what they picked and hand it to VITA.
-        atlasLog.notice("[Atlas] tap mesh '\(meshName, privacy: .public)' no lookup hit")
-        selectedMesh = MeshInfo(
-            id: stripped,
-            pt: stripped.replacingOccurrences(of: ".", with: " "),
-            en: stripped,
-            system: currentLayer.rawValue,
-            exam: "low",
-            description: nil,
-            tip: nil,
-            curiosity: "Essa estrutura ainda não tem tradução no catálogo — pergunta pra VITA que ela explica."
-        )
+        selectedMesh = info
+        VitaPostHogConfig.capture(event: "atlas_mesh_tapped", properties: [
+            "layer": currentLayer.rawValue,
+            "mesh_name": meshName,
+            "has_lookup": hit,
+            "pt_name": info.pt,
+            "exam_priority": info.exam,
+        ])
     }
 
     // MARK: - Layer bar (system switcher)
@@ -108,6 +124,13 @@ struct AtlasSceneScreen: View {
                 ForEach(AtlasLayer.allCases) { layer in
                     Button {
                         guard layer != currentLayer else { return }
+                        UISelectionFeedbackGenerator().selectionChanged()
+                        VitaPostHogConfig.capture(event: "atlas_layer_selected", properties: [
+                            "from": currentLayer.rawValue,
+                            "to": layer.rawValue,
+                            "from_cached": cachedLayers.contains(currentLayer),
+                            "to_cached": cachedLayers.contains(layer),
+                        ])
                         scene = nil
                         progress = 0
                         errorMessage = nil
@@ -119,6 +142,14 @@ struct AtlasSceneScreen: View {
                                 .font(.system(size: 11, weight: .semibold))
                             Text(layer.displayName)
                                 .font(.system(size: 12, weight: .semibold))
+                            // Cache status dot: filled if already downloaded, outline otherwise.
+                            Image(systemName: cachedLayers.contains(layer)
+                                  ? "checkmark.circle.fill"
+                                  : "arrow.down.circle")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(cachedLayers.contains(layer)
+                                                 ? VitaColors.dataGreen.opacity(0.85)
+                                                 : VitaColors.textSecondary.opacity(0.5))
                         }
                         .foregroundStyle(currentLayer == layer ? VitaColors.accent : VitaColors.textSecondary)
                         .padding(.horizontal, 12)
@@ -138,6 +169,11 @@ struct AtlasSceneScreen: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Sistema \(layer.displayName)")
+                    .accessibilityHint(cachedLayers.contains(layer)
+                                       ? "Baixado, troca instantânea"
+                                       : "Vai baixar ao selecionar")
+                    .accessibilityAddTraits(currentLayer == layer ? [.isSelected] : [])
                 }
             }
             .padding(.horizontal, 14)
@@ -298,17 +334,37 @@ struct AtlasSceneScreen: View {
 
     private func loadLayer() async {
         let layerName = currentLayer.rawValue
+        let layer = currentLayer
         do {
             let url = try await fetchOrCacheGLB(layer: layerName)
             let built = try await buildScene(from: url)
             await MainActor.run {
                 self.scene = built
+                self.cachedLayers.insert(layer)
                 SentrySDK.reportFullyDisplayed()
             }
         } catch {
             atlasLog.error("[Atlas] load failed: \(error.localizedDescription, privacy: .public)")
+            VitaPostHogConfig.capture(event: "atlas_load_failed", properties: [
+                "layer": layerName,
+                "error": "\(error)",
+            ])
             await MainActor.run { self.errorMessage = error.localizedDescription }
         }
+    }
+
+    /// Scans Caches/ at view appear so chips already show a checkmark for
+    /// layers downloaded in prior sessions (no cold-start false-negative).
+    private func refreshCachedLayers() {
+        guard let cache = try? FileManager.default.url(
+            for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: false
+        ) else { return }
+        var found: Set<AtlasLayer> = []
+        for layer in AtlasLayer.allCases {
+            let path = cache.appendingPathComponent("atlas-\(layer.rawValue).glb").path
+            if FileManager.default.fileExists(atPath: path) { found.insert(layer) }
+        }
+        cachedLayers = found
     }
 
     private func fetchOrCacheGLB(layer: String) async throws -> URL {
@@ -386,20 +442,45 @@ struct AtlasSceneScreen: View {
                     }
                     atlasLog.notice("[Atlas] scene built: rootChildren=\(scene.rootNode.childNodes.count)")
 
-                    // Ambient + directional so the mesh isn't flat black.
+                    // 3-point studio-style rig — makes anatomical structures
+                    // read cleanly against the dark starry background.
                     let ambient = SCNNode()
                     ambient.light = SCNLight()
                     ambient.light?.type = .ambient
-                    ambient.light?.intensity = 550
+                    ambient.light?.intensity = 420
+                    ambient.light?.color = UIColor(red: 1.0, green: 0.96, blue: 0.90, alpha: 1.0)
                     scene.rootNode.addChildNode(ambient)
 
+                    // Key — warm front-top-left
                     let key = SCNNode()
                     key.light = SCNLight()
                     key.light?.type = .directional
                     key.light?.intensity = 900
+                    key.light?.color = UIColor(red: 1.0, green: 0.94, blue: 0.82, alpha: 1.0)
+                    key.light?.castsShadow = false
                     key.position = SCNVector3(5, 5, 5)
                     key.eulerAngles = SCNVector3(-Float.pi / 4, Float.pi / 4, 0)
                     scene.rootNode.addChildNode(key)
+
+                    // Fill — cool front-right, half intensity
+                    let fill = SCNNode()
+                    fill.light = SCNLight()
+                    fill.light?.type = .directional
+                    fill.light?.intensity = 450
+                    fill.light?.color = UIColor(red: 0.78, green: 0.84, blue: 1.0, alpha: 1.0)
+                    fill.position = SCNVector3(-5, 2, 5)
+                    fill.eulerAngles = SCNVector3(-Float.pi / 6, -Float.pi / 4, 0)
+                    scene.rootNode.addChildNode(fill)
+
+                    // Rim — warm amber from behind separates silhouette from bg
+                    let rim = SCNNode()
+                    rim.light = SCNLight()
+                    rim.light?.type = .directional
+                    rim.light?.intensity = 650
+                    rim.light?.color = UIColor(red: 1.0, green: 0.78, blue: 0.34, alpha: 1.0)
+                    rim.position = SCNVector3(0, 3, -6)
+                    rim.eulerAngles = SCNVector3(-Float.pi / 6, Float.pi, 0)
+                    scene.rootNode.addChildNode(rim)
 
                     continuation.resume(returning: scene)
                 }
@@ -720,6 +801,8 @@ private struct AnatomySceneView: UIViewRepresentable {
             }
             guard let picked = node, let pickedName = name else { return }
 
+            // Tactile confirmation — feels like selecting a physical surface.
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             highlight(picked)
             onMeshTap(pickedName)
         }
