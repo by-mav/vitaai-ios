@@ -71,8 +71,16 @@ struct TranscricaoRecorderArea: View {
                     Button {
                         if !isRecording { transcribeWithAI.toggle() }
                     } label: {
-                        HStack(spacing: 6) {
-                            Text(transcribeWithAI ? "Enviar pra Vita" : "Só no dispositivo")
+                        HStack(spacing: 8) {
+                            Image(systemName: transcribeWithAI ? "cloud.fill" : "iphone")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(
+                                    transcribeWithAI
+                                        ? VitaColors.accent
+                                        : Color.white.opacity(0.45)
+                                )
+                                .frame(width: 16)
+                            Text(transcribeWithAI ? "VitaCLOUD" : "Só no dispositivo")
                                 .font(.system(size: 11, weight: .semibold))
                                 .lineLimit(1)
                             Spacer()
@@ -230,9 +238,10 @@ private struct LegacyChips: View {
                             }
                         }
                     } label: {
-                        Text(abbreviateDiscipline(disc))
+                        Text(disc)
                             .font(.system(size: 11, weight: .medium))
                             .lineLimit(1)
+                            .truncationMode(.tail)
                             .foregroundStyle(
                                 isSelected
                                     ? VitaColors.accentHover.opacity(0.90)
@@ -467,7 +476,7 @@ struct TranscricaoFilterChips: View {
                 }
 
                 ForEach(chips, id: \.self) { chip in
-                    chipButton(label: abbreviateDiscipline(chip), isSelected: selected == chip) {
+                    chipButton(label: chip, isSelected: selected == chip) {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             selected = (selected == chip) ? nil : chip
                         }
@@ -552,7 +561,7 @@ struct TealGlassRecordingCard: View {
 
                 // Discipline tag (if categorized)
                 if let disc = recording.discipline, !disc.isEmpty, disc != "Geral" {
-                    Text(abbreviateDiscipline(disc).uppercased())
+                    Text(disc.uppercased())
                         .font(.system(size: 10, weight: .semibold))
                         .tracking(0.8)
                         .lineLimit(1)

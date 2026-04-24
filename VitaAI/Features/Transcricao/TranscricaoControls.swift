@@ -27,10 +27,17 @@ struct TranscricaoDisciplinePicker: View {
         Button {
             isOpen = true
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "book.closed.fill")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(
+                        isAuto ? Color.white.opacity(0.45) : VitaColors.accent
+                    )
+                    .frame(width: 16)
                 Text(selected.isEmpty ? autoLabel : selected)
                     .font(.system(size: 11, weight: .semibold))
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 Spacer()
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9, weight: .medium))
@@ -259,9 +266,10 @@ struct TranscricaoLanguagePicker: View {
                 }
             }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Text(current.flag)
-                    .font(.system(size: 12))
+                    .font(.system(size: 13))
+                    .frame(width: 16)
                 Text(current.label)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.75))
