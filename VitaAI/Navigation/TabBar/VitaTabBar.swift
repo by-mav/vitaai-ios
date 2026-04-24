@@ -124,6 +124,10 @@ struct VitaTabBar: View {
     var onCenterTap: () -> Void
     var onTabReselect: ((TabItem) -> Void)? = nil
 
+    // Rafael (2026-04-24): mascote gold acorda quando tu toca. Idle = olho
+    // fechado (sleeping). Tap → olho aberto (awake) por 1s → volta a dormir.
+    @State private var vitaAwake: Bool = false
+
     private let barHeight: CGFloat = 54
     private let vitaSize: CGFloat = 58
     private let gap: CGFloat = 5 // gap between button edge and arc
@@ -196,13 +200,25 @@ struct VitaTabBar: View {
             .padding(.horizontal, 16)
             .frame(height: barHeight)
 
-            // Vita button
-            Button(action: onCenterTap) {
-                Image("vita-btn-idle")
+            // Vita button — gold mascot, olho fechado (sleeping) por padrão.
+            // Tap abre o olho (awake) e dispara onCenterTap; fecha de novo em
+            // 1.2s pra reforçar o feedback visual.
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) { vitaAwake = true }
+                onCenterTap()
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_200_000_000)
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.35)) { vitaAwake = false }
+                    }
+                }
+            }) {
+                Image(vitaAwake ? "vita-btn-active" : "vita-btn-idle")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: vitaSize, height: vitaSize)
                     .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
+                    .scaleEffect(vitaAwake ? 1.04 : 1.0)
             }
             .offset(y: -(vitaSize * 0.35))
             .accessibilityIdentifier("tab_vita_chat")
