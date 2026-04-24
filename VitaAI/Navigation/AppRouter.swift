@@ -456,6 +456,7 @@ struct MainTabView: View {
                 onNavigateToMindMaps: { router.navigate(to: .mindMapList) },
                 onNavigateToFlashcardSession: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
                 onNavigateToFlashcardStats: { router.navigate(to: .flashcardStats) },
+                onNavigateToFlashcardHome: { router.navigate(to: .flashcardHome()) },
                 onNavigateToPdfViewer: { url in router.navigate(to: .pdfViewer(url: url.absoluteString)) },
                 onNavigateToSimulados: { router.navigate(to: .simuladoHome) },
                 onNavigateToOsce: { router.navigate(to: .osce) },

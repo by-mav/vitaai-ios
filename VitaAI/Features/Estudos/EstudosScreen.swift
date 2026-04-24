@@ -11,6 +11,7 @@ struct EstudosScreen: View {
     var onNavigateToMindMaps:          (() -> Void)?
     var onNavigateToFlashcardSession:  ((String) -> Void)?
     var onNavigateToFlashcardStats:    (() -> Void)?
+    var onNavigateToFlashcardHome:     (() -> Void)?
     var onNavigateToPdfViewer:         ((URL) -> Void)?
     var onNavigateToSimulados:         (() -> Void)?
     var onNavigateToOsce:              (() -> Void)?
@@ -33,6 +34,7 @@ struct EstudosScreen: View {
                     onNavigateToMindMaps:         onNavigateToMindMaps,
                     onNavigateToFlashcardSession: onNavigateToFlashcardSession,
                     onNavigateToFlashcardStats:   onNavigateToFlashcardStats,
+                    onNavigateToFlashcardHome:    onNavigateToFlashcardHome,
                     onNavigateToPdfViewer:        onNavigateToPdfViewer,
                     onNavigateToSimulados:        onNavigateToSimulados,
                     onNavigateToOsce:             onNavigateToOsce,
@@ -72,6 +74,7 @@ private struct EstudosContent: View {
     let onNavigateToMindMaps:          (() -> Void)?
     let onNavigateToFlashcardSession:  ((String) -> Void)?
     let onNavigateToFlashcardStats:    (() -> Void)?
+    let onNavigateToFlashcardHome:     (() -> Void)?
     let onNavigateToPdfViewer:         ((URL) -> Void)?
     let onNavigateToSimulados:         (() -> Void)?
     let onNavigateToOsce:              (() -> Void)?
@@ -276,7 +279,7 @@ private struct EstudosContent: View {
                         imageName: "tool-flashcards",
                         label: "Flashcards",
                         accentColor: VitaColors.toolFlashcards,
-                        onTap: { onNavigateToFlashcardStats?() }
+                        onTap: { onNavigateToFlashcardHome?() }
                     )
                     ToolCard(
                         imageName: "tool-simulados",
