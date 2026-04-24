@@ -316,12 +316,18 @@ actor TranscricaoClient {
                     let fileName = fileURL.lastPathComponent
 
                     // Try R2 flow first
+                    let t0 = Date()
                     if let uploadInfo = try? await self.requestUploadUrl(
                         fileName: fileName,
                         discipline: discipline,
                         language: language,
                         fileSize: fileData.count
                     ) {
+                        let t1 = Date()
+                        NSLog("[TranscricaoClient] TIMING presign_ms=%d size_kb=%d hasLive=%d",
+                              Int(t1.timeIntervalSince(t0) * 1000),
+                              fileData.count / 1024,
+                              liveTranscript.isEmpty ? 0 : 1)
                         do {
                             try await self.putToR2(
                                 presignedUrl: uploadInfo.presignedPutUrl,
@@ -330,6 +336,9 @@ actor TranscricaoClient {
                                     continuation.yield(.uploadProgress(pct: pct))
                                 }
                             )
+                            let t2 = Date()
+                            NSLog("[TranscricaoClient] TIMING r2_put_ms=%d",
+                                  Int(t2.timeIntervalSince(t1) * 1000))
                             // Fast-path: live já transcreveu — skipa Whisper batch.
                             if !liveTranscript.isEmpty {
                                 try await self.persistFromLive(
@@ -342,6 +351,10 @@ actor TranscricaoClient {
                                     fileSize: fileData.count,
                                     continuation: continuation
                                 )
+                                let t3 = Date()
+                                NSLog("[TranscricaoClient] TIMING fromlive_ms=%d total_ms=%d",
+                                      Int(t3.timeIntervalSince(t2) * 1000),
+                                      Int(t3.timeIntervalSince(t0) * 1000))
                                 return
                             }
                             // Sem live: pipeline completo.
