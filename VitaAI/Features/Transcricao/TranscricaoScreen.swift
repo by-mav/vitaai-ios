@@ -124,6 +124,9 @@ private struct TranscricaoContent: View {
     // payload (R2 metadata + backend) without a second piece of state.
     @State private var selectedFilter: String? = nil
     @State private var selectedRecording: TranscricaoEntry? = nil
+    /// Toast visual (appear + auto-dismiss) pra quick-actions (gerar, favoritar).
+    /// Sem Sheets/Alerts — UX pattern Instagram/WhatsApp.
+    @State private var toastMessage: String? = nil
 
     /// Disciplines do semestre ATUAL apenas. `completed` (semestres passados)
     /// ficavam acumuladas e poluíam o filtro.
@@ -255,25 +258,36 @@ private struct TranscricaoContent: View {
                                     }
                                 },
                                 onGenerate: { rec, type in
-                                    // Haptic feedback: user confirma quick-action
-                                    let gen = UIImpactFeedbackGenerator(style: .medium)
-                                    gen.impactOccurred()
-                                    // Quick-action direta: gera sem abrir sheet.
-                                    // Feedback pro user vem por toast/notificação (TODO).
-                                    // Resultado vai pro DB; user vê o output na próxima
-                                    // abertura do sheet ou via notificação push.
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    let typeLabel: String = {
+                                        switch type {
+                                        case "summary": return "resumo"
+                                        case "flashcards": return "flashcards"
+                                        case "questions": return "questões"
+                                        case "concepts": return "conceitos-chave"
+                                        case "mindmap": return "mindmap"
+                                        default: return type
+                                        }
+                                    }()
+                                    showToast("Gerando \(typeLabel)…")
                                     Task {
                                         do {
                                             _ = try await api.generateStudioOutput(
                                                 sourceId: rec.id,
                                                 outputType: type
                                             )
-                                            // Refresh lista pra pegar output novo.
                                             await viewModel.loadRecordings(force: true)
+                                            await MainActor.run { showToast("✓ \(typeLabel.capitalized) pronto") }
                                         } catch {
                                             NSLog("[Transcricao] onGenerate error: %@", error.localizedDescription)
+                                            await MainActor.run { showToast("Falha ao gerar \(typeLabel)") }
                                         }
                                     }
+                                },
+                                onFavorite: { rec in
+                                    UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+                                    showToast("⭐ Favoritado")
+                                    // TODO: persistir favorito no backend quando endpoint existir
                                 }
                             )
                             .padding(.top, 10)
@@ -313,6 +327,35 @@ private struct TranscricaoContent: View {
                 viewModel.justCompletedRecordingId = nil
             }
         }
+        // Toast overlay — feedback visual de quick-actions (gerar, favoritar).
+        .overlay(alignment: .top) {
+            if let toast = toastMessage {
+                Text(toast)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule().fill(.ultraThinMaterial)
+                            .overlay(Capsule().stroke(VitaColors.accent.opacity(0.4), lineWidth: 0.6))
+                    )
+                    .padding(.top, 60)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(10)
+            }
+        }
         // Disciplines loaded from appData.gradesResponse (no separate API call needed)
+    }
+
+    /// Mostra toast por 1.8s. Chamar via MainActor.run se vier de Task background.
+    private func showToast(_ message: String) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            toastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            withAnimation(.easeOut(duration: 0.25)) {
+                toastMessage = nil
+            }
+        }
     }
 }

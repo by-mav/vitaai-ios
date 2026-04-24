@@ -330,6 +330,8 @@ struct TranscricaoRecordingsListSection: View {
     /// Context menu action: dispara geração direto (summary, flashcards, questions,
     /// concepts, mindmap). Sem precisar abrir sheet + tab de ações.
     var onGenerate: ((TranscricaoEntry, String) -> Void)? = nil
+    /// Swipe right quick-action: favorita gravação.
+    var onFavorite: ((TranscricaoEntry) -> Void)? = nil
 
     private var filteredRecordings: [TranscricaoEntry] {
         guard let filter = selectedFilter else { return recordings }
@@ -484,7 +486,12 @@ struct TranscricaoRecordingsListSection: View {
                                 .padding(.top, 8)
 
                             ForEach(group.recordings) { rec in
-                                TealGlassRecordingCard(recording: rec)
+                                SwipeableCardRow(
+                                    onSwipeLeft: { onDelete(rec) },
+                                    onSwipeRight: { onFavorite?(rec) }
+                                ) {
+                                    TealGlassRecordingCard(recording: rec)
+                                }
                                     .padding(.horizontal, 16)
                                     .contentShape(Rectangle())
                                     .onTapGesture { onTap(rec) }
@@ -566,6 +573,19 @@ struct TealGlassRecordingCard: View {
         return (trimmed.isEmpty ? "Outros" : trimmed).uppercased()
     }
 
+    /// Sanitiza título: se backend gravou UUID como título (bug — algumas
+    /// gravações subiam sem título e o backend caía no ID), substitui por
+    /// "Gravação". Regex pega UUID v4 padrão.
+    private var titleDisplay: String {
+        let t = recording.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.isEmpty { return "Gravação" }
+        // UUID v4: 8-4-4-4-12 hex chars
+        if t.range(of: #"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"#, options: .regularExpression) != nil {
+            return "Gravação"
+        }
+        return t
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             // Mic icon in glass circle
@@ -604,7 +624,7 @@ struct TealGlassRecordingCard: View {
                     .lineLimit(1)
                     .foregroundStyle(VitaColors.accent.opacity(0.85))
 
-                Text(recording.title.isEmpty ? "Gravação" : recording.title)
+                Text(titleDisplay)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.96))
                     .lineLimit(1)
@@ -651,3 +671,112 @@ struct TealGlassRecordingCard: View {
 }
 
 // `abbreviateDiscipline` moved to TranscricaoControls.swift (shared with pickers).
+
+
+// MARK: - Swipeable card row (Tinder-like horizontal gestures)
+
+/// Wrapper que adiciona swipe-left (delete) e swipe-right (favorite)
+/// ao card, revelando background colorido conforme arrasta.
+/// Full-swipe (>40% da largura) executa ação imediatamente com haptic.
+/// Partial-swipe volta pro lugar suavemente.
+///
+/// Pattern: iOS Mail, Gmail Android, Todoist.
+struct SwipeableCardRow<Content: View>: View {
+    let onSwipeLeft: () -> Void   // destructive (delete)
+    let onSwipeRight: () -> Void  // positive (favorite)
+    @ViewBuilder let content: Content
+
+    @State private var offset: CGFloat = 0
+    @State private var isDragging = false
+    private let actionThreshold: CGFloat = 100
+
+    var body: some View {
+        ZStack {
+            // Background actions (revealed as card slides)
+            HStack(spacing: 0) {
+                // Right action (shown when swiping RIGHT: card moves right, leading edge revealed)
+                if offset > 0 {
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Text("Favoritar")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 24)
+                    .opacity(min(offset / actionThreshold, 1.0))
+                }
+
+                Spacer()
+
+                // Left action (shown when swiping LEFT: card moves left, trailing edge revealed)
+                if offset < 0 {
+                    HStack {
+                        Text("Excluir")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Image(systemName: "trash.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 24)
+                    .opacity(min(abs(offset) / actionThreshold, 1.0))
+                }
+            }
+            .background(
+                // Cor muda conforme direção
+                offset > 0
+                ? Color.yellow.opacity(0.55 * min(offset / actionThreshold, 1.0))
+                : Color.red.opacity(0.55 * min(abs(offset) / actionThreshold, 1.0))
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .animation(.easeOut(duration: 0.15), value: offset)
+
+            // Card itself, offset by drag
+            content
+                .offset(x: offset)
+                .gesture(
+                    DragGesture(minimumDistance: 20)
+                        .onChanged { value in
+                            isDragging = true
+                            // Resistência nas extremidades (rubber band)
+                            let raw = value.translation.width
+                            offset = raw.magnitude > 200 ? (raw > 0 ? 200 : -200) : raw
+                        }
+                        .onEnded { value in
+                            isDragging = false
+                            let dx = value.translation.width
+                            if dx > actionThreshold {
+                                // Swipe right → favoritar
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    offset = 400  // sai da tela
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                    onSwipeRight()
+                                    offset = 0
+                                }
+                            } else if dx < -actionThreshold {
+                                // Swipe left → delete
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    offset = -400
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                                    onSwipeLeft()
+                                    offset = 0
+                                }
+                            } else {
+                                // Volta pro lugar
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                    offset = 0
+                                }
+                            }
+                        }
+                )
+        }
+    }
+}
