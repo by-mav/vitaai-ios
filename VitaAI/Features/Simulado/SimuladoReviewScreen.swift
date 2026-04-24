@@ -225,9 +225,7 @@ private struct ReviewCard: View {
             }
         }
         .padding(16)
-        .background(VitaColors.glassBg)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VitaColors.glassBorder, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassCard(cornerRadius: 12)
     }
 }
 

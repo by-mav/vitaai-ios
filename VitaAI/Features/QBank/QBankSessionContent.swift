@@ -221,9 +221,7 @@ struct QBankSessionContent: View {
                             }
                         }
                         .padding(14)
-                        .background(VitaColors.glassBg)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VitaColors.glassBorder, lineWidth: 1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .glassCard(cornerRadius: 12)
                         .padding(.horizontal, 16)
                         .padding(.top, 16)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))

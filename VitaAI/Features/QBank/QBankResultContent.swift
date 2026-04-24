@@ -67,9 +67,7 @@ struct QBankResultContent: View {
                 }
                 .padding(.vertical, 26)
                 .frame(maxWidth: .infinity)
-                .background(VitaColors.glassBg)
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(VitaColors.glassBorder, lineWidth: 1))
-                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .glassCard(cornerRadius: 18)
                 .padding(.horizontal, 16)
                 .onAppear {
                     withAnimation(.easeOut(duration: 1.0).delay(0.2)) { animatedProgress = accuracy }
@@ -119,9 +117,7 @@ struct QBankResultContent: View {
                         }
                     }
                     .padding(16)
-                    .background(VitaColors.glassBg)
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(VitaColors.glassBorder, lineWidth: 1))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .glassCard(cornerRadius: 14)
                     .padding(.horizontal, 24)
                 }
 
