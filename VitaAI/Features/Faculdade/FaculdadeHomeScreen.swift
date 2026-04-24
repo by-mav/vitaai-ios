@@ -116,22 +116,34 @@ struct FaculdadeHomeScreen: View {
         }
         .frame(height: 162)
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        // D4 inset top highlight — bevel claro em gold 18%
         .overlay(
             RoundedRectangle(cornerRadius: 18)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            goldPrimary.opacity(0.40),
-                            goldPrimary.opacity(0.10),
-                            goldPrimary.opacity(0.25)
+                            Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.18),
+                            Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.04),
+                            .clear
                         ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                        startPoint: .top,
+                        endPoint: .bottom
                     ),
                     lineWidth: 1
                 )
+                .blendMode(.plusLighter)
         )
-        .shadow(color: .black.opacity(0.30), radius: 14, y: 6)
+        // D4 border — gold solid 22%
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(
+                    Color(red: 200/255, green: 160/255, blue: 80/255).opacity(0.22),
+                    lineWidth: 1
+                )
+        )
+        // D4 shadows — card "sentado" na tela
+        .shadow(color: .black.opacity(0.50), radius: 16, x: 0, y: 6)
+        .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 1)
     }
 
     // Motif generalizado: ícone de prédio discreto no canto superior direito,
@@ -145,12 +157,12 @@ struct FaculdadeHomeScreen: View {
             .padding(.trailing, 16)
     }
 
-    // Gradient vertical escuro — previsível, uniforme, texto sempre sobre zona escura.
+    // D4 "carved" gradient — obsidiana quente top → preto quente base
     private var heroSolidBackground: some View {
         LinearGradient(
             colors: [
-                Color(red: 0.10, green: 0.07, blue: 0.045),
-                Color(red: 0.05, green: 0.035, blue: 0.022)
+                Color(red: 30/255, green: 22/255, blue: 15/255).opacity(0.92),
+                Color(red: 14/255, green: 10/255, blue: 7/255).opacity(0.92)
             ],
             startPoint: .top,
             endPoint: .bottom
