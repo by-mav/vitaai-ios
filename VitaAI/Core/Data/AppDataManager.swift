@@ -110,7 +110,43 @@ final class AppDataManager {
         async let e: () = refreshEvents()
         async let d: () = refreshDashboard()
         async let en: () = refreshEnrolled()
-        _ = await (p, g, s, e, d, en)
+        // Secondary prefetch — Estudos tabs abrem instant
+        async let fc: () = refreshFlashcards()
+        async let qb: () = refreshQBankProgress()
+        async let si: () = refreshSimulados()
+        async let tr: () = refreshTranscricoes()
+        async let tb: () = refreshTrabalhos()
+        _ = await (p, g, s, e, d, en, fc, qb, si, tr, tb)
+    }
+
+    private func refreshFlashcards() async {
+        if let resp = try? await api.getFlashcardDecks(deckLimit: 1000, summary: true) {
+            flashcardDecks = resp
+        }
+    }
+
+    private func refreshQBankProgress() async {
+        if let resp = try? await api.getQBankProgress() {
+            qbankProgress = resp
+        }
+    }
+
+    private func refreshSimulados() async {
+        if let resp = try? await api.listSimulados() {
+            simuladosList = resp
+        }
+    }
+
+    private func refreshTranscricoes() async {
+        if let resp = try? await api.getTranscricoes() {
+            transcricoesList = resp
+        }
+    }
+
+    private func refreshTrabalhos() async {
+        if let resp = try? await api.getTrabalhos() {
+            trabalhosResponse = resp
+        }
     }
 
     private func refreshEnrolled() async {
