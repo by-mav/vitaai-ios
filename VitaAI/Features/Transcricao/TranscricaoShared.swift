@@ -115,39 +115,36 @@ struct TranscricaoModeToggle: View {
     @Binding var selected: TranscricaoRecordingMode
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             ForEach(TranscricaoRecordingMode.allCases, id: \.self) { mode in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selected = mode
+                let isSelected = selected == mode
+                Text(mode.rawValue)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(
+                        isSelected
+                            ? TealColors.accentBright.opacity(0.90)
+                            : Color.white.opacity(0.40)
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 32)
+                    .background(
+                        isSelected
+                            ? RoundedRectangle(cornerRadius: 8)
+                                .fill(TealColors.accent.opacity(0.12))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(TealColors.accent.opacity(0.20), lineWidth: 1)
+                                )
+                            : nil
+                    )
+                    // Tap area explícita restrita ao retângulo visível —
+                    // evita o vazamento de hit test pro mascote abaixo que
+                    // estava fazendo "Ao Vivo" virar "começar a gravar".
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selected = mode
+                        }
                     }
-                } label: {
-                    Text(mode.rawValue)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(
-                            selected == mode
-                                ? TealColors.accentBright.opacity(0.90)
-                                : Color.white.opacity(0.30)
-                        )
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .background(
-                            selected == mode
-                                ? RoundedRectangle(cornerRadius: 8)
-                                    .fill(TealColors.accent.opacity(0.12))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(TealColors.accent.opacity(0.20), lineWidth: 1)
-                                    )
-                                : nil
-                        )
-                        // contentShape garante que o tap area do button é
-                        // o próprio retângulo do label — sem isso SwiftUI
-                        // pode vazar o hit test pra views abaixo (mascote
-                        // do recorder ficava recebendo o tap de "Ao Vivo").
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
             }
         }
         .padding(3)
@@ -157,6 +154,9 @@ struct TranscricaoModeToggle: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(TealColors.accent.opacity(0.08), lineWidth: 1)
         )
+        // zIndex garante que o ModeToggle está acima de qualquer vizinho no
+        // stack pai — hit test vai pegar esse rectangle antes do mascote.
+        .zIndex(1)
     }
 }
 
