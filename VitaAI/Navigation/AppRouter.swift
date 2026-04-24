@@ -459,7 +459,10 @@ struct MainTabView: View {
                 onNavigateToOsce: { router.navigate(to: .osce) },
                 onNavigateToAtlas: { router.navigate(to: .atlas3D) },
                 onNavigateToCourseDetail: { courseId, colorIdx in router.navigate(to: .courseDetail(courseId: courseId, colorIndex: colorIdx)) },
-                onNavigateToProvas: { router.navigate(to: .provas) }
+                onNavigateToProvas: { router.navigate(to: .provas) },
+                onNavigateToQBank: { router.navigate(to: .qbank) },
+                onNavigateToTranscricao: { router.navigate(to: .transcricao) },
+                onNavigateToTrabalhos: { router.navigate(to: .trabalhos) }
             )
         case .faculdade:
             FaculdadeHomeScreen()
