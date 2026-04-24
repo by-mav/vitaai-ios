@@ -78,12 +78,26 @@ struct AtlasSceneScreen: View {
             selectedMesh = info
             return
         }
-        let stripped = meshName.replacingOccurrences(of: #"\.j\.\d+$"#, with: "", options: .regularExpression)
+        let stripped = meshName
+            .replacingOccurrences(of: #"\.j\.\d+$"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"_\d+$"#, with: "", options: .regularExpression)
         if let info = lookup[stripped] {
             selectedMesh = info
             return
         }
+        // No dictionary match — still surface the structure's English label so
+        // the user can at least see what they picked and hand it to VITA.
         atlasLog.notice("[Atlas] tap mesh '\(meshName, privacy: .public)' no lookup hit")
+        selectedMesh = MeshInfo(
+            id: stripped,
+            pt: stripped.replacingOccurrences(of: ".", with: " "),
+            en: stripped,
+            system: currentLayer.rawValue,
+            exam: "low",
+            description: nil,
+            tip: nil,
+            curiosity: "Essa estrutura ainda não tem tradução no catálogo — pergunta pra VITA que ela explica."
+        )
     }
 
     // MARK: - Layer bar (system switcher)
@@ -97,6 +111,7 @@ struct AtlasSceneScreen: View {
                         scene = nil
                         progress = 0
                         errorMessage = nil
+                        selectedMesh = nil  // close any open detail sheet
                         currentLayer = layer
                     } label: {
                         HStack(spacing: 6) {
