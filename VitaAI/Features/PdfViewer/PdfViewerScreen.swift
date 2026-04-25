@@ -44,6 +44,8 @@ struct PdfViewerScreen: View {
     @State private var isMaskingMode: Bool = false
     @State private var maskingHintTask: Task<Void, Never>? = nil
     @State private var showMaskingHint: Bool = false
+    @State private var isStudyMode: Bool = false
+    @State private var studyMaskPrompt: StudyMaskPrompt? = nil
     @AppStorage("pdf_show_mascot") private var showMascot: Bool = true
     @FocusState private var isSearchFocused: Bool
 
@@ -116,6 +118,10 @@ struct PdfViewerScreen: View {
             // If user already had other tabs from a previous session, they remain.
             // Mutating activeId here triggers .onChange below — single load path.
             workspace.open(url: url, title: initialTitle)
+            // Wire study mode tap callback — Coordinator chama quando user toca mask
+            viewModel.onStudyMaskTap = { prompt in
+                studyMaskPrompt = prompt
+            }
         }
         .onChange(of: workspace.activeId, initial: true) { _, _ in
             Task {
@@ -218,6 +224,18 @@ struct PdfViewerScreen: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(.ultraThinMaterial)
         }
+        // Study Mode prompt — usuário tocou numa mask, pergunta acertei/errei.
+        // vita-modals-ignore: VitaSheet importado mas conteúdo é decisão binária compacta — uso .sheet com .height(220) pra ficar discreto perto do tap point
+        .sheet(item: $studyMaskPrompt) { prompt in
+            StudyMaskPromptSheet(
+                onCorrect: { recordStudyAttempt(prompt: prompt, correct: true) },
+                onWrong: { recordStudyAttempt(prompt: prompt, correct: false) },
+                onCancel: { studyMaskPrompt = nil }
+            )
+            .presentationDetents([.height(260)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.ultraThinMaterial)
+        }
         // Pergunte ao Vita chat opens as a sheet (not fullScreenCover) so the
         // PDF stays visible underneath — user can cross-reference while chatting.
         // vita-modals-ignore: VitaChatScreen é tela completa autocontida (próprio header, fundo, scroll) — VitaSheet duplicaria header e quebra layout interno do chat
@@ -261,6 +279,7 @@ struct PdfViewerScreen: View {
                     canUndo: canUndo,
                     canRedo: canRedo,
                     isMaskingMode: isMaskingMode,
+                    isStudyMode: isStudyMode,
                     onBack: {
                         viewModel.saveAllAnnotations()
                         onBack()
@@ -312,7 +331,8 @@ struct PdfViewerScreen: View {
                     onShowBookmarksList: { showBookmarksSheet = true },
                     onShowOutline: { showOutlineSheet = true },
                     onShowSettings: { showSettingsSheet = true },
-                    onToggleMasking: { toggleMaskingMode() }
+                    onToggleMasking: { toggleMaskingMode() },
+                    onToggleStudyMode: { toggleStudyMode() }
                 )
 
             // Multi-doc tab bar (Goodnotes-style). Hidden in fullscreen so the
@@ -724,6 +744,65 @@ struct PdfViewerScreen: View {
         showMaskingHint = false
     }
 
+    private func toggleStudyMode() {
+        isStudyMode.toggle()
+        viewModel.isStudyMode = isStudyMode
+        // Sair de masking ao entrar em study (são modos diferentes)
+        if isStudyMode {
+            if isMaskingMode { toggleMaskingMode() }
+        }
+        applyStudyModeVisibility()
+        VitaPostHogConfig.capture(event: "pdf_study_mode_toggle", properties: [
+            "active": isStudyMode,
+            "page_index": viewModel.currentPage,
+        ])
+    }
+
+    /// Itera todas as masks do documento e ajusta alpha:
+    /// - Study ON: alpha 1 (cobre conteúdo, prontas pro tap-to-reveal)
+    /// - Study OFF: alpha 0.2 (user vê onde estão pra ajustar/apagar)
+    private func applyStudyModeVisibility() {
+        guard let document = viewModel.document else { return }
+        for i in 0..<document.pageCount {
+            guard let page = document.page(at: i) else { continue }
+            for ann in page.annotations where PdfMaskAnnotation.isMask(ann) {
+                PdfMaskAnnotation.setVisible(ann, fullyOpaque: isStudyMode, on: page)
+            }
+        }
+    }
+
+    /// Chamado pelo Coordinator quando user toca numa mask em Study Mode.
+    private func presentStudyPrompt(maskId: String, pageIndex: Int, bounds: CGRect, annotation: PDFAnnotation, page: PDFPage) {
+        studyMaskPrompt = StudyMaskPrompt(
+            maskId: maskId,
+            pageIndex: pageIndex,
+            bounds: bounds,
+            annotation: annotation,
+            page: page
+        )
+    }
+
+    /// Registra resultado no UserDefaults (fonte primária local).
+    /// Backend tracking adicional vem no commit 4 (fire-and-forget).
+    private func recordStudyAttempt(prompt: StudyMaskPrompt, correct: Bool) {
+        let key = "pdf.mask.attempts.\(viewModel.fileHash)"
+        var entries = UserDefaults.standard.array(forKey: key) as? [[String: Any]] ?? []
+        entries.append([
+            "maskId": prompt.maskId,
+            "correct": correct,
+            "attemptedAt": ISO8601DateFormatter().string(from: Date()),
+        ])
+        UserDefaults.standard.set(entries, forKey: key)
+        VitaPostHogConfig.capture(event: "pdf_mask_attempt", properties: [
+            "correct": correct,
+            "page_index": prompt.pageIndex,
+        ])
+        // Esconde a mask revelada pra mostrar conteúdo embaixo.
+        PdfMaskAnnotation.hide(prompt.annotation, on: prompt.page)
+        viewModel.saveHighlights()
+        studyMaskPrompt = nil
+    }
+
     @ViewBuilder
     private var maskingHintOverlay: some View {
         if showMaskingHint {
@@ -930,6 +1009,8 @@ private struct NativePdfView: UIViewRepresentable {
         context.coordinator.applyLassoMode(viewModel.isLassoMode)
         // Sync masking mode — disables PDF scroll while drag-creating masks
         context.coordinator.applyMaskingMode(viewModel.isMaskingMode)
+        // Sync study mode flag (tap-to-reveal behavior)
+        context.coordinator.isStudyMode = viewModel.isStudyMode
     }
 
     static func dismantleUIView(_ pdfView: PDFView, coordinator: Coordinator) {
@@ -1100,9 +1181,32 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         guard let page = pdfView.page(for: point, nearest: false) else { return }
         let pagePoint = pdfView.convert(point, to: page)
 
-        // Mask tap handling — Study Mode F2 será no commit 3.
-        // Por ora: tap em mask SEM Study Mode mostra menu "Apagar mask".
-        if isMaskingMode && !isStudyMode {
+        // Mask tap handling
+        // - Study Mode ON: dispara prompt acertei/errei (revela conteúdo)
+        // - Masking Mode ON sem Study: action sheet "Apagar"
+        if isStudyMode {
+            for annotation in page.annotations where PdfMaskAnnotation.isMask(annotation) {
+                if annotation.bounds.contains(pagePoint) {
+                    let pageIndex = pdfView.document?.index(for: page) ?? 0
+                    let id = PdfMaskAnnotation.id(for: annotation, pageIndex: pageIndex)
+                    let prompt = StudyMaskPrompt(
+                        maskId: id,
+                        pageIndex: pageIndex,
+                        bounds: annotation.bounds,
+                        annotation: annotation,
+                        page: page
+                    )
+                    Task { @MainActor [weak self] in
+                        self?.viewModel.onStudyMaskTap?(prompt)
+                    }
+                    return
+                }
+            }
+            // Em Study Mode, se tap não bateu em mask, não faz nada (não cria highlight/text)
+            return
+        }
+
+        if isMaskingMode {
             for annotation in page.annotations where PdfMaskAnnotation.isMask(annotation) {
                 if annotation.bounds.contains(pagePoint) {
                     showMaskActionMenu(for: annotation, on: page, at: point, in: pdfView)
@@ -1709,5 +1813,71 @@ private final class InlineTextEditor: UIView, UITextViewDelegate {
             return false
         }
         return true
+    }
+}
+
+// MARK: - StudyMaskPrompt — payload do tap em mask em Study Mode
+
+struct StudyMaskPrompt: Identifiable {
+    var id: String { maskId }
+    let maskId: String
+    let pageIndex: Int
+    let bounds: CGRect
+    let annotation: PDFAnnotation
+    let page: PDFPage
+}
+
+// MARK: - StudyMaskPromptSheet — popup acertei/errei
+
+struct StudyMaskPromptSheet: View {
+    let onCorrect: () -> Void
+    let onWrong: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Text("Como foi?")
+                .font(VitaTypography.titleMedium)
+                .foregroundStyle(VitaColors.textPrimary)
+                .padding(.top, 8)
+
+            Text("Lembrou do conteúdo coberto?")
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 12) {
+                Button(action: onWrong) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                        Text("Errei")
+                            .font(VitaTypography.labelMedium)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.red.opacity(0.85))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                Button(action: onCorrect) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 28))
+                        Text("Acertei")
+                            .font(VitaTypography.labelMedium)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.green.opacity(0.85))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+            .padding(.horizontal, 16)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
     }
 }

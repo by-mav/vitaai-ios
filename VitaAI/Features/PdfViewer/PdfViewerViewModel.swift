@@ -24,6 +24,8 @@ final class PdfViewerViewModel {
     var isLassoMode: Bool = false
     /// Modo Marcador: drag cria retângulo preto opaco (mask) pra cobrir áreas pra estudar.
     var isMaskingMode: Bool = false
+    /// Study Mode: masks ficam visíveis pretas (alpha 1); tap revela conteúdo.
+    var isStudyMode: Bool = false
 
     // MARK: - Handwriting recognition state
     var recognizedText: String? = nil
@@ -31,6 +33,9 @@ final class PdfViewerViewModel {
     var showRecognitionResult: Bool = false
     /// Set by Coordinator so the screen can pull the current page's drawing on demand.
     var currentDrawingProvider: (() -> PKDrawing?)? = nil
+    /// Set by Screen — Coordinator chama quando user toca numa mask em Study Mode.
+    /// Screen apresenta StudyMaskPromptSheet.
+    var onStudyMaskTap: ((StudyMaskPrompt) -> Void)? = nil
 
     // MARK: - Search state
     var isSearching: Bool = false

@@ -301,6 +301,15 @@ struct PdfToolbar: View {
                 action: { onToggleMasking?() }
             )
 
+            // ZONE-C — Study Mode toggle (eye = revela conteúdo na hora; slash = cobre)
+            toolButton(
+                icon: isStudyMode ? "eye.fill" : "eye.slash",
+                active: isStudyMode,
+                tint: VitaColors.accent,
+                label: isStudyMode ? "Sair do Study Mode" : "Study Mode — testa memória",
+                action: { onToggleStudyMode?() }
+            )
+
             // Flex spacer pushes the shell group to the right
             Spacer(minLength: 0)
 
