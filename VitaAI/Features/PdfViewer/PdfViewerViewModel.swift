@@ -22,6 +22,8 @@ final class PdfViewerViewModel {
     var isHighlightMode: Bool = false
     var isTextMode: Bool = false
     var isLassoMode: Bool = false
+    /// Modo Marcador: drag cria retângulo preto opaco (mask) pra cobrir áreas pra estudar.
+    var isMaskingMode: Bool = false
 
     // MARK: - Handwriting recognition state
     var recognizedText: String? = nil
@@ -214,15 +216,21 @@ final class PdfViewerViewModel {
         guard FileManager.default.fileExists(atPath: url.path),
               let saved = PDFDocument(url: url),
               let current = document else { return }
-        // Copy highlight annotations from saved doc into current doc
+        // Copy highlight + freeText + mask annotations from saved doc into current doc
         for i in 0..<min(saved.pageCount, current.pageCount) {
             guard let savedPage = saved.page(at: i),
                   let currentPage = current.page(at: i) else { continue }
             for annotation in savedPage.annotations {
-                guard annotation.type == "Highlight" else { continue }
-                let copy = PDFAnnotation(bounds: annotation.bounds, forType: .highlight, withProperties: nil)
-                copy.color = annotation.color
-                currentPage.addAnnotation(copy)
+                if annotation.type == "Highlight" {
+                    let copy = PDFAnnotation(bounds: annotation.bounds, forType: .highlight, withProperties: nil)
+                    copy.color = annotation.color
+                    currentPage.addAnnotation(copy)
+                } else if PdfMaskAnnotation.isMask(annotation) {
+                    // Reusar id existente pra preservar tracking de attempts
+                    let id = PdfMaskAnnotation.id(for: annotation, pageIndex: i)
+                    let copy = PdfMaskAnnotation.makeAnnotation(bounds: annotation.bounds, id: id)
+                    currentPage.addAnnotation(copy)
+                }
             }
         }
     }

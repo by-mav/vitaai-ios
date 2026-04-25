@@ -40,6 +40,10 @@ struct PdfViewerScreen: View {
     @State private var showBookmarksSheet: Bool = false
     @State private var showOutlineSheet: Bool = false
     @State private var showSettingsSheet: Bool = false
+    // ZONE-C — Study Mode (masks pra estudar)
+    @State private var isMaskingMode: Bool = false
+    @State private var maskingHintTask: Task<Void, Never>? = nil
+    @State private var showMaskingHint: Bool = false
     @AppStorage("pdf_show_mascot") private var showMascot: Bool = true
     @FocusState private var isSearchFocused: Bool
 
@@ -75,6 +79,17 @@ struct PdfViewerScreen: View {
                 .frame(width: pdfViewContainerFrame.width, height: pdfViewContainerFrame.height)
                 .position(x: pdfViewContainerFrame.midX, y: pdfViewContainerFrame.midY)
                 .transition(.opacity)
+            }
+
+            // Masking hint overlay (top-center, auto-hides after 2.5s)
+            if showMaskingHint {
+                VStack {
+                    maskingHintOverlay
+                        .padding(.top, 110)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+                .allowsHitTesting(false)
             }
 
             // Vita mascot FAB — top-level overlay so it draws above everything,
@@ -245,6 +260,7 @@ struct PdfViewerScreen: View {
                     isPointerMode: isPointerMode,
                     canUndo: canUndo,
                     canRedo: canRedo,
+                    isMaskingMode: isMaskingMode,
                     onBack: {
                         viewModel.saveAllAnnotations()
                         onBack()
@@ -295,7 +311,8 @@ struct PdfViewerScreen: View {
                     onHighlightLongPress: { showHighlightColor = true },
                     onShowBookmarksList: { showBookmarksSheet = true },
                     onShowOutline: { showOutlineSheet = true },
-                    onShowSettings: { showSettingsSheet = true }
+                    onShowSettings: { showSettingsSheet = true },
+                    onToggleMasking: { toggleMaskingMode() }
                 )
 
             // Multi-doc tab bar (Goodnotes-style). Hidden in fullscreen so the
@@ -672,6 +689,62 @@ struct PdfViewerScreen: View {
         .background(VitaColors.surfaceCard)
     }
 
+    // MARK: - Study Mode (masking pen)
+
+    private func toggleMaskingMode() {
+        isMaskingMode.toggle()
+        viewModel.isMaskingMode = isMaskingMode
+        // Mutual exclusion com outros modos: turn off draw/highlight/text/lasso
+        if isMaskingMode {
+            viewModel.isAnnotating = false
+            viewModel.isHighlightMode = false
+            viewModel.isTextMode = false
+            viewModel.isLassoMode = false
+            isEraserMode = false
+            isPointerMode = false
+            scheduleMaskingHint()
+        } else {
+            cancelMaskingHint()
+        }
+    }
+
+    private func scheduleMaskingHint() {
+        cancelMaskingHint()
+        showMaskingHint = true
+        maskingHintTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.4)) { showMaskingHint = false }
+        }
+    }
+
+    private func cancelMaskingHint() {
+        maskingHintTask?.cancel()
+        maskingHintTask = nil
+        showMaskingHint = false
+    }
+
+    @ViewBuilder
+    private var maskingHintOverlay: some View {
+        if showMaskingHint {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.fill.on.rectangle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(VitaColors.accent)
+                Text("Modo Marcador — arraste pra cobrir áreas pra estudar")
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(VitaColors.textPrimary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(VitaColors.surfaceCard.opacity(0.9))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(VitaColors.accent.opacity(0.4), lineWidth: 0.6))
+            .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
     // MARK: - Multi-doc workspace
 
     /// Loads the workspace's active tab into the viewModel. Called on initial
@@ -828,6 +901,16 @@ private struct NativePdfView: UIViewRepresentable {
         tapGesture.delegate = context.coordinator
         pdfView.addGestureRecognizer(tapGesture)
 
+        // Pan gesture for masking pen — drag pra criar retângulo opaco.
+        // Só atua quando viewModel.isMaskingMode == true (checked dentro do handler).
+        let panGesture = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleMaskingPan(_:))
+        )
+        panGesture.delegate = context.coordinator
+        panGesture.maximumNumberOfTouches = 1
+        pdfView.addGestureRecognizer(panGesture)
+
         return pdfView
     }
 
@@ -845,6 +928,8 @@ private struct NativePdfView: UIViewRepresentable {
         context.coordinator.isTextMode = viewModel.isTextMode
         // Sync lasso mode — apply PKLassoTool or restore ink tool
         context.coordinator.applyLassoMode(viewModel.isLassoMode)
+        // Sync masking mode — disables PDF scroll while drag-creating masks
+        context.coordinator.applyMaskingMode(viewModel.isMaskingMode)
     }
 
     static func dismantleUIView(_ pdfView: PDFView, coordinator: Coordinator) {
@@ -1014,6 +1099,17 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         let point = gesture.location(in: pdfView)
         guard let page = pdfView.page(for: point, nearest: false) else { return }
         let pagePoint = pdfView.convert(point, to: page)
+
+        // Mask tap handling — Study Mode F2 será no commit 3.
+        // Por ora: tap em mask SEM Study Mode mostra menu "Apagar mask".
+        if isMaskingMode && !isStudyMode {
+            for annotation in page.annotations where PdfMaskAnnotation.isMask(annotation) {
+                if annotation.bounds.contains(pagePoint) {
+                    showMaskActionMenu(for: annotation, on: page, at: point, in: pdfView)
+                    return
+                }
+            }
+        }
 
         if isTextMode {
             // Check if tapping an existing freeText annotation — activate selection
@@ -1186,6 +1282,23 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         editor.beginEditing()
     }
 
+    /// Action sheet para mask em modo Marcador (não-Study): apagar.
+    /// Em Study Mode é tratado separadamente (commit 3 — popup acertei/errei).
+    private func showMaskActionMenu(for annotation: PDFAnnotation, on page: PDFPage, at viewPoint: CGPoint, in pdfView: PDFView) {
+        guard let hostVC = pdfView.findViewController() else { return }
+        let alert = UIAlertController(title: "Marcação opaca", message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: "Apagar", style: .destructive) { [weak self] _ in
+            page.removeAnnotation(annotation)
+            self?.viewModel.saveHighlights()
+        })
+        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = pdfView
+            popover.sourceRect = CGRect(origin: viewPoint, size: .zero)
+        }
+        hostVC.present(alert, animated: true)
+    }
+
     private func showDeleteMenu(for annotation: PDFAnnotation, on page: PDFPage, at viewPoint: CGPoint, in pdfView: PDFView) {
         guard let hostVC = pdfView.findViewController() else { return }
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
@@ -1273,6 +1386,100 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
                 // Restore the tool picker's currently selected tool
                 canvas.tool = toolPicker.selectedTool
             }
+        }
+    }
+
+    // MARK: Masking Mode (Study Mode F1)
+
+    var isMaskingMode: Bool = false
+    var isStudyMode: Bool = false
+    private var maskDragLayer: CAShapeLayer?
+    private var maskDragStartView: CGPoint?
+
+    func applyMaskingMode(_ masking: Bool) {
+        guard isMaskingMode != masking else { return }
+        isMaskingMode = masking
+        // While masking, disable PDFView scroll so single-finger drag draws the mask
+        // bbox instead of scrolling. Two-finger pan still works (PDFKit other recognizers).
+        if let pdfView = self.pdfView {
+            for subview in pdfView.subviews {
+                if let scrollView = subview as? UIScrollView {
+                    scrollView.panGestureRecognizer.isEnabled = !masking && !viewModel.isAnnotating
+                }
+            }
+        }
+        // Disable canvas interaction so drag goes to our pan recognizer, not PencilKit
+        for (_, canvas) in pageToCanvas {
+            canvas.isUserInteractionEnabled = !masking && viewModel.isAnnotating
+        }
+    }
+
+    @objc func handleMaskingPan(_ gesture: UIPanGestureRecognizer) {
+        guard isMaskingMode, !isStudyMode,
+              let pdfView = gesture.view as? PDFView else { return }
+        let viewPoint = gesture.location(in: pdfView)
+
+        switch gesture.state {
+        case .began:
+            maskDragStartView = viewPoint
+            let layer = CAShapeLayer()
+            layer.strokeColor = UIColor.systemYellow.withAlphaComponent(0.8).cgColor
+            layer.fillColor = UIColor.black.withAlphaComponent(0.4).cgColor
+            layer.lineWidth = 1.0
+            layer.lineDashPattern = [4, 3]
+            pdfView.layer.addSublayer(layer)
+            maskDragLayer = layer
+
+        case .changed:
+            guard let start = maskDragStartView, let layer = maskDragLayer else { return }
+            let rect = CGRect(
+                x: min(start.x, viewPoint.x),
+                y: min(start.y, viewPoint.y),
+                width: abs(viewPoint.x - start.x),
+                height: abs(viewPoint.y - start.y)
+            )
+            layer.path = UIBezierPath(rect: rect).cgPath
+
+        case .ended:
+            defer {
+                maskDragLayer?.removeFromSuperlayer()
+                maskDragLayer = nil
+                maskDragStartView = nil
+            }
+            guard let start = maskDragStartView else { return }
+            let dragRect = CGRect(
+                x: min(start.x, viewPoint.x),
+                y: min(start.y, viewPoint.y),
+                width: abs(viewPoint.x - start.x),
+                height: abs(viewPoint.y - start.y)
+            )
+            // Reject taps disguised as drags
+            guard dragRect.width > 12, dragRect.height > 12 else { return }
+            // Convert view rect to page rect via two corners
+            guard let page = pdfView.page(for: CGPoint(x: dragRect.midX, y: dragRect.midY), nearest: true) else { return }
+            let p1 = pdfView.convert(CGPoint(x: dragRect.minX, y: dragRect.minY), to: page)
+            let p2 = pdfView.convert(CGPoint(x: dragRect.maxX, y: dragRect.maxY), to: page)
+            let pageRect = CGRect(
+                x: min(p1.x, p2.x),
+                y: min(p1.y, p2.y),
+                width: abs(p2.x - p1.x),
+                height: abs(p2.y - p1.y)
+            )
+            let mask = PdfMaskAnnotation.makeAnnotation(bounds: pageRect)
+            page.addAnnotation(mask)
+            viewModel.saveHighlights()
+            VitaPostHogConfig.capture(event: "pdf_mask_created", properties: [
+                "page_index": viewModel.currentPage,
+                "width": Int(pageRect.width),
+                "height": Int(pageRect.height),
+            ])
+
+        case .cancelled, .failed:
+            maskDragLayer?.removeFromSuperlayer()
+            maskDragLayer = nil
+            maskDragStartView = nil
+        default:
+            break
         }
     }
 

@@ -292,6 +292,15 @@ struct PdfToolbar: View {
             }
             .help("Mais ferramentas")
 
+            // ZONE-C — Marcador opaco (study masks)
+            toolButton(
+                icon: "rectangle.fill.on.rectangle.fill",
+                active: isMaskingMode,
+                tint: VitaColors.accent,
+                label: "Marcador opaco — cobrir áreas pra estudar",
+                action: { onToggleMasking?() }
+            )
+
             // Flex spacer pushes the shell group to the right
             Spacer(minLength: 0)
 
