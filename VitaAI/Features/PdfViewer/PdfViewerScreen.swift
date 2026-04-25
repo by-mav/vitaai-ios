@@ -542,6 +542,12 @@ private struct NativePdfView: UIViewRepresentable {
         pdfView.displayDirection = .vertical
         pdfView.autoScales = true
         pdfView.usePageViewController(false)
+        // Apple gold standard pra PDFKit + PencilKit overlay drawing (WWDC22
+        // Session 10089 + Forum thread 716766): isInMarkupMode = true muda a
+        // hit-testing priority pro PKCanvasView overlay receber os touches em
+        // vez de PDFView interpretar como scroll. Sem isso, dedo/caneta
+        // toca, mostra modo, mas NADA é desenhado.
+        pdfView.isInMarkupMode = true
         pdfView.backgroundColor = UIColor(VitaColors.surface)
         pdfView.pageOverlayViewProvider = context.coordinator
         pdfView.delegate = context.coordinator
@@ -771,52 +777,72 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     }
 
     private func placeTextAnnotation(at pagePoint: CGPoint, on page: PDFPage) {
-        // PDFKit's freeText annotations don't auto-focus / open keyboard.
-        // Solution gold: prompt user with UIAlertController (familiar iOS UX)
-        // to capture text, then create the annotation with the entered content.
-        // Style: gold accent border, semi-transparent gold-tinted background,
-        // white text — consistent with VitaAI design system.
-        guard let pdfView = self.pdfView,
-              let hostVC = pdfView.findViewController() else { return }
-        let alert = UIAlertController(
-            title: "Adicionar texto",
-            message: "Digite o texto pra colar no PDF.",
-            preferredStyle: .alert
-        )
-        alert.addTextField { tf in
-            tf.placeholder = "Texto"
-            tf.autocapitalizationType = .sentences
-        }
-        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Adicionar", style: .default) { [weak self] _ in
-            guard let self,
-                  let text = alert.textFields?.first?.text,
-                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        // Gold standard: floating UITextView IN-PLACE no PDF.
+        // Pattern Apple Notes / Goodnotes — usuário vê EXATAMENTE onde tá
+        // digitando, cursor + teclado naquele ponto.
+        //
+        // Steps:
+        //   1. Convert page coord → view coord (PDFKit faz)
+        //   2. Insert InlineTextEditor (UIView wrapper com UITextView) na posição
+        //   3. textView.becomeFirstResponder → teclado abre
+        //   4. textViewDidChange → auto-resize
+        //   5. textViewDidEndEditing OU "Done" tap → salva como PDFAnnotation
+        //      freeText na pagePoint, remove o UITextView
+        guard let pdfView = self.pdfView else { return }
 
-            // Size annotation to text width (rough heuristic: 7px per char + padding)
-            let estimatedWidth = max(80, min(CGFloat(text.count) * 7 + 24, 280))
-            let height: CGFloat = 32
+        // Convert pagePoint (PDF coord, origin bottom-left) to pdfView coord
+        // (UIKit, origin top-left).
+        let viewPoint = pdfView.convert(pagePoint, from: page)
+
+        let editor = InlineTextEditor(frame: CGRect(
+            x: viewPoint.x - 8,    // small left offset so cursor sits at tap point
+            y: viewPoint.y - 18,   // raise so baseline is at tap point
+            width: 240,
+            height: 36
+        ))
+        editor.onCommit = { [weak self] text in
+            guard let self else { return }
+            editor.removeFromSuperview()
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+
+            // Auto-size annotation bounds to fit final text using same font.
+            let font = UIFont.systemFont(ofSize: 14, weight: .medium)
+            let textSize = (trimmed as NSString).boundingRect(
+                with: CGSize(width: 280, height: CGFloat.greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: font],
+                context: nil
+            ).size
+            let pad: CGFloat = 8
+            let width = ceil(textSize.width) + pad * 2
+            let height = max(28, ceil(textSize.height) + pad * 2)
             let bounds = CGRect(
-                x: pagePoint.x - estimatedWidth / 2,
-                y: pagePoint.y - height / 2,
-                width: estimatedWidth,
+                x: pagePoint.x,
+                y: pagePoint.y - height,
+                width: width,
                 height: height
             )
+
             let annotation = PDFAnnotation(bounds: bounds, forType: .freeText, withProperties: nil)
-            annotation.font = UIFont.systemFont(ofSize: 13, weight: .medium)
+            annotation.font = font
             annotation.fontColor = UIColor.white
-            // Gold-tinted glass background (consistent with Vita design)
-            annotation.color = UIColor(red: 0.78, green: 0.62, blue: 0.31, alpha: 0.55)
+            // Glass-feel: subtle dark + gold border (matches Vita design tokens)
+            annotation.color = UIColor(red: 0.10, green: 0.08, blue: 0.06, alpha: 0.78)
             let border = PDFBorder()
-            border.lineWidth = 1.0
+            border.lineWidth = 1
             border.style = .solid
             annotation.border = border
             annotation.isReadOnly = false
-            annotation.contents = text
+            annotation.contents = trimmed
             page.addAnnotation(annotation)
             self.viewModel.saveHighlights()
-        })
-        hostVC.present(alert, animated: true)
+        }
+        editor.onCancel = {
+            editor.removeFromSuperview()
+        }
+        pdfView.addSubview(editor)
+        editor.beginEditing()
     }
 
     private func showDeleteMenu(for annotation: PDFAnnotation, on page: PDFPage, at viewPoint: CGPoint, in pdfView: PDFView) {
@@ -1016,3 +1042,104 @@ private extension UIView {
     }
 }
 
+
+// MARK: - InlineTextEditor — floating UITextView for in-place PDF text annotation
+
+/// Floating glass text editor that appears at the tap location on the PDF.
+/// Apple Notes / Goodnotes pattern: user sees exactly where they're typing,
+/// cursor + keyboard appear at the touched point.
+///
+/// On commit (Done button or resign focus): calls `onCommit(text)`.
+/// On cancel (Esc-equivalent / scroll dismiss): calls `onCancel()`.
+private final class InlineTextEditor: UIView, UITextViewDelegate {
+    var onCommit: ((String) -> Void)?
+    var onCancel: (() -> Void)?
+
+    private let textView = UITextView()
+    private let blurView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        // Glass background with gold border — same vibe as VitaModals D4
+        blurView.frame = bounds
+        blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        blurView.layer.cornerRadius = 10
+        blurView.layer.borderWidth = 1
+        // Gold accentHover at 40% — same token as VitaColors.accentHover
+        blurView.layer.borderColor = UIColor(red: 1.0, green: 0.784, blue: 0.471, alpha: 0.40).cgColor
+        blurView.clipsToBounds = true
+        addSubview(blurView)
+
+        textView.frame = bounds.insetBy(dx: 8, dy: 4)
+        textView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        textView.backgroundColor = .clear
+        textView.isOpaque = false
+        textView.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        textView.textColor = .white
+        textView.tintColor = UIColor(red: 1.0, green: 0.784, blue: 0.471, alpha: 1.0) // gold cursor
+        textView.delegate = self
+        textView.returnKeyType = .done
+        textView.autocapitalizationType = .sentences
+        textView.textContainerInset = UIEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
+        textView.textContainer.lineFragmentPadding = 0
+        addSubview(textView)
+
+        // Toolbar with Done button as keyboard accessory (visible UX safety net
+        // in case user wants explicit confirm without losing focus to scroll).
+        let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: 320, height: 40))
+        toolbar.items = [
+            UIBarButtonItem(barButtonSystemItem: .cancel, target: self, action: #selector(cancelTapped)),
+            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
+            UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(doneTapped)),
+        ]
+        toolbar.sizeToFit()
+        textView.inputAccessoryView = toolbar
+
+        // Subtle drop shadow to lift off PDF surface
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.25
+        layer.shadowRadius = 6
+        layer.shadowOffset = CGSize(width: 0, height: 2)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    func beginEditing() {
+        textView.becomeFirstResponder()
+    }
+
+    @objc private func doneTapped() {
+        commit()
+    }
+
+    @objc private func cancelTapped() {
+        onCancel?()
+    }
+
+    private func commit() {
+        let text = textView.text ?? ""
+        onCommit?(text)
+    }
+
+    // MARK: UITextViewDelegate
+
+    func textViewDidChange(_ textView: UITextView) {
+        // Auto-grow horizontally then vertically. Cap width at 280, then wrap.
+        let maxWidth: CGFloat = 280
+        let measured = textView.sizeThatFits(CGSize(width: maxWidth, height: .greatestFiniteMagnitude))
+        var newFrame = self.frame
+        newFrame.size.width = min(maxWidth, max(120, measured.width + 24))
+        newFrame.size.height = max(36, measured.height + 12)
+        self.frame = newFrame
+    }
+
+    func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        // Pressing Return commits (single-line annotation). Shift+Return would
+        // require key modifier detection — keep simple for v1.
+        if text == "\n" {
+            commit()
+            return false
+        }
+        return true
+    }
+}
