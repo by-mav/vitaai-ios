@@ -31,6 +31,16 @@ struct PdfToolbar: View {
     let showMascot: Bool
     let showThumbnailToggle: Bool
 
+    // ZONE-A — Pen Styles (owned by Agent A pen-styles)
+    var isEraserMode: Bool = false
+    var isPointerMode: Bool = false
+    var canUndo: Bool = false
+    var canRedo: Bool = false
+
+    // ZONE-C — Study Mode (owned by Agent C study-mode)
+    var isMaskingMode: Bool = false
+    var isStudyMode: Bool = false
+
     let onBack: () -> Void
     let onToggleThumbnails: () -> Void
     let onToggleAnnotating: () -> Void
@@ -43,6 +53,23 @@ struct PdfToolbar: View {
     let onToggleMascot: () -> Void
     let onExport: () -> Void
     let onTranscribe: () -> Void
+
+    // ZONE-A callbacks (Agent A pen-styles)
+    var onToggleEraser: (() -> Void)? = nil
+    var onTogglePointer: (() -> Void)? = nil
+    var onUndo: (() -> Void)? = nil
+    var onRedo: (() -> Void)? = nil
+    var onPenLongPress: (() -> Void)? = nil       // abre popover estilos
+    var onHighlightLongPress: (() -> Void)? = nil // abre popover cor
+
+    // ZONE-B callbacks (Agent B header-sheets)
+    var onShowBookmarksList: (() -> Void)? = nil
+    var onShowOutline: (() -> Void)? = nil
+    var onShowSettings: (() -> Void)? = nil
+
+    // ZONE-C callbacks (Agent C study-mode)
+    var onToggleMasking: (() -> Void)? = nil
+    var onToggleStudyMode: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -148,16 +175,24 @@ struct PdfToolbar: View {
                 icon: isAnnotating ? "scribble.variable" : "scribble",
                 active: isAnnotating,
                 tint: VitaColors.accent,
-                label: "Desenhar",
+                label: "Desenhar (segura: estilo)",
                 action: onToggleAnnotating
+            )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.45)
+                    .onEnded { _ in onPenLongPress?() }
             )
 
             toolButton(
                 icon: "highlighter",
                 active: isHighlightMode,
                 tint: VitaColors.accent,
-                label: "Marca-texto",
+                label: "Marca-texto (segura: cor)",
                 action: onToggleHighlight
+            )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.45)
+                    .onEnded { _ in onHighlightLongPress?() }
             )
 
             toolButton(
@@ -170,11 +205,45 @@ struct PdfToolbar: View {
 
             if isAnnotating {
                 toolButton(
+                    icon: "eraser",
+                    active: isEraserMode,
+                    tint: VitaColors.accent,
+                    label: "Borracha",
+                    action: { onToggleEraser?() }
+                )
+
+                toolButton(
+                    icon: "cursorarrow",
+                    active: isPointerMode,
+                    tint: VitaColors.accent,
+                    label: "Apontador",
+                    action: { onTogglePointer?() }
+                )
+
+                toolButton(
                     icon: "lasso",
                     active: isLassoMode,
                     tint: VitaColors.accentHover,
                     label: "Selecionar traços",
                     action: onToggleLasso
+                )
+
+                toolButton(
+                    icon: "arrow.uturn.backward",
+                    active: false,
+                    tint: VitaColors.textSecondary,
+                    label: "Desfazer",
+                    action: { onUndo?() },
+                    disabled: !canUndo
+                )
+
+                toolButton(
+                    icon: "arrow.uturn.forward",
+                    active: false,
+                    tint: VitaColors.textSecondary,
+                    label: "Refazer",
+                    action: { onRedo?() },
+                    disabled: !canRedo
                 )
             }
 

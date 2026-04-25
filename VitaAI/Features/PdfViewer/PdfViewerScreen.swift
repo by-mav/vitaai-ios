@@ -29,6 +29,15 @@ struct PdfViewerScreen: View {
     @State private var isScanMode: Bool = false
     @State private var scanSelection: CGRect? = nil   // in pdfViewContainer coords
     @State private var pdfViewContainerFrame: CGRect = .zero
+    // ZONE-A — Pen styles + eraser/pointer + undo/redo
+    @State private var isEraserMode: Bool = false
+    @State private var isPointerMode: Bool = false
+    @State private var canUndo: Bool = false
+    @State private var canRedo: Bool = false
+    @State private var showPenStyles: Bool = false
+    @State private var showHighlightColor: Bool = false
+    // ZONE-B — Header sheets (bookmarks list, outline, settings)
+    @State private var showBookmarksSheet: Bool = false
     @AppStorage("pdf_show_mascot") private var showMascot: Bool = true
     @FocusState private var isSearchFocused: Bool
 
@@ -175,6 +184,10 @@ struct PdfViewerScreen: View {
                     isLassoMode: viewModel.isLassoMode,
                     showMascot: showMascot,
                     showThumbnailToggle: viewModel.pageCount > 1,
+                    isEraserMode: isEraserMode,
+                    isPointerMode: isPointerMode,
+                    canUndo: canUndo,
+                    canRedo: canRedo,
                     onBack: {
                         viewModel.saveAllAnnotations()
                         onBack()
@@ -208,7 +221,21 @@ struct PdfViewerScreen: View {
                         guard let drawing = viewModel.currentDrawingProvider?(),
                               !drawing.strokes.isEmpty else { return }
                         Task { await viewModel.recognizeHandwriting(drawing: drawing) }
-                    }
+                    },
+                    onToggleEraser: {
+                        isEraserMode.toggle()
+                        if isEraserMode { isPointerMode = false }
+                        applyToolMode()
+                    },
+                    onTogglePointer: {
+                        isPointerMode.toggle()
+                        if isPointerMode { isEraserMode = false }
+                        applyToolMode()
+                    },
+                    onUndo: { performUndo() },
+                    onRedo: { performRedo() },
+                    onPenLongPress: { showPenStyles = true },
+                    onHighlightLongPress: { showHighlightColor = true }
                 )
 
             // Multi-doc tab bar (Goodnotes-style). Hidden in fullscreen so the
@@ -599,6 +626,53 @@ struct PdfViewerScreen: View {
         ) else { return }
         self.exportedURL = url
         showExportSheet = true
+    }
+
+    // MARK: - Tool helpers (eraser/pointer/undo/redo)
+
+    /// Reaches the current page's PKCanvasView via the shared pdfViewRef.
+    /// Returns nil if no PDF is open or no page is current yet.
+    private func currentCanvas() -> PKCanvasView? {
+        guard let pdfView = NativePdfView.pdfViewRef,
+              let page = pdfView.currentPage else { return nil }
+        // Walk overlay subviews — PKCanvasView is the page overlay we install.
+        for sub in pdfView.subviews.flatMap({ $0.subviews }) where sub is PKCanvasView {
+            // Best-effort: page-bounded canvas with annotations enabled
+            return sub as? PKCanvasView
+        }
+        _ = page
+        return nil
+    }
+
+    /// Applies tool selection to the current canvas based on isEraserMode/isPointerMode.
+    private func applyToolMode() {
+        guard let canvas = currentCanvas() else { return }
+        if isEraserMode {
+            canvas.tool = PKEraserTool(.bitmap)
+        } else if isPointerMode {
+            // Pointer = no drawing input, allow finger to interact (e.g. tap to deselect).
+            canvas.tool = PKInkingTool(.pen, color: .clear, width: 0.1)
+            canvas.isUserInteractionEnabled = false
+        } else {
+            canvas.isUserInteractionEnabled = viewModel.isAnnotating
+        }
+        refreshUndoState()
+    }
+
+    private func performUndo() {
+        currentCanvas()?.undoManager?.undo()
+        refreshUndoState()
+    }
+
+    private func performRedo() {
+        currentCanvas()?.undoManager?.redo()
+        refreshUndoState()
+    }
+
+    private func refreshUndoState() {
+        let mgr = currentCanvas()?.undoManager
+        canUndo = mgr?.canUndo ?? false
+        canRedo = mgr?.canRedo ?? false
     }
 }
 
