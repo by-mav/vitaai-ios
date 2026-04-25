@@ -1,7 +1,7 @@
 import Foundation
 
 actor VitaAPI {
-    private let client: HTTPClient
+    let client: HTTPClient // internal so feature extensions in separate files can access (Apr 2026)
 
     init(client: HTTPClient) {
         self.client = client
@@ -775,13 +775,6 @@ actor VitaAPI {
             mimeType: mimeType,
             subjectId: subjectId
         )
-    }
-
-    func getStudyEvents(from: String? = nil, to: String? = nil) async throws -> StudyEventsResponse {
-        var items: [URLQueryItem] = []
-        if let from { items.append(.init(name: "from", value: from)) }
-        if let to { items.append(.init(name: "to", value: to)) }
-        return try await client.get("study/events", queryItems: items.isEmpty ? nil : items)
     }
 
     func getMockupFlashcardsRecommended() async throws -> [FlashcardRecommended] {

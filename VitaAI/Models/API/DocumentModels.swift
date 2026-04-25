@@ -24,6 +24,7 @@ struct VitaDocument: Codable, Identifiable {
     var source: String?           // 'upload' | 'canvas' | 'mannesoft'
     var canvasFileId: String?
     var studioSourceId: String?
+    var folderId: String?         // Apr 2026: material_folders.id (nullable = "Outros virtual")
     var createdAt: String?
     var updatedAt: String?
 }
