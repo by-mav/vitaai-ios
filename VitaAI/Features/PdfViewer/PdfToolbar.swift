@@ -28,7 +28,6 @@ struct PdfToolbar: View {
     let hasInkOnCurrentPage: Bool
     let isRecognizing: Bool
     let isLassoMode: Bool
-    let showMascot: Bool
     let showThumbnailToggle: Bool
 
     // ZONE-A — Pen Styles (owned by Agent A pen-styles)
@@ -50,7 +49,7 @@ struct PdfToolbar: View {
     let onToggleSearch: () -> Void
     let onToggleBookmark: () -> Void
     let onToggleFullscreen: () -> Void
-    let onToggleMascot: () -> Void
+    let onAskVita: () -> Void
     let onExport: () -> Void
     let onTranscribe: () -> Void
 
@@ -316,6 +315,20 @@ struct PdfToolbar: View {
                     .onEnded { _ in onShowStudyStats?() }
             )
 
+            // Pergunte ao Vita — substitui o FAB flutuante. Mesmo asset do
+            // mascote, menorzinha, na toolbar. Tap = scan area + chat.
+            Button(action: onAskVita) {
+                Image("vita-btn-active")
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+            .frame(width: 36, height: 36)
+            .help("Pergunte ao Vita")
+            .accessibilityLabel("Pergunte ao Vita")
+
             // Flex spacer pushes the shell group to the right
             Spacer(minLength: 0)
 
@@ -336,12 +349,6 @@ struct PdfToolbar: View {
             Menu {
                 Button(action: onExport) {
                     Label("Exportar / Compartilhar", systemImage: "square.and.arrow.up")
-                }
-                Button(action: onToggleMascot) {
-                    Label(
-                        showMascot ? "Esconder Vita" : "Mostrar Vita",
-                        systemImage: showMascot ? "questionmark.bubble.fill" : "questionmark.bubble"
-                    )
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")

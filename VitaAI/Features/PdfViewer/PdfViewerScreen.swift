@@ -48,7 +48,6 @@ struct PdfViewerScreen: View {
     @State private var studyMaskPrompt: StudyMaskPrompt? = nil
     @State private var showStudyStatsSheet: Bool = false
     @State private var attemptFlash: AttemptFlash? = nil
-    @AppStorage("pdf_show_mascot") private var showMascot: Bool = true
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
@@ -108,24 +107,6 @@ struct PdfViewerScreen: View {
                 .allowsHitTesting(false)
             }
 
-            // Vita mascot FAB — top-level overlay so it draws above everything,
-            // including the (hidden-when-fullscreen) tab bar.
-            // bottomInset reserves space for the app TabBar (~96pt) unless in fullscreen.
-            if viewModel.document != nil && !isScanMode && showMascot {
-                VitaFloatingMascot(
-                    positionKey: "pdf_mascot_pos",
-                    bottomInset: isFullscreen ? 16 : 96,
-                    isActive: isScanMode,
-                    onTap: {
-                        withAnimation(.easeInOut(duration: 0.22)) {
-                            isScanMode = true
-                            scanSelection = nil
-                        }
-                        VitaPostHogConfig.capture(event: "pergunte_ao_vita_tap")
-                    }
-                )
-                .transition(.opacity)
-            }
         }
         .task {
             // Multi-doc workspace: open the URL passed by the router as a tab.
@@ -302,7 +283,6 @@ struct PdfViewerScreen: View {
                     hasInkOnCurrentPage: viewModel.currentDrawingProvider?()?.strokes.isEmpty == false,
                     isRecognizing: viewModel.isRecognizing,
                     isLassoMode: viewModel.isLassoMode,
-                    showMascot: showMascot,
                     showThumbnailToggle: viewModel.pageCount > 1,
                     isEraserMode: isEraserMode,
                     isPointerMode: isPointerMode,
@@ -331,10 +311,12 @@ struct PdfViewerScreen: View {
                             isFullscreen.toggle()
                         }
                     },
-                    onToggleMascot: {
+                    onAskVita: {
                         withAnimation(.easeInOut(duration: 0.22)) {
-                            showMascot.toggle()
+                            isScanMode = true
+                            scanSelection = nil
                         }
+                        VitaPostHogConfig.capture(event: "pergunte_ao_vita_tap")
                     },
                     onExport: {
                         Task { await exportPDF(document: document) }
