@@ -137,15 +137,21 @@ struct AtlasSceneScreen: View {
             VitaSheet(detents: [.medium, .large]) {
                 MeshDetailSheet(
                     info: info,
-                    onAskVita: {
+                    onAskVita: { customPrompt in
                         VitaPostHogConfig.capture(event: "atlas_ask_vita", properties: [
                             "layers": analyticsLayers,
                             "structure": info.pt,
                             "system": info.system,
+                            "prompt_chars": customPrompt.count,
+                            "edited": customPrompt != "Me explica sobre \(info.pt)",
                         ])
                         selectedMesh = nil
-                        let prompt = buildAskVitaPrompt(info)
-                        onAskVita?(prompt)
+                        // The mesh sheet now owns the prompt entirely (user may
+                        // have edited or dictated). buildAskVitaPrompt is only
+                        // used as a richer fallback if the user sends the
+                        // pristine seed and we want to expand it server-side —
+                        // for now we just pass the user's text through.
+                        onAskVita?(customPrompt)
                     },
                     onHide: {
                         let toHide = Set(lastTappedCandidates)
@@ -1126,9 +1132,15 @@ struct MeshInfo: Identifiable, Hashable {
 
 private struct MeshDetailSheet: View {
     let info: MeshInfo
-    let onAskVita: () -> Void
+    /// Receives the (possibly user-edited or voice-dictated) prompt and routes
+    /// it to VitaChatScreen. The sheet seeds the text with a sensible default,
+    /// the user can tweak or dictate, then taps send.
+    let onAskVita: (String) -> Void
     let onHide: () -> Void
     let onClose: () -> Void
+
+    @State private var prompt: String = ""
+    @FocusState private var promptFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -1162,39 +1174,9 @@ private struct MeshDetailSheet: View {
                     sectionBlock("Curiosidade", content: curiosity, icon: "sparkles")
                 }
 
-                // When we have no rich content, nudge the user toward VITA — the
-                // LLM already covers anatomy, exam frequency and clinical relevance.
-                if (info.description ?? "").isEmpty
-                    && (info.tip ?? "").isEmpty
-                    && (info.curiosity ?? "").isEmpty {
-                    Text("Toque abaixo pra VITA explicar essa estrutura, sua função, relação clínica e frequência em provas.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(VitaColors.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Button(action: onAskVita) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
-                        Text("Perguntar pra VITA sobre \(info.pt)")
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                    }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(VitaColors.accent.opacity(0.15))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(VitaColors.accent.opacity(0.4), lineWidth: 1)
-                            )
-                    )
-                }
-                .buttonStyle(.plain)
+                // VITA prompt composer — text seeded with the default question,
+                // mic on the left for voice, paperplane on the right to send.
+                askVitaComposer
 
                 // "Esconder esta peça" — same UX as web AtlasViewer (Scissors).
                 Button(action: onHide) {
@@ -1215,6 +1197,87 @@ private struct MeshDetailSheet: View {
             }
             .padding(20)
         }
+        .onAppear {
+            // Seed once per appearance; respects the user re-opening to change
+            // the question after a voice dictation.
+            if prompt.isEmpty {
+                prompt = "Me explica sobre \(info.pt)"
+            }
+        }
+    }
+
+    private var askVitaComposer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(VitaColors.accent)
+                Text("PERGUNTE À VITA")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .kerning(0.5)
+            }
+
+            HStack(alignment: .center, spacing: 8) {
+                VitaVoiceInput(
+                    onTranscript: { text in
+                        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !clean.isEmpty else { return }
+                        // Replace seeded text with what the user actually said —
+                        // they tapped mic to dictate a NEW question, not append.
+                        prompt = clean
+                        promptFocused = false
+                    }
+                )
+
+                TextField(
+                    "Me explica sobre \(info.pt)",
+                    text: $prompt,
+                    axis: .vertical
+                )
+                .font(.system(size: 14))
+                .foregroundStyle(VitaColors.textPrimary)
+                .lineLimit(1...4)
+                .focused($promptFocused)
+                .submitLabel(.send)
+                .onSubmit { submit() }
+
+                Button(action: submit) {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(canSend ? .white : VitaColors.textSecondary)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle().fill(
+                                canSend ? VitaColors.accent : VitaColors.glassBg
+                            )
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSend)
+                .accessibilityLabel("Enviar pergunta pra VITA")
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(VitaColors.accent.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(VitaColors.accent.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+    }
+
+    private var canSend: Bool {
+        !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func submit() {
+        let final = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !final.isEmpty else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        onAskVita(final)
     }
 
     @ViewBuilder
