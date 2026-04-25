@@ -193,8 +193,18 @@ struct VitaAIApp: App {
                 .preferredColorScheme(.dark)
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
+            switch phase {
+            case .active:
+                // Foreground: portal sync + immediate data refresh + start polling.
+                // Cada tela que user abrir ja encontra cache <60s. Substitui
+                // padrao on-appear-then-wait por background-keeps-fresh.
                 SilentPortalSync.shared.syncIfNeeded(api: container.api)
+                Task { await container.dataManager.silentRefresh() }
+                container.dataManager.startForegroundPolling()
+            case .background, .inactive:
+                container.dataManager.stopForegroundPolling()
+            @unknown default:
+                break
             }
         }
     }

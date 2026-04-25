@@ -41,9 +41,35 @@ final class AppDataManager {
 
     var isLoading = false
     private var lastRefresh: Date = .distantPast
+    private var pollingTask: Task<Void, Never>?
 
     init(api: VitaAPI) {
         self.api = api
+    }
+
+    // MARK: - Continuous foreground polling (gold-standard freshness)
+    //
+    // Apps modernos não esperam o user ir pra dashboard pra refetch — refrescam
+    // dados continuamente em background enquanto o app está aberto, então cada
+    // tela que o user abre já encontra cache fresco. silentRefresh() respeita
+    // throttle de 60s, então rodar a cada 30s só gasta network metade do tempo
+    // (alterna sleep-then-fetch). scenePhase=.active liga, scenePhase=.background
+    // desliga (em VitaAIApp.swift).
+
+    func startForegroundPolling(interval: TimeInterval = 30) {
+        pollingTask?.cancel()
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                if Task.isCancelled { break }
+                await self?.silentRefresh()
+            }
+        }
+    }
+
+    func stopForegroundPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
     }
 
     // MARK: - Full load (shows spinner)
