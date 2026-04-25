@@ -128,6 +128,11 @@ struct VitaTabBar: View {
     // fechado (sleeping). Tap → olho aberto (awake) por 1s → volta a dormir.
     @State private var vitaAwake: Bool = false
 
+    // Liquid-glass selector bubble — anima entre tabs com physics spring
+    // (Rafael 2026-04-25). matchedGeometryEffect garante interpolação suave
+    // de posição+tamanho entre o tab antigo e o novo selecionado.
+    @Namespace private var selectorNS
+
     private let barHeight: CGFloat = 54
     private let vitaSize: CGFloat = 58
     private let gap: CGFloat = 5 // gap between button edge and arc
@@ -234,23 +239,53 @@ struct VitaTabBar: View {
             if isSelected {
                 onTabReselect?(item)
             } else {
-                selectedTab = item
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.74)) {
+                    selectedTab = item
+                }
+                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
             }
         }) {
-            VStack(spacing: 4) {
+            ZStack {
+                // Liquid-glass bubble — só renderiza no tab selecionado, mas o
+                // matchedGeometryEffect anima a transição entre tabs como
+                // se a bolha pulasse de um pro outro com physics spring.
+                if isSelected {
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 1.0, green: 0.824, blue: 0.549).opacity(0.18),
+                                            Color(red: 1.0, green: 0.690, blue: 0.353).opacity(0.10)
+                                        ],
+                                        startPoint: .top, endPoint: .bottom
+                                    )
+                                )
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(
+                                    Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.30),
+                                    lineWidth: 0.5
+                                )
+                        )
+                        .shadow(color: Color(red: 1.0, green: 0.784, blue: 0.392).opacity(0.18), radius: 8, y: 2)
+                        .matchedGeometryEffect(id: "tab_selector_bubble", in: selectorNS)
+                }
+
                 Image(systemName: isSelected ? item.selectedIcon : item.icon)
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 19, weight: .medium))
                     .foregroundStyle(
                         isSelected
-                            ? Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.92)
-                            : Color(red: 1.0, green: 0.957, blue: 0.886).opacity(0.35)
+                            ? Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.95)
+                            : Color(red: 1.0, green: 0.957, blue: 0.886).opacity(0.40)
                     )
-
-                Circle()
-                    .fill(Color(red: 1.0, green: 0.824, blue: 0.549).opacity(isSelected ? 0.85 : 0))
-                    .frame(width: 4, height: 4)
-                    .shadow(color: Color(red: 1.0, green: 0.784, blue: 0.392).opacity(isSelected ? 0.4 : 0), radius: 3)
+                    .scaleEffect(isSelected ? 1.05 : 1.0)
             }
+            .frame(height: 38)
+            .padding(.horizontal, 6)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(item.testID)
