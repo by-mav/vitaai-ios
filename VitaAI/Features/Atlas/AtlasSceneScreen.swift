@@ -134,7 +134,7 @@ struct AtlasSceneScreen: View {
             }
         }
         .sheet(item: $selectedMesh) { info in
-            VitaSheet(detents: [.fraction(0.35), .medium]) {
+            VitaSheet(detents: [.medium, .large]) {
                 MeshDetailSheet(
                     info: info,
                     onAskVita: {
@@ -513,13 +513,18 @@ struct AtlasSceneScreen: View {
                     Text(subtitle)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(VitaColors.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                         .transition(.opacity)
                 }
             }
+            .layoutPriority(0) // can shrink so toolbar buttons never get crushed
 
-            Spacer()
+            Spacer(minLength: 6)
 
             // "Mostrar tudo (N)" — only when the user has hidden meshes.
+            // Compact: just the eye icon with a small count badge so it sits
+            // next to the round toolbar icons without breaking the row.
             if !hiddenMeshes.isEmpty {
                 Button {
                     hiddenMeshes.removeAll()
@@ -528,16 +533,20 @@ struct AtlasSceneScreen: View {
                         "layers": analyticsLayers,
                     ])
                 } label: {
-                    HStack(spacing: 6) {
+                    ZStack(alignment: .topTrailing) {
                         Image(systemName: "eye.fill")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text("Mostrar tudo (\(hiddenMeshes.count))")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(VitaColors.accent)
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(.ultraThinMaterial))
+                        Text("\(hiddenMeshes.count)")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Capsule().fill(VitaColors.accent))
+                            .offset(x: 4, y: -2)
                     }
-                    .foregroundStyle(VitaColors.accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(.ultraThinMaterial))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Mostrar tudo, \(hiddenMeshes.count) escondidas")
@@ -833,21 +842,21 @@ struct AtlasSceneScreen: View {
         bboxTrigger += 1
     }
 
-    /// Subtitle shown under "Atlas 3D" — joins active layer names + total mesh
-    /// count across every loaded layer.
+    /// Subtitle shown under "Atlas 3D". Stays single-line: when only one layer
+    /// is on we show its name + structure count; for 2+ layers we collapse to
+    /// "N sistemas" so the toolbar buttons on the right never get pushed off.
     private var headerSubtitle: String? {
         if activeLayers.isEmpty { return "Toque num sistema pra começar" }
-        let names = AtlasLayer.allCases
-            .filter { activeLayers.contains($0) }
-            .map { $0.displayName }
-        let joined = names.joined(separator: " + ")
         let total = activeLayers
             .compactMap { meshCountByLayer[$0] }
             .reduce(0, +)
-        if total > 0 {
-            return "\(joined) · \(total) estruturas"
+        let leading: String
+        if activeLayers.count == 1, let only = activeLayers.first {
+            leading = only.displayName
+        } else {
+            leading = "\(activeLayers.count) sistemas"
         }
-        return joined
+        return total > 0 ? "\(leading) · \(total) estruturas" : leading
     }
 
     /// Scans Caches/ at view appear so chips already show a checkmark for
