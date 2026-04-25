@@ -20,6 +20,12 @@ final class AppContainer: ObservableObject {
     let dataManager: AppDataManager
     let studyOverviewStore: StudyOverviewStore
 
+    // MARK: - Realtime
+    // SSE multiplexer pra GET /api/stream — gold-standard 2026.
+    // VitaAIApp scenePhase=.active calls realtimeStream.connect(); .background
+    // calls disconnect(). Eventos despachados pra dataManager.applyEvent.
+    let realtimeStream: RealtimeStream
+
     // Singleton DashboardViewModel so cache persists across tab navigations.
     // Before: DashboardScreen owned @State var viewModel; when the tab lost
     // focus SwiftUI tore the View down and the VM went to nil, forcing a
@@ -106,6 +112,17 @@ final class AppContainer: ObservableObject {
         self.dataManager = AppDataManager(api: api)
         self.studyOverviewStore = StudyOverviewStore(api: api)
         self.subscriptionStatus = SubscriptionStatusProvider(api: api)
+
+        // --- Realtime SSE multiplexer ---
+        // Same baseURL + tokenStore que HTTPClient. timeoutInterval=0 dentro
+        // do RealtimeStream pra long-lived connections.
+        let baseURL = URL(string: AppConfig.apiBaseURL)!
+        let realtimeStream = RealtimeStream(baseURL: baseURL, tokenStore: tokenStore)
+        let dataManagerRef = self.dataManager
+        realtimeStream.onEvent = { [weak dataManagerRef] event in
+            dataManagerRef?.applyEvent(event)
+        }
+        self.realtimeStream = realtimeStream
 
         // Wire 401 interceptor → auto-logout on HTTPClient + all SSE clients
         let authMgr = authManager

@@ -100,7 +100,8 @@ final class RealtimeStream {
     }
 
     private func runOnce() async throws {
-        let url = baseURL.appendingPathComponent("/api/stream")
+        // baseURL ja inclui /api (vem de AppConfig.apiBaseURL)
+        let url = baseURL.appendingPathComponent("/stream")
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         req.setValue("text/event-stream", forHTTPHeaderField: "Accept")

@@ -10,6 +10,7 @@
 		00142409474FF0AB0A8600EC /* OsceSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40A681B65A29A68135987794 /* OsceSessionView.swift */; };
 		00BA6439DC936CB28EB48BAD /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80ED0B424F1E28E60CE3578A /* Route.swift */; };
 		0189CC418D541011EF5C3CDC /* SyncProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1ACF21598F20E4035C39378 /* SyncProgress.swift */; };
+		020E485AF747D79CCC87351F /* RealtimeStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2421F4FE9CE16A93CEF4288B /* RealtimeStream.swift */; };
 		02250F166AED8472F9A861D6 /* VitaVoiceInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D1ECBC3C06CF77DC0B99BA /* VitaVoiceInput.swift */; };
 		02691792BC5748B73B6DD941 /* VitaChatClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9F8EED42B1047B96D90764 /* VitaChatClient.swift */; };
 		02C0DB31D5D2AA70F9E8104C /* PageEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8F1A644E77BE71390EA086F /* PageEntity.swift */; };
@@ -384,6 +385,7 @@
 		21F707CB00A1F232460531A0 /* PdfAnnotationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfAnnotationModels.swift; sourceTree = "<group>"; };
 		231B6498AE9ECCFB21DB6A6E /* VitaGlassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaGlassCard.swift; sourceTree = "<group>"; };
 		2373B8651D45CEF182E7E602 /* ConnectorCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorCard.swift; sourceTree = "<group>"; };
+		2421F4FE9CE16A93CEF4288B /* RealtimeStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeStream.swift; sourceTree = "<group>"; };
 		25016496DB7CB8AF6A989AE9 /* NotebookListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookListScreen.swift; sourceTree = "<group>"; };
 		25536906AEE09C4D76CCA5BB /* SharedPortalWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedPortalWebView.swift; sourceTree = "<group>"; };
 		25893941B2ECD8229327FEFA /* AppConfigService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfigService.swift; sourceTree = "<group>"; };
@@ -1237,6 +1239,14 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
+		995F931BED433772B3A74C1E /* Realtime */ = {
+			isa = PBXGroup;
+			children = (
+				2421F4FE9CE16A93CEF4288B /* RealtimeStream.swift */,
+			);
+			path = Realtime;
+			sourceTree = "<group>";
+		};
 		9E10A3FC905CDBFCF714DCBD /* Config */ = {
 			isa = PBXGroup;
 			children = (
@@ -1351,6 +1361,7 @@
 				B81AED442B21AD8DB21BFB35 /* DI */,
 				D968D8FA592A065501ACC230 /* Models */,
 				1BDA8A6C80EA7D865A83DF20 /* Network */,
+				995F931BED433772B3A74C1E /* Realtime */,
 				7835ED137BC997D1ECA84B80 /* Services */,
 			);
 			path = Core;
@@ -1845,6 +1856,7 @@
 				C52494A58E7D648228BB0136 /* QBankShared.swift in Sources */,
 				BA27F6EA1D9730F758DCB46F /* QBankViewModel.swift in Sources */,
 				C69655D848D9D73894AB57E5 /* RatingButtons.swift in Sources */,
+				020E485AF747D79CCC87351F /* RealtimeStream.swift in Sources */,
 				F67C0AB8BFF4B0824843E223 /* RegisterPushTokenRequest.swift in Sources */,
 				AC881C0B692739EB95957C89 /* RenameSubjectSheet.swift in Sources */,
 				DD54025EF50E0E5227E2CAB4 /* RetentionChartView.swift in Sources */,

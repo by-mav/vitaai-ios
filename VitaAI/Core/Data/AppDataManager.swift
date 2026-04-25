@@ -72,6 +72,51 @@ final class AppDataManager {
         pollingTask = nil
     }
 
+    // MARK: - Realtime SSE event handler (gold-standard 2026 — etapa 5)
+    //
+    // Recebe Event do RealtimeStream (Core/Realtime/RealtimeStream.swift) e
+    // dispara refetch do dominio afetado. Patch in-place via payload eh
+    // optimization futura — por agora "refetch domain afetado" entrega
+    // freshness em ms (o domain refresh leva 100-200ms warm).
+    //
+    // Stream conecta em scenePhase=.active (etapa 6 wire-up no VitaAIApp).
+
+    func applyEvent(_ event: RealtimeStream.Event) {
+        NSLog("[AppData] event domain=%@ op=%@ recordId=%@",
+              event.domain, event.op, event.recordId ?? "?")
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            switch event.domain {
+            case "subjects":
+                await self.refreshEnrolled()
+                await self.refreshDashboard()  // hero cards depend on subjects
+            case "evaluations", "schedule":
+                await self.refreshSchedule()
+                await self.refreshDashboard()
+            case "grades":
+                await self.refreshGrades()
+                await self.refreshDashboard()
+            case "flashcards":
+                await self.refreshFlashcards()
+                await self.refreshDashboard()
+            case "qbank":
+                await self.refreshQBankProgress()
+            case "simulados":
+                await self.refreshSimulados()
+            case "transcricoes":
+                await self.refreshTranscricoes()
+            case "dashboard":
+                await self.refreshDashboard()
+            case "profile":
+                await self.refreshProfile()
+            default:
+                // Unknown domain — refetch tudo defensivamente
+                await self.silentRefresh()
+            }
+        }
+    }
+
     // MARK: - Full load (shows spinner)
 
     func loadIfNeeded() async {

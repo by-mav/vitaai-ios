@@ -193,19 +193,20 @@ struct VitaAIApp: App {
                 .modifier(ModelContainerModifier(container: container))
                 .preferredColorScheme(.dark)
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase) { phase in
             switch phase {
             case .active:
-                // Foreground: portal sync + immediate data refresh + start polling.
-                // Cada tela que user abrir ja encontra cache <60s. Substitui
-                // padrao on-appear-then-wait por background-keeps-fresh.
+                // Foreground gold-standard 2026 (camadas em cascata):
+                // 1. RealtimeStream SSE — push em ms quando algo muda no backend
+                // 2. Polling 30s — fallback se SSE der down
+                // 3. silentRefresh imediato — cobre app vindo de bg apos longo tempo
                 SilentPortalSync.shared.syncIfNeeded(api: container.api)
+                container.realtimeStream.connect()
                 Task { await container.dataManager.silentRefresh() }
                 container.dataManager.startForegroundPolling()
             case .background:
-                // Polling para; agenda BG refresh pra iOS despertar app
-                // opportunisticamente (5-15min tipico) e refetchar dados,
-                // entao quando user voltar pro app dados ja estao frescos.
+                // Para tudo; BGAppRefreshTask cuida dos refreshes oportunistas
+                container.realtimeStream.disconnect()
                 container.dataManager.stopForegroundPolling()
                 Self.scheduleBackgroundRefresh()
             case .inactive:
