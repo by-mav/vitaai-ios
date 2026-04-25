@@ -22,6 +22,9 @@ struct AtlasSceneScreen: View {
     var onBack: () -> Void
     var onAskVita: ((String) -> Void)?
 
+    /// Single shared scene built once with lights + camera. Layers attach as
+    /// child nodes (added/removed live), so toggling Ossos+Músculos keeps both
+    /// in the same viewport without rebuilding anything.
     @State private var scene: SCNScene?
     @State private var progress: Double = 0
     @State private var errorMessage: String?
@@ -40,15 +43,25 @@ struct AtlasSceneScreen: View {
     /// Stored so "Esconder" hides every node that contributed to the selection.
     @State private var lastTappedCandidates: [String] = []
     @State private var resetTrigger = 0
-    @State private var currentLayer: AtlasLayer = .arthrology
+    /// Layers currently in the scene. Tap a pill to add/remove. Default: skeleton.
+    @State private var activeLayers: Set<AtlasLayer> = [.arthrology]
+    /// Layers currently mid-download (network) — chip shows spinner overlay.
+    @State private var loadingLayers: Set<AtlasLayer> = []
+    /// In-memory cache of parsed model nodes per layer. Re-toggling a layer
+    /// reattaches the same SCNNode without re-downloading or re-parsing.
+    @State private var layerNodes: [AtlasLayer: SCNNode] = [:]
+    /// Mesh count contributed by each loaded layer. Subtitle aggregates these.
+    @State private var meshCountByLayer: [AtlasLayer: Int] = [:]
     @State private var cachedLayers: Set<AtlasLayer> = []
     @State private var hasTappedAnyMesh = false
-    @State private var sceneMeshCount: Int = 0
     @State private var showSearch = false
     @State private var anglePreset: AtlasCameraAngle = .front
     @State private var angleTrigger = 0
+    /// Bumped whenever a layer attaches/detaches so the scene wrapper can
+    /// re-frame the camera around the new bounding box.
+    @State private var bboxTrigger = 0
     /// Mesh node names hidden by the user via the Esconder button.
-    /// Cleared by "Mostrar tudo" or layer switch.
+    /// Persists across layer toggles (each mesh has a stable name).
     @State private var hiddenMeshes: Set<String> = []
 
     var body: some View {
@@ -65,6 +78,7 @@ struct AtlasSceneScreen: View {
                             resetTrigger: resetTrigger,
                             angleTrigger: angleTrigger,
                             anglePreset: anglePreset,
+                            bboxTrigger: bboxTrigger,
                             hiddenMeshes: hiddenMeshes,
                             onMeshTap: { meshName in handleMeshTap(meshName) }
                         )
@@ -99,20 +113,20 @@ struct AtlasSceneScreen: View {
         // Immersive: hide VitaTopBar and tab bar so the 3D viewport owns the screen
         // (same pattern as PdfViewerScreen). Only our own toolbar + rails remain.
         .preference(key: ImmersivePreferenceKey.self, value: true)
-        .task(id: "\(loadAttempt)-\(currentLayer.rawValue)") { await loadLayer() }
+        .task(id: loadAttempt) { await ensureSceneAndInitialLayer() }
         .task { await loadLookupIfNeeded() }
         .onAppear { refreshCachedLayers() }
         .sheet(isPresented: $showSearch) {
             VitaSheet(detents: [.large]) {
                 AtlasSearchSheet(
                     lookup: lookup,
-                    currentLayer: currentLayer,
+                    activeLayerIds: Set(activeLayers.map { $0.rawValue }),
                     onPick: { info in
                         showSearch = false
                         selectedMesh = info
                         hasTappedAnyMesh = true
                         VitaPostHogConfig.capture(event: "atlas_search_picked", properties: [
-                            "layer": currentLayer.rawValue,
+                            "layers": analyticsLayers,
                             "structure": info.pt,
                         ])
                     }
@@ -125,7 +139,7 @@ struct AtlasSceneScreen: View {
                     info: info,
                     onAskVita: {
                         VitaPostHogConfig.capture(event: "atlas_ask_vita", properties: [
-                            "layer": currentLayer.rawValue,
+                            "layers": analyticsLayers,
                             "structure": info.pt,
                             "system": info.system,
                         ])
@@ -137,7 +151,7 @@ struct AtlasSceneScreen: View {
                         let toHide = Set(lastTappedCandidates)
                         hiddenMeshes.formUnion(toHide)
                         VitaPostHogConfig.capture(event: "atlas_mesh_hidden", properties: [
-                            "layer": currentLayer.rawValue,
+                            "layers": analyticsLayers,
                             "structure": info.pt,
                             "hidden_total": hiddenMeshes.count,
                         ])
@@ -157,7 +171,7 @@ struct AtlasSceneScreen: View {
         lastTappedCandidates = candidates
         hasTappedAnyMesh = true
         VitaPostHogConfig.capture(event: "atlas_mesh_tapped", properties: [
-            "layer": currentLayer.rawValue,
+            "layers": analyticsLayers,
             "mesh_name": candidates.first ?? "",
             "candidates_count": candidates.count,
             "matched_via": resolved.matchedVia,
@@ -165,6 +179,11 @@ struct AtlasSceneScreen: View {
             "lateralidade": resolved.lateralidade ?? "none",
             "pt_name": resolved.info.pt,
         ])
+    }
+
+    /// "+"-joined sorted rawValues for telemetry (e.g. "arthrology+myology").
+    private var analyticsLayers: String {
+        activeLayers.map { $0.rawValue }.sorted().joined(separator: "+")
     }
 
     /// Try every ancestor name and the geometry name, with progressive stripping
@@ -289,7 +308,7 @@ struct AtlasSceneScreen: View {
             id: sideStripped,
             pt: prettify(sideStripped, lateralidade: lateralidade),
             en: sideStripped,
-            system: currentLayer.rawValue,
+            system: activeLayers.first?.rawValue ?? "",
             exam: "",
             description: nil,
             tip: nil,
@@ -342,24 +361,22 @@ struct AtlasSceneScreen: View {
 
     @ViewBuilder
     private func layerPill(layer: AtlasLayer) -> some View {
-        let active = (currentLayer == layer)
+        let active = activeLayers.contains(layer)
+        let loading = loadingLayers.contains(layer)
         let cached = cachedLayers.contains(layer)
         Button {
-            guard !active else { return }
             UISelectionFeedbackGenerator().selectionChanged()
-            VitaPostHogConfig.capture(event: "atlas_layer_selected", properties: [
-                "from": currentLayer.rawValue,
-                "to": layer.rawValue,
-                "from_cached": cachedLayers.contains(currentLayer),
-                "to_cached": cached,
+            VitaPostHogConfig.capture(event: "atlas_layer_toggled", properties: [
+                "layer": layer.rawValue,
+                "to_active": !active,
+                "active_count_before": activeLayers.count,
+                "from_cached": cached,
             ])
-            scene = nil
-            progress = 0
-            errorMessage = nil
-            selectedMesh = nil
-            // Hidden meshes are scoped to a specific GLB — reset on switch.
-            hiddenMeshes.removeAll()
-            currentLayer = layer
+            if active {
+                detachLayer(layer)
+            } else {
+                Task { await attachLayer(layer) }
+            }
         } label: {
             VStack(spacing: 4) {
                 ZStack {
@@ -371,11 +388,17 @@ struct AtlasSceneScreen: View {
                                 .stroke(active ? VitaColors.accent.opacity(0.6) : Color.white.opacity(0.08),
                                         lineWidth: active ? 1.2 : 0.6)
                         )
-                    Image(systemName: layer.icon)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(active ? VitaColors.accent : VitaColors.textSecondary)
+                    if loading {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .tint(VitaColors.accent)
+                    } else {
+                        Image(systemName: layer.icon)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(active ? VitaColors.accent : VitaColors.textSecondary)
+                    }
                     // Cache dot: bottom-right of the icon circle
-                    if cached {
+                    if cached && !loading {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(VitaColors.dataGreen)
@@ -393,7 +416,9 @@ struct AtlasSceneScreen: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Sistema \(layer.displayName)")
-        .accessibilityHint(cached ? "Baixado, troca instantânea" : "Vai baixar ao selecionar")
+        .accessibilityHint(active
+            ? "Tocar pra remover da cena"
+            : (cached ? "Baixado, adiciona instantâneo" : "Tocar pra baixar e adicionar"))
         .accessibilityAddTraits(active ? [.isSelected] : [])
     }
 
@@ -500,7 +525,7 @@ struct AtlasSceneScreen: View {
                     hiddenMeshes.removeAll()
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     VitaPostHogConfig.capture(event: "atlas_show_all", properties: [
-                        "layer": currentLayer.rawValue,
+                        "layers": analyticsLayers,
                     ])
                 } label: {
                     HStack(spacing: 6) {
@@ -582,6 +607,11 @@ struct AtlasSceneScreen: View {
             try? FileManager.default.removeItem(at: path)
         }
         try? FileManager.default.removeItem(at: cache.appendingPathComponent("atlas-lookup.json"))
+        // Drop in-memory caches AND detach all loaded layers — next ensure*
+        // call will re-build the scene fresh with the user's active set.
+        for (_, node) in layerNodes { node.removeFromParentNode() }
+        layerNodes.removeAll()
+        meshCountByLayer.removeAll()
         cachedLayers.removeAll()
         scene = nil
         progress = 0
@@ -602,7 +632,7 @@ struct AtlasSceneScreen: View {
                     .tint(VitaColors.accent)
                     .frame(width: 180)
                 Text(progress > 0
-                     ? "Baixando \(currentLayer.displayName) — \(Int(progress * 100))%"
+                     ? "Baixando \(loadingLayers.first?.displayName ?? "modelo") — \(Int(progress * 100))%"
                      : "Carregando Atlas 3D…")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(VitaColors.textSecondary)
@@ -719,36 +749,105 @@ struct AtlasSceneScreen: View {
         }
     }
 
-    // MARK: - Load pipeline
+    // MARK: - Load pipeline (multi-layer composable)
 
-    private func loadLayer() async {
-        let layerName = currentLayer.rawValue
-        let layer = currentLayer
-        do {
-            let url = try await fetchOrCacheGLB(layer: layerName)
-            let built = try await buildScene(from: url)
+    /// First entry into the screen (or after a manual "Recarregar"). Builds the
+    /// base scene with lights ONCE, then attaches every layer the user has
+    /// active (default = arthrology). Subsequent layer toggles bypass this and
+    /// hit attachLayer/detachLayer directly.
+    private func ensureSceneAndInitialLayer() async {
+        if scene == nil {
+            let base = buildBaseScene()
             await MainActor.run {
-                self.scene = built
-                self.cachedLayers.insert(layer)
+                self.scene = base
                 SentrySDK.reportFullyDisplayed()
             }
-        } catch {
-            atlasLog.error("[Atlas] load failed: \(error.localizedDescription, privacy: .public)")
-            VitaPostHogConfig.capture(event: "atlas_load_failed", properties: [
-                "layer": layerName,
-                "error": "\(error)",
-            ])
-            await MainActor.run { self.errorMessage = error.localizedDescription }
+        }
+        // Snapshot to avoid mutating the set while iterating async.
+        let pending = activeLayers.subtracting(layerNodes.keys)
+        for layer in pending {
+            await attachLayer(layer)
         }
     }
 
-    /// Subtitle shown under "Atlas 3D" — current system + structure count.
-    private var headerSubtitle: String? {
-        let system = currentLayer.displayName
-        if scene != nil, sceneMeshCount > 0 {
-            return "\(system) · \(sceneMeshCount) estruturas"
+    /// Adds a layer to the live scene. If the SCNNode is already cached
+    /// in-memory (`layerNodes[layer]`), reattaches instantly. Otherwise
+    /// fetches/parses the .glb (with disk cache) and parents the model root
+    /// under a uniquely-named SCNNode so detach() can find it later.
+    private func attachLayer(_ layer: AtlasLayer) async {
+        await MainActor.run {
+            self.activeLayers.insert(layer)
+            self.errorMessage = nil
         }
-        return system
+        // Cache hit — instant reattach.
+        if let cached = layerNodes[layer] {
+            await MainActor.run {
+                if let scene = self.scene, cached.parent == nil {
+                    scene.rootNode.addChildNode(cached)
+                }
+                self.bboxTrigger += 1
+            }
+            return
+        }
+        // Cold path — download + parse.
+        await MainActor.run { self.loadingLayers.insert(layer); self.progress = 0 }
+        defer { Task { @MainActor in self.loadingLayers.remove(layer) } }
+        do {
+            let url = try await fetchOrCacheGLB(layer: layer.rawValue)
+            let parsed = try await parseGLBToModelNode(url: url)
+            let containerName = "layer-\(layer.rawValue)"
+            parsed.node.name = containerName
+            await MainActor.run {
+                if let scene = self.scene {
+                    scene.rootNode.addChildNode(parsed.node)
+                }
+                self.layerNodes[layer] = parsed.node
+                self.meshCountByLayer[layer] = parsed.meshCount
+                self.cachedLayers.insert(layer)
+                self.bboxTrigger += 1
+            }
+        } catch {
+            atlasLog.error("[Atlas] load failed (\(layer.rawValue)): \(error.localizedDescription, privacy: .public)")
+            VitaPostHogConfig.capture(event: "atlas_load_failed", properties: [
+                "layer": layer.rawValue,
+                "error": "\(error)",
+            ])
+            await MainActor.run {
+                self.activeLayers.remove(layer)
+                // Show error only when nothing else is on screen.
+                if self.activeLayers.isEmpty {
+                    self.errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// Detaches the SCNNode from the scene root. Keeps the parsed node in
+    /// `layerNodes` so toggling back is instant. To purge entirely, use
+    /// "Limpar cache" in the menu.
+    private func detachLayer(_ layer: AtlasLayer) {
+        if let node = layerNodes[layer] {
+            node.removeFromParentNode()
+        }
+        activeLayers.remove(layer)
+        bboxTrigger += 1
+    }
+
+    /// Subtitle shown under "Atlas 3D" — joins active layer names + total mesh
+    /// count across every loaded layer.
+    private var headerSubtitle: String? {
+        if activeLayers.isEmpty { return "Toque num sistema pra começar" }
+        let names = AtlasLayer.allCases
+            .filter { activeLayers.contains($0) }
+            .map { $0.displayName }
+        let joined = names.joined(separator: " + ")
+        let total = activeLayers
+            .compactMap { meshCountByLayer[$0] }
+            .reduce(0, +)
+        if total > 0 {
+            return "\(joined) · \(total) estruturas"
+        }
+        return joined
     }
 
     /// Scans Caches/ at view appear so chips already show a checkmark for
@@ -812,12 +911,60 @@ struct AtlasSceneScreen: View {
         return cached
     }
 
-    private func buildScene(from url: URL) async throws -> SCNScene {
-        atlasLog.notice("[Atlas] buildScene start, url=\(url.path, privacy: .public)")
+    /// Builds a scene with the 3-point studio rig and nothing else — layers are
+    /// added/removed live as user toggles them in the rail.
+    private func buildBaseScene() -> SCNScene {
+        let scene = SCNScene()
+        // Ambient — neutral warm fill so geometry never reads pitch-black.
+        let ambient = SCNNode()
+        ambient.light = SCNLight()
+        ambient.light?.type = .ambient
+        ambient.light?.intensity = 420
+        ambient.light?.color = UIColor(red: 1.0, green: 0.96, blue: 0.90, alpha: 1.0)
+        scene.rootNode.addChildNode(ambient)
+
+        // Key — warm front-top-left
+        let key = SCNNode()
+        key.light = SCNLight()
+        key.light?.type = .directional
+        key.light?.intensity = 900
+        key.light?.color = UIColor(red: 1.0, green: 0.94, blue: 0.82, alpha: 1.0)
+        key.light?.castsShadow = false
+        key.position = SCNVector3(5, 5, 5)
+        key.eulerAngles = SCNVector3(-Float.pi / 4, Float.pi / 4, 0)
+        scene.rootNode.addChildNode(key)
+
+        // Fill — cool front-right, half intensity
+        let fill = SCNNode()
+        fill.light = SCNLight()
+        fill.light?.type = .directional
+        fill.light?.intensity = 450
+        fill.light?.color = UIColor(red: 0.78, green: 0.84, blue: 1.0, alpha: 1.0)
+        fill.position = SCNVector3(-5, 2, 5)
+        fill.eulerAngles = SCNVector3(-Float.pi / 6, -Float.pi / 4, 0)
+        scene.rootNode.addChildNode(fill)
+
+        // Rim — warm amber from behind separates silhouette from bg
+        let rim = SCNNode()
+        rim.light = SCNLight()
+        rim.light?.type = .directional
+        rim.light?.intensity = 650
+        rim.light?.color = UIColor(red: 1.0, green: 0.78, blue: 0.34, alpha: 1.0)
+        rim.position = SCNVector3(0, 3, -6)
+        rim.eulerAngles = SCNVector3(-Float.pi / 6, Float.pi, 0)
+        scene.rootNode.addChildNode(rim)
+        return scene
+    }
+
+    /// Loads a .glb and returns ONLY the model subtree (no lights, no camera)
+    /// so it can be parented under our shared scene's rootNode without
+    /// duplicating the lighting rig per layer.
+    private func parseGLBToModelNode(url: URL) async throws -> (node: SCNNode, meshCount: Int) {
+        atlasLog.notice("[Atlas] parseGLB start, url=\(url.path, privacy: .public)")
         let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
         atlasLog.notice("[Atlas] glb file size: \(bytes) bytes")
 
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<SCNScene, Error>) in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(node: SCNNode, meshCount: Int), Error>) in
             var resumed = false
             GLTFAsset.load(with: url, options: [:]) { _, status, asset, error, _ in
                 atlasLog.notice("[Atlas] GLTFAsset.load callback status=\(status.rawValue) hasAsset=\(asset != nil) hasError=\(error != nil)")
@@ -831,7 +978,6 @@ struct AtlasSceneScreen: View {
                 if status == .complete, let asset {
                     resumed = true
                     let meshCount = asset.meshes.count
-                    Task { @MainActor in self.sceneMeshCount = meshCount }
                     atlasLog.notice("[Atlas] asset complete: scenes=\(asset.scenes.count) meshes=\(meshCount) materials=\(asset.materials.count)")
 
                     let source = GLTFSCNSceneSource(asset: asset)
@@ -840,49 +986,17 @@ struct AtlasSceneScreen: View {
                         continuation.resume(throwing: AtlasError.noScene)
                         return
                     }
-                    atlasLog.notice("[Atlas] scene built: rootChildren=\(scene.rootNode.childNodes.count)")
-
-                    // 3-point studio-style rig — makes anatomical structures
-                    // read cleanly against the dark starry background.
-                    let ambient = SCNNode()
-                    ambient.light = SCNLight()
-                    ambient.light?.type = .ambient
-                    ambient.light?.intensity = 420
-                    ambient.light?.color = UIColor(red: 1.0, green: 0.96, blue: 0.90, alpha: 1.0)
-                    scene.rootNode.addChildNode(ambient)
-
-                    // Key — warm front-top-left
-                    let key = SCNNode()
-                    key.light = SCNLight()
-                    key.light?.type = .directional
-                    key.light?.intensity = 900
-                    key.light?.color = UIColor(red: 1.0, green: 0.94, blue: 0.82, alpha: 1.0)
-                    key.light?.castsShadow = false
-                    key.position = SCNVector3(5, 5, 5)
-                    key.eulerAngles = SCNVector3(-Float.pi / 4, Float.pi / 4, 0)
-                    scene.rootNode.addChildNode(key)
-
-                    // Fill — cool front-right, half intensity
-                    let fill = SCNNode()
-                    fill.light = SCNLight()
-                    fill.light?.type = .directional
-                    fill.light?.intensity = 450
-                    fill.light?.color = UIColor(red: 0.78, green: 0.84, blue: 1.0, alpha: 1.0)
-                    fill.position = SCNVector3(-5, 2, 5)
-                    fill.eulerAngles = SCNVector3(-Float.pi / 6, -Float.pi / 4, 0)
-                    scene.rootNode.addChildNode(fill)
-
-                    // Rim — warm amber from behind separates silhouette from bg
-                    let rim = SCNNode()
-                    rim.light = SCNLight()
-                    rim.light?.type = .directional
-                    rim.light?.intensity = 650
-                    rim.light?.color = UIColor(red: 1.0, green: 0.78, blue: 0.34, alpha: 1.0)
-                    rim.position = SCNVector3(0, 3, -6)
-                    rim.eulerAngles = SCNVector3(-Float.pi / 6, Float.pi, 0)
-                    scene.rootNode.addChildNode(rim)
-
-                    continuation.resume(returning: scene)
+                    // Strip lights/cameras the GLB might have authored — we own
+                    // those at the shared scene level. Wrap remaining children
+                    // under one SCNNode so detach is one-liner.
+                    let container = SCNNode()
+                    for child in scene.rootNode.childNodes {
+                        if child.light != nil || child.camera != nil { continue }
+                        child.removeFromParentNode()
+                        container.addChildNode(child)
+                    }
+                    atlasLog.notice("[Atlas] model container assembled: meshes=\(meshCount) children=\(container.childNodes.count)")
+                    continuation.resume(returning: (container, meshCount))
                 }
             }
         }
@@ -1146,7 +1260,7 @@ private struct MeshDetailSheet: View {
 
 private struct AtlasSearchSheet: View {
     let lookup: [String: MeshInfo]
-    let currentLayer: AtlasLayer
+    let activeLayerIds: Set<String>
     let onPick: (MeshInfo) -> Void
 
     @State private var query: String = ""
@@ -1155,7 +1269,7 @@ private struct AtlasSearchSheet: View {
     private var filtered: [MeshInfo] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         guard q.count >= 2 else { return [] }
-        // Score: starts-with > contains; current-system entries float to top.
+        // Score: starts-with > contains; entries from any active layer float up.
         var matches: [(MeshInfo, Int)] = []
         for info in lookup.values {
             let pt = info.pt.lowercased()
@@ -1166,7 +1280,7 @@ private struct AtlasSearchSheet: View {
             else if en.hasPrefix(q) { score = 40 }
             else if en.contains(q) { score = 20 }
             if score == 0 { continue }
-            if info.system == currentLayer.rawValue { score += 50 }
+            if activeLayerIds.contains(info.system) { score += 50 }
             matches.append((info, score))
         }
         return matches
@@ -1313,6 +1427,7 @@ private struct AnatomySceneView: UIViewRepresentable {
     let resetTrigger: Int
     let angleTrigger: Int
     let anglePreset: AtlasCameraAngle
+    let bboxTrigger: Int
     let hiddenMeshes: Set<String>
     let onMeshTap: ([String]) -> Void
 
@@ -1328,39 +1443,17 @@ private struct AnatomySceneView: UIViewRepresentable {
         view.preferredFramesPerSecond = 60
         view.isJitteringEnabled = true
 
-        // Frame the whole scene (union of all geometry), not just first child.
-        let (minV, maxV) = scene.rootNode.boundingBox
-        let dx = maxV.x - minV.x, dy = maxV.y - minV.y, dz = maxV.z - minV.z
-        let diagonal = sqrt(dx * dx + dy * dy + dz * dz)
-        atlasLog.notice("[Atlas] scene bbox min=(\(minV.x),\(minV.y),\(minV.z)) max=(\(maxV.x),\(maxV.y),\(maxV.z)) diag=\(diagonal)")
-
+        // Camera with safe defaults — actual framing happens in updateUIView
+        // once at least one layer has attached (bboxTrigger fires).
         let camera = SCNCamera()
         camera.zNear = 0.01
-        let safeDiag: Float = diagonal > 0.0001 ? diagonal : 2.0
-        camera.zFar = Double(safeDiag) * 20
+        camera.zFar = 200
         let camNode = SCNNode()
         camNode.name = "AtlasCamera"
         camNode.camera = camera
-        let cx = (minV.x + maxV.x) / 2
-        let cy = (minV.y + maxV.y) / 2
-        let cz = (minV.z + maxV.z) / 2
-        let initialPosition = SCNVector3(cx, cy, cz + safeDiag * 1.6)
-        camNode.position = initialPosition
-        camNode.look(at: SCNVector3(cx, cy, cz))
+        camNode.position = SCNVector3(0, 0, 4)
         scene.rootNode.addChildNode(camNode)
         view.pointOfView = camNode
-
-        // Remember framing so the "recenter" button can restore it.
-        context.coordinator.initialCameraPosition = initialPosition
-        context.coordinator.cameraTarget = SCNVector3(cx, cy, cz)
-
-        // Find the GLB's root model node (skip the lights we just added so
-        // rotation only spins the anatomy, not the lighting rig).
-        if let modelRoot = scene.rootNode.childNodes.first(where: { node in
-            node.light == nil && node.camera == nil
-        }) {
-            context.coordinator.modelContainer = modelRoot
-        }
 
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
         tap.cancelsTouchesInView = false
@@ -1370,6 +1463,13 @@ private struct AnatomySceneView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: SCNView, context: Context) {
+        // Re-frame when a layer joined/left the scene. Recalcs bbox over EVERY
+        // non-light/non-camera child, fits the camera around it, and remembers
+        // the framing so "recenter" + angle presets stay in sync.
+        if bboxTrigger != context.coordinator.lastBboxTrigger {
+            context.coordinator.lastBboxTrigger = bboxTrigger
+            reframe(uiView, coord: context.coordinator)
+        }
         // Reset camera when resetTrigger increments.
         if resetTrigger != context.coordinator.lastResetTrigger {
             context.coordinator.lastResetTrigger = resetTrigger
@@ -1398,6 +1498,67 @@ private struct AnatomySceneView: UIViewRepresentable {
                 }
             }
         }
+    }
+
+    /// Recompute bbox across all attached layer containers (children whose name
+    /// starts with "layer-"), refit the camera, and refresh the coordinator's
+    /// remembered framing so reset/preset still work.
+    private func reframe(_ uiView: SCNView, coord: Coordinator) {
+        let layerContainers = scene.rootNode.childNodes.filter {
+            ($0.name ?? "").hasPrefix("layer-") && $0.light == nil && $0.camera == nil
+        }
+        guard !layerContainers.isEmpty else { return }
+
+        var hasBox = false
+        var minV = SCNVector3Zero, maxV = SCNVector3Zero
+        for node in layerContainers {
+            let (lmin, lmax) = node.boundingBox
+            // Convert to world space — layer containers may carry transforms.
+            let wmin = node.convertPosition(lmin, to: scene.rootNode)
+            let wmax = node.convertPosition(lmax, to: scene.rootNode)
+            let lo = SCNVector3(min(wmin.x, wmax.x), min(wmin.y, wmax.y), min(wmin.z, wmax.z))
+            let hi = SCNVector3(max(wmin.x, wmax.x), max(wmin.y, wmax.y), max(wmin.z, wmax.z))
+            if !hasBox {
+                minV = lo; maxV = hi; hasBox = true
+            } else {
+                minV = SCNVector3(min(minV.x, lo.x), min(minV.y, lo.y), min(minV.z, lo.z))
+                maxV = SCNVector3(max(maxV.x, hi.x), max(maxV.y, hi.y), max(maxV.z, hi.z))
+            }
+        }
+        guard hasBox else { return }
+
+        let dx = maxV.x - minV.x, dy = maxV.y - minV.y, dz = maxV.z - minV.z
+        let diagonal = sqrt(dx * dx + dy * dy + dz * dz)
+        let safeDiag: Float = diagonal > 0.0001 ? diagonal : 2.0
+        let cx = (minV.x + maxV.x) / 2
+        let cy = (minV.y + maxV.y) / 2
+        let cz = (minV.z + maxV.z) / 2
+        let target = SCNVector3(cx, cy, cz)
+        let initial = SCNVector3(cx, cy, cz + safeDiag * 1.6)
+        atlasLog.notice("[Atlas] reframe layers=\(layerContainers.count) diag=\(diagonal)")
+
+        // Update camera + remembered framing.
+        if let cam = uiView.pointOfView {
+            cam.camera?.zFar = Double(safeDiag) * 20
+            // Only animate the FIRST framing (when coordinator is still at zero
+            // origin). Subsequent re-frames after a layer toggle stay still
+            // unless the user hits "recenter" — feels less jumpy when stacking.
+            let firstTime = coord.initialCameraPosition.x == 0
+                && coord.initialCameraPosition.y == 0
+                && coord.initialCameraPosition.z == 0
+            if firstTime {
+                SCNTransaction.begin()
+                SCNTransaction.animationDuration = 0.35
+                cam.position = initial
+                cam.look(at: target)
+                SCNTransaction.commit()
+            }
+        }
+        coord.initialCameraPosition = initial
+        coord.cameraTarget = target
+        // Anchor for angle-preset rotation: rotate ALL active layer containers
+        // together (one yaw value applied per node so light rig stays put).
+        coord.modelContainers = layerContainers
     }
 
     private func applyAnglePreset(_ uiView: SCNView, coord: Coordinator) {
@@ -1431,7 +1592,9 @@ private struct AnatomySceneView: UIViewRepresentable {
         SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
         cam.position = camPos
         cam.look(at: target)
-        coord.modelContainer?.eulerAngles.y = modelYaw
+        for node in coord.modelContainers {
+            node.eulerAngles.y = modelYaw
+        }
         SCNTransaction.commit()
     }
 
@@ -1441,8 +1604,9 @@ private struct AnatomySceneView: UIViewRepresentable {
         var cameraTarget = SCNVector3Zero
         var lastResetTrigger = 0
         var lastAngleTrigger = 0
+        var lastBboxTrigger = 0
         var lastHiddenMeshes: Set<String> = []
-        weak var modelContainer: SCNNode?
+        var modelContainers: [SCNNode] = []
         private weak var lastSelected: SCNNode?
         private var lastSelectedOriginalMaterials: [SCNMaterial] = []
 
