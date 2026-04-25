@@ -284,10 +284,11 @@ struct PdfViewerScreen: View {
     @ViewBuilder
     private func mainContent(document: PDFDocument) -> some View {
         VStack(spacing: 0) {
-            // Toolbar visible always (Rafael 2026-04-25): in fullscreen the user
-            // still needs highlight/text/draw/search/bookmark/transcribe access.
-            // The fullscreenExitPill (top-leading floating) handles the
-            // back+exit-fullscreen affordance in fullscreen mode.
+            // Fullscreen real (Rafael 2026-04-25 v2): esconde TODA chrome do
+            // PDF — toolbar + multi-doc tabs. Só fica o fullscreenExitPill
+            // minimalista no canto top-leading pra sair. Tap no PDF mantém
+            // gestos nativos (zoom/pan); pra reativar a chrome, sair fullscreen.
+            if !isFullscreen {
             PdfToolbar(
                     fileName: viewModel.fileName,
                     currentPage: viewModel.currentPage + 1,
@@ -365,9 +366,7 @@ struct PdfViewerScreen: View {
                     onShowStudyStats: { showStudyStatsSheet = true }
                 )
 
-            // Multi-doc tab bar (Goodnotes-style). Hidden in fullscreen so the
-            // PDF gets the whole screen.
-            if !isFullscreen {
+                // Multi-doc tab bar (Goodnotes-style). Same fullscreen guard.
                 PdfTabBar(
                     openDocs: workspace.openDocs,
                     activeId: workspace.activeId,
