@@ -503,7 +503,6 @@ private struct PlanRow: View {
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard(cornerRadius: 18)
         .overlay(
             // Selection highlight ring on top of D4 stroke (subtle when not selected).
