@@ -525,15 +525,14 @@ struct TranscricaoRecordingsListSection: View {
                                 .padding(.top, 8)
 
                             ForEach(group.recordings) { rec in
-                                SwipeableCardRow(
-                                    onSwipeLeft: { onDelete(rec) },
-                                    onSwipeRight: { onFavorite?(rec) }
+                                VitaCardRow(
+                                    onTap: { onTap(rec) },
+                                    onSwipeRight: { onFavorite?(rec) },
+                                    onSwipeLeft: { onDelete(rec) }
                                 ) {
                                     TealGlassRecordingCard(recording: rec)
                                 }
                                     .padding(.horizontal, 16)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { onTap(rec) }
                                     // Long press → context menu com todas ações quick-access.
                                     // Pattern Apple Mail/Photos: hold revela menu contextual
                                     // sem precisar abrir sheet inteiro.
@@ -738,101 +737,3 @@ struct TealGlassRecordingCard: View {
 // `abbreviateDiscipline` moved to TranscricaoControls.swift (shared with pickers).
 
 
-// MARK: - Swipeable card row (Tinder-like horizontal gestures)
-
-/// Wrapper que adiciona swipe-left (delete) e swipe-right (favorite)
-/// ao card, revelando background colorido conforme arrasta.
-/// Full-swipe (>40% da largura) executa ação imediatamente com haptic.
-/// Partial-swipe volta pro lugar suavemente.
-///
-/// Pattern: iOS Mail, Gmail Android, Todoist.
-struct SwipeableCardRow<Content: View>: View {
-    let onSwipeLeft: () -> Void   // destructive (delete)
-    let onSwipeRight: () -> Void  // positive (favorite)
-    @ViewBuilder let content: Content
-
-    @State private var offset: CGFloat = 0
-    @State private var isDragging = false
-    private let actionThreshold: CGFloat = 100
-
-    /// Ícone começa pequeno (32pt) e cresce até quase ocupar o card (~64pt)
-    /// conforme o offset chega no threshold. Sem stretch — só scale.
-    private var iconSize: CGFloat {
-        let progress = min(abs(offset) / actionThreshold, 1.0)
-        return 32 + progress * 32
-    }
-
-    var body: some View {
-        ZStack {
-            // Background = SÓ o ícone Vita gigante centralizado, escala com o
-            // progresso do drag. Sem texto, sem cor de fundo. Rafael (2026-04-25):
-            // o card vira a imagem, ela cresce de pequena → grande conforme arrasta.
-            ZStack {
-                // Mantém o card dimension via clear (pra ZStack ter altura).
-                Color.clear
-                if offset > 0 {
-                    Image("icone-fav-vita")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: iconSize, height: iconSize)
-                        .opacity(min(offset / actionThreshold, 1.0))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 16)
-                } else if offset < 0 {
-                    Image("icone-del-vita")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: iconSize, height: iconSize)
-                        .opacity(min(abs(offset) / actionThreshold, 1.0))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.trailing, 16)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .animation(.easeOut(duration: 0.15), value: offset)
-
-            // Card itself, offset by drag
-            content
-                .offset(x: offset)
-                .gesture(
-                    DragGesture(minimumDistance: 20)
-                        .onChanged { value in
-                            isDragging = true
-                            // Resistência nas extremidades (rubber band)
-                            let raw = value.translation.width
-                            offset = raw.magnitude > 200 ? (raw > 0 ? 200 : -200) : raw
-                        }
-                        .onEnded { value in
-                            isDragging = false
-                            let dx = value.translation.width
-                            if dx > actionThreshold {
-                                // Swipe right → favoritar
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    offset = 400  // sai da tela
-                                }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                    onSwipeRight()
-                                    offset = 0
-                                }
-                            } else if dx < -actionThreshold {
-                                // Swipe left → delete
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    offset = -400
-                                }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                                    onSwipeLeft()
-                                    offset = 0
-                                }
-                            } else {
-                                // Volta pro lugar
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                                    offset = 0
-                                }
-                            }
-                        }
-                )
-        }
-    }
-}
