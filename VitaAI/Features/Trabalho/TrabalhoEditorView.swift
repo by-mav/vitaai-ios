@@ -98,11 +98,16 @@ struct TrabalhoEditorView: View {
             }
         }
         // Delete confirmation
-        .sheet(isPresented: $showDeleteConfirm) {
-            VitaSheet(title: "Excluir trabalho?") {
-                deleteConfirmContent(vm: vm)
+        .vitaAlert(
+            isPresented: $showDeleteConfirm,
+            title: "Excluir trabalho?",
+            message: "Esta ação não pode ser desfeita. O trabalho será removido permanentemente.",
+            destructiveLabel: "Excluir",
+            onConfirm: {
+                vm.deleteAssignment()
+                onDismiss()
             }
-        }
+        )
         // Submit confirmation
         .sheet(isPresented: $showSubmitConfirm) {
             VitaSheet(title: "Enviar para o Canvas?") {
@@ -519,51 +524,6 @@ struct TrabalhoEditorView: View {
             onApply: { vm.applyAiSuggestion() },
             onDismiss: { vm.dismissAiPanel() }
         )
-    }
-
-    // MARK: - Delete Confirm
-
-    @ViewBuilder
-    private func deleteConfirmContent(vm: TrabalhoEditorViewModel) -> some View {
-        VStack(spacing: 20) {
-            Text("Esta ação não pode ser desfeita. O trabalho será removido permanentemente.")
-                .font(VitaTypography.bodyMedium)
-                .foregroundStyle(VitaColors.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: 12) {
-                Button {
-                    showDeleteConfirm = false
-                } label: {
-                    Text("Cancelar")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(VitaColors.textPrimary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .glassCard(cornerRadius: 12)
-                }
-
-                Button {
-                    vm.deleteAssignment()
-                    showDeleteConfirm = false
-                    onDismiss()
-                } label: {
-                    Text("Excluir")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(VitaColors.dataRed)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(VitaColors.dataRed.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(VitaColors.dataRed.opacity(0.3), lineWidth: 0.5)
-                        )
-                }
-                // sensoryFeedback removed (iOS 17+)
-            }
-            Spacer().frame(height: 4)
-        }
     }
 
     // MARK: - Submit Confirm

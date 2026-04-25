@@ -108,6 +108,7 @@
 		3FDB705B03C39389AC9B4604 /* SpeechRecognitionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1D1E6D867F79AAC73B53994 /* SpeechRecognitionManager.swift */; };
 		40A3ECC21F1485E4CD64447E /* VitaToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78C90E33A5261C25C9E8957 /* VitaToast.swift */; };
 		415661B3051F6F606DF8CDBD /* FaculdadeDisciplinasScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587035BC7D829951519C0696 /* FaculdadeDisciplinasScreen.swift */; };
+		41BAF3C741F902861FDF116D /* PdfFreeTextSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC9B93B0EBE4DF232C10B05 /* PdfFreeTextSelectionOverlay.swift */; };
 		43029DE4468B4C70273E2047 /* OsceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABD7E02F013E5DCB1B7E41BB /* OsceModels.swift */; };
 		47178D051D81987CD6E9BF3D /* StudyOverviewSubject.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1611D36BC820AF3CB70BD36 /* StudyOverviewSubject.swift */; };
 		4857C5FF52A84F5942D119DD /* FaculdadeProfessoresScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969CC09E6ADAE216B40E2DD3 /* FaculdadeProfessoresScreen.swift */; };
@@ -578,6 +579,7 @@
 		A78C90E33A5261C25C9E8957 /* VitaToast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaToast.swift; sourceTree = "<group>"; };
 		A7CED112CB5D3505B980684B /* GlassChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassChip.swift; sourceTree = "<group>"; };
 		A9B30CDEA16FB26412092EDB /* FlashcardStatsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardStatsViewModel.swift; sourceTree = "<group>"; };
+		ABC9B93B0EBE4DF232C10B05 /* PdfFreeTextSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfFreeTextSelectionOverlay.swift; sourceTree = "<group>"; };
 		ABD7E02F013E5DCB1B7E41BB /* OsceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OsceModels.swift; sourceTree = "<group>"; };
 		AD5CF5C5AEA9ACE3D2E0C370 /* EnvironmentKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentKeys.swift; sourceTree = "<group>"; };
 		AD675F659893240D25A7F451 /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
@@ -765,6 +767,7 @@
 				DC81D5F2654A52C372EB9A0D /* PageThumbnailSidebar.swift */,
 				21F707CB00A1F232460531A0 /* PdfAnnotationModels.swift */,
 				FF7EA3D2C60F323F39E9AD1E /* PdfExporter.swift */,
+				ABC9B93B0EBE4DF232C10B05 /* PdfFreeTextSelectionOverlay.swift */,
 				05B1E34202A8907EFFFFACD1 /* PdfScanOverlay.swift */,
 				E6EFEEFBA17AF37F355A4848 /* PdfToolbar.swift */,
 				9998B44B0BDB981193E5EAF3 /* PdfViewerScreen.swift */,
@@ -1824,6 +1827,7 @@
 				763F6589B281D91E84ABF11D /* PaywallViewModel.swift in Sources */,
 				2B71B46F6297F34ED5171AA3 /* PdfAnnotationModels.swift in Sources */,
 				512812408FF6DDA2FB4B5E1B /* PdfExporter.swift in Sources */,
+				41BAF3C741F902861FDF116D /* PdfFreeTextSelectionOverlay.swift in Sources */,
 				DB5C2B7F9757B2683C89B850 /* PdfScanOverlay.swift in Sources */,
 				042B3027A14F3834E0DCBC54 /* PdfToolbar.swift in Sources */,
 				2966520886D5E54486E731A7 /* PdfViewerScreen.swift in Sources */,

@@ -615,14 +615,25 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     /// Mirror of viewModel.isHighlightMode, updated from updateUIView
     var isHighlightMode: Bool = false
 
-    /// Mirror of viewModel.isTextMode, updated from updateUIView
-    var isTextMode: Bool = false
+    /// Mirror of viewModel.isTextMode, updated from updateUIView.
+    /// Exiting text mode clears any active freeText selection (Goodnotes pattern).
+    var isTextMode: Bool = false {
+        didSet {
+            if !isTextMode && oldValue {
+                clearSelection()
+            }
+        }
+    }
 
     /// Mirror of viewModel.isLassoMode, updated from updateUIView
     var isLassoMode: Bool = false
 
     /// Debounce task to avoid double-firing on selection change
     var highlightDebounceTask: Task<Void, Never>?
+
+    /// Currently selected freeText annotation overlay — Goodnotes-style drag/resize.
+    /// Only one selection at a time. nil = no selection.
+    var selectedFreeTextOverlay: PdfFreeTextSelectionOverlay?
 
     private var lastScrolledPage: Int = -1
 
@@ -698,6 +709,8 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         guard let pdfView = notification.object as? PDFView,
               let page = pdfView.currentPage,
               let doc = pdfView.document else { return }
+        // Selection lives on a specific page — page change drops it (Goodnotes parity)
+        clearSelection()
         let pageIndex = doc.index(for: page)
         if pageIndex != viewModel.currentPage {
             Task { @MainActor [weak self] in
@@ -750,17 +763,28 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         let pagePoint = pdfView.convert(point, to: page)
 
         if isTextMode {
-            // Check if tapping an existing freeText annotation — show delete option
+            // Check if tapping an existing freeText annotation — activate selection
             for annotation in page.annotations {
                 guard annotation.type == "FreeText" else { continue }
                 if annotation.bounds.contains(pagePoint) {
-                    showDeleteMenu(for: annotation, on: page, at: point, in: pdfView)
+                    activateSelection(for: annotation, on: page, in: pdfView)
                     return
                 }
             }
-            // No existing annotation tapped — place a new text box
-            placeTextAnnotation(at: pagePoint, on: page)
+            // Tap fora de qualquer freeText:
+            //   - se há overlay ativo → deselect (Goodnotes pattern)
+            //   - se não há → cria nova annotation no ponto
+            if selectedFreeTextOverlay != nil {
+                clearSelection()
+            } else {
+                placeTextAnnotation(at: pagePoint, on: page)
+            }
             return
+        }
+
+        // Fora de modo texto: tap em qualquer lugar deseleciona
+        if selectedFreeTextOverlay != nil {
+            clearSelection()
         }
 
         if isHighlightMode {
@@ -838,6 +862,69 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
             annotation.contents = trimmed
             page.addAnnotation(annotation)
             self.viewModel.saveHighlights()
+        }
+        editor.onCancel = {
+            editor.removeFromSuperview()
+        }
+        pdfView.addSubview(editor)
+        editor.beginEditing()
+    }
+
+    // MARK: Selection / drag / resize / edit-mode-reentry (Goodnotes parity)
+
+    /// Activates the selection overlay for an existing freeText annotation.
+    /// Replaces previous selection if any. Subsequent taps outside deselect;
+    /// double-tap inside re-enters edit mode pre-loaded with current contents.
+    func activateSelection(for annotation: PDFAnnotation, on page: PDFPage, in pdfView: PDFView) {
+        clearSelection()
+        let overlay = PdfFreeTextSelectionOverlay(annotation: annotation, page: page, pdfView: pdfView)
+        overlay.onChange = { [weak self] in
+            self?.viewModel.saveHighlights()
+        }
+        overlay.onEditRequest = { [weak self, weak annotation, weak page] in
+            guard let self, let annotation, let page else { return }
+            self.reEditAnnotation(annotation, on: page)
+        }
+        overlay.onDelete = { [weak self, weak annotation, weak page] in
+            guard let self, let annotation, let page else { return }
+            page.removeAnnotation(annotation)
+            self.viewModel.saveHighlights()
+            self.clearSelection()
+        }
+        pdfView.addSubview(overlay)
+        selectedFreeTextOverlay = overlay
+    }
+
+    func clearSelection() {
+        selectedFreeTextOverlay?.removeFromSuperview()
+        selectedFreeTextOverlay = nil
+    }
+
+    /// Re-enter edit mode on an already-placed annotation. Drops a fresh
+    /// InlineTextEditor pre-loaded with current contents at the annotation
+    /// view-coords; on commit, updates contents + bounds and re-renders.
+    private func reEditAnnotation(_ annotation: PDFAnnotation, on page: PDFPage) {
+        guard let pdfView = self.pdfView else { return }
+        clearSelection()
+        let viewRect = pdfView.convert(annotation.bounds, from: page)
+        let editor = InlineTextEditor(frame: viewRect)
+        editor.preload(text: annotation.contents ?? "")
+        editor.onCommit = { [weak self, weak annotation, weak page] text in
+            editor.removeFromSuperview()
+            guard let self, let annotation, let page else { return }
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                page.removeAnnotation(annotation)
+                self.viewModel.saveHighlights()
+                return
+            }
+            // Mutate contents then force redraw via remove/add cycle (PDFKit limitation)
+            annotation.contents = trimmed
+            page.removeAnnotation(annotation)
+            page.addAnnotation(annotation)
+            self.viewModel.saveHighlights()
+            // Reactivate selection so user can drag again immediately
+            self.activateSelection(for: annotation, on: page, in: pdfView)
         }
         editor.onCancel = {
             editor.removeFromSuperview()
@@ -1107,6 +1194,12 @@ private final class InlineTextEditor: UIView, UITextViewDelegate {
 
     func beginEditing() {
         textView.becomeFirstResponder()
+    }
+
+    /// Pre-fill the editor with existing text (used on re-edit of placed annotation).
+    func preload(text: String) {
+        textView.text = text
+        textViewDidChange(textView)
     }
 
     @objc private func doneTapped() {

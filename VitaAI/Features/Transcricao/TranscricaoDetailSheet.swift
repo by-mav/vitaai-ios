@@ -264,16 +264,13 @@ struct TranscricaoDetailSheet: View {
         } message: {
             Text("Defina um nome mais fácil de encontrar depois.")
         }
-        .confirmationDialog(
-            "Excluir esta gravação?",
+        .vitaAlert(
             isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Excluir", role: .destructive) { Task { await performDelete() } }
-            Button("Cancelar", role: .cancel) { }
-        } message: {
-            Text("O áudio, a transcrição e os resumos gerados serão removidos. Não dá pra desfazer.")
-        }
+            title: "Excluir esta gravação?",
+            message: "O áudio, a transcrição e os resumos gerados serão removidos. Não dá pra desfazer.",
+            destructiveLabel: "Excluir",
+            onConfirm: { Task { await performDelete() } }
+        )
         .vitaBubble(isPresented: $showShareSheet, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Compartilhar")

@@ -122,16 +122,14 @@ struct TranscricaoRecorderArea: View {
                     .buttonStyle(.plain)
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
-                .confirmationDialog(
-                    "Descartar gravação?",
+                .vitaAlert(
                     isPresented: $showDiscardConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button("Descartar", role: .destructive) { onDiscard() }
-                    Button("Continuar gravando", role: .cancel) {}
-                } message: {
-                    Text("O áudio será deletado. Não dá pra desfazer.")
-                }
+                    title: "Descartar gravação?",
+                    message: "O áudio será deletado. Não dá pra desfazer.",
+                    destructiveLabel: "Descartar",
+                    cancelLabel: "Continuar gravando",
+                    onConfirm: { onDiscard() }
+                )
             }
 
             // 3 chips compactos lado a lado (Rafael 2026-04-24): Disciplina /
@@ -466,12 +464,12 @@ struct TranscricaoRecordingsListSection: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .vitaBubble(isPresented: $showFilterSheet, arrowEdge: .top) {
+                // vita-modals-ignore: TranscricaoFilterSheet é sheet com NavigationStack+searchable+List, NÃO cabe em VitaBubble
+                .sheet(isPresented: $showFilterSheet) {
                     TranscricaoFilterSheet(
                         disciplines: filterChips,
                         selected: $selectedFilter
                     )
-                    .frame(width: 280)
                 }
             }
             .padding(.horizontal, 16)

@@ -101,9 +101,34 @@ struct VitaSheet<Content: View>: View {
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // Top edge glow — linha de luz simulando "vidro premium" no topo do sheet.
+        // Sutil (gold 30% → 0%) e curta (90px) pra não invadir o conteúdo.
+        .overlay(alignment: .top) {
+            LinearGradient(
+                colors: [
+                    VitaColors.accent.opacity(0.32),
+                    VitaColors.accent.opacity(0.08),
+                    Color.clear
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 90)
+            .allowsHitTesting(false)
+            .ignoresSafeArea(edges: .top)
+        }
         .presentationDetents(detents)
         .presentationDragIndicator(.visible)
-        .presentationBackground(.ultraThinMaterial)
+        // Background custom: ultraThinMaterial + gold tint warm 6% — D4 vidro
+        // dourado, mais quente e menos austero que ultraThinMaterial puro.
+        .presentationBackground {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Rectangle().fill(VitaModalTokens.goldTint)
+            }
+            .ignoresSafeArea()
+        }
+        .presentationCornerRadius(28)
         .onAppear { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
     }
 }
@@ -171,75 +196,78 @@ struct VitaAlertModifier: ViewModifier {
     let cancelLabel: String
     let onConfirm: () -> Void
 
+    /// Usa `.fullScreenCover` (UIKit por baixo) em vez de `.overlay` —
+    /// garante que alert fica em janela acima de tudo, independente
+    /// de onde o modificador é chamado (sub-button, ScrollView, etc).
+    /// Background `.clear` faz a fullScreenCover virar transparente, e
+    /// a transition scale+opacity simula alert pop nativo.
     func body(content: Content) -> some View {
-        content.overlay {
-            if isPresented {
-                ZStack {
-                    Color.black.opacity(0.5)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(VitaModalTokens.openSpring) { isPresented = false }
-                        }
+        content.fullScreenCover(isPresented: $isPresented) {
+            ZStack {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        isPresented = false
+                    }
 
-                    VStack(spacing: 16) {
-                        VStack(spacing: 6) {
-                            Text(title)
-                                .font(VitaTypography.titleLarge)
-                                .foregroundStyle(VitaColors.textPrimary)
+                VStack(spacing: 16) {
+                    VStack(spacing: 6) {
+                        Text(title)
+                            .font(VitaTypography.titleLarge)
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .multilineTextAlignment(.center)
+                        if let message {
+                            Text(message)
+                                .font(VitaTypography.bodyMedium)
+                                .foregroundStyle(VitaColors.textSecondary)
                                 .multilineTextAlignment(.center)
-                            if let message {
-                                Text(message)
-                                    .font(VitaTypography.bodyMedium)
-                                    .foregroundStyle(VitaColors.textSecondary)
-                                    .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-
-                        HStack(spacing: 10) {
-                            Button {
-                                withAnimation(VitaModalTokens.openSpring) { isPresented = false }
-                            } label: {
-                                Text(cancelLabel)
-                                    .font(VitaTypography.titleSmall)
-                                    .foregroundStyle(VitaColors.textPrimary)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(.ultraThinMaterial)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-
-                            Button {
-                                UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                                withAnimation(VitaModalTokens.openSpring) { isPresented = false }
-                                onConfirm()
-                            } label: {
-                                Text(destructiveLabel)
-                                    .font(VitaTypography.titleSmall)
-                                    .foregroundStyle(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(Color.red.opacity(0.85))
-                                    )
-                            }
-                            .buttonStyle(.plain)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                    .padding(20)
-                    .background(VitaModalTokens.glassBackground())
-                    .shadow(color: VitaModalTokens.shadowColor, radius: VitaModalTokens.shadowRadius, y: VitaModalTokens.shadowY)
-                    .padding(.horizontal, 32)
-                    .transition(.scale(scale: 0.92).combined(with: .opacity))
+
+                    HStack(spacing: 10) {
+                        Button {
+                            isPresented = false
+                        } label: {
+                            Text(cancelLabel)
+                                .font(VitaTypography.titleSmall)
+                                .foregroundStyle(VitaColors.textPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(.ultraThinMaterial)
+                                )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                            isPresented = false
+                            onConfirm()
+                        } label: {
+                            Text(destructiveLabel)
+                                .font(VitaTypography.titleSmall)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color.red.opacity(0.85))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .animation(VitaModalTokens.openSpring, value: isPresented)
-                .onAppear { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
+                .padding(20)
+                .background(VitaModalTokens.glassBackground())
+                .shadow(color: VitaModalTokens.shadowColor, radius: VitaModalTokens.shadowRadius, y: VitaModalTokens.shadowY)
+                .padding(.horizontal, 32)
             }
+            .presentationBackground(.clear)
+            .onAppear { UIImpactFeedbackGenerator(style: .soft).impactOccurred() }
         }
+        .transaction { $0.disablesAnimations = true }
     }
 }
 
