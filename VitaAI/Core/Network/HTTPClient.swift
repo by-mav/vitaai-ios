@@ -256,6 +256,10 @@ actor HTTPClient {
         let _: EmptyResponse = try await request("DELETE", path: path, queryItems: queryItems)
     }
 
+    func delete(_ path: String, body: any Encodable) async throws {
+        let _: EmptyResponse = try await request("DELETE", path: path, body: body)
+    }
+
     /// Downloads raw binary data (e.g. PDF bytes) from the given path.
     func downloadRaw(_ path: String) async throws -> Data {
         guard let url = URL(string: AppConfig.apiBaseURL + "/" + path) else {

@@ -60,6 +60,11 @@ actor VitaAPI {
         let _: EmptyResponse = try await client.post("notifications", body: Body(ids: ids, markAll: markAll ? true : nil))
     }
 
+    func deleteNotifications(ids: [String]? = nil, deleteAllRead: Bool = false) async throws {
+        struct Body: Encodable { let ids: [String]?; let deleteAllRead: Bool? }
+        try await client.delete("notifications", body: Body(ids: ids, deleteAllRead: deleteAllRead ? true : nil))
+    }
+
     // MARK: - Universities
 
     func getUniversities(query: String? = nil) async throws -> UniversitiesResponse {

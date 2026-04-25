@@ -20,6 +20,10 @@ struct VitaNotifPopout: View {
         notifications.filter { !$0.read }.count
     }
 
+    private var readCount: Int {
+        notifications.filter { $0.read }.count
+    }
+
     private var hasMoreThanVisible: Bool {
         notifications.count > 5
     }
@@ -90,6 +94,15 @@ struct VitaNotifPopout: View {
                     .buttonStyle(.plain)
                 }
 
+                if readCount > 0 {
+                    Button(action: { clearAllRead() }) {
+                        Text("Limpar lidas")
+                            .font(VitaTypography.labelMedium)
+                            .foregroundStyle(VitaColors.dataRed.opacity(0.85))
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 Button(action: { dismiss(); onSettingsTap() }) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13, weight: .medium))
@@ -111,21 +124,20 @@ struct VitaNotifPopout: View {
             if notifications.isEmpty {
                 emptyState
             } else {
-                List {
-                    ForEach(notifications) { item in
-                        Button {
-                            tapNotification(item)
-                        } label: {
-                            notifRow(item)
+                ScrollView {
+                    LazyVStack(spacing: 3) {
+                        ForEach(notifications) { item in
+                            VitaCardRow(
+                                onTap: { tapNotification(item) },
+                                onSwipeLeft: { deleteNotification(item) }
+                            ) {
+                                notifRow(item)
+                            }
+                            .padding(.horizontal, 8)
                         }
-                        .buttonStyle(NotifButtonStyle())
-                        .listRowInsets(EdgeInsets(top: 1.5, leading: 8, bottom: 1.5, trailing: 8))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
                     }
+                    .padding(.vertical, 8)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
                 .scrollIndicators(.visible)
                 .frame(maxHeight: notifListHeight)
                 .refreshable { await refresh() }
@@ -160,18 +172,7 @@ struct VitaNotifPopout: View {
         return CGFloat(visibleCount) * rowHeight + 16
     }
 
-    // MARK: - Notification Row (tappable)
-
-    private func notifRowButton(_ item: VitaNotification) -> some View {
-        Button {
-            NSLog("[NotifPopout] TAP on: %@ route=%@", item.title, item.route ?? "nil")
-            tapNotification(item)
-        } label: {
-            notifRow(item)
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
-    }
+    // MARK: - Notification Row
 
     private func notifRow(_ item: VitaNotification) -> some View {
         HStack(alignment: .top, spacing: 12) {
@@ -297,12 +298,27 @@ struct VitaNotifPopout: View {
     }
 
     private func deleteNotification(_ item: VitaNotification) {
+        let updated = notifications.filter { $0.id != item.id }
         withAnimation(.easeOut(duration: 0.2)) {
-            notifications.removeAll { $0.id == item.id }
+            notifications = updated
         }
-        // Mark as read on backend (no delete endpoint yet)
+        pushManager.updateCachedNotifications(updated)
         Task {
-            try? await container.api.markNotificationsRead(ids: [item.id])
+            try? await container.api.deleteNotifications(ids: [item.id])
+            await pushManager.refreshUnreadCount()
+        }
+    }
+
+    private func clearAllRead() {
+        let updated = notifications.filter { !$0.read }
+        withAnimation(.easeOut(duration: 0.25)) {
+            notifications = updated
+        }
+        pushManager.updateCachedNotifications(updated)
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        Task {
+            try? await container.api.deleteNotifications(deleteAllRead: true)
+            await pushManager.refreshUnreadCount()
         }
     }
 
@@ -316,58 +332,3 @@ struct VitaNotifPopout: View {
     }
 }
 
-// MARK: - Notif Button Style (no flash, full hit area)
-
-private struct NotifButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.7 : 1.0)
-            .contentShape(Rectangle())
-    }
-}
-
-// MARK: - Swipe to Delete (notification-specific)
-
-private struct SwipeToDelete<Content: View>: View {
-    let onDelete: () -> Void
-    @ViewBuilder let content: Content
-
-    @State private var offset: CGFloat = 0
-    private let threshold: CGFloat = -70
-
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            HStack {
-                Spacer()
-                Image(systemName: "trash.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white)
-                    .frame(width: 56)
-            }
-            .background(VitaColors.dataRed.opacity(0.7))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .opacity(offset < -20 ? 1 : 0)
-
-            content
-                .offset(x: offset)
-                .gesture(
-                    DragGesture(minimumDistance: 15)
-                        .onChanged { value in
-                            if value.translation.width < 0 {
-                                offset = value.translation.width * 0.6
-                            }
-                        }
-                        .onEnded { _ in
-                            if offset < threshold {
-                                withAnimation(.easeOut(duration: 0.2)) { offset = -300 }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    onDelete()
-                                }
-                            } else {
-                                withAnimation(.spring(duration: 0.25)) { offset = 0 }
-                            }
-                        }
-                )
-        }
-    }
-}
