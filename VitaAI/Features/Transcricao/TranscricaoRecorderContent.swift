@@ -755,50 +755,39 @@ struct SwipeableCardRow<Content: View>: View {
     @State private var isDragging = false
     private let actionThreshold: CGFloat = 100
 
+    /// Ícone começa pequeno (32pt) e cresce até quase ocupar o card (~64pt)
+    /// conforme o offset chega no threshold. Sem stretch — só scale.
+    private var iconSize: CGFloat {
+        let progress = min(abs(offset) / actionThreshold, 1.0)
+        return 32 + progress * 32
+    }
+
     var body: some View {
         ZStack {
-            // Background actions (revealed as card slides)
-            HStack(spacing: 0) {
-                // Right action (shown when swiping RIGHT: card moves right, leading edge revealed)
+            // Background = SÓ o ícone Vita gigante centralizado, escala com o
+            // progresso do drag. Sem texto, sem cor de fundo. Rafael (2026-04-25):
+            // o card vira a imagem, ela cresce de pequena → grande conforme arrasta.
+            ZStack {
+                // Mantém o card dimension via clear (pra ZStack ter altura).
+                Color.clear
                 if offset > 0 {
-                    HStack(spacing: 8) {
-                        Image("icone-fav-vita")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 28, height: 28)
-                        Text("Favoritar")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 24)
-                    .opacity(min(offset / actionThreshold, 1.0))
-                }
-
-                Spacer()
-
-                // Left action (shown when swiping LEFT: card moves left, trailing edge revealed)
-                if offset < 0 {
-                    HStack(spacing: 8) {
-                        Text("Excluir")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                        Image("icone-del-vita")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 28, height: 28)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.trailing, 24)
-                    .opacity(min(abs(offset) / actionThreshold, 1.0))
+                    Image("icone-fav-vita")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: iconSize, height: iconSize)
+                        .opacity(min(offset / actionThreshold, 1.0))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 16)
+                } else if offset < 0 {
+                    Image("icone-del-vita")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: iconSize, height: iconSize)
+                        .opacity(min(abs(offset) / actionThreshold, 1.0))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing, 16)
                 }
             }
-            .background(
-                // Cor muda conforme direção
-                offset > 0
-                ? Color.yellow.opacity(0.55 * min(offset / actionThreshold, 1.0))
-                : Color.red.opacity(0.55 * min(abs(offset) / actionThreshold, 1.0))
-            )
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .animation(.easeOut(duration: 0.15), value: offset)
 
