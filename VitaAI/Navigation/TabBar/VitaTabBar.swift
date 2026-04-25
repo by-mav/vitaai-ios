@@ -129,13 +129,15 @@ struct VitaTabBar: View {
     @State private var vitaAwake: Bool = false
 
     private let barHeight: CGFloat = 54
-    private let vitaSize: CGFloat = 40
-    private let gap: CGFloat = 5
+    private let vitaSize: CGFloat = 58
+    private let gap: CGFloat = 5 // gap between button edge and arc
 
-    // Botão Vita centralizado na barra (sem elevação) — Rafael (2026-04-25):
-    // mesmo height/center vertical dos outros tab buttons pra simetria.
-    private var buttonCenterAboveTop: CGFloat { 0 }
-    private var arcRadius: CGFloat { 0 }
+    // How far above bar top the button center sits
+    private var buttonCenterAboveTop: CGFloat {
+        vitaSize * 0.35 - barHeight / 2 + vitaSize / 2
+        // = 20.3 - 27 + 29 = 22.3
+    }
+    private var arcRadius: CGFloat { vitaSize / 2 + gap }
 
     var body: some View {
         ZStack {
@@ -215,8 +217,10 @@ struct VitaTabBar: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: vitaSize, height: vitaSize)
-                    .scaleEffect(vitaAwake ? 1.06 : 1.0)
+                    .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
+                    .scaleEffect(vitaAwake ? 1.04 : 1.0)
             }
+            .offset(y: -(vitaSize * 0.35))
             .accessibilityIdentifier("tab_vita_chat")
             .accessibilityLabel("Abrir Vita Chat")
         }
