@@ -269,8 +269,18 @@ private struct TranscricaoContent: View {
                                 },
                                 onTap: { rec in selectedRecording = rec },
                                 onDelete: { rec in
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                     withAnimation {
                                         viewModel.removeRecordingLocally(id: rec.id)
+                                    }
+                                    Task {
+                                        do {
+                                            try await api.deleteStudioSource(id: rec.id)
+                                        } catch {
+                                            NSLog("[Transcricao] DELETE failed for %@: %@", rec.id, error.localizedDescription)
+                                            await MainActor.run { showToast("Falha ao apagar — recarregando") }
+                                            await viewModel.loadRecordings(force: true)
+                                        }
                                     }
                                 },
                                 onGenerate: { rec, type in
