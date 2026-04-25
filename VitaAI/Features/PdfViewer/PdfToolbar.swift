@@ -70,6 +70,7 @@ struct PdfToolbar: View {
     // ZONE-C callbacks (Agent C study-mode)
     var onToggleMasking: (() -> Void)? = nil
     var onToggleStudyMode: (() -> Void)? = nil
+    var onShowStudyStats: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -302,12 +303,17 @@ struct PdfToolbar: View {
             )
 
             // ZONE-C — Study Mode toggle (eye = revela conteúdo na hora; slash = cobre)
+            // Long-press abre stats sheet com accuracy + masks mais difíceis.
             toolButton(
                 icon: isStudyMode ? "eye.fill" : "eye.slash",
                 active: isStudyMode,
                 tint: VitaColors.accent,
-                label: isStudyMode ? "Sair do Study Mode" : "Study Mode — testa memória",
+                label: isStudyMode ? "Sair do Study Mode (segura: estatísticas)" : "Study Mode (segura: estatísticas)",
                 action: { onToggleStudyMode?() }
+            )
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.45)
+                    .onEnded { _ in onShowStudyStats?() }
             )
 
             // Flex spacer pushes the shell group to the right

@@ -46,6 +46,8 @@ struct PdfViewerScreen: View {
     @State private var showMaskingHint: Bool = false
     @State private var isStudyMode: Bool = false
     @State private var studyMaskPrompt: StudyMaskPrompt? = nil
+    @State private var showStudyStatsSheet: Bool = false
+    @State private var attemptFlash: AttemptFlash? = nil
     @AppStorage("pdf_show_mascot") private var showMascot: Bool = true
     @FocusState private var isSearchFocused: Bool
 
@@ -81,6 +83,18 @@ struct PdfViewerScreen: View {
                 .frame(width: pdfViewContainerFrame.width, height: pdfViewContainerFrame.height)
                 .position(x: pdfViewContainerFrame.midX, y: pdfViewContainerFrame.midY)
                 .transition(.opacity)
+            }
+
+            // Attempt flash overlay (verde acertei / vermelho errou) — bounce 600ms
+            if let flash = attemptFlash {
+                Image(systemName: flash.correct ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.system(size: 96, weight: .bold))
+                    .foregroundStyle(flash.correct ? Color.green : Color.red)
+                    .shadow(color: (flash.correct ? Color.green : Color.red).opacity(0.7), radius: 24)
+                    .scaleEffect(flash.scale)
+                    .opacity(flash.opacity)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
             }
 
             // Masking hint overlay (top-center, auto-hides after 2.5s)
@@ -224,6 +238,20 @@ struct PdfViewerScreen: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(.ultraThinMaterial)
         }
+        // Study Mode stats — long-press no botão Study Mode abre.
+        // vita-modals-ignore: PdfStudyStatsSheet já usa VitaSheet internamente — wrapper duplo causaria header duplicado
+        .sheet(isPresented: $showStudyStatsSheet) {
+            if let document = viewModel.document {
+                PdfStudyStatsSheet(
+                    document: document,
+                    fileHash: viewModel.fileHash,
+                    onJumpToPage: { idx in
+                        viewModel.currentPage = idx
+                        showStudyStatsSheet = false
+                    }
+                )
+            }
+        }
         // Study Mode prompt — usuário tocou numa mask, pergunta acertei/errei.
         // vita-modals-ignore: VitaSheet importado mas conteúdo é decisão binária compacta — uso .sheet com .height(220) pra ficar discreto perto do tap point
         .sheet(item: $studyMaskPrompt) { prompt in
@@ -332,7 +360,8 @@ struct PdfViewerScreen: View {
                     onShowOutline: { showOutlineSheet = true },
                     onShowSettings: { showSettingsSheet = true },
                     onToggleMasking: { toggleMaskingMode() },
-                    onToggleStudyMode: { toggleStudyMode() }
+                    onToggleStudyMode: { toggleStudyMode() },
+                    onShowStudyStats: { showStudyStatsSheet = true }
                 )
 
             // Multi-doc tab bar (Goodnotes-style). Hidden in fullscreen so the
@@ -801,6 +830,22 @@ struct PdfViewerScreen: View {
         PdfMaskAnnotation.hide(prompt.annotation, on: prompt.page)
         viewModel.saveHighlights()
         studyMaskPrompt = nil
+        // Flash bounce 600ms (verde acertei / vermelho errou)
+        UIImpactFeedbackGenerator(style: correct ? .light : .medium).impactOccurred()
+        attemptFlash = AttemptFlash(correct: correct, scale: 0.5, opacity: 0)
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.55)) {
+            attemptFlash?.scale = 1.0
+            attemptFlash?.opacity = 1.0
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            withAnimation(.easeOut(duration: 0.25)) {
+                attemptFlash?.opacity = 0
+                attemptFlash?.scale = 1.2
+            }
+            try? await Task.sleep(for: .milliseconds(280))
+            attemptFlash = nil
+        }
     }
 
     @ViewBuilder
@@ -1814,6 +1859,14 @@ private final class InlineTextEditor: UIView, UITextViewDelegate {
         }
         return true
     }
+}
+
+// MARK: - AttemptFlash — overlay animado pós tap-to-reveal
+
+struct AttemptFlash {
+    let correct: Bool
+    var scale: CGFloat
+    var opacity: Double
 }
 
 // MARK: - StudyMaskPrompt — payload do tap em mask em Study Mode
