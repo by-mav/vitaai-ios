@@ -666,8 +666,10 @@ struct TranscricaoRecordingsListSection: View {
     }
 
     /// Scroll horizontal de chips — Todas / ⭐ Favoritas / 📁 Pastas / + Nova.
-    /// Estilo Apple Notes: indicação visual qual está selecionada (gold fill),
-    /// outras ficam outlined. Tap troca filtro instantâneo (sem reload).
+    /// Padrão D4 carved: inactive = warm dark glass + gold border 22%; active =
+    /// gold accent 18% fill + gold border 45% + accentLight foreground (NÃO
+    /// gold opaco com texto preto). Alinhamento horizontal idêntico aos
+    /// cards/header (16pt) — primeiro chip alinha com edge das gravações.
     @ViewBuilder
     private var viewModeChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -692,25 +694,29 @@ struct TranscricaoRecordingsListSection: View {
                     ) { listView = .folder(id: folder.id) }
                 }
 
-                // CTA "Nova pasta" — sempre por último, abre alert TextField.
+                // CTA "Nova pasta" — mesmo shell visual dos chips inactive,
+                // mas com ícone "+" e label gold. Sem dash (consistente).
                 Button(action: onCreateFolder) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "plus.circle")
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
                             .font(.system(size: 11, weight: .semibold))
                         Text("Nova pasta")
                             .font(.system(size: 12, weight: .semibold))
+                            .lineLimit(1)
                     }
                     .foregroundStyle(VitaColors.accentLight)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                     .background(
-                        Capsule()
-                            .strokeBorder(VitaColors.accent.opacity(0.32), style: StrokeStyle(lineWidth: 0.8, dash: [3, 3]))
+                        Capsule().fill(VitaColors.accent.opacity(0.10))
+                    )
+                    .overlay(
+                        Capsule().strokeBorder(VitaColors.accent.opacity(0.30), lineWidth: 0.8)
                     )
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 2)
+            .padding(.horizontal, 16)
         }
         .padding(.bottom, 4)
     }
@@ -725,27 +731,49 @@ struct TranscricaoRecordingsListSection: View {
             UIImpactFeedbackGenerator(style: .soft).impactOccurred()
             withAnimation(.easeInOut(duration: 0.18)) { action() }
         }) {
-            HStack(spacing: 5) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                 Text(label)
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
             }
-            .foregroundStyle(isSelected ? Color.black : VitaColors.textWarm.opacity(0.85))
-            .padding(.horizontal, 11)
-            .padding(.vertical, 7)
-            .background(
-                Capsule().fill(
-                    isSelected ? VitaColors.accentLight : VitaColors.accent.opacity(0.10)
-                )
+            // Foreground: accentLight quando selecionado (não preto opaco),
+            // textWarm 0.65 quando inactive — sutil mas legível.
+            .foregroundStyle(
+                isSelected
+                    ? VitaColors.accentLight
+                    : VitaColors.textWarm.opacity(0.65)
             )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            // Background D4 carved: warm dark gradient base, com gold tint
+            // mais forte quando selected.
+            .background(
+                ZStack {
+                    Capsule().fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 30/255, green: 22/255, blue: 15/255).opacity(0.92),
+                                Color(red: 14/255, green: 10/255, blue: 7/255).opacity(0.92)
+                            ],
+                            startPoint: UnitPoint(x: 0.5, y: 0),
+                            endPoint: UnitPoint(x: 0.5, y: 1)
+                        )
+                    )
+                    if isSelected {
+                        Capsule().fill(VitaColors.accent.opacity(0.18))
+                    }
+                }
+            )
+            // Border: gold 22% inactive, gold 45% selected — D4 carved.
             .overlay(
                 Capsule().strokeBorder(
-                    isSelected ? Color.clear : VitaColors.accent.opacity(0.22),
-                    lineWidth: 0.6
+                    Color(red: 200/255, green: 160/255, blue: 80/255).opacity(isSelected ? 0.45 : 0.22),
+                    lineWidth: isSelected ? 1 : 0.8
                 )
             )
+            .shadow(color: .black.opacity(0.50), radius: 6, x: 0, y: 2)
         }
         .buttonStyle(.plain)
     }
