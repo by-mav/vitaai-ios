@@ -14,6 +14,8 @@ struct PdfViewerScreen: View {
 
     @Environment(\.appContainer) private var container
     @State private var viewModel = PdfViewerViewModel()
+    @State private var workspace = PdfWorkspaceState()
+    @State private var lastLoadedURL: URL? = nil
     @State private var showExportSheet: Bool = false
     @State private var exportedURL: URL? = nil
     @State private var searchDebounceTask: Task<Void, Never>? = nil
@@ -21,6 +23,7 @@ struct PdfViewerScreen: View {
     @State private var isFullscreen: Bool = false
     @State private var showPerguntaVita: Bool = false
     @State private var perguntaVitaImageData: Data? = nil
+    @State private var showFilePicker: Bool = false
     // Scan mode (Pergunte ao Vita)
     @State private var isScanMode: Bool = false
     @State private var scanSelection: CGRect? = nil   // in pdfViewContainer coords
@@ -78,20 +81,26 @@ struct PdfViewerScreen: View {
             }
         }
         .task {
-            // Prefer a human-friendly title from the caller (doc.title from Canvas)
-            // over the URL's last path component which is just "file".
-            if let initialTitle, !initialTitle.isEmpty {
-                viewModel.fileName = initialTitle
-            }
-            await viewModel.load(url: url, tokenStore: container.tokenStore)
-            if let initialTitle, !initialTitle.isEmpty {
-                viewModel.fileName = initialTitle   // load() overwrites fileName; restore
-            }
+            // Multi-doc workspace: open the URL passed by the router as a tab.
+            // If user already had other tabs from a previous session, they remain.
+            workspace.open(url: url, title: initialTitle)
+            await loadActiveTab()
             ScreenLoadContext.finish(for: "PdfViewer")
             VitaPostHogConfig.capture(event: "pdf_opened", properties: [
                 "page_count": viewModel.pageCount,
-                "loaded": viewModel.document != nil
+                "loaded": viewModel.document != nil,
+                "tab_count": workspace.openDocs.count,
             ])
+        }
+        .onChange(of: workspace.activeId) { _, _ in
+            Task { await loadActiveTab() }
+        }
+        // vita-modals-ignore: UIDocumentPickerViewController is a UIKit-presented native sheet — VitaSheet wraps SwiftUI content and would break the system picker
+        .sheet(isPresented: $showFilePicker) {
+            PdfTabDocumentPicker { pickedURL in
+                workspace.open(url: pickedURL)
+                showFilePicker = false
+            }
         }
         .trackScreen("PdfViewer")
         .onDisappear { viewModel.saveAllAnnotations() }
@@ -188,6 +197,39 @@ struct PdfViewerScreen: View {
                         Task { await viewModel.recognizeHandwriting(drawing: drawing) }
                     }
                 )
+
+            // Multi-doc tab bar (Goodnotes-style). Hidden in fullscreen so the
+            // PDF gets the whole screen.
+            if !isFullscreen {
+                PdfTabBar(
+                    openDocs: workspace.openDocs,
+                    activeId: workspace.activeId,
+                    onSelect: { id in
+                        viewModel.saveAllAnnotations()
+                        workspace.setActive(id)
+                    },
+                    onClose: { id in
+                        if id == workspace.activeId {
+                            viewModel.saveAllAnnotations()
+                        }
+                        let stillOpen = workspace.close(id: id)
+                        if !stillOpen {
+                            // Last tab closed → exit the viewer
+                            onBack()
+                        }
+                    },
+                    onAdd: { showFilePicker = true },
+                    onCloseOthers: { id in
+                        viewModel.saveAllAnnotations()
+                        workspace.closeOthers(keep: id)
+                    },
+                    onCloseAll: {
+                        viewModel.saveAllAnnotations()
+                        workspace.closeAll()
+                        onBack()
+                    }
+                )
+            }
 
             // Search bar slides in below top bar
             if viewModel.isSearching {
@@ -509,6 +551,24 @@ struct PdfViewerScreen: View {
             .padding(.vertical, 16)
         }
         .background(VitaColors.surfaceCard)
+    }
+
+    // MARK: - Multi-doc workspace
+
+    /// Loads the workspace's active tab into the viewModel. Called on initial
+    /// .task and on every workspace.activeId change. Saves annotations of the
+    /// previous tab before swapping (caller is responsible for that).
+    private func loadActiveTab() async {
+        guard let active = workspace.activeDoc else { return }
+        // Skip if we already have this URL loaded (initial .task races with the
+        // workspace.open() write that happens just above it).
+        if lastLoadedURL == active.url, viewModel.document != nil { return }
+        lastLoadedURL = active.url
+        viewModel.fileName = active.title
+        await viewModel.load(url: active.url, tokenStore: container.tokenStore)
+        // load() overwrites fileName from response headers — restore the
+        // human-friendly tab title.
+        viewModel.fileName = active.title
     }
 
     // MARK: - Export
