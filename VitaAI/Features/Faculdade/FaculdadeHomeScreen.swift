@@ -45,7 +45,7 @@ struct FaculdadeHomeScreen: View {
                 )
                 trabalhosMiniCard
                 documentosMiniCard
-                Spacer().frame(height: 100)
+                Spacer().frame(height: 120) // Tab bar clearance (Liquid Glass 2026-04-25)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)

@@ -243,9 +243,10 @@ struct MainTabView: View {
                                 NavControllerBackgroundClearer(pathCount: router.path.count)
                                     .frame(width: 0, height: 0)
                             }
-                            .safeAreaInset(edge: .bottom, spacing: 0) {
-                                Color.clear.frame(height: isImmersiveMode ? 0 : 80)
-                            }
+                            // Liquid Glass requer conteúdo PASSANDO por baixo
+                            // da TabBar — sem safeAreaInset cortando antes.
+                            // Cada ScrollView de tab usa .contentMargins(.bottom, 100,
+                            // for: .scrollContent) pra último item respirar acima do vidro.
                             .navigationDestination(for: Route.self) { route in
                                 routeDestination(for: route)
                             }
