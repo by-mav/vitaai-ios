@@ -330,7 +330,6 @@ struct MainTabView: View {
                 VitaMenuPopout(
                     userName: authManager.userName,
                     userImageURL: authManager.userImage.flatMap(URL.init(string:)),
-                    notificationCount: pushManager.unreadNotificationCount,
                     onProfile: { router.navigateFromMenu(to: .profile) },
                     onNotifications: { showMenuPopout = false; showNotifPopout = true },
                     onAgenda: { router.navigateFromMenu(to: .agenda) },
