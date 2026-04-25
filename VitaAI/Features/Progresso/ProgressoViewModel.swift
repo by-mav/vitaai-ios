@@ -43,10 +43,30 @@ final class ProgressoViewModel {
         leaderboard.first(where: { $0.isMe })
     }
 
+    /// Quando o último `load()` completou. Usado pra SWR — uma navegação
+    /// que volta dentro de `cacheTTL` segundos render instantâneo do cache
+    /// e revalida em background.
+    private var lastLoaded: Date?
+    private let cacheTTL: TimeInterval = 60
+
     init(api: VitaAPI) { self.api = api }
 
+    /// Carrega dados. Se `force == false` e já temos cache fresco
+    /// (`< cacheTTL`), no-op. Senão, refetch — `isLoading` só fica `true`
+    /// no primeiro fetch (com a UI vazia); revalidations subsequentes
+    /// rodam em background sem bloquear a tela.
+    func loadIfNeeded(force: Bool = false) async {
+        if !force,
+           let lastLoaded,
+           Date().timeIntervalSince(lastLoaded) < cacheTTL,
+           userProgress != nil {
+            return
+        }
+        await load()
+    }
+
     func load() async {
-        isLoading = true
+        if userProgress == nil { isLoading = true }
         error = nil
 
         var anySuccess = false
@@ -148,6 +168,8 @@ final class ProgressoViewModel {
 
         if !anySuccess {
             self.error = "Não foi possível carregar os dados de progresso."
+        } else {
+            lastLoaded = Date()
         }
         isLoading = false
     }

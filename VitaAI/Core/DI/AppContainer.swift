@@ -36,6 +36,15 @@ final class AppContainer: ObservableObject {
         DashboardViewModel(api: api, dataManager: dataManager)
     }()
 
+    // Mesma motivação do dashboardViewModel: ProgressoScreen tinha
+    // @State var vm que sumia ao trocar de tab — render do "Progresso"
+    // refazia 5 chamadas API em paralelo a cada retorno (3-5s de
+    // spinner). Singleton no container + SWR (60s TTL) no VM = retorno
+    // instantâneo com revalidate em background.
+    lazy var progressoViewModel: ProgressoViewModel = {
+        ProgressoViewModel(api: api)
+    }()
+
     // MARK: - Billing / Subscription
     let subscriptionStatus: SubscriptionStatusProvider
 

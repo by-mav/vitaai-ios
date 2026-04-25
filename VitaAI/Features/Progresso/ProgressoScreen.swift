@@ -15,51 +15,40 @@ struct ProgressoScreen: View {
     private let glassBg     = VitaColors.glassBg
     private let glassBorder = VitaColors.glassBorder
 
-    @State private var vm: ProgressoViewModel?
     @State private var selectedLeaderboardTab = 0
 
     var body: some View {
-        Group {
-            if let vm {
-                if vm.isLoading {
-                    ProgressView()
-                        .tint(goldMuted)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = vm.error {
-                    VStack(spacing: 12) {
-                        Image(systemName: "wifi.slash")
-                            .font(.system(size: 32))
-                            .foregroundStyle(textDim)
-                        Text(error)
-                            .font(.system(size: 13))
-                            .foregroundStyle(textSec)
-                            .multilineTextAlignment(.center)
-                        Button("Tentar novamente") {
-                            Task { await vm.load() }
-                        }
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(goldMuted)
+        let vm = container.progressoViewModel
+        return Group {
+            if vm.isLoading && vm.userProgress == nil {
+                VitaHeartbeatLoader(orbSize: 88)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = vm.error, vm.userProgress == nil {
+                VStack(spacing: 12) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 32))
+                        .foregroundStyle(textDim)
+                    Text(error)
+                        .font(.system(size: 13))
+                        .foregroundStyle(textSec)
+                        .multilineTextAlignment(.center)
+                    Button("Tentar novamente") {
+                        Task { await vm.load() }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    content(vm: vm)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(goldMuted)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ProgressView()
-                    .tint(goldMuted)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                content(vm: vm)
             }
         }
         .refreshable {
-            if let vm { await vm.load() }
+            await vm.load()
         }
         .task {
-            if vm == nil {
-                let viewModel = ProgressoViewModel(api: container.api)
-                vm = viewModel
-                await viewModel.load()
-                ScreenLoadContext.finish(for: "Progresso")
-            }
+            await vm.loadIfNeeded()
+            ScreenLoadContext.finish(for: "Progresso")
         }
         .trackScreen("Progresso")
     }
@@ -532,7 +521,7 @@ struct ProgressoScreen: View {
         Button {
             selectedLeaderboardTab = index
             let period = ["weekly", "monthly", "total"][index]
-            Task { await vm?.loadLeaderboard(period: period) }
+            Task { await container.progressoViewModel.loadLeaderboard(period: period) }
         } label: {
             Text(text)
                 .font(.system(size: 10, weight: .bold))
