@@ -327,6 +327,7 @@
 		F53094AF37BB3E9E9FE76CEA /* PdfViewerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 543196E867D0B232733BEA7D /* PdfViewerViewModel.swift */; };
 		F65ADD5040E49D99716358D7 /* GlassAuthButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4115858B2E1C1E3408712051 /* GlassAuthButton.swift */; };
 		F67C0AB8BFF4B0824843E223 /* RegisterPushTokenRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8A54B9484818C1A97D4814 /* RegisterPushTokenRequest.swift */; };
+		F8D55A720C7A943906FF2F00 /* MaterialFolderDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC79AAF200B3E4F78222C27 /* MaterialFolderDetailScreen.swift */; };
 		F8F274FB71DC9E5B7DEBD4DA /* ConnectorSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC47E9884B9D2670B72B460F /* ConnectorSyncView.swift */; };
 		FA6A48A92EB08C41F55D6766 /* TranscricaoControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4C53F34FC1FDE66D790775 /* TranscricaoControls.swift */; };
 		FACCA6465651D4C1C22EE0C0 /* VitaNotificationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC63CEAFB878B94BBCE32D8 /* VitaNotificationSheet.swift */; };
@@ -424,6 +425,7 @@
 		3ACA8EC2FB67189D143B7317 /* EditorToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorToolbar.swift; sourceTree = "<group>"; };
 		3B18EC14C18BD1A28685ADF2 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
 		3C615CE58F474E99F3FD2173 /* NotificationSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsScreen.swift; sourceTree = "<group>"; };
+		3CC79AAF200B3E4F78222C27 /* MaterialFolderDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialFolderDetailScreen.swift; sourceTree = "<group>"; };
 		3CCBA0525E7D5E4B0760C954 /* MindMapListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapListView.swift; sourceTree = "<group>"; };
 		3D3696D8E32D20A9D6C8D452 /* QBankConfigContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankConfigContent.swift; sourceTree = "<group>"; };
 		3EB85AABF35CB29900F8AADE /* StudyHeroStat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyHeroStat.swift; sourceTree = "<group>"; };
@@ -1010,6 +1012,7 @@
 				E67C060A6E04ED857CE4F994 /* Faculdade */,
 				0A6939BD78E1E5614389BFEE /* Flashcard */,
 				D747BCF48E4301FD6A2F762C /* Insights */,
+				A35AE1F82208A77D5AFA72A4 /* MaterialFolder */,
 				8480059B86D8BBA2329F28AC /* MindMap */,
 				C809B6BD191B546298E1EB9A /* Notes */,
 				519CBD15C4F8C3F8DE74593E /* Onboarding */,
@@ -1240,6 +1243,14 @@
 				8C749E050E8D8D8822CB816D /* AppConfig.swift */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		A35AE1F82208A77D5AFA72A4 /* MaterialFolder */ = {
+			isa = PBXGroup;
+			children = (
+				3CC79AAF200B3E4F78222C27 /* MaterialFolderDetailScreen.swift */,
+			);
+			path = MaterialFolder;
 			sourceTree = "<group>";
 		};
 		A703595B5D4A7F62B23BD051 /* Agenda */ = {
@@ -1756,6 +1767,7 @@
 				2140848C8036F14D7D28F581 /* LocalModels.swift in Sources */,
 				CA8C4DBCF2E36CED72C5C8EB /* LoginScreen.swift in Sources */,
 				38AACF18344AF1B31B41ACE7 /* MannesoftCookieStore.swift in Sources */,
+				F8D55A720C7A943906FF2F00 /* MaterialFolderDetailScreen.swift in Sources */,
 				17BD47736975DDDD32593F6C /* MaterialFolderModels.swift in Sources */,
 				7CBE85EFAC4C9CD96971BE4B /* MateriasAgendaWidget.swift in Sources */,
 				1C7533B53F1EF40CDEB93062 /* MindMapCanvasView.swift in Sources */,
