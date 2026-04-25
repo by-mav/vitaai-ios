@@ -168,68 +168,47 @@ struct VitaPaywallScreen: View {
     @State private var selectedFeature: PaywallFeature? = nil
 
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
+        // Use the canonical VitaAmbientBackground wrapper so the paywall
+        // matches the rest of the app (4 layers: dark base + nebula image +
+        // center warm glow + 3 corner gold glows). The hand-rolled background
+        // here was missing layers 2 and 3 — that's the inconsistency Rafael saw.
+        VitaAmbientBackground {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    header
+                        .padding(.top, 12)
+                        .opacity(headerVisible ? 1 : 0)
+                        .offset(y: headerVisible ? 0 : -8)
 
-            ZStack {
-                // Same background as VitaAmbientBackground
-                VitaColors.surface.ignoresSafeArea()
-                Image("fundo-dashboard")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: w, height: h)
-                    .clipped()
-                    .overlay(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.20),
-                                Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.35),
-                                Color(red: 6/255, green: 4/255, blue: 4/255).opacity(0.30)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .ignoresSafeArea()
-
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        header
-                            .padding(.top, 12)
-                            .opacity(headerVisible ? 1 : 0)
-                            .offset(y: headerVisible ? 0 : -8)
-
-                        VStack(spacing: 8) {
-                            ForEach(PlanTier.allCases) { tier in
-                                PlanRow(
-                                    tier: tier,
-                                    isSelected: selectedTier == tier,
-                                    product: product(for: tier),
-                                    onTap: { select(tier) }
-                                )
-                            }
+                    VStack(spacing: 8) {
+                        ForEach(PlanTier.allCases) { tier in
+                            PlanRow(
+                                tier: tier,
+                                isSelected: selectedTier == tier,
+                                product: product(for: tier),
+                                onTap: { select(tier) }
+                            )
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
-                        .opacity(cardsVisible ? 1 : 0)
-                        .offset(y: cardsVisible ? 0 : 14)
-
-                        featuresSection
-                            .padding(.horizontal, 20)
-                            .padding(.top, 24)
-
-                        errorBanner
-
-                        inlineCTA
-                            .padding(.horizontal, 20)
-                            .padding(.top, 24)
-
-                        legalLinks
-                            .padding(.top, 12)
-
-                        Spacer().frame(height: 32)
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .opacity(cardsVisible ? 1 : 0)
+                    .offset(y: cardsVisible ? 0 : 14)
+
+                    featuresSection
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
+
+                    errorBanner
+
+                    inlineCTA
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
+
+                    legalLinks
+                        .padding(.top, 12)
+
+                    Spacer().frame(height: 32)
                 }
             }
         }
@@ -525,13 +504,11 @@ private struct PlanRow: View {
         .padding(.vertical, 14)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(isSelected ? 0.10 : 0.06))
-        )
+        .glassCard(cornerRadius: 18)
         .overlay(
+            // Selection highlight ring on top of D4 stroke (subtle when not selected).
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isSelected ? VitaColors.accent : Color.white.opacity(0.12), lineWidth: isSelected ? 1.5 : 1)
+                .stroke(isSelected ? VitaColors.accent : Color.clear, lineWidth: 1.5)
         )
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
@@ -602,14 +579,7 @@ private struct FeaturePopout: View {
                 }
             }
             .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color(red: 0.08, green: 0.06, blue: 0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(gold.opacity(0.15), lineWidth: 1)
-                    )
-            )
+            .glassCard(cornerRadius: 24)
             .padding(.horizontal, 24)
         }
     }
