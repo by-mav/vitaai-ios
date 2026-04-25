@@ -139,6 +139,7 @@ struct ConfiguracoesScreen: View {
         .background(Color.clear)
         .onAppear { SentrySDK.reportFullyDisplayed() }
         .trackScreen("Configuracoes")
+        // vita-modals-ignore: SwiftUI .alert nativo é necessário aqui — TextField input ("Digite DELETAR") não cabe no VitaAlert (2 botões fixos)
         .alert("Excluir conta permanentemente", isPresented: $showDeleteAlert) {
             TextField("Digite DELETAR", text: $deleteConfirmInput)
                 .textInputAutocapitalization(.characters)
@@ -153,6 +154,7 @@ struct ConfiguracoesScreen: View {
         } message: {
             Text("Isto apaga PERMANENTEMENTE sua conta, notas, flashcards, conexoes de portal, assinaturas e todo historico. Acao IRREVERSIVEL. Digite DELETAR para confirmar.")
         }
+        // vita-modals-ignore: SwiftUI .alert nativo (mensagem dinâmica, OK only) — VitaAlert é destrutivo 2 botões
         .alert("Erro ao excluir", isPresented: .init(
             get: { deleteErrorMessage != nil },
             set: { if !$0 { deleteErrorMessage = nil } }

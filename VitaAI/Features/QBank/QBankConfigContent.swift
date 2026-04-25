@@ -134,9 +134,9 @@ struct QBankConfigContent: View {
         }
         .background(Color.clear)
         .sheet(isPresented: $showInstitutionSheet) {
-            QBankInstitutionSheet(vm: vm)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+            VitaSheet(title: "Instituição") {
+                QBankInstitutionSheet(vm: vm)
+            }
         }
     }
 

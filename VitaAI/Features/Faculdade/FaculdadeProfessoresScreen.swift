@@ -94,8 +94,10 @@ struct FaculdadeProfessoresScreen: View {
         .refreshable { await appData.forceRefresh() }
         .onAppear { SentrySDK.reportFullyDisplayed() }
         .sheet(isPresented: $showProfessorSheet) {
-            if let subjectId = selectedSubjectId {
-                ProfessorProfileSheet(subjectId: subjectId)
+            VitaSheet {
+                if let subjectId = selectedSubjectId {
+                    ProfessorProfileSheet(subjectId: subjectId)
+                }
             }
         }
         .trackScreen("FaculdadeProfessores")

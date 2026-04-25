@@ -15,6 +15,7 @@ struct EmailAuthSheet: View {
     }
 
     var body: some View {
+        VitaSheet {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 sheetHeader
@@ -66,10 +67,8 @@ struct EmailAuthSheet: View {
         .animation(.easeInOut(duration: 0.25), value: viewModel.showForgot)
  // scrollBounceBehavior iOS 16.4+
         .background(VitaColors.surfaceElevated.ignoresSafeArea())
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .background(VitaColors.surfaceElevated)
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        }
     }
 
     // MARK: - Header
@@ -380,6 +379,7 @@ private struct ForgotContent: View {
 #Preview("EmailAuthSheet") {
     Color.black
         .ignoresSafeArea()
+        // vita-modals-ignore: preview harness, not production UI
         .sheet(isPresented: .constant(true)) {
             let store = TokenStore()
             let manager = AuthManager(tokenStore: store)

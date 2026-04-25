@@ -192,6 +192,7 @@ struct ManualUniversitySheet: View {
     var onSubmit: (String, String, String) -> Void
 
     var body: some View {
+        VitaSheet(detents: [.medium]) {
         NavigationStack {
             VStack(spacing: 16) {
                 Text(String(localized: "onboarding_add_uni_title"))
@@ -232,9 +233,7 @@ struct ManualUniversitySheet: View {
             }
             .background(VitaColors.surface.ignoresSafeArea())
         }
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-        .background(VitaColors.surface)
+        }
     }
 
     private func onboardingTextField(_ placeholder: String, text: Binding<String>) -> some View {

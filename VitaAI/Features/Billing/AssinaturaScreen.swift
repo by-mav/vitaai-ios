@@ -47,7 +47,9 @@ struct AssinaturaScreen: View {
         }
         .background(VitaColors.surface.ignoresSafeArea())
         .sheet(isPresented: $showPaywall) {
-            VitaPaywallScreen(onDismiss: { showPaywall = false })
+            VitaSheet {
+                VitaPaywallScreen(onDismiss: { showPaywall = false })
+            }
         }
         .onAppear { SentrySDK.reportFullyDisplayed() }
         .trackScreen("Assinatura")

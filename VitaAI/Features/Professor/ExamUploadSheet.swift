@@ -41,16 +41,9 @@ struct ExamUploadSheet: View {
     }
 
     var body: some View {
-        ZStack {
-            VitaColors.surface.ignoresSafeArea()
-
+        // vita-modals-ignore: camera/document sub-sheets are system UI
+        VitaSheet(detents: [.medium]) {
             VStack(spacing: 24) {
-                // Drag indicator
-                Capsule()
-                    .fill(textDim)
-                    .frame(width: 36, height: 4)
-                    .padding(.top, 12)
-
                 switch phase {
                 case .picking:
                     pickingView
@@ -67,8 +60,6 @@ struct ExamUploadSheet: View {
                 Spacer()
             }
         }
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
         .sheet(isPresented: $showCamera) {
             CameraPickerView { image in
                 selectedImage = image
@@ -77,6 +68,7 @@ struct ExamUploadSheet: View {
                 phase = .preview
             }
         }
+        // vita-modals-ignore: UIKit document picker delegation
         .sheet(isPresented: $showDocumentPicker) {
             DocumentPickerView(
                 allowedTypes: [UTType.pdf, UTType.jpeg, UTType.png]

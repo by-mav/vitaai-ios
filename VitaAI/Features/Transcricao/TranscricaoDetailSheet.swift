@@ -116,9 +116,7 @@ struct TranscricaoDetailSheet: View {
     }
 
     var body: some View {
-        ZStack {
-            Color(red: 0.04, green: 0.03, blue: 0.02).ignoresSafeArea()
-
+        VitaSheet {
             VStack(spacing: 0) {
                 // Header
                 headerView
@@ -146,9 +144,6 @@ struct TranscricaoDetailSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(.ultraThinMaterial)
         .task {
             await loadData()
             await pollUntilReady()
@@ -279,17 +274,21 @@ struct TranscricaoDetailSheet: View {
             Text("O áudio, a transcrição e os resumos gerados serão removidos. Não dá pra desfazer.")
         }
         .sheet(isPresented: $showShareSheet) {
-            TranscricaoShareSheet(items: shareItems)
+            VitaSheet(title: "Compartilhar") {
+                TranscricaoShareSheet(items: shareItems)
+            }
         }
         .sheet(isPresented: $showMoveSheet) {
-            TranscricaoMovePickerSheet(
-                currentSlug: currentDisciplineSlug,
-                currentFolderId: currentFolderId,
-                onPick: { folderId, slug in
-                    showMoveSheet = false
-                    Task { await moveToTarget(folderId: folderId, slug: slug) }
-                }
-            )
+            VitaSheet(title: "Mover para") {
+                TranscricaoMovePickerSheet(
+                    currentSlug: currentDisciplineSlug,
+                    currentFolderId: currentFolderId,
+                    onPick: { folderId, slug in
+                        showMoveSheet = false
+                        Task { await moveToTarget(folderId: folderId, slug: slug) }
+                    }
+                )
+            }
         }
         .overlay(alignment: .bottom) {
             if let err = actionError {

@@ -4,6 +4,7 @@ import SwiftUI
 /// same backend contract (`/api/whatsapp/link` + `/api/whatsapp/verify`) as
 /// the Connections screen, but keeps the sheet self-contained so the onboarding
 /// doesn't depend on ConnectorsViewModel.
+// vita-modals-ignore: onboarding-multistep — 3-step WhatsApp link flow (phone→code→success)
 struct OnboardingWhatsAppLinkSheet: View {
     @Binding var phone: String
     @Binding var code: String

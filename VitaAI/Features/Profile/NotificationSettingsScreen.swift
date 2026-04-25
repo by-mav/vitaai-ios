@@ -181,26 +181,25 @@ struct NotificationSettingsScreen: View {
             }
         }
         .sheet(item: $timePickerTarget) { target in
-            TimePickerSheet(
-                title: target.label,
-                hour: $pickerHour,
-                minute: $pickerMinute,
-                onConfirm: {
-                    let formatted = String(format: "%02d:%02d", pickerHour, pickerMinute)
-                    switch target {
-                    case .study:
-                        studyTime = formatted
-                        syncToBackend()
-                    case .quietStart: quietStart = formatted
-                    case .quietEnd:   quietEnd   = formatted
-                    }
-                    timePickerTarget = nil
-                },
-                onCancel: { timePickerTarget = nil }
-            )
-            .presentationDetents([.height(320)])
-            .presentationDragIndicator(.visible)
-            .background(VitaColors.surfaceCard)
+            VitaSheet(title: target.label, detents: [.height(320)]) {
+                TimePickerSheet(
+                    title: target.label,
+                    hour: $pickerHour,
+                    minute: $pickerMinute,
+                    onConfirm: {
+                        let formatted = String(format: "%02d:%02d", pickerHour, pickerMinute)
+                        switch target {
+                        case .study:
+                            studyTime = formatted
+                            syncToBackend()
+                        case .quietStart: quietStart = formatted
+                        case .quietEnd:   quietEnd   = formatted
+                        }
+                        timePickerTarget = nil
+                    },
+                    onCancel: { timePickerTarget = nil }
+                )
+            }
         }
         .task {
             await checkSystemPermission()

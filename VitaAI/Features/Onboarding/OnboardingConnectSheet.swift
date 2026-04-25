@@ -134,6 +134,7 @@ struct InlinePortalWebView: View {
 
 /// Clean connect sheet for onboarding — shows portal login inline
 /// Never takes the user out of Vita's context
+// vita-modals-ignore: onboarding-multistep — complex portal login flow with NavigationStack+WebView
 struct OnboardingConnectSheet: View {
     let portalType: String
     let university: University?

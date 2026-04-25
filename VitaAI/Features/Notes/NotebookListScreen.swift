@@ -118,14 +118,14 @@ struct NotebookListScreen: View {
                 SentrySDK.reportFullyDisplayed()
             }
             .sheet(isPresented: $viewModel.showCreateDialog) {
-                CreateNotebookSheet(
-                    onDismiss: viewModel.hideCreate,
-                    onCreate: { title, color in
-                        Task { await viewModel.createNotebook(title: title, coverColor: color) }
-                    }
-                )
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+                VitaSheet(title: "Novo Caderno") {
+                    CreateNotebookSheet(
+                        onDismiss: viewModel.hideCreate,
+                        onCreate: { title, color in
+                            Task { await viewModel.createNotebook(title: title, coverColor: color) }
+                        }
+                    )
+                }
             }
         }
         .trackScreen("NotebookList")

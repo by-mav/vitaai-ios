@@ -96,10 +96,9 @@ struct ConnectionsScreen: View {
         }
         // Status sheet for connected portals
         .sheet(item: $activeSheet) { sheetId in
-            sheetContent(for: sheetId)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .background(Color(red: 0.047, green: 0.035, blue: 0.027))
+            VitaSheet {
+                sheetContent(for: sheetId)
+            }
         }
         // WebAluno login — full-page navigationDestination (inside shell)
         .navigationDestination(isPresented: $showWebalunoWebView) {
@@ -123,11 +122,11 @@ struct ConnectionsScreen: View {
             canvasWebViewFullScreen
         }
         // WhatsApp linking sheet
+        // WhatsApp linking sheet
         .sheet(isPresented: $showWhatsAppSheet) {
-            whatsAppLinkSheet
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .background(Color(red: 0.047, green: 0.035, blue: 0.027))
+            VitaSheet(title: "Vincular WhatsApp") {
+                whatsAppLinkSheet
+            }
         }
         // Sync overlay (shared for both Canvas and WebAluno)
         .overlay {

@@ -88,15 +88,16 @@ struct DisciplineDetailScreen: View {
         }
         .trackScreen("DisciplineDetail", extra: ["subject_id": disciplineId])
         .sheet(isPresented: $showProfessorSheet) {
-            ProfessorProfileSheet(subjectId: disciplineId)
+            VitaSheet {
+                ProfessorProfileSheet(subjectId: disciplineId)
+            }
         }
         .sheet(isPresented: $showColorPicker) {
-            SubjectColorPicker(subjectName: disciplineName) { _ in
-                colorRefreshTrigger = UUID()
+            VitaSheet(detents: [.height(320)]) {
+                SubjectColorPicker(subjectName: disciplineName) { _ in
+                    colorRefreshTrigger = UUID()
+                }
             }
-            .presentationDetents([.height(320)])
-            .presentationBackground(VitaColors.surfaceCard)
-            .presentationDragIndicator(.hidden)
         }
     }
 

@@ -65,6 +65,7 @@ struct SimuladoSessionScreen: View {
                 .onChange(of: vm.state.timedMode) { timed in
                     if timed && remainingSeconds <= 0 { vm.finishSimulado() }
                 }
+                // vita-modals-ignore: gridSheet/explanationSheet already wrap VitaSheet internally
                 .sheet(isPresented: $showGrid) { gridSheet(vm: vm) }
                 .sheet(isPresented: $showExplanationSheet) { explanationSheet(vm: vm) }
                 .alert("Finalizar?", isPresented: $showFinishDialog) {
@@ -370,11 +371,8 @@ struct SimuladoSessionScreen: View {
 
     @ViewBuilder
     private func gridSheet(vm: SimuladoViewModel) -> some View {
+        VitaSheet(title: "Questões") {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Questões")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(VitaColors.textPrimary)
-                .padding(.top, 20)
 
             LazyVGrid(columns: Array(repeating: .init(.flexible(), spacing: 10), count: 6), spacing: 10) {
                 ForEach(Array(vm.state.questions.enumerated()), id: \.offset) { idx, q in
@@ -403,20 +401,16 @@ struct SimuladoSessionScreen: View {
             }, variant: .secondary)
         }
         .padding(20)
-        .background(quizBg)
-        .presentationDetents([.medium, .large])
+        }
     }
 
     // MARK: - Explanation Sheet
 
     @ViewBuilder
     private func explanationSheet(vm: SimuladoViewModel) -> some View {
+        VitaSheet(title: "Explicação") {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Explicação")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .padding(.top, 20)
 
                 if vm.state.isLoadingExplanation {
                     HStack { Spacer(); ProgressView().tint(quizGold); Spacer() }
@@ -456,9 +450,8 @@ struct SimuladoSessionScreen: View {
             }
             .padding(.horizontal, 20)
         }
-        .background(quizBg)
+        }
         .onDisappear { vm.dismissExplanation() }
-        .presentationDetents([.medium, .large])
     }
 
     // MARK: - Timer

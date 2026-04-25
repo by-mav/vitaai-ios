@@ -51,9 +51,8 @@ struct TranscricaoDisciplinePicker: View {
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.5 : 1)
-        .popover(isPresented: $isOpen, attachmentAnchor: .point(.bottom), arrowEdge: .top) {
+        .vitaBubble(isPresented: $isOpen, arrowEdge: .top) {
             pickerMenu
-                .presentationCompactAdaptation(.popover)
         }
     }
 

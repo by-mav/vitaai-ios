@@ -23,6 +23,7 @@ struct VitaMenuPopout: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             // Tap-outside dismiss scrim
+            // vita-modals-ignore: scrim transparente p/ tap-outside (dismiss handler), não overlay visual
             Color.black.opacity(0.001)
                 .ignoresSafeArea()
                 .onTapGesture { dismiss() }
@@ -38,14 +39,15 @@ struct VitaMenuPopout: View {
                 isVisible = true
             }
         }
-        .alert("Sair da conta?", isPresented: $showLogoutConfirm) {
-            Button("Cancelar", role: .cancel) {}
-            Button("Sair", role: .destructive) {
-                dismiss()
-                onLogout()
-            }
-        } message: {
-            Text("Você será desconectado do VitaAI.")
+        .vitaAlert(
+            isPresented: $showLogoutConfirm,
+            title: "Sair da conta?",
+            message: "Você será desconectado do VitaAI.",
+            destructiveLabel: "Sair",
+            cancelLabel: "Cancelar"
+        ) {
+            dismiss()
+            onLogout()
         }
     }
 

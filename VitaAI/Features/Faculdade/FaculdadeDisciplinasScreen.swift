@@ -58,15 +58,14 @@ struct FaculdadeDisciplinasScreen: View {
         .onAppear { SentrySDK.reportFullyDisplayed() }
         .trackScreen("FaculdadeDisciplinas")
         .sheet(item: $renameTarget) { target in
-            RenameSubjectSheet(
-                subjectId: target.id,
-                currentName: target.currentName,
-                initialDisplayName: appData.enrolledDisciplines
-                    .first(where: { $0.id == target.id })?.displayName
-            )
-            .presentationDetents([.height(260)])
-            .presentationBackground(.ultraThinMaterial)
-            .presentationCornerRadius(28)
+            VitaSheet(detents: [.height(260)]) {
+                RenameSubjectSheet(
+                    subjectId: target.id,
+                    currentName: target.currentName,
+                    initialDisplayName: appData.enrolledDisciplines
+                        .first(where: { $0.id == target.id })?.displayName
+                )
+            }
         }
     }
 

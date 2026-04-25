@@ -224,10 +224,9 @@ struct VitaPaywallScreen: View {
             }
         }
         .sheet(item: $selectedFeature) { feat in
-            FeatureDetailSheet(feature: feat) { selectedFeature = nil }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(.ultraThinMaterial)
+            VitaSheet {
+                FeatureDetailSheet(feature: feat) { selectedFeature = nil }
+            }
         }
     }
 

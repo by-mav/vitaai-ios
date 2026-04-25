@@ -103,52 +103,50 @@ struct AtlasSceneScreen: View {
         .task { await loadLookupIfNeeded() }
         .onAppear { refreshCachedLayers() }
         .sheet(isPresented: $showSearch) {
-            AtlasSearchSheet(
-                lookup: lookup,
-                currentLayer: currentLayer,
-                onPick: { info in
-                    showSearch = false
-                    selectedMesh = info
-                    hasTappedAnyMesh = true
-                    VitaPostHogConfig.capture(event: "atlas_search_picked", properties: [
-                        "layer": currentLayer.rawValue,
-                        "structure": info.pt,
-                    ])
-                }
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(.ultraThinMaterial)
+            VitaSheet(detents: [.large]) {
+                AtlasSearchSheet(
+                    lookup: lookup,
+                    currentLayer: currentLayer,
+                    onPick: { info in
+                        showSearch = false
+                        selectedMesh = info
+                        hasTappedAnyMesh = true
+                        VitaPostHogConfig.capture(event: "atlas_search_picked", properties: [
+                            "layer": currentLayer.rawValue,
+                            "structure": info.pt,
+                        ])
+                    }
+                )
+            }
         }
         .sheet(item: $selectedMesh) { info in
-            MeshDetailSheet(
-                info: info,
-                onAskVita: {
-                    VitaPostHogConfig.capture(event: "atlas_ask_vita", properties: [
-                        "layer": currentLayer.rawValue,
-                        "structure": info.pt,
-                        "system": info.system,
-                    ])
-                    selectedMesh = nil
-                    let prompt = buildAskVitaPrompt(info)
-                    onAskVita?(prompt)
-                },
-                onHide: {
-                    let toHide = Set(lastTappedCandidates)
-                    hiddenMeshes.formUnion(toHide)
-                    VitaPostHogConfig.capture(event: "atlas_mesh_hidden", properties: [
-                        "layer": currentLayer.rawValue,
-                        "structure": info.pt,
-                        "hidden_total": hiddenMeshes.count,
-                    ])
-                    selectedMesh = nil
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                },
-                onClose: { selectedMesh = nil }
-            )
-            .presentationDetents([.fraction(0.35), .medium])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(.ultraThinMaterial)
+            VitaSheet(detents: [.fraction(0.35), .medium]) {
+                MeshDetailSheet(
+                    info: info,
+                    onAskVita: {
+                        VitaPostHogConfig.capture(event: "atlas_ask_vita", properties: [
+                            "layer": currentLayer.rawValue,
+                            "structure": info.pt,
+                            "system": info.system,
+                        ])
+                        selectedMesh = nil
+                        let prompt = buildAskVitaPrompt(info)
+                        onAskVita?(prompt)
+                    },
+                    onHide: {
+                        let toHide = Set(lastTappedCandidates)
+                        hiddenMeshes.formUnion(toHide)
+                        VitaPostHogConfig.capture(event: "atlas_mesh_hidden", properties: [
+                            "layer": currentLayer.rawValue,
+                            "structure": info.pt,
+                            "hidden_total": hiddenMeshes.count,
+                        ])
+                        selectedMesh = nil
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    },
+                    onClose: { selectedMesh = nil }
+                )
+            }
         }
         .trackScreen("Atlas3D")
     }

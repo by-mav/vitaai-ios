@@ -103,20 +103,21 @@ struct PdfViewerScreen: View {
         .persistentSystemOverlays(isFullscreen ? .hidden : .automatic)
         .ignoresSafeArea(isFullscreen ? .all : [])
         .preference(key: ImmersivePreferenceKey.self, value: isFullscreen)
-        // vita-modals-ignore: legacy sheets aguardando migração da UI session (commit 8eb51a0 dona do VitaModals)
+        // vita-modals-ignore: ShareSheet (UIActivityViewController) é UIKit wrapper, não SwiftUI content — VitaSheet quebra a apresentação nativa do share dialog
         .sheet(isPresented: $showExportSheet) {
             if let exportedURL {
                 ShareSheet(items: [exportedURL])
                     .presentationDetents([.medium, .large])
             }
         }
-        // vita-modals-ignore: idem acima
         .sheet(isPresented: $viewModel.showRecognitionResult) {
-            recognitionResultSheet
+            VitaSheet(title: "Texto reconhecido", detents: [.medium, .large]) {
+                recognitionResultSheet
+            }
         }
         // Pergunte ao Vita chat opens as a sheet (not fullScreenCover) so the
         // PDF stays visible underneath — user can cross-reference while chatting.
-        // vita-modals-ignore: idem acima
+        // vita-modals-ignore: VitaChatScreen é tela completa autocontida (próprio header, fundo, scroll) — VitaSheet duplicaria header e quebra layout interno do chat
         .sheet(isPresented: $showPerguntaVita) {
             VitaChatScreen(
                 onClose: { showPerguntaVita = false },
@@ -508,8 +509,6 @@ struct PdfViewerScreen: View {
             .padding(.vertical, 16)
         }
         .background(VitaColors.surfaceCard)
-        .presentationDetents([.medium, .large])
-        .presentationBackground(.ultraThinMaterial)
     }
 
     // MARK: - Export

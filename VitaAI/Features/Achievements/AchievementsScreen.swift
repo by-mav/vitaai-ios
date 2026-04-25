@@ -83,9 +83,9 @@ private struct AchievementsContent: View {
             get: { vm.selectedBadge },
             set: { vm.selectedBadge = $0 }
         )) { badge in
-            AchievementDetailSheet(badge: badge)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+            VitaSheet {
+                AchievementDetailSheet(badge: badge)
+            }
         }
     }
 }
@@ -342,7 +342,8 @@ private struct AchievementDetailSheet: View {
     let badge: AchievementBadge
 
     var body: some View {
-        VStack(spacing: 20) {
+        VitaSheet {
+            VStack(spacing: 20) {
             // Badge icon large
             ZStack {
                 Circle()
@@ -413,6 +414,6 @@ private struct AchievementDetailSheet: View {
 
             Spacer()
         }
-        .frame(maxWidth: .infinity)
+        }
     }
 }

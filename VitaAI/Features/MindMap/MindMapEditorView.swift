@@ -72,10 +72,14 @@ struct MindMapEditorView: View {
                 }
             }
             .sheet(isPresented: $viewModel.showEditTextDialog) {
-                editTextDialog
+                VitaSheet(title: "Editar Texto") {
+                    editTextDialog
+                }
             }
             .sheet(isPresented: $viewModel.showColorPickerDialog) {
-                colorPickerDialog
+                VitaSheet(title: "Cor do Nó") {
+                    colorPickerDialog
+                }
             }
             .task {
                 await viewModel.onAppear()

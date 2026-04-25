@@ -110,7 +110,9 @@ struct MindMapListView: View {
                 }
             }
             .sheet(isPresented: $viewModel.showCreateDialog) {
-                createDialog
+                VitaSheet(title: "Novo Mapa Mental") {
+                    createDialog
+                }
             }
             .task {
                 await viewModel.onAppear()

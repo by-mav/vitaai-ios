@@ -23,9 +23,7 @@ struct ConnectorStatusSheet: View {
     private let goldSubtle = VitaColors.accentLight
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer().frame(height: 8)
-
+        VitaSheet {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     // Icon

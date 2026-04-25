@@ -312,18 +312,18 @@ private struct TranscricaoContent: View {
         // (gerar resumo/flashcards/questões/conceitos/mindmap) sem scroll
         // escondendo opções. drag indicator visível pra user saber que é sheet.
         .sheet(item: $selectedRecording) { rec in
-            TranscricaoDetailSheet(
-                recording: rec,
-                onRenamed: { newTitle in
-                    Task { await viewModel.loadRecordings(force: true) }
-                    _ = newTitle
-                },
-                onDeleted: {
-                    withAnimation { viewModel.removeRecordingLocally(id: rec.id) }
-                }
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
+            VitaSheet(detents: [.large]) {
+                TranscricaoDetailSheet(
+                    recording: rec,
+                    onRenamed: { newTitle in
+                        Task { await viewModel.loadRecordings(force: true) }
+                        _ = newTitle
+                    },
+                    onDeleted: {
+                        withAnimation { viewModel.removeRecordingLocally(id: rec.id) }
+                    }
+                )
+            }
         }
         // Auto-abre sheet quando transcrição acabou de processar (ready).
         // UX pattern Otter/Airgram: "sua gravação tá pronta — toca o que quer

@@ -469,10 +469,12 @@ struct TranscricaoRecordingsListSection: View {
             }
             .padding(.horizontal, 16)
             .sheet(isPresented: $showFilterSheet) {
-                TranscricaoFilterSheet(
-                    disciplines: filterChips,
-                    selected: $selectedFilter
-                )
+                VitaSheet(title: "Filtrar") {
+                    TranscricaoFilterSheet(
+                        disciplines: filterChips,
+                        selected: $selectedFilter
+                    )
+                }
             }
 
             if isLoading {

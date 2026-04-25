@@ -25,9 +25,7 @@ struct ProfessorProfileSheet: View {
     private var glassBorder: Color { VitaColors.textWarm.opacity(0.06) }
 
     var body: some View {
-        ZStack {
-            VitaColors.surface.ignoresSafeArea()
-
+        VitaSheet {
             ScrollView(showsIndicators: false) {
                 if let vm {
                     if vm.isLoading {
@@ -50,8 +48,6 @@ struct ProfessorProfileSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
         .onAppear {
             if vm == nil {
                 vm = ProfessorProfileViewModel(subjectId: subjectId, api: container.api)
@@ -59,9 +55,11 @@ struct ProfessorProfileSheet: View {
             }
         }
         .sheet(isPresented: $showUploadSheet) {
-            if let vm {
-                ExamUploadSheet(subjectId: subjectId) {
-                    Task { @MainActor in await vm.refresh() }
+            VitaSheet(title: "Enviar Prova") {
+                if let vm {
+                    ExamUploadSheet(subjectId: subjectId) {
+                        Task { @MainActor in await vm.refresh() }
+                    }
                 }
             }
         }

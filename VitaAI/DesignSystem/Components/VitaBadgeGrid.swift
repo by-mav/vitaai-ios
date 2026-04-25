@@ -40,9 +40,6 @@ struct VitaBadgeGrid: View {
         }
         .sheet(item: $selectedBadge) { badge in
             _BadgeDetailSheet(badge: badge)
-                .presentationDetents([.medium])
-                .background(VitaColors.glassBg)
-                // // .presentationCornerRadius(24)
         }
         .accessibilityIdentifier("vitaBadgeGrid")
     }
@@ -113,14 +110,7 @@ private struct _BadgeDetailSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Handle
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(VitaColors.textTertiary)
-                .frame(width: 36, height: 4)
-                .padding(.top, 14)
-                .padding(.bottom, 28)
-
+        VitaSheet {
             // Large badge icon (80pt — Android: 72dp)
             ZStack {
                 Circle()
@@ -169,8 +159,6 @@ private struct _BadgeDetailSheet: View {
 
             Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .background(Color.clear)
         .accessibilityIdentifier("vitaBadgeDetailSheet")
     }
 }

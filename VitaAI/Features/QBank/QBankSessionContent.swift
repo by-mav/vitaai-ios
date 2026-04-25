@@ -38,8 +38,10 @@ struct QBankSessionContent: View {
             }
         }
         .sheet(isPresented: $showExplanationSheet) {
-            if let question = vm.state.currentQuestionDetail {
-                QBankExplanationSheet(question: question)
+            VitaSheet(title: "Explicação") {
+                if let question = vm.state.currentQuestionDetail {
+                    QBankExplanationSheet(question: question)
+                }
             }
         }
         .alert("Encerrar Sessão?", isPresented: $showFinishAlert) {

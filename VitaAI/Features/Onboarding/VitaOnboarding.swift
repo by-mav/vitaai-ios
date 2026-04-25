@@ -168,6 +168,7 @@ struct VitaOnboarding: View {
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: step)
         .animation(.easeInOut(duration: 0.3), value: showContent)
+        // vita-modals-ignore: onboarding multi-step sheet (ManualUniversitySheet)
         .sheet(isPresented: $showManualEntry) {
             ManualUniversitySheet { name, city, state in
                 showManualEntry = false
@@ -184,6 +185,7 @@ struct VitaOnboarding: View {
                 }
             }
         }
+        // vita-modals-ignore: WhatsApp link sheet multi-step no onboarding
         .sheet(isPresented: $showExtrasWAsheet) {
             OnboardingWhatsAppLinkSheet(
                 phone: $waPhone,

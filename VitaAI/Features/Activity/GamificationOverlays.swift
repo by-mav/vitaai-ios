@@ -78,6 +78,7 @@ struct VitaLevelUpOverlay: View {
     @State private var numberScale: CGFloat = 0.3
 
     var body: some View {
+        // vita-modals-ignore: custom-animation-overlay (auto-dismiss level-up celebration)
         ZStack {
             if visible, let ev = event {
                 Color.black.opacity(0.6)
@@ -162,6 +163,7 @@ struct VitaBadgeUnlockOverlay: View {
     ]
 
     var body: some View {
+        // vita-modals-ignore: custom-animation-overlay (auto-dismiss badge unlock celebration)
         ZStack {
             if visible, let ev = event {
                 Color.black.opacity(0.5)
