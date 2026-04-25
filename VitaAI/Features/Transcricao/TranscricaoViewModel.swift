@@ -418,11 +418,18 @@ final class TranscricaoViewModel {
 
     /// Toggle favorito (PATCH studio/sources/:id). Optimistic update local
     /// pra swipe-action sentir instantâneo; revert silencioso se a request falha.
+    ///
+    /// IMPORTANTE: usa copy+reassign (`recordings[idx] = updated`) em vez de
+    /// `recordings[idx].favorite = ...` porque o `@Observable` macro às vezes
+    /// não dispara invalidate em mutação via subscript de struct (a view
+    /// que filtra por favorite não atualizava — Rafael 2026-04-25).
     func toggleFavoriteOnRecording(id: String) {
         guard let api else { return }
         guard let idx = recordings.firstIndex(where: { $0.id == id }) else { return }
         let newValue = !(recordings[idx].favorite ?? false)
-        recordings[idx].favorite = newValue
+        var updated = recordings[idx]
+        updated.favorite = newValue
+        recordings[idx] = updated
         Task {
             do {
                 try await api.updateStudioSource(id: id, favorite: newValue)
@@ -430,7 +437,9 @@ final class TranscricaoViewModel {
                 NSLog("[TranscricaoVM] toggleFavorite failed: %@", "\(error)")
                 await MainActor.run {
                     if let idx = recordings.firstIndex(where: { $0.id == id }) {
-                        recordings[idx].favorite = !newValue
+                        var rolled = recordings[idx]
+                        rolled.favorite = !newValue
+                        recordings[idx] = rolled
                     }
                 }
             }

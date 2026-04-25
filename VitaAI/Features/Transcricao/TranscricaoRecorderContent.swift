@@ -448,7 +448,9 @@ struct TranscricaoRecordingsListSection: View {
                     .tracking(0.5)
 
                 if !recordings.isEmpty {
-                    Text("· \(recordings.count)")
+                    // Mostra count do filtro ativo (não total absoluto), pra
+                    // chip "Favoritas" mostrar 0 quando não tem favoritas etc.
+                    Text("· \(filteredRecordings.count)")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(VitaColors.textWarm.opacity(0.35))
                         .tracking(0.5)
@@ -573,6 +575,19 @@ struct TranscricaoRecordingsListSection: View {
                                             onTap(rec)
                                         } label: {
                                             Label("Ver detalhes", systemImage: "doc.text.magnifyingglass")
+                                        }
+
+                                        // Toggle favorito — mesmo callback do swipe right.
+                                        // Label muda dinâmico conforme estado atual.
+                                        if let onFavorite {
+                                            Button {
+                                                onFavorite(rec)
+                                            } label: {
+                                                Label(
+                                                    rec.favorite == true ? "Remover dos favoritos" : "Favoritar",
+                                                    systemImage: rec.favorite == true ? "star.slash" : "star"
+                                                )
+                                            }
                                         }
 
                                         // Renomear inline — sem precisar abrir sheet
