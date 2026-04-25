@@ -59,6 +59,15 @@ extension Route {
         case .leaderboard:         return "Ranking"
         case .planner:             return "Planner"
 
+        // MARK: - Páginas reais acessadas via menu popout
+        case .paywall:             return "Assinatura"
+        case .about:               return "Sobre"
+        case .appearance:          return "Aparência"
+        case .notifications:       return "Notificações"
+        case .connections:         return "Conexões"
+        case .configuracoes:       return "Configurações"
+        case .disciplinasConfig:   return "Disciplinas"
+
         // MARK: - Fora do breadcrumb
         // Root tabs (represented by TabItem, not path)
         case .home, .estudos, .faculdade, .progresso, .agenda:
@@ -66,11 +75,8 @@ extension Route {
         // Auth flows (outside shell)
         case .login, .onboarding:
             return nil
-        // Modals and sheets (logical modals, not pushed pages)
-        case .vitaChat, .paywall, .portalConnect, .toolManager:
-            return nil
-        // Settings subtree (modal-like, acessada via menu popout)
-        case .about, .appearance, .notifications, .connections, .configuracoes, .disciplinasConfig:
+        // True modals/overlays (sheets, não push)
+        case .vitaChat, .portalConnect, .toolManager:
             return nil
         // Legacy aliases (all redirect to portalConnect)
         case .canvasConnect, .webalunoConnect, .googleCalendarConnect, .googleDriveConnect:
