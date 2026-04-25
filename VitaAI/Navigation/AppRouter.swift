@@ -404,6 +404,11 @@ struct MainTabView: View {
                     await container.mindMapSyncManager.pull()
                 }
             }
+            // Pré-aquece os caches das tabs Progresso e Flashcards em background.
+            // Quando o usuário tap a tab pela primeira vez, o cache já está
+            // quente e a tela render instantânea — zero spinner cold.
+            Task { await container.progressoViewModel.loadIfNeeded() }
+            Task { _ = try? await container.flashcardsListCache.refresh() }
         }
         // Paywall now navigated via router.navigate(to: .paywall) — no fullScreenCover
     }
