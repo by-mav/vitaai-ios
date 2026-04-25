@@ -257,7 +257,7 @@ struct MainTabView: View {
                     .background(.clear)
                     .scrollContentBackground(.hidden)
                     .toolbar(.hidden, for: .navigationBar)
-                    .enableSwipeBack()
+                    .enableSwipeBack(router: router)
 
                     // Chat overlay — sits in content area (below top bar, above tab bar)
                     if showChat {
