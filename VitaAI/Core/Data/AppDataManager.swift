@@ -14,7 +14,6 @@ final class AppDataManager {
     var gradesResponse: GradesCurrentResponse?
     var classSchedule: [AgendaClassBlock] = []
     var academicEvaluations: [AgendaEvaluation] = []
-    var studyEvents: [StudyEventEntry] = []
     var dashboardSubjects: [DashboardSubject] = []
     /// Canonical list of what the student is enrolled in RIGHT NOW — the
     /// single source of truth for every screen that shows discipline chips
@@ -107,7 +106,6 @@ final class AppDataManager {
         async let p: () = refreshProfile()
         async let g: () = refreshGrades()
         async let s: () = refreshSchedule()
-        async let e: () = refreshEvents()
         async let d: () = refreshDashboard()
         async let en: () = refreshEnrolled()
         // Secondary prefetch — Estudos tabs abrem instant
@@ -116,7 +114,7 @@ final class AppDataManager {
         async let si: () = refreshSimulados()
         async let tr: () = refreshTranscricoes()
         async let tb: () = refreshTrabalhos()
-        _ = await (p, g, s, e, d, en, fc, qb, si, tr, tb)
+        _ = await (p, g, s, d, en, fc, qb, si, tr, tb)
     }
 
     private func refreshFlashcards() async {
@@ -188,17 +186,4 @@ final class AppDataManager {
         }
     }
 
-    private func refreshEvents() async {
-        // Fetch a wide window so the monthly calendar (Faculdade tab) can show
-        // provas/trabalhos for the current month and adjacent ones, while the
-        // weekly views still get their slice from the same in-memory list.
-        let calendar = Calendar.current
-        let today = Date()
-        let from = calendar.date(byAdding: .day, value: -14, to: today) ?? today
-        let to = calendar.date(byAdding: .day, value: 60, to: today) ?? today
-        let fmt = ISO8601DateFormatter()
-        if let resp = try? await api.getStudyEvents(from: fmt.string(from: from), to: fmt.string(from: to)) {
-            studyEvents = resp.events
-        }
-    }
 }
