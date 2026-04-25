@@ -2,6 +2,7 @@ import SwiftUI
 import OSLog
 import SwiftData
 import UserNotifications
+import BackgroundTasks
 
 // MARK: - AppDelegate (Push Notifications)
 
@@ -201,11 +202,40 @@ struct VitaAIApp: App {
                 SilentPortalSync.shared.syncIfNeeded(api: container.api)
                 Task { await container.dataManager.silentRefresh() }
                 container.dataManager.startForegroundPolling()
-            case .background, .inactive:
+            case .background:
+                // Polling para; agenda BG refresh pra iOS despertar app
+                // opportunisticamente (5-15min tipico) e refetchar dados,
+                // entao quando user voltar pro app dados ja estao frescos.
+                container.dataManager.stopForegroundPolling()
+                Self.scheduleBackgroundRefresh()
+            case .inactive:
                 container.dataManager.stopForegroundPolling()
             @unknown default:
                 break
             }
+        }
+        .backgroundTask(.appRefresh(Self.bgRefreshIdentifier)) {
+            // iOS chamou nossa task: refetcha dados e re-agenda pra proxima.
+            // Window de execucao: ~30s. silentRefresh respeita throttle 60s
+            // mas em BG queremos forcar — bypass via forceRefresh.
+            await container.dataManager.forceRefresh()
+            Self.scheduleBackgroundRefresh()
+        }
+    }
+
+    // MARK: - Background refresh scheduling
+
+    static let bgRefreshIdentifier = "com.bymav.vitaai.refresh"
+
+    static func scheduleBackgroundRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: bgRefreshIdentifier)
+        // earliestBeginDate = hint pro iOS, nao guarantia. iOS decide quando
+        // realmente executa (depende de battery, network, padrao de uso).
+        request.earliestBeginDate = Date().addingTimeInterval(15 * 60)
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            NSLog("[bg-refresh] failed to schedule: \(error)")
         }
     }
 }
