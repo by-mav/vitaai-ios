@@ -761,10 +761,11 @@ struct SwipeableCardRow<Content: View>: View {
             HStack(spacing: 0) {
                 // Right action (shown when swiping RIGHT: card moves right, leading edge revealed)
                 if offset > 0 {
-                    HStack {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.white)
+                    HStack(spacing: 8) {
+                        Image("icone-fav-vita")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 28)
                         Text("Favoritar")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
@@ -778,13 +779,14 @@ struct SwipeableCardRow<Content: View>: View {
 
                 // Left action (shown when swiping LEFT: card moves left, trailing edge revealed)
                 if offset < 0 {
-                    HStack {
+                    HStack(spacing: 8) {
                         Text("Excluir")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
-                        Image(systemName: "trash.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.white)
+                        Image("icone-del-vita")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 28)
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(.trailing, 24)
