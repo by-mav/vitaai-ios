@@ -45,6 +45,12 @@ final class AppContainer: ObservableObject {
         ProgressoViewModel(api: api)
     }()
 
+    // FlashcardsListCache: SWR cache pra evitar refetch da lista de decks
+    // a cada navegação de tab.
+    lazy var flashcardsListCache: FlashcardsListCache = {
+        FlashcardsListCache(api: api)
+    }()
+
     // MARK: - Billing / Subscription
     let subscriptionStatus: SubscriptionStatusProvider
 

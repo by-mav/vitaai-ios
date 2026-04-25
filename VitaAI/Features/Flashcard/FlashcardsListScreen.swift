@@ -302,80 +302,94 @@ struct FlashcardsListScreen: View {
     }
 
     private func loadData() async {
-        isLoading = true
+        // SWR via FlashcardsListCache: render imediato do cache fresco,
+        // sempre revalidate em background. Antes ficava 1-3s no spinner
+        // a cada volta pra aba.
+        let cache = container.flashcardsListCache
+        if cache.isFresh {
+            applyDecks(cache.decks)
+            isLoading = false
+            Task { await revalidateInBackground() }
+            return
+        }
+        if !cache.decks.isEmpty {
+            applyDecks(cache.decks)
+        } else {
+            isLoading = true
+        }
         do {
-            // summary=true: backend returns deck metadata + totalCards + dueCount
-            // WITHOUT the cards[] array. 182KB JSON for 534 decks vs ~5.6MB when
-            // cards are hydrated. First-paint of Flashcards list drops from ~5s
-            // to <500ms. Cards load on-demand when the user taps a deck
-            // (FlashcardViewModel.fetchDeck uses the full path).
-            var fetched = try await container.api.getFlashcardDecks(deckLimit: 1000, summary: true)
-
-            // Auto-seed if user has no decks yet (first open)
+            var fetched = try await cache.refresh()
             if fetched.isEmpty {
-                // Trigger autoSeed — generates decks from QBank for user's disciplines
                 _ = try? await container.api.generateFlashcardsAutoSeed()
-                fetched = try await container.api.getFlashcardDecks(deckLimit: 1000, summary: true)
+                fetched = try await cache.refresh()
             }
-
-            // Filter out empty decks
-            let withCards = fetched.filter { $0.cardCount > 0 }
-
-            if withCards.isEmpty {
-                isEmpty = true
-                isLoading = false
-                return
-            }
-
-            decks = withCards
-
-            // "Suas disciplinas" = only decks matching user's current semester subjects
-            // "Biblioteca" = everything else (AnKing library, other disciplines)
-            //
-            // Match by BOTH subjectId (old decks) AND disciplineSlug (auto-seeded
-            // decks with subjectId=null). Pre-fix, only subjectId was matched,
-            // which caused 0 visible decks for users whose entire library came
-            // from autoSeed (subjectId null, disciplineSlug populated).
-            let subjectIds = Set(
-                (container.dataManager.gradesResponse?.current ?? [])
-                    .compactMap { $0.subjectId }
-            )
-            let subjectSlugs = Set(
-                container.dataManager.enrolledDisciplines
-                    .compactMap { $0.disciplineSlug }
-            )
-            let scoreFor: (FlashcardDeckEntry) -> Double = { deck in
-                container.dataManager.vitaScore(for: deck.title)
-            }
-            let isCurrent: (FlashcardDeckEntry) -> Bool = { deck in
-                if let sid = deck.subjectId, subjectIds.contains(sid) { return true }
-                if let slug = deck.disciplineSlug, subjectSlugs.contains(slug) { return true }
-                return false
-            }
-            if subjectIds.isEmpty && subjectSlugs.isEmpty {
-                // User has no subjects registered — treat everything as "current"
-                // so the library never shows empty when data exists.
-                currentDecks = withCards.sorted { scoreFor($0) > scoreFor($1) }
-                historyDecks = []
-            } else {
-                currentDecks = withCards
-                    .filter(isCurrent)
-                    .sorted { scoreFor($0) > scoreFor($1) }
-                historyDecks = withCards
-                    .filter { !isCurrent($0) }
-                    .sorted { scoreFor($0) > scoreFor($1) }
-            }
-
-            // First CURRENT deck with due cards = continue deck
-            if let first = currentDecks.first(where: { ($0.dueCount ?? 0) > 0 }) {
-                continueDeck = first
-                continueDueCount = first.dueCount ?? 0
-            }
+            applyDecks(fetched)
         } catch {
             print("[FlashcardsList] error: \(error)")
-            isEmpty = true
+            if decks.isEmpty { isEmpty = true }
         }
         isLoading = false
+    }
+
+    private func revalidateInBackground() async {
+        do {
+            let fetched = try await container.flashcardsListCache.refresh()
+            applyDecks(fetched)
+        } catch {
+            print("[FlashcardsList] revalidate error: \(error)")
+        }
+    }
+
+    /// Deriva current/history/continue a partir do snapshot do backend.
+    /// summary=true: 182KB pra 534 decks (vs ~5.6MB com cards hidratados);
+    /// fetch on-demand quando o usuário tapa um deck.
+    private func applyDecks(_ fetched: [FlashcardDeckEntry]) {
+        let withCards = fetched.filter { $0.cardCount > 0 }
+        if withCards.isEmpty {
+            isEmpty = true
+            decks = []
+            currentDecks = []
+            historyDecks = []
+            continueDeck = nil
+            continueDueCount = 0
+            return
+        }
+        isEmpty = false
+        decks = withCards
+
+        // Match por subjectId E disciplineSlug — auto-seeded decks têm
+        // subjectId=null e dependem do slug pra cair em "Suas disciplinas".
+        let subjectIds = Set(
+            (container.dataManager.gradesResponse?.current ?? [])
+                .compactMap { $0.subjectId }
+        )
+        let subjectSlugs = Set(
+            container.dataManager.enrolledDisciplines
+                .compactMap { $0.disciplineSlug }
+        )
+        let scoreFor: (FlashcardDeckEntry) -> Double = { deck in
+            container.dataManager.vitaScore(for: deck.title)
+        }
+        let isCurrent: (FlashcardDeckEntry) -> Bool = { deck in
+            if let sid = deck.subjectId, subjectIds.contains(sid) { return true }
+            if let slug = deck.disciplineSlug, subjectSlugs.contains(slug) { return true }
+            return false
+        }
+        if subjectIds.isEmpty && subjectSlugs.isEmpty {
+            currentDecks = withCards.sorted { scoreFor($0) > scoreFor($1) }
+            historyDecks = []
+        } else {
+            currentDecks = withCards.filter(isCurrent).sorted { scoreFor($0) > scoreFor($1) }
+            historyDecks = withCards.filter { !isCurrent($0) }.sorted { scoreFor($0) > scoreFor($1) }
+        }
+
+        if let first = currentDecks.first(where: { ($0.dueCount ?? 0) > 0 }) {
+            continueDeck = first
+            continueDueCount = first.dueCount ?? 0
+        } else {
+            continueDeck = nil
+            continueDueCount = 0
+        }
     }
 
     // MARK: - Section Label (mockup: .fc-label — italic, 14px, gold)
