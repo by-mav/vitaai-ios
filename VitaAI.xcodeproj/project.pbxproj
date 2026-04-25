@@ -78,6 +78,7 @@
 		2966520886D5E54486E731A7 /* PdfViewerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9998B44B0BDB981193E5EAF3 /* PdfViewerScreen.swift */; };
 		2B71B46F6297F34ED5171AA3 /* PdfAnnotationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21F707CB00A1F232460531A0 /* PdfAnnotationModels.swift */; };
 		2CCAFE2FC378CD09C11BA85E /* NotificationSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C615CE58F474E99F3FD2173 /* NotificationSettingsScreen.swift */; };
+		2CF4C222EA0339A72B0AE6D2 /* PdfFreeTextSelectionToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4547B461304216E46EDDC2F3 /* PdfFreeTextSelectionToolbar.swift */; };
 		2D87C40FBE7014B51E68ECFC /* TranscricaoWhisperLiveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08691732CE72F128F32D665B /* TranscricaoWhisperLiveClient.swift */; };
 		2DE96EAC5177EC1C69E8CC7B /* VitaStreakBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE820FA12745A79A71139683 /* VitaStreakBadge.swift */; };
 		2E2C5A22A7D243994EBF9E02 /* ImmersivePreferenceKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709C4F8D8EC0B0BE357490A1 /* ImmersivePreferenceKey.swift */; };
@@ -456,6 +457,7 @@
 		43D42AA80449E5C406E2B3B3 /* MindMapRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapRepository.swift; sourceTree = "<group>"; };
 		443BC23869204129FA12AD43 /* RatingButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingButtons.swift; sourceTree = "<group>"; };
 		44EAF7F741D5CD9DCC447A01 /* TranscricaoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoViewModel.swift; sourceTree = "<group>"; };
+		4547B461304216E46EDDC2F3 /* PdfFreeTextSelectionToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfFreeTextSelectionToolbar.swift; sourceTree = "<group>"; };
 		46C06511C1120C3D564023F3 /* ConnectorsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorsViewModel.swift; sourceTree = "<group>"; };
 		485381B45A271EF3E8498001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		485BEB54F0BB6FBE9E6B48EC /* Dashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dashboard.swift; sourceTree = "<group>"; };
@@ -777,6 +779,7 @@
 				2CED8D8DC4852F3107E3E7B6 /* PdfDocumentPicker.swift */,
 				FF7EA3D2C60F323F39E9AD1E /* PdfExporter.swift */,
 				ABC9B93B0EBE4DF232C10B05 /* PdfFreeTextSelectionOverlay.swift */,
+				4547B461304216E46EDDC2F3 /* PdfFreeTextSelectionToolbar.swift */,
 				05B1E34202A8907EFFFFACD1 /* PdfScanOverlay.swift */,
 				D76BE069C1F75FD8C95A138A /* PdfTabBar.swift */,
 				E6EFEEFBA17AF37F355A4848 /* PdfToolbar.swift */,
@@ -1841,6 +1844,7 @@
 				6294DB1E7E0B74965CDC39AA /* PdfDocumentPicker.swift in Sources */,
 				512812408FF6DDA2FB4B5E1B /* PdfExporter.swift in Sources */,
 				41BAF3C741F902861FDF116D /* PdfFreeTextSelectionOverlay.swift in Sources */,
+				2CF4C222EA0339A72B0AE6D2 /* PdfFreeTextSelectionToolbar.swift in Sources */,
 				DB5C2B7F9757B2683C89B850 /* PdfScanOverlay.swift in Sources */,
 				EBD32F8B6FC327034ED9A70E /* PdfTabBar.swift in Sources */,
 				042B3027A14F3834E0DCBC54 /* PdfToolbar.swift in Sources */,

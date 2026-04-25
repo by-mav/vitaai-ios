@@ -31,6 +31,7 @@ final class PdfFreeTextSelectionOverlay: UIView, UIGestureRecognizerDelegate {
     private let dashedBorder = CAShapeLayer()
     private var handles: [HandlePosition: HandleView] = [:]
     private var activeHandle: HandlePosition?
+    private let toolbar = PdfFreeTextSelectionToolbar()
 
     /// Bounds at the start of the active gesture (PDF coords, page space).
     private var startBounds: CGRect = .zero
@@ -68,6 +69,11 @@ final class PdfFreeTextSelectionOverlay: UIView, UIGestureRecognizerDelegate {
             addSubview(handle)
             handles[position] = handle
         }
+
+        // Floating action toolbar (heading / color / copy / trash / more)
+        toolbar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(toolbar)
+        wireToolbarCallbacks()
 
         // Pan: drag (center hit) or resize (handle hit)
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
@@ -132,12 +138,72 @@ final class PdfFreeTextSelectionOverlay: UIView, UIGestureRecognizerDelegate {
         for (pos, handle) in handles {
             handle.center = pos.point(in: inner)
         }
+        // Position toolbar centered above the annotation, with 12pt spacing.
+        // Sized once via intrinsic content; just place it.
+        let toolbarSize = toolbar.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+        let tx = inner.midX - toolbarSize.width / 2
+        let ty = inner.minY - toolbarSize.height - 12
+        toolbar.frame = CGRect(x: tx, y: ty, width: toolbarSize.width, height: toolbarSize.height)
+    }
+
+    // MARK: - Toolbar wiring
+
+    private func wireToolbarCallbacks() {
+        toolbar.onSetHeading = { [weak self] size, weight in
+            guard let self else { return }
+            self.annotation.font = UIFont.systemFont(ofSize: size, weight: weight)
+            self.forceRedraw()
+            self.updateFrame()
+            self.onChange?()
+        }
+        toolbar.onSetColor = { [weak self] color in
+            guard let self else { return }
+            self.annotation.fontColor = color
+            self.forceRedraw()
+            self.onChange?()
+        }
+        toolbar.onSetOpaqueBackground = { [weak self] opaque in
+            guard let self else { return }
+            self.annotation.color = opaque
+                ? UIColor(red: 0.10, green: 0.08, blue: 0.06, alpha: 0.85)
+                : .clear
+            self.forceRedraw()
+            self.onChange?()
+        }
+        toolbar.onCopy = { [weak self] in
+            guard let self else { return }
+            UIPasteboard.general.string = self.annotation.contents ?? ""
+        }
+        toolbar.onDelete = { [weak self] in
+            self?.onDelete?()
+        }
+        toolbar.onDuplicate = { [weak self] in
+            guard let self, let page = self.page else { return }
+            // Clone with a small offset so user sees both
+            let src = self.annotation
+            let dup = PDFAnnotation(
+                bounds: src.bounds.offsetBy(dx: 16, dy: -16),
+                forType: .freeText,
+                withProperties: nil
+            )
+            dup.font = src.font
+            dup.fontColor = src.fontColor
+            dup.color = src.color
+            dup.border = src.border
+            dup.contents = src.contents
+            dup.isReadOnly = false
+            page.addAnnotation(dup)
+            self.onChange?()
+        }
     }
 
     // MARK: - Hit testing
 
     /// Allow gestures inside our padded area; outside falls through.
+    /// Toolbar buttons are handled by them (subviews intercept normally).
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        // Include the toolbar's frame in the hit area so its buttons stay tappable.
+        if toolbar.frame.contains(point) { return true }
         return bounds.contains(point)
     }
 
