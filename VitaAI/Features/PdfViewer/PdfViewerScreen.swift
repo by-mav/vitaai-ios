@@ -103,17 +103,20 @@ struct PdfViewerScreen: View {
         .persistentSystemOverlays(isFullscreen ? .hidden : .automatic)
         .ignoresSafeArea(isFullscreen ? .all : [])
         .preference(key: ImmersivePreferenceKey.self, value: isFullscreen)
+        // vita-modals-ignore: legacy sheets aguardando migração da UI session (commit 8eb51a0 dona do VitaModals)
         .sheet(isPresented: $showExportSheet) {
             if let exportedURL {
                 ShareSheet(items: [exportedURL])
                     .presentationDetents([.medium, .large])
             }
         }
+        // vita-modals-ignore: idem acima
         .sheet(isPresented: $viewModel.showRecognitionResult) {
             recognitionResultSheet
         }
         // Pergunte ao Vita chat opens as a sheet (not fullScreenCover) so the
         // PDF stays visible underneath — user can cross-reference while chatting.
+        // vita-modals-ignore: idem acima
         .sheet(isPresented: $showPerguntaVita) {
             VitaChatScreen(
                 onClose: { showPerguntaVita = false },
@@ -130,8 +133,11 @@ struct PdfViewerScreen: View {
     @ViewBuilder
     private func mainContent(document: PDFDocument) -> some View {
         VStack(spacing: 0) {
-            if !isFullscreen {
-                PdfToolbar(
+            // Toolbar visible always (Rafael 2026-04-25): in fullscreen the user
+            // still needs highlight/text/draw/search/bookmark/transcribe access.
+            // The fullscreenExitPill (top-leading floating) handles the
+            // back+exit-fullscreen affordance in fullscreen mode.
+            PdfToolbar(
                     fileName: viewModel.fileName,
                     currentPage: viewModel.currentPage + 1,
                     pageCount: viewModel.pageCount,
@@ -181,8 +187,6 @@ struct PdfViewerScreen: View {
                         Task { await viewModel.recognizeHandwriting(drawing: drawing) }
                     }
                 )
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
 
             // Search bar slides in below top bar
             if viewModel.isSearching {
@@ -641,6 +645,11 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         canvas.drawingPolicy = .anyInput
         canvas.delegate = self
         canvas.isUserInteractionEnabled = viewModel.isAnnotating
+        // Critical: PKCanvasView needs an initial tool, otherwise the first touch
+        // produces nothing visible (was bug "selecionei modo desenhar mas não escreve").
+        // Sync to whatever the tool picker currently has selected; default is a 2pt
+        // black ink pen which works for finger and Apple Pencil.
+        canvas.tool = toolPicker.selectedTool
         pageToCanvas[page] = canvas
 
         // Load saved drawing from disk
@@ -763,26 +772,52 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     }
 
     private func placeTextAnnotation(at pagePoint: CGPoint, on page: PDFPage) {
-        let width: CGFloat = 200
-        let height: CGFloat = 40
-        let bounds = CGRect(
-            x: pagePoint.x - width / 2,
-            y: pagePoint.y - height / 2,
-            width: width,
-            height: height
+        // PDFKit's freeText annotations don't auto-focus / open keyboard.
+        // Solution gold: prompt user with UIAlertController (familiar iOS UX)
+        // to capture text, then create the annotation with the entered content.
+        // Style: gold accent border, semi-transparent gold-tinted background,
+        // white text — consistent with VitaAI design system.
+        guard let pdfView = self.pdfView,
+              let hostVC = pdfView.findViewController() else { return }
+        let alert = UIAlertController(
+            title: "Adicionar texto",
+            message: "Digite o texto pra colar no PDF.",
+            preferredStyle: .alert
         )
-        let annotation = PDFAnnotation(bounds: bounds, forType: .freeText, withProperties: nil)
-        annotation.font = UIFont.systemFont(ofSize: 13)
-        annotation.fontColor = UIColor.white
-        annotation.color = UIColor(white: 0.1, alpha: 0.85)
-        annotation.border = PDFBorder()
-        annotation.border?.lineWidth = 0.5
-        annotation.border?.style = .solid
-        annotation.color = UIColor(white: 0.1, alpha: 0.85)
-        annotation.isReadOnly = false
-        annotation.contents = ""
-        page.addAnnotation(annotation)
-        viewModel.saveHighlights()
+        alert.addTextField { tf in
+            tf.placeholder = "Texto"
+            tf.autocapitalizationType = .sentences
+        }
+        alert.addAction(UIAlertAction(title: "Cancelar", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Adicionar", style: .default) { [weak self] _ in
+            guard let self,
+                  let text = alert.textFields?.first?.text,
+                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+            // Size annotation to text width (rough heuristic: 7px per char + padding)
+            let estimatedWidth = max(80, min(CGFloat(text.count) * 7 + 24, 280))
+            let height: CGFloat = 32
+            let bounds = CGRect(
+                x: pagePoint.x - estimatedWidth / 2,
+                y: pagePoint.y - height / 2,
+                width: estimatedWidth,
+                height: height
+            )
+            let annotation = PDFAnnotation(bounds: bounds, forType: .freeText, withProperties: nil)
+            annotation.font = UIFont.systemFont(ofSize: 13, weight: .medium)
+            annotation.fontColor = UIColor.white
+            // Gold-tinted glass background (consistent with Vita design)
+            annotation.color = UIColor(red: 0.78, green: 0.62, blue: 0.31, alpha: 0.55)
+            let border = PDFBorder()
+            border.lineWidth = 1.0
+            border.style = .solid
+            annotation.border = border
+            annotation.isReadOnly = false
+            annotation.contents = text
+            page.addAnnotation(annotation)
+            self.viewModel.saveHighlights()
+        })
+        hostVC.present(alert, animated: true)
     }
 
     private func showDeleteMenu(for annotation: PDFAnnotation, on page: PDFPage, at viewPoint: CGPoint, in pdfView: PDFView) {
@@ -838,6 +873,9 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
 
         for (_, canvas) in pageToCanvas {
             canvas.isUserInteractionEnabled = annotating
+            // Re-sync tool from picker on every mode entry — guarantees first touch
+            // always has an active tool (was bug "modo ativo mas não escreve").
+            canvas.tool = toolPicker.selectedTool
             if annotating {
                 // becomeFirstResponder BEFORE setVisible so the tool picker
                 // has a valid responder target when it renders.
@@ -849,6 +887,13 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
                 canvas.resignFirstResponder()
                 toolPicker.removeObserver(canvas)
             }
+        }
+        // Force visible pages to redraw their overlays so the new interaction
+        // state takes effect immediately (otherwise overlay can stay stale until
+        // user scrolls the page).
+        if let pdfView = self.pdfView {
+            pdfView.setNeedsLayout()
+            pdfView.layoutIfNeeded()
         }
     }
 

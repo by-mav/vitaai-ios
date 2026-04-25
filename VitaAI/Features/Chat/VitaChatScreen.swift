@@ -88,7 +88,11 @@ struct VitaChatScreen: View {
                             }
                         }
                     },
-                    onClose: onClose
+                    onClose: onClose,
+                    // Show "Pergunte ao Vita" title when opened from PDF viewer scanner
+                    // (initialImageData attached) — gives the user clear context that this
+                    // is a sub-task with an exit, not the main Vita Coach.
+                    title: initialImageData != nil ? "Pergunte ao Vita" : nil
                 )
 
                 // Messages or empty state
@@ -117,6 +121,7 @@ struct VitaChatScreen: View {
 private struct ChatHeader: View {
     var onHistory: () -> Void
     let onClose: () -> Void
+    var title: String? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -132,14 +137,35 @@ private struct ChatHeader: View {
 
             Spacer()
 
-            // Close — exits chat
+            // Optional contextual title (e.g. "Pergunte ao Vita" when opened from PDF viewer)
+            if let title {
+                Text(title)
+                    .font(VitaTypography.titleSmall)
+                    .foregroundColor(VitaColors.textPrimary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Close — exits chat. D4 carved button: glass background + gold border + accent X.
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(VitaColors.textSecondary)
-                    .frame(width: 32, height: 32)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(VitaColors.accentHover)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .environment(\.colorScheme, .dark)
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(VitaColors.accentHover.opacity(0.35), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Fechar")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
