@@ -38,6 +38,7 @@ struct PdfViewerScreen: View {
     @State private var showHighlightColor: Bool = false
     // ZONE-B — Header sheets (bookmarks list, outline, settings)
     @State private var showBookmarksSheet: Bool = false
+    @State private var showOutlineSheet: Bool = false
     @AppStorage("pdf_show_mascot") private var showMascot: Bool = true
     @FocusState private var isSearchFocused: Bool
 
@@ -146,6 +147,49 @@ struct PdfViewerScreen: View {
                 recognitionResultSheet
             }
         }
+        // vita-modals-ignore: PdfBookmarksListSheet já usa VitaSheet internamente — wrapper duplo causaria header duplicado
+        .sheet(isPresented: $showBookmarksSheet) {
+            if let document = viewModel.document {
+                PdfBookmarksListSheet(
+                    document: document,
+                    bookmarkedPages: viewModel.bookmarkedPages,
+                    onJumpToPage: { idx in
+                        viewModel.currentPage = idx
+                        showBookmarksSheet = false
+                    },
+                    onRemoveBookmark: { idx in
+                        viewModel.toggleBookmark(forPage: idx)
+                    }
+                )
+            }
+        }
+        // vita-modals-ignore: PdfOutlineSheet já usa VitaSheet internamente — wrapper duplo causaria header duplicado
+        .sheet(isPresented: $showOutlineSheet) {
+            if let document = viewModel.document {
+                PdfOutlineSheet(
+                    document: document,
+                    onJumpToPage: { idx in
+                        viewModel.currentPage = idx
+                        showOutlineSheet = false
+                    }
+                )
+            }
+        }
+        // Pen styles + highlight color popovers — abertos via long-press na toolbar.
+        // vita-modals-ignore: VitaGlassCard custom inside, presentationDetent .height fixo — VitaSheet adiciona header/padding desnecessários pra picker compacto
+        .sheet(isPresented: $showPenStyles) {
+            PdfPenStylesPopover(onApply: { tool in applyInkingTool(tool) })
+                .presentationDetents([.height(420)])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.ultraThinMaterial)
+        }
+        // vita-modals-ignore: ver acima — picker compacto custom
+        .sheet(isPresented: $showHighlightColor) {
+            PdfHighlightColorPopover(onApply: { color in applyHighlightColor(color) })
+                .presentationDetents([.height(220)])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(.ultraThinMaterial)
+        }
         // Pergunte ao Vita chat opens as a sheet (not fullScreenCover) so the
         // PDF stays visible underneath — user can cross-reference while chatting.
         // vita-modals-ignore: VitaChatScreen é tela completa autocontida (próprio header, fundo, scroll) — VitaSheet duplicaria header e quebra layout interno do chat
@@ -235,7 +279,9 @@ struct PdfViewerScreen: View {
                     onUndo: { performUndo() },
                     onRedo: { performRedo() },
                     onPenLongPress: { showPenStyles = true },
-                    onHighlightLongPress: { showHighlightColor = true }
+                    onHighlightLongPress: { showHighlightColor = true },
+                    onShowBookmarksList: { showBookmarksSheet = true },
+                    onShowOutline: { showOutlineSheet = true }
                 )
 
             // Multi-doc tab bar (Goodnotes-style). Hidden in fullscreen so the
@@ -674,6 +720,27 @@ struct PdfViewerScreen: View {
         canUndo = mgr?.canUndo ?? false
         canRedo = mgr?.canRedo ?? false
     }
+
+    /// Applies a freshly built PKInkingTool to the active canvas (called by popover).
+    /// Persistence is handled by @AppStorage inside PdfPenStylesPopover.
+    private func applyInkingTool(_ tool: PKInkingTool) {
+        // Auto-activate annotation mode if not yet on, so the user sees the result.
+        if !viewModel.isAnnotating {
+            viewModel.isAnnotating = true
+            isEraserMode = false
+            isPointerMode = false
+        }
+        currentCanvas()?.tool = tool
+    }
+
+    /// Persists highlight color choice. Coordinator reads `pdf.highlight.colorHex`
+    /// from UserDefaults the next time it applies a highlight.
+    private func applyHighlightColor(_ color: UIColor) {
+        // Auto-activate highlight mode for immediate feedback.
+        if !viewModel.isHighlightMode {
+            viewModel.toggleHighlightMode()
+        }
+    }
 }
 
 // MARK: - NativePdfView (UIViewRepresentable)
@@ -892,7 +959,8 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     }
 
     private func applyHighlight(selection: PDFSelection, in pdfView: PDFView) {
-        let highlightColor = UIColor(red: 1.0, green: 0.78, blue: 0.47, alpha: 0.35)
+        // Read user preference (set by PdfHighlightColorPopover); fall back to gold.
+        let highlightColor = Self.userHighlightColor()
         for page in selection.pages {
             let bounds = selection.bounds(for: page)
             guard bounds != .zero else { continue }
@@ -1183,6 +1251,20 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         Task { @MainActor [weak self] in
             self?.viewModel.isLassoMode = false
         }
+    }
+
+    /// Reads `pdf.highlight.colorHex` from UserDefaults (set by PdfHighlightColorPopover)
+    /// and returns the highlight UIColor with fixed 40% opacity. Falls back to gold default.
+    static func userHighlightColor() -> UIColor {
+        let hex = UserDefaults.standard.string(forKey: "pdf.highlight.colorHex") ?? "#FFD84D"
+        let trimmed = hex.replacingOccurrences(of: "#", with: "")
+        guard trimmed.count == 6, let v = UInt32(trimmed, radix: 16) else {
+            return UIColor(red: 1.0, green: 0.78, blue: 0.47, alpha: 0.35)
+        }
+        let r = CGFloat((v >> 16) & 0xFF) / 255.0
+        let g = CGFloat((v >> 8) & 0xFF) / 255.0
+        let b = CGFloat(v & 0xFF) / 255.0
+        return UIColor(red: r, green: g, blue: b, alpha: 0.4)
     }
 }
 
