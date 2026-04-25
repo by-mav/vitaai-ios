@@ -2066,11 +2066,26 @@ private struct AnatomySceneView: UIViewRepresentable {
             }
 
             // Frame camera around the union bbox of every matched node.
-            guard let first = matchedNodes.first else { return }
+            // Stem matching pulls in TA2 variants (.l/.r/.i/.j) where .i/.j
+            // are container nodes without geometry — their boundingBox is
+            // zeroed and would yank the union toward the scene origin (peça
+            // off-screen, viewport vazio). Walk into each match and collect
+            // every descendant SCNNode with real geometry.
+            var bboxNodes: [SCNNode] = []
+            for n in matchedNodes {
+                if n.geometry != nil { bboxNodes.append(n) }
+                n.enumerateChildNodes { child, _ in
+                    if child.geometry != nil { bboxNodes.append(child) }
+                }
+            }
+            guard let first = bboxNodes.first else {
+                atlasLog.notice("[Atlas] focus → matched=\(matchedNodes.count) target=\(target, privacy: .public) bboxNodes=0 (no geometry)")
+                return
+            }
             var (lo, hi) = first.boundingBox
             var minW = first.convertPosition(lo, to: scene.rootNode)
             var maxW = first.convertPosition(hi, to: scene.rootNode)
-            for n in matchedNodes.dropFirst() {
+            for n in bboxNodes.dropFirst() {
                 let (l, h) = n.boundingBox
                 let wl = n.convertPosition(l, to: scene.rootNode)
                 let wh = n.convertPosition(h, to: scene.rootNode)
@@ -2090,7 +2105,7 @@ private struct AnatomySceneView: UIViewRepresentable {
             cam.position = camPos
             cam.look(at: SCNVector3(cx, cy, cz))
             SCNTransaction.commit()
-            atlasLog.notice("[Atlas] focus → matched=\(matchedNodes.count) target=\(target, privacy: .public)")
+            atlasLog.notice("[Atlas] focus → matched=\(matchedNodes.count) bbox=\(bboxNodes.count) center=(\(cx),\(cy),\(cz)) diag=\(safeDiag) target=\(target, privacy: .public)")
         } else {
             // Restore: unhide everything not in user-driven hiddenMeshes,
             // then re-frame to the full active scene.

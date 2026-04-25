@@ -128,17 +128,14 @@ struct AppRouter: View {
                     profileChecked = true
                     return
                 }
-                if case .serverError(404) = error {
-                    // 404 = no profile exists = genuinely needs onboarding
-                    needsOnboarding = true
-                    isOnboardedStored = false
-                    legacyOnboardingStored = false
-                } else {
-                    // Other API errors (500, decode, etc) — DON'T assume onboarding.
-                    // Show main tab and let normal error handling deal with it.
-                    NSLog("[AppRouter] getProfile API error (not 404): \(error) — skipping onboarding check")
-                    needsOnboarding = false
-                }
+                // ALL non-401 API errors (404 HTML page, 500, decode, etc) →
+                // do NOT force onboarding. Backend dev returns 404 HTML when
+                // routes are stale (canvas/files etc.) and that has nothing to
+                // do with profile state. Onboarding flag is now ONLY set from
+                // a 200 profile with onboardingCompleted=false (incident
+                // 2026-04-25_atlas-focus-mode-empty-viewport.md).
+                NSLog("[AppRouter] getProfile API error: \(error) — skipping onboarding check")
+                needsOnboarding = false
             } catch {
                 // Network error / timeout — DON'T force onboarding.
                 // The user may be fully onboarded but temporarily offline.

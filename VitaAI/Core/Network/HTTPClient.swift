@@ -438,23 +438,6 @@ actor HTTPClient {
                 lastError = APIError.serverError(http.statusCode)
                 continue
             default:
-                // Next.js renders an HTML 404 page when the auth middleware blocks
-                // /api/* without a valid session. Treat HTML responses on /api/* as
-                // unauthorized so the app refreshes/logs out instead of forcing the
-                // user back into onboarding (incident 2026-04-25).
-                let contentType = http.value(forHTTPHeaderField: "Content-Type") ?? ""
-                let isAPIPath = request.url?.path.hasPrefix("/api/") ?? false
-                if isAPIPath && contentType.lowercased().contains("text/html") {
-                    NSLog("[HTTPClient] %d HTML on API path → treating as unauthorized", http.statusCode)
-                    if !didAttemptRefresh {
-                        didAttemptRefresh = true
-                        if await tokenRefresher.refreshSession() {
-                            continue
-                        }
-                    }
-                    if let handler = onUnauthorized { await handler() }
-                    throw APIError.unauthorized
-                }
                 if let body = String(data: data, encoding: .utf8) {
                     NSLog("[HTTPClient] %d error body: %@", http.statusCode, String(body.prefix(500)))
                 }

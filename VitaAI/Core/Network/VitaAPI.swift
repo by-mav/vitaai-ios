@@ -590,12 +590,17 @@ actor VitaAPI {
         try await client.get("portal/status")
     }
 
+    // Backend só serve portal/*. Estas funções viram NO-OPs até as features
+    // que dependem delas (CourseDetail, Estudos files picker, Simulado files
+    // picker, conectores via cookies) serem migradas/removidas. NÃO bater
+    // na rede: hits 404 anteriores estavam disparando logout em loop.
+
     func connectCanvas(accessToken: String, instanceUrl: String) async throws -> CanvasConnectResponse {
-        try await client.post("canvas/connect", body: CanvasConnectRequest(accessToken: accessToken, instanceUrl: instanceUrl))
+        return CanvasConnectResponse(success: false, error: "canvas_connect_legacy_disabled")
     }
 
     func syncCanvas() async throws -> CanvasSyncResponse {
-        try await client.post("canvas/sync")
+        return CanvasSyncResponse()
     }
 
     func disconnectCanvas() async throws {
@@ -603,23 +608,19 @@ actor VitaAPI {
     }
 
     func getCourses() async throws -> CoursesResponse {
-        try await client.get("canvas/courses")
+        return CoursesResponse()
     }
 
     func getFiles(courseId: String? = nil) async throws -> FilesResponse {
-        var items: [URLQueryItem] = []
-        if let courseId { items.append(.init(name: "courseId", value: courseId)) }
-        return try await client.get("canvas/files", queryItems: items.isEmpty ? nil : items)
+        return FilesResponse()
     }
 
     func getAssignments(courseId: String? = nil) async throws -> AssignmentsResponse {
-        var items: [URLQueryItem] = []
-        if let courseId { items.append(.init(name: "courseId", value: courseId)) }
-        return try await client.get("canvas/assignments", queryItems: items.isEmpty ? nil : items)
+        return AssignmentsResponse()
     }
 
     func downloadFileData(fileId: String) async throws -> Data {
-        try await client.downloadRaw("canvas/files/\(fileId)/download")
+        throw APIError.serverError(404)
     }
 
     // MARK: - Subjects (NO BACKEND: subjects, subjects/manual)
