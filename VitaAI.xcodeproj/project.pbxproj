@@ -152,6 +152,7 @@
 		66989C425ACDD32B3EC1261F /* VitaMascot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E924DCF6AA655A4D83A473DD /* VitaMascot.swift */; };
 		672E26ACBF229968B2BB55F2 /* SubjectColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B4E6171DD72A7B7AC4F27C /* SubjectColors.swift */; };
 		67630DBBBFB4D18CFFFDEED0 /* OsceSseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0387CC7FD36268CA8C03B06 /* OsceSseClient.swift */; };
+		6823BE1A2916D6A4CF41FB8B /* VitaModals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E3D63AD574133541620DA8 /* VitaModals.swift */; };
 		6868AD44A16304F2D90AEA46 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B27D9B4C7F44B7779A43CE3 /* CachedAsyncImage.swift */; };
 		6B15F1C56BFAF71BAAD0881C /* VitaTypingMascot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1D7F50D43B24E6AA736C9A /* VitaTypingMascot.swift */; };
 		6B39D764E1FF15774658E978 /* DashboardHeroCardBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD7B8AB9F6F4EDC09B88BF0B /* DashboardHeroCardBackground.swift */; };
@@ -333,7 +334,6 @@
 		F8F274FB71DC9E5B7DEBD4DA /* ConnectorSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC47E9884B9D2670B72B460F /* ConnectorSyncView.swift */; };
 		FA6A48A92EB08C41F55D6766 /* TranscricaoControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4C53F34FC1FDE66D790775 /* TranscricaoControls.swift */; };
 		FACCA6465651D4C1C22EE0C0 /* VitaNotificationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC63CEAFB878B94BBCE32D8 /* VitaNotificationSheet.swift */; };
-		FBF36CDB79AA06BA641672CF /* VitaBottomSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA356FDD5A63C0ACB7467A1D /* VitaBottomSheet.swift */; };
 		FE43857DB04F620C6AD212AE /* TranscricaoAudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330A738D52A76441153C62B0 /* TranscricaoAudioPlayer.swift */; };
 		FF5F9DE2BBAA57DD89FF7FE2 /* TranscricaoKaraokeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F636E362403357CDFBA6A2CF /* TranscricaoKaraokeText.swift */; };
 /* End PBXBuildFile section */
@@ -374,6 +374,7 @@
 		166B2EDD46994090902659D5 /* WelcomeStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeStep.swift; sourceTree = "<group>"; };
 		16B4E6171DD72A7B7AC4F27C /* SubjectColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectColors.swift; sourceTree = "<group>"; };
 		16B6F86F91AABF4862EB5F25 /* PlannerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerViewModel.swift; sourceTree = "<group>"; };
+		17E3D63AD574133541620DA8 /* VitaModals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaModals.swift; sourceTree = "<group>"; };
 		18071D7DB89A34DE11E9EE5E /* QBankShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankShared.swift; sourceTree = "<group>"; };
 		195A69CD6776A957B920D6E0 /* TranscricaoProfessorSignals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoProfessorSignals.swift; sourceTree = "<group>"; };
 		197E24D257AEEC53A26F1D18 /* NotesSyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesSyncModels.swift; sourceTree = "<group>"; };
@@ -617,7 +618,6 @@
 		C84201C4AE38526C62B3DFD1 /* VitaMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaMarkdown.swift; sourceTree = "<group>"; };
 		C8F1A644E77BE71390EA086F /* PageEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageEntity.swift; sourceTree = "<group>"; };
 		C9337F6DFB8D1F778A754664 /* PaywallViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallViewModel.swift; sourceTree = "<group>"; };
-		CA356FDD5A63C0ACB7467A1D /* VitaBottomSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaBottomSheet.swift; sourceTree = "<group>"; };
 		CABC58C8177E84A757D6500E /* VitaErrorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaErrorState.swift; sourceTree = "<group>"; };
 		CB27BA209A53B6330D9ED054 /* VitaTopBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaTopBar.swift; sourceTree = "<group>"; };
 		CB44569D3F0C702159D0877E /* AchievementsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsViewModel.swift; sourceTree = "<group>"; };
@@ -824,7 +824,6 @@
 				BBCCFEE392F9CB2615DF85D8 /* VideoBackground.swift */,
 				1130013BF0504A0F42C04360 /* VitaAmbientBackground.swift */,
 				541E22A09857C9F160E0E617 /* VitaBadgeGrid.swift */,
-				CA356FDD5A63C0ACB7467A1D /* VitaBottomSheet.swift */,
 				7032B7F8C0B61415B9E30313 /* VitaBreadcrumb.swift */,
 				987EF0B6643EBFB1180808A0 /* VitaButton.swift */,
 				0D1DEFA21BC1414F1621867C /* VitaCardRow.swift */,
@@ -837,6 +836,7 @@
 				37569ED0C0303F076543301E /* VitaInput.swift */,
 				C84201C4AE38526C62B3DFD1 /* VitaMarkdown.swift */,
 				9F70F963371379D809067BD4 /* VitaMenuPopout.swift */,
+				17E3D63AD574133541620DA8 /* VitaModals.swift */,
 				EEC63CEAFB878B94BBCE32D8 /* VitaNotificationSheet.swift */,
 				13E0DDDF5D64EFF6ABD99CAB /* VitaNotifPopout.swift */,
 				97AA77471D1E0F51EB5563A9 /* VitaScreenSkeleton.swift */,
@@ -1940,7 +1940,6 @@
 				2149E1761AFC39A3D2A71936 /* VitaAPI.swift in Sources */,
 				DEBC36D19EA98D5B4B2B297A /* VitaAmbientBackground.swift in Sources */,
 				4CAF4526D5C2CA1458AE2F90 /* VitaBadgeGrid.swift in Sources */,
-				FBF36CDB79AA06BA641672CF /* VitaBottomSheet.swift in Sources */,
 				CDC626FD70D21814D55D60EC /* VitaBreadcrumb.swift in Sources */,
 				628923D3EF7F1441CE0A45D0 /* VitaButton.swift in Sources */,
 				8C52823C0EEDFE9D799390DD /* VitaCardRow.swift in Sources */,
@@ -1958,6 +1957,7 @@
 				EDD8F6E728065C3FF6BDE691 /* VitaMarkdown.swift in Sources */,
 				66989C425ACDD32B3EC1261F /* VitaMascot.swift in Sources */,
 				864F5D154DF68734D7D8BDBB /* VitaMenuPopout.swift in Sources */,
+				6823BE1A2916D6A4CF41FB8B /* VitaModals.swift in Sources */,
 				03963891743F4D270820E40D /* VitaNotifPopout.swift in Sources */,
 				FACCA6465651D4C1C22EE0C0 /* VitaNotificationSheet.swift in Sources */,
 				D0D6F9129C3F5C4B7E1DBBA5 /* VitaOnboarding.swift in Sources */,

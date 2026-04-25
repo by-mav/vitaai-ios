@@ -461,23 +461,16 @@ struct MonthlyCalendarView: View {
         .onAppear { rebuildCellsIfNeeded() }
         .onChange(of: displayedMonth) { _, _ in rebuildCellsIfNeeded() }
         .sheet(item: $footerSheet) { sheet in
-            footerSheetView(sheet)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(.ultraThinMaterial)
+            VitaSheet(title: sheet.title) {
+                footerSheetContent(sheet)
+            }
         }
     }
 
     @ViewBuilder
-    private func footerSheetView(_ sheet: FooterSheet) -> some View {
+    private func footerSheetContent(_ sheet: FooterSheet) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(sheet.title)
-                    .font(VitaTypography.headlineSmall)
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-
+            VStack(alignment: .leading, spacing: 0) {
                 switch sheet {
                 case .avaliacoes(let items), .provas(let items):
                     if items.isEmpty {
@@ -1062,6 +1055,7 @@ struct MonthlyCalendarView: View {
 
     @ViewBuilder
     private func popoverLayer(_ day: SelectedDay) -> some View {
+        // vita-modals-ignore: legacy day-popover, migrar pra .sheet(item:)+VitaSheet em refactor separado
         ZStack {
             Color.black.opacity(0.45)
                 .ignoresSafeArea()

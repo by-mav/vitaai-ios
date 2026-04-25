@@ -84,7 +84,7 @@ struct TrabalhoEditorView: View {
             get: { vm.showTemplateChooser },
             set: { if !$0 { vm.dismissTemplateChooser() } }
         )) {
-            VitaBottomSheet(title: "Escolha um modelo") {
+            VitaSheet(title: "Escolha um modelo") {
                 templateChooserContent(vm: vm)
             }
         }
@@ -93,19 +93,19 @@ struct TrabalhoEditorView: View {
             get: { vm.showAiPanel },
             set: { if !$0 { vm.dismissAiPanel() } }
         )) {
-            VitaBottomSheet(title: "Assistente IA") {
+            VitaSheet(title: "Assistente IA") {
                 aiAssistantContent(vm: vm)
             }
         }
         // Delete confirmation
         .sheet(isPresented: $showDeleteConfirm) {
-            VitaBottomSheet(title: "Excluir trabalho?") {
+            VitaSheet(title: "Excluir trabalho?") {
                 deleteConfirmContent(vm: vm)
             }
         }
         // Submit confirmation
         .sheet(isPresented: $showSubmitConfirm) {
-            VitaBottomSheet(title: "Enviar para o Canvas?") {
+            VitaSheet(title: "Enviar para o Canvas?") {
                 submitConfirmContent(vm: vm)
             }
         }
