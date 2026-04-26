@@ -41,16 +41,29 @@ struct QBankTopicsContent: View {
         return vm.state.filters.topics.filter { $0.disciplineSlug == slug }
     }
 
-    /// Nós raiz da árvore (parentTopicId == nil) ordenados por count desc.
+    /// Nós raiz da árvore (parentTopicId == nil) com sort + filtro de busca.
     private var rootTopics: [QBankTopic] {
         let roots = disciplineTopics.filter { $0.parentTopicId == nil }
-        let sorted = roots.sorted { ($0.count ?? 0) > ($1.count ?? 0) }
-        // Filtro de busca aplicado client-side em toda a árvore: se algum
-        // descendente bater, mostra root + path. Implementação simples: se
-        // search vazio, retorna todos roots. Senão retorna roots cujos
-        // descendentes (incluindo self) tenham match.
+        let sorted = sortNodes(roots)
         guard !searchText.isEmpty else { return sorted }
         return sorted.filter { matchesSearchInSubtree($0) }
+    }
+
+    /// Ordenação aplicada em qualquer lista de nodes (root + children).
+    /// Fonte do "count" considera AGREGADO da subtree (não só direct).
+    private func sortNodes(_ nodes: [QBankTopic]) -> [QBankTopic] {
+        switch vm.state.topicsSortOrder {
+        case .byQuestions:
+            return nodes.sorted {
+                QBankTopicNodeView.aggregateCount($0, in: disciplineTopics) >
+                    QBankTopicNodeView.aggregateCount($1, in: disciplineTopics)
+            }
+        case .alphabetical:
+            return nodes.sorted {
+                $0.displayTitle.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current) <
+                    $1.displayTitle.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            }
+        }
     }
 
     private func matchesSearchInSubtree(_ node: QBankTopic) -> Bool {
@@ -288,12 +301,16 @@ struct QBankTopicsContent: View {
 
     private var topicsTreeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(searchText.isEmpty ? "Por tópico" : "Resultados")
-                .font(.system(size: 10, weight: .semibold))
-                .kerning(0.8)
-                .foregroundStyle(VitaColors.textSecondary)
-                .padding(.leading, 4)
-                .padding(.top, 4)
+            HStack {
+                Text(searchText.isEmpty ? "Por tópico" : "Resultados")
+                    .font(.system(size: 10, weight: .semibold))
+                    .kerning(0.8)
+                    .foregroundStyle(VitaColors.textSecondary)
+                Spacer()
+                sortChips
+            }
+            .padding(.leading, 4)
+            .padding(.top, 4)
 
             VStack(spacing: 8) {
                 ForEach(rootTopics) { node in
@@ -303,9 +320,53 @@ struct QBankTopicsContent: View {
                         depth: 0,
                         disciplineSlug: discipline?.slug,
                         allTopics: disciplineTopics,
-                        searchText: searchText
+                        searchText: searchText,
+                        sortOrder: vm.state.topicsSortOrder
                     )
                 }
+            }
+        }
+    }
+
+    /// Sort chips — toggle "Mais questões" ↔ "A → Z". Fica à direita do
+    /// header da seção. Tap aplica ordenação em todos os níveis da árvore.
+    private var sortChips: some View {
+        HStack(spacing: 6) {
+            ForEach(QBankTopicsSortOrder.allCases, id: \.self) { order in
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    vm.state.topicsSortOrder = order
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: order == .byQuestions ? "number" : "textformat")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(order.displayName)
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .foregroundStyle(
+                        vm.state.topicsSortOrder == order
+                            ? VitaColors.accent
+                            : VitaColors.textSecondary
+                    )
+                    .background(
+                        Capsule().fill(
+                            vm.state.topicsSortOrder == order
+                                ? VitaColors.accent.opacity(0.14)
+                                : Color.clear
+                        )
+                    )
+                    .overlay(
+                        Capsule().stroke(
+                            vm.state.topicsSortOrder == order
+                                ? VitaColors.accent.opacity(0.30)
+                                : VitaColors.glassBorder.opacity(0.30),
+                            lineWidth: 1
+                        )
+                    )
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -320,11 +381,22 @@ private struct QBankTopicNodeView: View {
     let disciplineSlug: String?
     let allTopics: [QBankTopic]
     let searchText: String
+    let sortOrder: QBankTopicsSortOrder
 
     private var children: [QBankTopic] {
-        allTopics
-            .filter { $0.parentTopicId == node.id }
-            .sorted { ($0.count ?? 0) > ($1.count ?? 0) }
+        let raw = allTopics.filter { $0.parentTopicId == node.id }
+        switch sortOrder {
+        case .byQuestions:
+            return raw.sorted {
+                QBankTopicNodeView.aggregateCount($0, in: allTopics) >
+                    QBankTopicNodeView.aggregateCount($1, in: allTopics)
+            }
+        case .alphabetical:
+            return raw.sorted {
+                $0.displayTitle.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current) <
+                    $1.displayTitle.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            }
+        }
     }
 
     var body: some View {
@@ -415,7 +487,8 @@ private struct QBankTopicNodeView: View {
                             depth: depth + 1,
                             disciplineSlug: disciplineSlug,
                             allTopics: allTopics,
-                            searchText: searchText
+                            searchText: searchText,
+                            sortOrder: sortOrder
                         )
                     }
                 }
