@@ -36,6 +36,14 @@ final class PdfViewerViewModel {
     /// Set by Screen — Coordinator chama quando user toca numa mask em Study Mode.
     /// Screen apresenta StudyMaskPromptSheet.
     var onStudyMaskTap: ((StudyMaskPrompt) -> Void)? = nil
+    /// Set by Screen — invocado por replaceCurrentDrawingWithFreeText pra zerar
+    /// o PKCanvasView ativo da página atual (substituição Goodnotes-style).
+    var onClearActiveCanvas: (() -> Void)? = nil
+    /// Bounds (em coords da página) do último drawing reconhecido — usado pra
+    /// posicionar a freeText annotation no MESMO local do desenho original.
+    var lastRecognizedBounds: CGRect? = nil
+    /// Página onde o último recognizeHandwriting foi disparado.
+    var lastRecognizedPageIndex: Int? = nil
 
     // MARK: - Search state
     var isSearching: Bool = false
@@ -350,6 +358,9 @@ final class PdfViewerViewModel {
         isRecognizing = true
 
         let bounds = drawing.bounds
+        // Guarda bounds + página pra eventual substituição via replaceCurrentDrawingWithFreeText.
+        lastRecognizedBounds = bounds
+        lastRecognizedPageIndex = currentPage
         let renderer = UIGraphicsImageRenderer(bounds: bounds)
         let image = renderer.image { ctx in
             UIColor.white.setFill()
@@ -386,6 +397,64 @@ final class PdfViewerViewModel {
         }
 
         isRecognizing = false
+    }
+
+    /// Substitui o PKDrawing reconhecido por uma PDFAnnotation .freeText posicionada
+    /// no MESMO bbox do desenho original (Goodnotes 6 "Live Text Conversion" pattern).
+    /// Pré-requisito: chamar recognizeHandwriting antes — `recognizedText`,
+    /// `lastRecognizedBounds` e `lastRecognizedPageIndex` precisam estar setados.
+    /// Operação:
+    ///   1. Cria PDFAnnotation .freeText em lastRecognizedBounds da página.
+    ///   2. Limpa o PKDrawing daquela página no disco (saveDrawing PKDrawing()).
+    ///   3. Zera o PKCanvasView ativo via callback onClearActiveCanvas.
+    ///   4. Persiste o PDF (saveHighlights).
+    func replaceCurrentDrawingWithFreeText() {
+        guard let text = recognizedText,
+              !text.isEmpty,
+              let bounds = lastRecognizedBounds,
+              let pageIndex = lastRecognizedPageIndex,
+              let document,
+              let page = document.page(at: pageIndex) else {
+            return
+        }
+
+        // Padding leve dentro do bbox pra texto não colar nas bordas.
+        let inset: CGFloat = 4
+        let textBounds = bounds.insetBy(dx: inset, dy: inset)
+
+        // Tamanho de fonte derivado da altura do desenho (mín 10pt, máx 24pt).
+        // 1 linha de texto ocupa ~70% da altura do bbox; multi-linha o user
+        // pode ajustar via PDFKit edit handle.
+        let lineCount = max(1, text.components(separatedBy: "\n").count)
+        let fontSize = max(10, min(24, (textBounds.height / CGFloat(lineCount)) * 0.7))
+
+        let annotation = PDFAnnotation(bounds: textBounds, forType: .freeText, withProperties: nil)
+        annotation.font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
+        annotation.fontColor = UIColor.label
+        annotation.color = .clear
+        let nb = PDFBorder()
+        nb.lineWidth = 0
+        annotation.border = nb
+        annotation.isReadOnly = false
+        annotation.contents = text
+        page.addAnnotation(annotation)
+
+        // Limpa o drawing do disco pra aquela página.
+        saveDrawing(PKDrawing(), pageIndex: pageIndex)
+
+        // Zera o PKCanvasView ativo (se for a página visível).
+        if pageIndex == currentPage {
+            onClearActiveCanvas?()
+        }
+
+        // Persiste tudo.
+        saveHighlights()
+
+        // Limpa estado da sheet.
+        showRecognitionResult = false
+        recognizedText = nil
+        lastRecognizedBounds = nil
+        lastRecognizedPageIndex = nil
     }
 
     // MARK: - Private helpers

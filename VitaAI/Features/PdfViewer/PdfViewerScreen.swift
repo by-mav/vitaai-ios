@@ -117,6 +117,12 @@ struct PdfViewerScreen: View {
             viewModel.onStudyMaskTap = { prompt in
                 studyMaskPrompt = prompt
             }
+            // Wire HW->text substituição (Goodnotes 6 Live Text Conversion).
+            // ViewModel.replaceCurrentDrawingWithFreeText invoca isso pra zerar o
+            // PKCanvasView ativo da página visível depois de criar a PDFAnnotation.
+            viewModel.onClearActiveCanvas = {
+                currentCanvas()?.drawing = PKDrawing()
+            }
         }
         .onChange(of: workspace.activeId, initial: true) { _, _ in
             Task {
@@ -710,12 +716,36 @@ struct PdfViewerScreen: View {
                         .foregroundStyle(VitaColors.textPrimary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(VitaColors.accent)
+                        .background(VitaColors.surfaceCard)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(VitaColors.accentSubtle, lineWidth: 1)
+                        )
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.top, 12)
+
+            // Botão primário: substituir o desenho original por texto digitado
+            // (Goodnotes 6 "Live Text Conversion" — apaga PKDrawing + cria
+            // PDFAnnotation .freeText no MESMO bbox).
+            Button {
+                viewModel.replaceCurrentDrawingWithFreeText()
+                VitaPostHogConfig.capture(event: "pdf_handwriting_replaced_with_text")
+            } label: {
+                Label("Substituir desenho por texto", systemImage: "text.cursor")
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(VitaColors.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .disabled(viewModel.lastRecognizedBounds == nil)
+            .opacity(viewModel.lastRecognizedBounds == nil ? 0.5 : 1)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
         }
         .background(VitaColors.surfaceCard)
     }
@@ -1157,6 +1187,45 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
             try? await Task.sleep(for: .milliseconds(800))
             self?.viewModel.isSaving = false
         }
+    }
+
+    /// Snap-on-pause shape recognition (Goodnotes 6 pattern). Quando o usuário
+    /// solta a caneta, analisa o último stroke. Se for uma linha reta ou círculo
+    /// com alta confiança (residual normalizado <= 5%), substitui pelo shape
+    /// geometricamente perfeito. Senão, mantém o stroke original.
+    func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+        // Só processa strokes de inking (não eraser, lasso, pointer).
+        guard canvasView.tool is PKInkingTool else { return }
+        guard let lastStroke = canvasView.drawing.strokes.last else { return }
+
+        let result = PdfShapeSnap.detect(stroke: lastStroke)
+        guard case .none = result else {
+            applySnapResult(result, lastStroke: lastStroke, canvasView: canvasView)
+            return
+        }
+    }
+
+    /// Substitui o último stroke do canvas por uma versão geometricamente
+    /// perfeita (linha ou círculo). Preserva ink do stroke original.
+    private func applySnapResult(_ result: PdfShapeSnap.Result,
+                                 lastStroke: PKStroke,
+                                 canvasView: PKCanvasView) {
+        guard let replacement = PdfShapeSnap.makeReplacementStroke(for: result, ink: lastStroke.ink) else {
+            return
+        }
+        // Reconstrói o drawing trocando apenas o último stroke.
+        var strokes = canvasView.drawing.strokes
+        strokes.removeLast()
+        strokes.append(replacement)
+        canvasView.drawing = PKDrawing(strokes: strokes)
+
+        let kind: String
+        switch result {
+        case .line: kind = "line"
+        case .circle: kind = "circle"
+        case .none: kind = "none"
+        }
+        VitaPostHogConfig.capture(event: "pdf_shape_snapped", properties: ["kind": kind])
     }
 
     // MARK: PDFViewDelegate — page change notification
