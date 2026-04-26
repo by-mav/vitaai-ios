@@ -737,6 +737,7 @@ struct MainTabView: View {
                 onNavigateToPrivacySettings: { router.navigate(to: .privacySettings) },
                 onNavigateToExportData: { router.navigate(to: .exportData) },
                 onNavigateToFeedback: { router.navigate(to: .feedback) },
+                onNavigateToFocusSession: { router.navigate(to: .focusSession) },
                 onBack: { router.goBack() }
             )
         case .privacyDocuments:
@@ -750,6 +751,8 @@ struct MainTabView: View {
             ExportDataScreen(onBack: { router.goBack() })
         case .feedback:
             FeedbackScreen(onBack: { router.goBack() })
+        case .focusSession:
+            FocusSessionScreen(onBack: { router.goBack() })
         case .disciplinasConfig:
             DisciplinasConfigScreen(onBack: { router.goBack() })
         case .qbank:

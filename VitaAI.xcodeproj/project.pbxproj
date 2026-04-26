@@ -369,6 +369,7 @@
 		F8D55A720C7A943906FF2F00 /* MaterialFolderDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC79AAF200B3E4F78222C27 /* MaterialFolderDetailScreen.swift */; };
 		F8F274FB71DC9E5B7DEBD4DA /* ConnectorSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC47E9884B9D2670B72B460F /* ConnectorSyncView.swift */; };
 		FA6A48A92EB08C41F55D6766 /* TranscricaoControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4C53F34FC1FDE66D790775 /* TranscricaoControls.swift */; };
+		FA6BC60B3A4CC7D69A2392DC /* FocusSessionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF5089F3F5757A88EFFC9355 /* FocusSessionScreen.swift */; };
 		FACCA6465651D4C1C22EE0C0 /* VitaNotificationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC63CEAFB878B94BBCE32D8 /* VitaNotificationSheet.swift */; };
 		FE43857DB04F620C6AD212AE /* TranscricaoAudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330A738D52A76441153C62B0 /* TranscricaoAudioPlayer.swift */; };
 		FF5F9DE2BBAA57DD89FF7FE2 /* TranscricaoKaraokeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = F636E362403357CDFBA6A2CF /* TranscricaoKaraokeText.swift */; };
@@ -716,6 +717,7 @@
 		DE1237FCB7636C982DFF2C41 /* ProgressRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRingView.swift; sourceTree = "<group>"; };
 		DF29D66014585DBCBD22EAE0 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		DF42160A6D158C62577F93DE /* FocusSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSession.swift; sourceTree = "<group>"; };
+		DF5089F3F5757A88EFFC9355 /* FocusSessionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSessionScreen.swift; sourceTree = "<group>"; };
 		E0A01ED827C886E44CE23CD5 /* AnnotationEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationEntity.swift; sourceTree = "<group>"; };
 		E2EEF1677FFACD22671C46E4 /* EditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorViewModel.swift; sourceTree = "<group>"; };
 		E3E4C62B51093D4EC3F94246 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -1103,6 +1105,7 @@
 				0BA4FD7D6357CE2FC6230808 /* Estudos */,
 				E67C060A6E04ED857CE4F994 /* Faculdade */,
 				0A6939BD78E1E5614389BFEE /* Flashcard */,
+				714D24E66686ACAEA55AA97A /* Focus */,
 				D747BCF48E4301FD6A2F762C /* Insights */,
 				A35AE1F82208A77D5AFA72A4 /* MaterialFolder */,
 				8480059B86D8BBA2329F28AC /* MindMap */,
@@ -1155,6 +1158,14 @@
 				36D8C7E696BD9BB6CC3DF252 /* VitaTabBar.swift */,
 			);
 			path = TabBar;
+			sourceTree = "<group>";
+		};
+		714D24E66686ACAEA55AA97A /* Focus */ = {
+			isa = PBXGroup;
+			children = (
+				DF5089F3F5757A88EFFC9355 /* FocusSessionScreen.swift */,
+			);
+			path = Focus;
 			sourceTree = "<group>";
 		};
 		73986A3411D8DCA810272770 /* Models */ = {
@@ -1874,6 +1885,7 @@
 				DD418FDA220081A89C78B51E /* FlowLayout.swift in Sources */,
 				C34209CD358D0234ACFE0674 /* FocusSession.swift in Sources */,
 				16F6E06B90BBFCA4410ABBCA /* FocusSessionLeaksInner.swift in Sources */,
+				FA6BC60B3A4CC7D69A2392DC /* FocusSessionScreen.swift in Sources */,
 				0ADAF1E9FCFE415426FFA468 /* ForecastBarView.swift in Sources */,
 				033497D017ECDF16FF61BCFF /* FsrsScheduler.swift in Sources */,
 				57F83449F108DAF15B5698C1 /* GamificationModels.swift in Sources */,

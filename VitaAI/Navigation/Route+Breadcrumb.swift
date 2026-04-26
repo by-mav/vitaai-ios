@@ -71,6 +71,7 @@ extension Route {
         case .privacySettings:     return "Configurações de privacidade"
         case .exportData:          return "Exportar meus dados"
         case .feedback:            return "Feedback"
+        case .focusSession:        return "Foco"
 
         // MARK: - Fora do breadcrumb
         // Root tabs (represented by TabItem, not path)

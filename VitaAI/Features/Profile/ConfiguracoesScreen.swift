@@ -20,6 +20,7 @@ struct ConfiguracoesScreen: View {
     var onNavigateToPrivacySettings:  (() -> Void)?
     var onNavigateToExportData:       (() -> Void)?
     var onNavigateToFeedback:         (() -> Void)?
+    var onNavigateToFocusSession:     (() -> Void)?
     var onBack:                       (() -> Void)?
 
     // Sons + vibração persistem em UserDefaults via SoundManager/HapticManager.
@@ -91,6 +92,13 @@ struct ConfiguracoesScreen: View {
                             label: "Aparência",
                             desc: "Tema e visual do app",
                             action: { onNavigateToAppearance?() }
+                        )
+                        rowDivider
+                        settingsRow(
+                            icon: "hourglass",
+                            label: "Modo foco",
+                            desc: "Pomodoro com penalidade XP por sair do app",
+                            action: { onNavigateToFocusSession?() }
                         )
                         rowDivider
                         toggleRow(
