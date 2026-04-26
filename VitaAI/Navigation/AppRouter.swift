@@ -221,7 +221,7 @@ struct MainTabView: View {
                         notificationCount: pushManager.unreadNotificationCount,
                         onAvatarTap: { router.selectedTab = .progresso },
                         onMenuTap: {
-                            withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+                            withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
                             showMenuPopout.toggle()
                         }
                     )
@@ -309,7 +309,7 @@ struct MainTabView: View {
                     .ignoresSafeArea()
                     .transition(.opacity)
                     .onTapGesture {
-                        withAnimation(.spring(duration: 0.25, bounce: 0)) {
+                        withAnimation(.spring(duration: 0.45, bounce: 0.15)) {
                             showMenuPopout = false
                             showNotifPopout = false
                         }
@@ -321,14 +321,14 @@ struct MainTabView: View {
             if showNotifPopout {
                 VitaNotifPopout(
                     onDismiss: {
-                        withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+                        withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
                     },
                     onSettingsTap: {
-                        withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+                        withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
                         router.navigate(to: .notifications)
                     },
                     onNavigate: { route in
-                        withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+                        withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
                         router.navigateToRoute(route)
                     }
                 )
@@ -338,7 +338,7 @@ struct MainTabView: View {
                     insertion: .opacity.combined(with: .scale(scale: 0.88, anchor: .topTrailing)).combined(with: .offset(y: -12)),
                     removal: .opacity.combined(with: .scale(scale: 0.88, anchor: .topTrailing)).combined(with: .offset(y: -12))
                 ))
-                .animation(.spring(duration: 0.3, bounce: 0.12), value: showNotifPopout)
+                .animation(.spring(duration: 0.5, bounce: 0.18), value: showNotifPopout)
                 .zIndex(200)
             }
 
@@ -380,7 +380,7 @@ struct MainTabView: View {
         .onChange(of: router.selectedTab) { _, _ in
             // Dismiss popouts and chat on tab change
             showMenuPopout = false
-            withAnimation(.spring(duration: 0.3, bounce: 0.12)) { showNotifPopout = false }
+            withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
             if showChat {
                 withAnimation(.easeInOut(duration: 0.25)) { showChat = false }
             }
