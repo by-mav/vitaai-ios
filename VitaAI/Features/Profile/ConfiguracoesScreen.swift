@@ -18,6 +18,7 @@ struct ConfiguracoesScreen: View {
     var onNavigateToDisciplinas:      (() -> Void)?
     var onNavigateToPrivacyDocuments: (() -> Void)?
     var onNavigateToExportData:       (() -> Void)?
+    var onNavigateToFeedback:         (() -> Void)?
     var onBack:                       (() -> Void)?
 
     @Environment(\.appContainer) private var appContainer
@@ -120,16 +121,24 @@ struct ConfiguracoesScreen: View {
                 }
                 .padding(.horizontal, 14)
 
-                // MARK: - Suporte — Shell §5.2.6
-                // FeedbackScreen pendente (endpoint POST /api/feedback nao existe — delegate NOVA).
+                // MARK: - Suporte — Shell §5.2.6 + §5.2.10
                 settingsSectionLabel("Suporte")
                 VitaGlassCard {
-                    settingsRow(
-                        icon: "info.circle",
-                        label: "Sobre",
-                        desc: appVersionString,
-                        action: { onNavigateToAbout?() }
-                    )
+                    VStack(spacing: 0) {
+                        settingsRow(
+                            icon: "ellipsis.message",
+                            label: "Feedback",
+                            desc: "Bug, sugestão, elogio — vai direto pra equipe",
+                            action: { onNavigateToFeedback?() }
+                        )
+                        rowDivider
+                        settingsRow(
+                            icon: "info.circle",
+                            label: "Sobre",
+                            desc: appVersionString,
+                            action: { onNavigateToAbout?() }
+                        )
+                    }
                 }
                 .padding(.horizontal, 14)
 

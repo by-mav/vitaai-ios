@@ -69,6 +69,7 @@ extension Route {
         case .disciplinasConfig:   return "Disciplinas"
         case .privacyDocuments:    return "Privacidade de documentos"
         case .exportData:          return "Exportar meus dados"
+        case .feedback:            return "Feedback"
 
         // MARK: - Fora do breadcrumb
         // Root tabs (represented by TabItem, not path)

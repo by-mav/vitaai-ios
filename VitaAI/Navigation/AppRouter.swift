@@ -715,6 +715,7 @@ struct MainTabView: View {
                 onNavigateToDisciplinas: { router.navigate(to: .disciplinasConfig) },
                 onNavigateToPrivacyDocuments: { router.navigate(to: .privacyDocuments) },
                 onNavigateToExportData: { router.navigate(to: .exportData) },
+                onNavigateToFeedback: { router.navigate(to: .feedback) },
                 onBack: { router.goBack() }
             )
         case .privacyDocuments:
@@ -724,6 +725,8 @@ struct MainTabView: View {
             )
         case .exportData:
             ExportDataScreen(onBack: { router.goBack() })
+        case .feedback:
+            FeedbackScreen(onBack: { router.goBack() })
         case .disciplinasConfig:
             DisciplinasConfigScreen(onBack: { router.goBack() })
         case .qbank:
