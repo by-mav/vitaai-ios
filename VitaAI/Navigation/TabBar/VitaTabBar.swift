@@ -154,32 +154,51 @@ struct VitaTabBar: View {
 
     var body: some View {
         ZStack {
-            // Liquid Glass bar — iOS 26+ usa .glassEffect() NATIVO Apple
-            // (refração + specular highlights + dynamic tint). Aplica em
-            // Color.clear (não em fill opaco) com a NotchedBarShape como
-            // shape do vidro. Tint warm gold sutil mantém identidade.
-            // Fallback iOS 17-25: ultraThinMaterial (Material plano).
-            // Conteúdo do app passa por baixo (safeAreaInset removido).
+            // Liquid Glass + cor marrom BYMAV. Stack:
+            //   1. .glassEffect() refração nativa (iOS 26+) — distorce o
+            //      conteúdo do app passando por baixo
+            //   2. Gradient marrom translúcido (~55-62% opacity, não 75/82
+            //      como antes) — preserva identidade visual mas deixa o
+            //      vidro respirar e mostrar refração
+            //   3. Radial gold highlight + border + shadow (identidade)
+            // Fallback iOS 17-25: ultraThinMaterial + gradient marrom.
             Group {
                 if #available(iOS 26.0, *) {
-                    Color.clear
-                        .glassEffect(
-                            .regular.tint(
-                                Color(red: 1.0, green: 0.910, blue: 0.733).opacity(0.06)
-                            ),
-                            in: barShape
-                        )
+                    Color.clear.glassEffect(.regular, in: barShape)
                 } else {
                     barShape.fill(.ultraThinMaterial)
                 }
             }
             .overlay(
+                barShape.fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.133, green: 0.090, blue: 0.071).opacity(0.55),
+                            Color(red: 0.071, green: 0.047, blue: 0.043).opacity(0.62)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+            )
+            .overlay(
+                barShape.fill(
+                    RadialGradient(
+                        colors: [
+                            Color(red: 1.0, green: 0.910, blue: 0.733).opacity(0.10),
+                            Color.clear
+                        ],
+                        center: UnitPoint(x: 0.5, y: 0.0),
+                        startRadius: 0, endRadius: 120
+                    )
+                )
+            )
+            .overlay(
                 barShape.stroke(
-                    Color(red: 1.0, green: 0.941, blue: 0.839).opacity(0.18),
+                    Color(red: 1.0, green: 0.941, blue: 0.839).opacity(0.14),
                     lineWidth: 1
                 )
             )
-            .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
+            .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
             .frame(height: barHeight)
 
             // Tab icons
