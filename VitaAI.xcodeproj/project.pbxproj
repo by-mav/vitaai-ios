@@ -31,6 +31,7 @@
 		0ADAF1E9FCFE415426FFA468 /* ForecastBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F5D38E34409AF1928A15F19 /* ForecastBarView.swift */; };
 		0B179989404773B3C9215E93 /* ProfileResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 828BE7BA69CA5C58D8817F44 /* ProfileResponse.swift */; };
 		0B365CDE13A4800E325112F4 /* EstudosViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D88B194FA41210BD6E1BCD /* EstudosViewModel.swift */; };
+		0B64DA50F82489CAD7428A5F /* PhoneVerifySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD6822D39D8417619B16510 /* PhoneVerifySheet.swift */; };
 		0C71C68798D8974CDB777351 /* TrabalhoEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048A3804D263AE9EECDA3084 /* TrabalhoEditorViewModel.swift */; };
 		0D8151D2D8D45C021DC44B46 /* CourseDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A64B7AFF614D70112CC3B1D8 /* CourseDetailViewModel.swift */; };
 		0EAED938BBF48ED0F50CFDE1 /* FlashcardTopicsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A131384526468D02899DEB31 /* FlashcardTopicsScreen.swift */; };
@@ -536,6 +537,7 @@
 		5E1D7F50D43B24E6AA736C9A /* VitaTypingMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaTypingMascot.swift; sourceTree = "<group>"; };
 		5EE115A0772689E4DA94BD33 /* QBankResultContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankResultContent.swift; sourceTree = "<group>"; };
 		5F5D38E34409AF1928A15F19 /* ForecastBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastBarView.swift; sourceTree = "<group>"; };
+		5FD6822D39D8417619B16510 /* PhoneVerifySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneVerifySheet.swift; sourceTree = "<group>"; };
 		601CF5843581EE6256E3BF4C /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		61FD27599EBCAC8F56A1C348 /* AppearanceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceScreen.swift; sourceTree = "<group>"; };
 		641436C87C8357E9A6F3B04B /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -1437,6 +1439,7 @@
 				34E2B4483BF38F2C168810A1 /* ExportDataScreen.swift */,
 				0FA8B37E247D62A4DC64032E /* FeedbackScreen.swift */,
 				3C615CE58F474E99F3FD2173 /* NotificationSettingsScreen.swift */,
+				5FD6822D39D8417619B16510 /* PhoneVerifySheet.swift */,
 				6AD37FFFDD11FB731B7FEEB3 /* PrivacyDocumentsScreen.swift */,
 				91CA64B308EF3C1F447F1ECA /* PrivacySettingsScreen.swift */,
 				D0AA34DA1F2E5FE7046BB9C1 /* ProfileScreen.swift */,
@@ -1957,6 +1960,7 @@
 				2966520886D5E54486E731A7 /* PdfViewerScreen.swift in Sources */,
 				F53094AF37BB3E9E9FE76CEA /* PdfViewerViewModel.swift in Sources */,
 				95D55FC456FBBA9A6AC12AC3 /* PdfWorkspace.swift in Sources */,
+				0B64DA50F82489CAD7428A5F /* PhoneVerifySheet.swift in Sources */,
 				BCAD8532DDAE7A626FCB6341 /* PlannerScreen.swift in Sources */,
 				97696D66B15AF9A50675CF64 /* PlannerViewModel.swift in Sources */,
 				D628B1FB8FA0DDA9AE797994 /* PortalConnectScreen.swift in Sources */,

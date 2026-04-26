@@ -17,7 +17,9 @@ struct ProfileScreen: View {
     @State private var gamStats: GamificationStatsResponse?
     @State private var profile: ProfileResponse?
     @State private var flashcardStats: FlashcardStatsResponse?
+    @State private var whatsappStatus: WhatsAppStatusResponse?
     @State private var showEditSheet = false
+    @State private var showPhoneSheet = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -47,6 +49,12 @@ struct ProfileScreen: View {
                     .padding(.top, 20)
                 estatisticas
                     .padding(.horizontal, 14)
+
+                // WHATSAPP vinculação — Rafael 2026-04-25 "alterar telefone com
+                // confirmação WhatsApp". Backend já existe (link/verify endpoints).
+                whatsappRow
+                    .padding(.horizontal, 14)
+                    .padding(.top, 18)
 
                 // EDITAR PERFIL glass button — abre VitaSheet (shell §5.2.4),
                 // NUNCA leva pra Configurações.
@@ -83,13 +91,15 @@ struct ProfileScreen: View {
             async let statsTask: () = loadStats()
             async let profileTask: () = loadProfile()
             async let flashcardTask: () = loadFlashcardStats()
-            _ = await (statsTask, profileTask, flashcardTask)
+            async let waTask: () = loadWhatsAppStatus()
+            _ = await (statsTask, profileTask, flashcardTask, waTask)
         }
         .task {
             async let statsTask: () = loadStats()
             async let profileTask: () = loadProfile()
             async let flashcardTask: () = loadFlashcardStats()
-            _ = await (statsTask, profileTask, flashcardTask)
+            async let waTask: () = loadWhatsAppStatus()
+            _ = await (statsTask, profileTask, flashcardTask, waTask)
             ScreenLoadContext.finish(for: "Profile")
         }
         .trackScreen("Profile")
@@ -99,6 +109,76 @@ struct ProfileScreen: View {
                 profile = updated
             }
         }
+        // vita-modals-ignore: PhoneVerifySheet já é um VitaSheet internamente.
+        .sheet(isPresented: $showPhoneSheet) {
+            PhoneVerifySheet(initialPhone: whatsappStatus?.phone) {
+                Task { await loadWhatsAppStatus() }
+            }
+        }
+    }
+
+    // MARK: - WhatsApp Row
+
+    @ViewBuilder
+    private var whatsappRow: some View {
+        Button(action: { showPhoneSheet = true }) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(VitaColors.dataGreen.opacity(0.14))
+                        .frame(width: 34, height: 34)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(VitaColors.dataGreen.opacity(0.20), lineWidth: 1)
+                        )
+                    Image(systemName: "message.badge.filled.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(VitaColors.dataGreen.opacity(0.85))
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(whatsappStatus?.verified == true ? "WhatsApp vinculado" : "Vincular WhatsApp")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.88))
+                    if let phone = whatsappStatus?.phone, whatsappStatus?.verified == true {
+                        Text(formatBR(phone))
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                    } else {
+                        Text("Lembretes de prova, dúvidas com Vita, recuperação de conta")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.35))
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.20))
+            }
+            .padding(14)
+            .background(VitaColors.glassInnerLight.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(VitaColors.accentHover.opacity(0.10), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func formatBR(_ raw: String) -> String {
+        let d = raw.filter(\.isNumber)
+        let trimmed = d.hasPrefix("55") && d.count >= 12 ? String(d.dropFirst(2)) : d
+        guard trimmed.count >= 10 else { return raw }
+        let chars = Array(trimmed)
+        let ddd = String(chars[0..<2])
+        let isMobile = trimmed.count == 11
+        let body = isMobile ? String(chars[2..<7]) : String(chars[2..<6])
+        let suffix = isMobile ? String(chars[7..<11]) : String(chars[6..<10])
+        return "(\(ddd)) \(body)-\(suffix)"
     }
 
     // MARK: - Header (gear-only, sem chevron back, sem título redundante)
@@ -428,6 +508,10 @@ struct ProfileScreen: View {
 
     private func loadFlashcardStats() async {
         flashcardStats = try? await container.api.getFlashcardStats()
+    }
+
+    private func loadWhatsAppStatus() async {
+        whatsappStatus = try? await container.api.getWhatsAppStatus()
     }
 
     private func loadProfile() async {
