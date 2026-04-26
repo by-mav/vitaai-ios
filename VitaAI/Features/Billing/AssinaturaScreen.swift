@@ -1,5 +1,6 @@
 import SwiftUI
 import Sentry
+import StoreKit
 
 // MARK: - AssinaturaScreen
 // Matches assinatura-mobile-v1.html mockup.
@@ -8,6 +9,8 @@ import Sentry
 struct AssinaturaScreen: View {
     @Environment(\.subscriptionStatus) private var subStatus
     @State private var showPaywall = false
+    @State private var isRestoring = false
+    @State private var restoreMessage: String?
 
     var onBack: (() -> Void)?
 
@@ -42,10 +45,18 @@ struct AssinaturaScreen: View {
                 comparisonTable
                     .padding(.horizontal, 14)
 
+                // MARK: - Compras — Apple App Store Review Guideline 3.1.1 obriga
+                // "Restaurar compras" + acesso fácil pra gerenciar/cancelar.
+                sectionLabel("Compras")
+                    .padding(.top, 22)
+                purchaseActionsCard
+                    .padding(.horizontal, 14)
+
                 Spacer().frame(height: 120)
             }
         }
         .background(VitaColors.surface.ignoresSafeArea())
+        // vita-modals-ignore: já wrappa com VitaSheet logo abaixo (linter olha linha-a-linha).
         .sheet(isPresented: $showPaywall) {
             VitaSheet {
                 VitaPaywallScreen(onDismiss: { showPaywall = false })
@@ -497,6 +508,100 @@ struct AssinaturaScreen: View {
         .padding(.vertical, 10)
         .overlay(alignment: .bottom) {
             Rectangle().fill(subtleText.opacity(0.03)).frame(height: 1)
+        }
+    }
+
+    // MARK: - Purchase Actions (Apple obriga — Restaurar + Gerenciar)
+
+    private var purchaseActionsCard: some View {
+        VitaGlassCard {
+            VStack(spacing: 0) {
+                Button(action: { Task { await restorePurchases() } }) {
+                    HStack(spacing: 12) {
+                        if isRestoring {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(goldText)
+                                .frame(width: 14, height: 14)
+                        } else {
+                            Image(systemName: "arrow.clockwise.circle")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(goldText.opacity(0.85))
+                                .frame(width: 14, height: 14)
+                        }
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(isRestoring ? "Restaurando..." : "Restaurar compras")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.88))
+                            if let restoreMessage {
+                                Text(restoreMessage)
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(subtleText.opacity(0.55))
+                            } else {
+                                Text("Já assinou em outro device? Recupere aqui.")
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(subtleText.opacity(0.35))
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(isRestoring)
+
+                Rectangle()
+                    .fill(subtleText.opacity(0.04))
+                    .frame(height: 1)
+
+                Button(action: openManageSubscriptions) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(goldText.opacity(0.85))
+                            .frame(width: 14, height: 14)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Gerenciar assinatura")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.88))
+                            Text("Pausar, mudar de plano ou cancelar via App Store")
+                                .font(.system(size: 10.5))
+                                .foregroundStyle(subtleText.opacity(0.35))
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(subtleText.opacity(0.20))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @MainActor
+    private func restorePurchases() async {
+        guard !isRestoring else { return }
+        isRestoring = true
+        restoreMessage = nil
+        defer { isRestoring = false }
+        do {
+            try await AppStore.sync()
+            restoreMessage = "Compras sincronizadas com sua conta Apple."
+        } catch {
+            restoreMessage = "Não foi possível sincronizar agora. Tente em instantes."
+        }
+    }
+
+    private func openManageSubscriptions() {
+        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+            UIApplication.shared.open(url)
         }
     }
 
