@@ -243,10 +243,10 @@ struct MainTabView: View {
                                 NavControllerBackgroundClearer(pathCount: router.path.count)
                                     .frame(width: 0, height: 0)
                             }
-                            // Liquid Glass requer conteúdo PASSANDO por baixo
-                            // da TabBar — sem safeAreaInset cortando antes.
-                            // Cada ScrollView de tab usa .contentMargins(.bottom, 100,
-                            // for: .scrollContent) pra último item respirar acima do vidro.
+                            // Liquid Glass: conteúdo passa por baixo da TabBar
+                            // E do home indicator — `.ignoresSafeArea(.container,
+                            // edges: .bottom)` libera scroll até o pixel final.
+                            .ignoresSafeArea(.container, edges: .bottom)
                             .navigationDestination(for: Route.self) { route in
                                 routeDestination(for: route)
                             }
