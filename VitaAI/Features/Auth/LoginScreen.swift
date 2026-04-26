@@ -146,8 +146,14 @@ struct LoginScreen: View {
                 .opacity(min(1, (p - 0.6) / 0.25))
             }
 
-            // Buttons
+            // Buttons — staggered entrance (BYMAV shell canon: each CTA appears
+            // ~0.05 progress units after the previous one, riding up from y+20).
+            // Drives the "wave" feel without timers; pure progress-bound.
             if p > 0.85 {
+                let googleAppear = min(1, max(0, (p - 0.85) / 0.10))
+                let appleAppear  = min(1, max(0, (p - 0.90) / 0.10))
+                let legalAppear  = min(1, max(0, (p - 0.95) / 0.05))
+
                 VStack(spacing: 0) {
                     Spacer()
 
@@ -169,6 +175,8 @@ struct LoginScreen: View {
                             authManager.signInWithGoogle()
                         }
                         .padding(.horizontal, 36)
+                        .opacity(googleAppear)
+                        .offset(y: (1 - googleAppear) * 20)
 
                         Spacer().frame(height: 12)
 
@@ -181,6 +189,8 @@ struct LoginScreen: View {
                             authManager.signInWithApple()
                         }
                         .padding(.horizontal, 36)
+                        .opacity(appleAppear)
+                        .offset(y: (1 - appleAppear) * 20)
                     }
 
                     if let error = authManager.error {
@@ -219,12 +229,13 @@ struct LoginScreen: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 48)
+                    .opacity(legalAppear)
+                    .offset(y: (1 - legalAppear) * 12)
 
-                    Spacer().frame(height: 16)
+                    // Extra breathing room above the home indicator.
+                    Spacer().frame(height: 32)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .transition(.opacity.combined(with: .offset(y: 20)))
-                .opacity(min(1, (p - 0.85) / 0.15))
             }
         }
         .ignoresSafeArea()
