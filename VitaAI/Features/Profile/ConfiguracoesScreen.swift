@@ -17,6 +17,7 @@ struct ConfiguracoesScreen: View {
     var onNavigateToAssinatura:       (() -> Void)?
     var onNavigateToDisciplinas:      (() -> Void)?
     var onNavigateToPrivacyDocuments: (() -> Void)?
+    var onNavigateToPrivacySettings:  (() -> Void)?
     var onNavigateToExportData:       (() -> Void)?
     var onNavigateToFeedback:         (() -> Void)?
     var onBack:                       (() -> Void)?
@@ -115,6 +116,13 @@ struct ConfiguracoesScreen: View {
                 settingsSectionLabel("Privacidade & Segurança")
                 VitaGlassCard {
                     VStack(spacing: 0) {
+                        settingsRow(
+                            icon: "switch.2",
+                            label: "Configurações de privacidade",
+                            desc: "Localização, perfil público, ranking, telemetria",
+                            action: { onNavigateToPrivacySettings?() }
+                        )
+                        rowDivider
                         settingsRow(
                             icon: "lock.shield",
                             label: "Privacidade de documentos",

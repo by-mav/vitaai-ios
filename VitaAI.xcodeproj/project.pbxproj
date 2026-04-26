@@ -246,6 +246,7 @@
 		9600433CADA1F94C0638634D /* GradeAlertMeta.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA6A8C8C58763ADD42697C2 /* GradeAlertMeta.swift */; };
 		97696D66B15AF9A50675CF64 /* PlannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B6F86F91AABF4862EB5F25 /* PlannerViewModel.swift */; };
 		9785A23EB0B29087BD76ADCF /* PostHogConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13553A87F15CE6B715760E9 /* PostHogConfig.swift */; };
+		98911F8CBA08E9A2F2572AEE /* PrivacySettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91CA64B308EF3C1F447F1ECA /* PrivacySettingsScreen.swift */; };
 		98F8242BCDD2FADABD727705 /* SimuladoReviewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95EB6BC0C85E92AB27B4320C /* SimuladoReviewScreen.swift */; };
 		9905478B6E1C15740CF9AC75 /* MindMapRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D42AA80449E5C406E2B3B3 /* MindMapRepository.swift */; };
 		9A2A4A721C2D598E9BF37A6E /* VitaTopBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB27BA209A53B6330D9ED054 /* VitaTopBar.swift */; };
@@ -595,6 +596,7 @@
 		8EDC2690C2FD02E700F634E6 /* StudyOverviewFlashcards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyOverviewFlashcards.swift; sourceTree = "<group>"; };
 		8F5D2349C35D3C9097489379 /* ConnectStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectStep.swift; sourceTree = "<group>"; };
 		8F7CE61430738461BCEA2766 /* QBankViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankViewModel.swift; sourceTree = "<group>"; };
+		91CA64B308EF3C1F447F1ECA /* PrivacySettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySettingsScreen.swift; sourceTree = "<group>"; };
 		9212320A780555CC61D5103A /* Date+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Helpers.swift"; sourceTree = "<group>"; };
 		9303E2BEC94F1B5C9607C134 /* VitaChatScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaChatScreen.swift; sourceTree = "<group>"; };
 		931E6A0CE40828813FE25C12 /* VitaAI.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = VitaAI.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1436,6 +1438,7 @@
 				0FA8B37E247D62A4DC64032E /* FeedbackScreen.swift */,
 				3C615CE58F474E99F3FD2173 /* NotificationSettingsScreen.swift */,
 				6AD37FFFDD11FB731B7FEEB3 /* PrivacyDocumentsScreen.swift */,
+				91CA64B308EF3C1F447F1ECA /* PrivacySettingsScreen.swift */,
 				D0AA34DA1F2E5FE7046BB9C1 /* ProfileScreen.swift */,
 			);
 			path = Profile;
@@ -1964,6 +1967,7 @@
 				9785A23EB0B29087BD76ADCF /* PostHogConfig.swift in Sources */,
 				4910B03C5AEDF46BA2199B5F /* PrivacyDocumentsScreen.swift in Sources */,
 				21F24A997B54241764402DD2 /* PrivacyPreferences.swift in Sources */,
+				98911F8CBA08E9A2F2572AEE /* PrivacySettingsScreen.swift in Sources */,
 				AC82F6D41F1DF2AFE11792F0 /* ProfessorProfileSheet.swift in Sources */,
 				BF46EFDE0F8BECBD1D47EC97 /* ProfessorProfileViewModel.swift in Sources */,
 				3CEBF87D5DD3BF842B3ABD91 /* Profile.swift in Sources */,

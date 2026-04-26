@@ -53,6 +53,7 @@ enum Route: Hashable {
     case configuracoes
     case disciplinasConfig
     case privacyDocuments
+    case privacySettings
     case exportData
     case feedback
 

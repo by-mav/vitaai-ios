@@ -68,6 +68,7 @@ extension Route {
         case .configuracoes:       return "Configurações"
         case .disciplinasConfig:   return "Disciplinas"
         case .privacyDocuments:    return "Privacidade de documentos"
+        case .privacySettings:     return "Configurações de privacidade"
         case .exportData:          return "Exportar meus dados"
         case .feedback:            return "Feedback"
 
