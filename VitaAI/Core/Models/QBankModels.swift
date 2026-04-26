@@ -93,6 +93,9 @@ struct QBankTopic: Identifiable, Hashable {
     var title: String = ""
     var disciplineId: Int? = nil
     var disciplineSlug: String? = nil
+    /// Self-ref pra hierarquia 4 níveis (ÁREA-DISCIPLINA-TEMA-CONTEÚDO).
+    /// nil = root (ÁREA). Backend retorna desde 2026-04-26.
+    var parentTopicId: Int? = nil
     var name: String?
     var disciplineName: String?
     var count: Int?
@@ -103,7 +106,7 @@ struct QBankTopic: Identifiable, Hashable {
 
 extension QBankTopic: Decodable {
     private enum CodingKeys: String, CodingKey {
-        case id, title, disciplineId, disciplineSlug, name, disciplineName, count, iconSlug
+        case id, title, disciplineId, disciplineSlug, parentTopicId, name, disciplineName, count, iconSlug
     }
 
     init(from decoder: Decoder) throws {
@@ -112,6 +115,7 @@ extension QBankTopic: Decodable {
         title = (try? c.decode(String.self, forKey: .title)) ?? ""
         disciplineId = try? c.decode(Int.self, forKey: .disciplineId)
         disciplineSlug = try? c.decode(String.self, forKey: .disciplineSlug)
+        parentTopicId = try? c.decode(Int.self, forKey: .parentTopicId)
         name = try? c.decode(String.self, forKey: .name)
         disciplineName = try? c.decode(String.self, forKey: .disciplineName)
         count = try? c.decode(Int.self, forKey: .count)

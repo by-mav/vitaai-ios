@@ -1,23 +1,29 @@
 import SwiftUI
 
-// MARK: - QBankTopicsContent — Quick Fire árvore de tópicos
+// MARK: - QBankTopicsContent — árvore real de tópicos da disciplina
 //
-// Mostrada quando user toca uma disciplina na Home (Questões). Lista os 4
-// níveis canônicos (ÁREA → DISCIPLINA → TEMA → CONTEÚDO) via `QBankDiscipline`
-// recursivo (`children`). Tap em qualquer nó (folha ou intermediário) inicia
-// uma sessão Quick Fire imediata com escopo subtree.
+// Mostrada quando user toca uma disciplina na Home (Questões). Constrói árvore
+// client-side a partir de `state.filters.topics` (FLAT) usando `parentTopicId`
+// pra montar hierarquia 4 níveis ÁREA → TEMA → SUBTEMA → CONTEÚDO. Filtra
+// pelo `disciplineSlug` da matéria escolhida. Tap em qualquer nó (folha ou
+// intermediário) inicia sessão Quick Fire imediata com escopo subtree.
+//
+// Search bar no topo filtra por título (case/accent insensitive).
 //
 // Shell pattern: AppRouter aplica VitaAmbientBackground (starfield) global —
 // esta tela NÃO sobrepõe background opaco. Cards via VitaGlassCard (D4).
-// Loading via VitaHeartbeatLoader. Empty via VitaEmptyState.
 //
-// Rafael 2026-04-26: "questoes eh pra fazer questoes direto, em ordem
-// rapida, apenas fazer e pronto".
+// Rafael 2026-04-26: "tu tira o negocio de comecar pela disciplina toda,
+// ninguem vai usar isso. precisa ser separado em topicos e conteudos e ter
+// um menu de busca ali".
 
 struct QBankTopicsContent: View {
     @Bindable var vm: QBankViewModel
     @Environment(\.appContainer) private var container
     let onBack: () -> Void
+
+    @State private var searchText: String = ""
+    @FocusState private var searchFocused: Bool
 
     /// Initial seed (slug + title só) vem de `state.topicsDiscipline`. Quando
     /// `loadFilters` termina, busca a versão LIVE na árvore (com children).
@@ -29,24 +35,52 @@ struct QBankTopicsContent: View {
         return live ?? seed
     }
 
-    /// Estatísticas agregadas por disciplina vindas de `state.progress.byTopic`.
-    /// Soma respondidas + corretas dos tópicos cuja subtree pertence ao
-    /// `topicsExpandedNodeIds + discipline.children` (todos os IDs do subtree).
+    /// Tópicos da disciplina ativa, plano (filtered de filters.topics).
+    private var disciplineTopics: [QBankTopic] {
+        guard let slug = discipline?.slug else { return [] }
+        return vm.state.filters.topics.filter { $0.disciplineSlug == slug }
+    }
+
+    /// Nós raiz da árvore (parentTopicId == nil) ordenados por count desc.
+    private var rootTopics: [QBankTopic] {
+        let roots = disciplineTopics.filter { $0.parentTopicId == nil }
+        let sorted = roots.sorted { ($0.count ?? 0) > ($1.count ?? 0) }
+        // Filtro de busca aplicado client-side em toda a árvore: se algum
+        // descendente bater, mostra root + path. Implementação simples: se
+        // search vazio, retorna todos roots. Senão retorna roots cujos
+        // descendentes (incluindo self) tenham match.
+        guard !searchText.isEmpty else { return sorted }
+        return sorted.filter { matchesSearchInSubtree($0) }
+    }
+
+    private func matchesSearchInSubtree(_ node: QBankTopic) -> Bool {
+        if titleMatches(node) { return true }
+        let children = disciplineTopics.filter { $0.parentTopicId == node.id }
+        return children.contains(where: matchesSearchInSubtree)
+    }
+
+    private func titleMatches(_ node: QBankTopic) -> Bool {
+        let needle = searchText.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        let hay = node.displayTitle.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        return hay.contains(needle)
+    }
+
+    /// Estatísticas agregadas pela disciplina (state.progress.byTopic ∩ tópicos da disciplina).
     private var disciplineStats: (answered: Int, correct: Int, total: Int)? {
-        guard let disc = discipline, !disc.children.isEmpty else { return nil }
-        let allTopicIds = QBankTopicNodeView.collectAllIds(disc.children)
-        let entries = vm.state.progress.byTopic.filter { allTopicIds.contains($0.topicId) }
+        guard !disciplineTopics.isEmpty else { return nil }
+        let topicIds = Set(disciplineTopics.map(\.id))
+        let entries = vm.state.progress.byTopic.filter { topicIds.contains($0.topicId) }
         guard !entries.isEmpty else { return nil }
         let answered = entries.reduce(0) { $0 + $1.answered }
         let correct = entries.reduce(0) { $0 + $1.correct }
-        return (answered, correct, disc.questionCount)
+        return (answered, correct, discipline?.questionCount ?? 0)
     }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 14) {
                 heroCard
-                quickStartCard
+                searchBar
                 contentSection
             }
             .padding(.horizontal, 16)
@@ -156,51 +190,64 @@ struct QBankTopicsContent: View {
         )
     }
 
-    // MARK: - Quick Start CTA
+    // MARK: - Search bar
 
-    private var quickStartCard: some View {
-        Button {
-            guard let slug = discipline?.slug else { return }
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            vm.startQuickFire(disciplineSlug: slug)
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(VitaColors.accentHover)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Começar pela disciplina toda")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text("10 questões aleatórias de toda a matéria")
-                        .font(.system(size: 11))
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(VitaColors.textSecondary)
+            TextField(
+                "",
+                text: $searchText,
+                prompt: Text("Buscar tópico ou conteúdo")
                     .foregroundStyle(VitaColors.textTertiary)
+            )
+            .focused($searchFocused)
+            .font(.system(size: 14))
+            .foregroundStyle(VitaColors.textPrimary)
+            .submitLabel(.search)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .buttonStyle(.plain)
             }
-            .padding(14)
         }
-        .buttonStyle(.plain)
-        .glassCard(cornerRadius: 16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .glassCard(cornerRadius: 14)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(VitaColors.accent.opacity(0.36), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(
+                    searchFocused ? VitaColors.accent.opacity(0.40) : VitaColors.accent.opacity(0.12),
+                    lineWidth: 1
+                )
+                .animation(.easeInOut(duration: 0.18), value: searchFocused)
         )
     }
 
-    // MARK: - Content section (loading / empty / topics tree)
+    // MARK: - Content section
 
     @ViewBuilder
     private var contentSection: some View {
-        if vm.state.filtersLoading && (discipline?.children.isEmpty ?? true) {
+        if vm.state.filtersLoading && disciplineTopics.isEmpty {
             loadingState
-        } else if let disc = discipline, !disc.children.isEmpty {
-            topicsTreeSection(disc)
+        } else if rootTopics.isEmpty {
+            if !searchText.isEmpty {
+                searchEmptyState
+            } else {
+                emptyState
+            }
         } else {
-            emptyState
+            topicsTreeSection
         }
     }
 
@@ -218,7 +265,7 @@ struct QBankTopicsContent: View {
     private var emptyState: some View {
         VitaEmptyState(
             title: "Sem tópicos catalogados",
-            message: "A árvore de tópicos pra essa disciplina ainda não foi mapeada. Usa o atalho acima pra começar com a disciplina toda."
+            message: "A árvore de tópicos pra essa disciplina ainda não foi mapeada no banco. Se há questões disponíveis, tópicos virão na próxima atualização do catálogo."
         ) {
             Image(systemName: "tray")
                 .font(.system(size: 36, weight: .light))
@@ -227,9 +274,21 @@ struct QBankTopicsContent: View {
         .padding(.top, 12)
     }
 
-    private func topicsTreeSection(_ disc: QBankDiscipline) -> some View {
+    private var searchEmptyState: some View {
+        VitaEmptyState(
+            title: "Nada encontrado",
+            message: "Nenhum tópico bate com \"\(searchText)\". Tenta outro termo ou limpa a busca."
+        ) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 36, weight: .light))
+                .foregroundStyle(VitaColors.textTertiary)
+        }
+        .padding(.top, 12)
+    }
+
+    private var topicsTreeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Por tópico")
+            Text(searchText.isEmpty ? "Por tópico" : "Resultados")
                 .font(.system(size: 10, weight: .semibold))
                 .kerning(0.8)
                 .foregroundStyle(VitaColors.textSecondary)
@@ -237,12 +296,14 @@ struct QBankTopicsContent: View {
                 .padding(.top, 4)
 
             VStack(spacing: 8) {
-                ForEach(disc.children) { node in
+                ForEach(rootTopics) { node in
                     QBankTopicNodeView(
                         vm: vm,
                         node: node,
                         depth: 0,
-                        disciplineSlug: disc.slug
+                        disciplineSlug: discipline?.slug,
+                        allTopics: disciplineTopics,
+                        searchText: searchText
                     )
                 }
             }
@@ -254,17 +315,25 @@ struct QBankTopicsContent: View {
 
 private struct QBankTopicNodeView: View {
     @Bindable var vm: QBankViewModel
-    let node: QBankDiscipline
+    let node: QBankTopic
     let depth: Int
     let disciplineSlug: String?
+    let allTopics: [QBankTopic]
+    let searchText: String
+
+    private var children: [QBankTopic] {
+        allTopics
+            .filter { $0.parentTopicId == node.id }
+            .sorted { ($0.count ?? 0) > ($1.count ?? 0) }
+    }
 
     var body: some View {
-        let isExpanded = vm.state.topicsExpandedNodeIds.contains(node.id)
-        let hasChildren = !node.children.isEmpty
+        // Auto-expandir quando há busca ativa (UX de tree-search).
+        let isExpanded = vm.state.topicsExpandedNodeIds.contains(node.id) || !searchText.isEmpty
+        let hasChildren = !children.isEmpty
 
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                // Disclosure (chevron rotaciona)
                 if hasChildren {
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -282,10 +351,9 @@ private struct QBankTopicNodeView: View {
                     Color.clear.frame(width: 22, height: 22)
                 }
 
-                // Tap no título → quick fire subtree
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    let topicIds = Self.collectTopicIds(node)
+                    let topicIds = Self.collectTopicIds(node, in: allTopics)
                     vm.startQuickFire(
                         disciplineSlug: disciplineSlug,
                         topicIds: topicIds
@@ -293,14 +361,25 @@ private struct QBankTopicNodeView: View {
                 } label: {
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(node.title)
+                            Text(node.displayTitle)
                                 .font(.system(size: depth == 0 ? 14 : 13, weight: depth == 0 ? .semibold : .medium))
                                 .foregroundStyle(VitaColors.textPrimary)
                                 .multilineTextAlignment(.leading)
                                 .lineLimit(2)
-                            Text(Self.levelLabel(depth) + (node.questionCount > 0 ? " · \(node.questionCount) questões" : ""))
-                                .font(.system(size: 10))
-                                .foregroundStyle(VitaColors.textSecondary)
+                            HStack(spacing: 6) {
+                                Text(Self.levelLabel(depth))
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundStyle(VitaColors.accent)
+                                if let count = node.count, count > 0 {
+                                    Text("·")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(VitaColors.textTertiary)
+                                    Text("\(count) \(count == 1 ? "questão" : "questões")")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(VitaColors.textSecondary)
+                                        .monospacedDigit()
+                                }
+                            }
                         }
                         Spacer()
                         Image(systemName: "play.circle")
@@ -314,8 +393,6 @@ private struct QBankTopicNodeView: View {
             .padding(.vertical, 11)
             .padding(.horizontal, 12)
             .background {
-                // Top-level usa glassCard D4 completo; subtópicos usam fill
-                // mais sutil pra não competir visualmente.
                 if depth == 0 {
                     Color.clear.glassCard(cornerRadius: 12)
                 } else {
@@ -330,12 +407,14 @@ private struct QBankTopicNodeView: View {
 
             if isExpanded && hasChildren {
                 VStack(spacing: 6) {
-                    ForEach(node.children) { child in
+                    ForEach(children) { child in
                         QBankTopicNodeView(
                             vm: vm,
                             node: child,
                             depth: depth + 1,
-                            disciplineSlug: disciplineSlug
+                            disciplineSlug: disciplineSlug,
+                            allTopics: allTopics,
+                            searchText: searchText
                         )
                     }
                 }
@@ -345,31 +424,24 @@ private struct QBankTopicNodeView: View {
         }
     }
 
-    static func collectTopicIds(_ node: QBankDiscipline) -> Set<Int> {
+    static func collectTopicIds(_ node: QBankTopic, in all: [QBankTopic]) -> Set<Int> {
         var ids: Set<Int> = [node.id]
-        for child in node.children {
-            ids.formUnion(collectTopicIds(child))
+        let directChildren = all.filter { $0.parentTopicId == node.id }
+        for child in directChildren {
+            ids.formUnion(collectTopicIds(child, in: all))
         }
         return ids
     }
 
-    /// Coleta TODOS os IDs de uma lista de nodes (todos os descendentes).
-    /// Usado pelo Hero stats da disciplina.
-    static func collectAllIds(_ nodes: [QBankDiscipline]) -> Set<Int> {
-        var ids: Set<Int> = []
-        for node in nodes {
-            ids.formUnion(collectTopicIds(node))
-        }
-        return ids
-    }
-
+    /// Label semântico por nível (0=TEMA, 1=SUBTEMA, 2=CONTEÚDO, 3=detalhe).
+    /// A disciplina já é o nível 1 do canon (ÁREA-DISCIPLINA-TEMA-CONTEÚDO);
+    /// dentro da tela de Topics, profundidade 0 = TEMA.
     static func levelLabel(_ depth: Int) -> String {
         switch depth {
-        case 0: return "Tema"
-        case 1: return "Subtema"
-        case 2: return "Conteúdo"
-        default: return "Subtópico"
+        case 0: return "TEMA"
+        case 1: return "SUBTEMA"
+        case 2: return "CONTEÚDO"
+        default: return "DETALHE"
         }
     }
 }
-
