@@ -2033,14 +2033,69 @@ private struct AnatomySceneView: UIViewRepresentable {
             let lower = target.lowercased()
             let stem = lower.split(separator: ".").first.map(String.init) ?? lower
 
+            // GLB names use spaces and dots ("Cuboid bone.l", "Right common
+            // carotid artery"); GLTFKit2's SceneKit importer turns dots into
+            // underscores but keeps spaces, and tacks on "_primitiveNN" for
+            // sub-mesh primitives. Lookup ids are pure snake_case
+            // ("cuboid_bone", "right_common_carotid_artery"). Canonicalize
+            // both sides by collapsing every non-alphanumeric char to "_",
+            // then stripping the primitive tail and the TA2
+            // lateral/instance suffix (_l/_r/_i/_j). The result reduces
+            // every variant of a structure name to the same key for matching.
+            func canonicalStem(_ raw: String) -> String {
+                var collapsed = ""
+                var lastUnderscore = false
+                for ch in raw.lowercased() {
+                    if ch.isLetter || ch.isNumber {
+                        collapsed.append(ch)
+                        lastUnderscore = false
+                    } else if !lastUnderscore {
+                        collapsed.append("_")
+                        lastUnderscore = true
+                    }
+                }
+                var s = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+                if let r = s.range(of: #"_primitive\d+$"#, options: .regularExpression) {
+                    s.removeSubrange(r)
+                }
+                if let r = s.range(of: #"_(l|r|i|j)$"#, options: .regularExpression) {
+                    s.removeSubrange(r)
+                }
+                return s
+            }
+            let targetStem = canonicalStem(lower)
+
             var matchedNodes: [SCNNode] = []
             scene.rootNode.enumerateHierarchy { node, _ in
                 guard node.geometry != nil || !node.childNodes.isEmpty else { return }
-                guard let name = node.name?.lowercased() else { return }
-                let nameStem = name.split(separator: ".").first.map(String.init) ?? name
-                if name == lower || nameStem == stem {
+                guard let rawName = node.name else { return }
+                if canonicalStem(rawName) == targetStem {
                     matchedNodes.append(node)
                 }
+            }
+
+            // Compute the geometry-bearing subset BEFORE mutating visibility.
+            // Stem matching pulls in TA2 variants (.l/.r/.i/.j); .i/.j are
+            // container nodes without geometry — their boundingBox is zeroed
+            // and would yank the camera toward the scene origin. Walk into
+            // each match and collect every descendant SCNNode with real
+            // geometry.
+            var bboxNodes: [SCNNode] = []
+            for n in matchedNodes {
+                if n.geometry != nil { bboxNodes.append(n) }
+                n.enumerateChildNodes { child, _ in
+                    if child.geometry != nil { bboxNodes.append(child) }
+                }
+            }
+
+            // No-match guard runs FIRST: don't touch isHidden if there's
+            // nothing to show (e.g. structure lives in a layer the user
+            // disabled, or stem matches a TA2 entry whose mesh wasn't
+            // exported in the loaded GLBs). Without this, applyFocus would
+            // hide the entire scene and the user sees a black viewport.
+            guard let first = bboxNodes.first else {
+                atlasLog.notice("[Atlas] focus → matched=\(matchedNodes.count) bboxNodes=0 target=\(target, privacy: .public) — no visible geometry, leaving scene untouched")
+                return
             }
 
             // Mark every "layer-*" node tree as hidden, then unhide ancestors
@@ -2065,23 +2120,7 @@ private struct AnatomySceneView: UIViewRepresentable {
                 }
             }
 
-            // Frame camera around the union bbox of every matched node.
-            // Stem matching pulls in TA2 variants (.l/.r/.i/.j) where .i/.j
-            // are container nodes without geometry — their boundingBox is
-            // zeroed and would yank the union toward the scene origin (peça
-            // off-screen, viewport vazio). Walk into each match and collect
-            // every descendant SCNNode with real geometry.
-            var bboxNodes: [SCNNode] = []
-            for n in matchedNodes {
-                if n.geometry != nil { bboxNodes.append(n) }
-                n.enumerateChildNodes { child, _ in
-                    if child.geometry != nil { bboxNodes.append(child) }
-                }
-            }
-            guard let first = bboxNodes.first else {
-                atlasLog.notice("[Atlas] focus → matched=\(matchedNodes.count) target=\(target, privacy: .public) bboxNodes=0 (no geometry)")
-                return
-            }
+            // Frame camera around the union bbox of every geometry-bearing match.
             var (lo, hi) = first.boundingBox
             var minW = first.convertPosition(lo, to: scene.rootNode)
             var maxW = first.convertPosition(hi, to: scene.rootNode)
