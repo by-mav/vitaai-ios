@@ -45,35 +45,65 @@ struct ConfiguracoesScreen: View {
                 userCard
                     .padding(.top, 12)
 
-                // MARK: - Conta
-                // Shell §5.2.7: linha "Perfil" PROIBIDA aqui — User Card no topo já leva pra editar perfil.
+                // MARK: - Conta — Shell §5.2.6 + §5.2.14 (Vita extras)
                 settingsSectionLabel("Conta")
                 VitaGlassCard {
-                    settingsRow(
-                        icon: "book",
-                        label: "Disciplinas",
-                        desc: "Gerenciar disciplinas e dificuldade",
-                        action: { onNavigateToDisciplinas?() }
-                    )
+                    VStack(spacing: 0) {
+                        settingsRow(
+                            icon: "book",
+                            label: "Disciplinas",
+                            desc: "Gerenciar disciplinas e dificuldade",
+                            action: { onNavigateToDisciplinas?() }
+                        )
+                        rowDivider
+                        settingsRow(
+                            icon: "link",
+                            label: "Conectores",
+                            desc: "Portais da faculdade (351+ suportados)",
+                            action: { onNavigateToConnections?() }
+                        )
+                        rowDivider
+                        settingsRow(
+                            icon: "star",
+                            label: "Assinatura",
+                            desc: "Vita Pro / Premium",
+                            action: { onNavigateToAssinatura?() }
+                        )
+                    }
                 }
                 .padding(.horizontal, 14)
 
-                // MARK: - Preferencias
-                // Shell §5.2.7: "Idioma" PROIBIDO enquanto só pt-BR existir.
+                // MARK: - Preferências — Shell §5.2.6
                 settingsSectionLabel("Preferencias")
                 VitaGlassCard {
-                    settingsRow(
-                        icon: "bell",
-                        label: "Notificações",
-                        desc: "Push, email, lembretes de estudo",
-                        action: { onNavigateToNotifications?() }
-                    )
+                    VStack(spacing: 0) {
+                        settingsRow(
+                            icon: "bell",
+                            label: "Notificações",
+                            desc: "Push, email, lembretes de estudo",
+                            action: { onNavigateToNotifications?() }
+                        )
+                        rowDivider
+                        settingsRow(
+                            icon: "paintbrush",
+                            label: "Aparência",
+                            desc: "Tema e visual do app",
+                            action: { onNavigateToAppearance?() }
+                        )
+                    }
                 }
                 .padding(.horizontal, 14)
 
-                // MARK: - Suporte
-                // Shell §5.2.6: bloco SUPORTE (Feedback + Sobre + FAQ + Status). Privacidade migrou pra bloco
-                // próprio "Privacidade & Segurança" (criar como sub-tela em commit posterior).
+                // MARK: - Privacidade & Segurança — Shell §5.2.6
+                // PrivacyDocumentsScreen + ExportData + ActiveSessions: criar em commits seguintes.
+                settingsSectionLabel("Privacidade & Segurança")
+                VitaGlassCard {
+                    deleteAccountRow
+                }
+                .padding(.horizontal, 14)
+
+                // MARK: - Suporte — Shell §5.2.6
+                // FeedbackScreen pendente (endpoint POST /api/feedback nao existe — delegate NOVA).
                 settingsSectionLabel("Suporte")
                 VitaGlassCard {
                     settingsRow(
@@ -82,15 +112,6 @@ struct ConfiguracoesScreen: View {
                         desc: appVersionString,
                         action: { onNavigateToAbout?() }
                     )
-                }
-                .padding(.horizontal, 14)
-
-                // MARK: - Privacidade & Dados
-                // Shell §5.2.7: "Gerenciar cookies" PROIBIDO em mobile (cookies = web).
-                // AI consent será reativado quando endpoint Swift existir (sync-api-spec.sh + getAiConsent/setAiConsent).
-                settingsSectionLabel("Privacidade & Dados")
-                VitaGlassCard {
-                    deleteAccountRow
                 }
                 .padding(.horizontal, 14)
 
@@ -341,6 +362,12 @@ struct ConfiguracoesScreen: View {
             .padding(.horizontal, 14)
             .padding(.top, 20)
             .padding(.bottom, 6)
+    }
+
+    private var rowDivider: some View {
+        Rectangle()
+            .fill(VitaColors.textWarm.opacity(0.04))
+            .frame(height: 1)
     }
 
     // MARK: - Logout Button
