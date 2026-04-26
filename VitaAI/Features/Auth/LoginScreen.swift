@@ -19,7 +19,10 @@ struct LoginScreen: View {
 
     private enum LoadingProvider { case google, apple, none }
 
-    private let snapThreshold = 0.4
+    // Asymmetric snap: easier to commit to revealed (0.4 going up) but ALSO
+    // easier to dismiss back (0.55 going down). Velocity also pulls toward the
+    // intended end so a flick reverts even with small distance.
+    private let snapThreshold = 0.5
 
     var body: some View {
         let w = UIScreen.main.bounds.width
@@ -211,14 +214,16 @@ struct LoginScreen: View {
                         Text("Ao continuar voc\u{00EA} concorda com os")
                             .foregroundColor(VitaColors.textTertiary)
                         HStack(spacing: 4) {
-                            Link(destination: URL(string: "https://vita-ai.cloud/terms")!) {
+                            // Use canonical PT-BR URLs directly (the en /terms /privacy
+                            // routes are kept for Google Play submission only — they 307 here).
+                            Link(destination: URL(string: "https://vita-ai.cloud/termos")!) {
                                 Text("Termos de Uso")
                                     .foregroundColor(VitaColors.textSecondary)
                                     .underline()
                             }
                             Text("e")
                                 .foregroundColor(VitaColors.textTertiary)
-                            Link(destination: URL(string: "https://vita-ai.cloud/privacy")!) {
+                            Link(destination: URL(string: "https://vita-ai.cloud/privacidade")!) {
                                 Text("Pol\u{00ED}tica de Privacidade")
                                     .foregroundColor(VitaColors.textSecondary)
                                     .underline()
@@ -241,9 +246,11 @@ struct LoginScreen: View {
         .ignoresSafeArea()
         .contentShape(Rectangle())
         // Bidirectional drag — pull up to reveal, pull down to put Vita back
-        // to sleep. Higher minimumDistance gives buttons/links room to register
-        // taps before the drag captures the gesture.
-        .gesture(
+        // to sleep. simultaneousGesture coexists with Button/Link taps (the
+        // higher minimumDistance still gives them priority for short touches).
+        // Velocity is folded into the snap decision so a flick down reverts
+        // even if the user only moved the finger ~10% of the screen.
+        .simultaneousGesture(
             DragGesture(minimumDistance: 18)
                 .onChanged { value in
                     let base: Double = revealed ? 1.0 : 0.0
@@ -252,15 +259,19 @@ struct LoginScreen: View {
                         progress = max(0, min(1, base + delta))
                     }
                 }
-                .onEnded { _ in
+                .onEnded { value in
+                    // Velocity-aware snap: predicted end translation tells us where the
+                    // finger is "heading", so a quick downward flick reverts even with
+                    // small distance. predicted.y > 0 means finger is moving DOWN.
+                    let predictedY = value.predictedEndTranslation.height
+                    let projectedProgress: Double = {
+                        if revealed && predictedY > 200 { return 0 }   // strong flick down → revert
+                        if !revealed && predictedY < -200 { return 1 } // strong flick up → reveal
+                        return progress > snapThreshold ? 1 : 0
+                    }()
                     withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) {
-                        if progress > snapThreshold {
-                            progress = 1.0
-                            revealed = true
-                        } else {
-                            progress = 0
-                            revealed = false
-                        }
+                        progress = projectedProgress
+                        revealed = projectedProgress > 0.5
                     }
                 }
         )
