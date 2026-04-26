@@ -143,7 +143,11 @@ final class DeepLinkHandler {
             case "about":         return .navigate(.about)
             case "appearance":    return .navigate(.appearance)
             case "notifications": return .navigate(.notifications)
-            default:              return .navigate(.profile)
+            case "privacy":       return .navigate(.privacyDocuments)
+            case "export":        return .navigate(.exportData)
+            case "feedback":      return .navigate(.feedback)
+            case nil, "":         return .navigate(.configuracoes)
+            default:              return .navigate(.configuracoes)
             }
 
         default:
