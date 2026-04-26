@@ -48,6 +48,11 @@ struct QBankCoordinatorScreen: View {
         case .home:
             QBankHomeContent(vm: vm, onBack: onBack)
 
+        case .topics:
+            QBankTopicsContent(vm: vm, onBack: {
+                vm.goBackTopics()
+            })
+
         case .disciplines:
             QBankDisciplineContent(vm: vm, onBack: {
                 vm.goBackDiscipline()

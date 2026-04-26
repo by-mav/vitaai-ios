@@ -5,8 +5,9 @@ import Observation
 
 enum QBankScreen {
     case home
-    case disciplines
-    case config
+    case topics       // Quick fire — árvore de tópicos (4 níveis ÁREA-DISCIPLINA-TEMA-CONTEÚDO)
+    case disciplines  // Simulado-only: multi-select de disciplinas
+    case config       // Simulado-only: instituição/qtd/dificuldade/ano
     case session
     case result
 }
@@ -36,6 +37,11 @@ struct QBankUiState {
     // Discipline selection (progressive step)
     var disciplinePath: [QBankDiscipline] = []
     var selectedDisciplineIds: Set<Int> = []
+
+    // Quick Fire (Questões tab) — disciplina ativa na tela de tópicos.
+    // Tap em qualquer nível da árvore inicia sessão imediata com defaults.
+    var topicsDiscipline: QBankDiscipline? = nil
+    var topicsExpandedNodeIds: Set<Int> = []
 
     /// Backend catalog of ALL available disciplines (47 slugs). Kept separate
     /// from `filters.disciplines` (which holds the student's enrolled subjects).
@@ -288,6 +294,12 @@ final class QBankViewModel {
         // user NÃO filtrou por chip. Com chip selecionado, refetch específico.
         let canUseCachedProgress = state.selectedSubjectId == nil && cachedProgress != nil
 
+        let loadStart = Date()
+        NSLog("[Perf][QBankHome] loadHomeData START slugs=%d cache: progress=%@ sessions=%@",
+              slugs.count,
+              canUseCachedProgress ? "HIT" : "MISS",
+              cachedSessions != nil ? "HIT" : "MISS")
+
         if canUseCachedProgress, let cached = cachedProgress {
             state.progress = cached
             state.recentSessions = cachedSessions?.sessions ?? []
@@ -313,6 +325,8 @@ final class QBankViewModel {
                 state.error = nil
             }
             state.progressLoading = false
+            let elapsed = Int(Date().timeIntervalSince(loadStart) * 1000)
+            NSLog("[Perf][QBankHome] loadHomeData DONE elapsed=%dms", elapsed)
         }
     }
 
@@ -668,6 +682,93 @@ final class QBankViewModel {
         state.topicSearch = ""
         state.questionCount = 20
         scheduleCountRefresh()
+    }
+
+    // MARK: - Quick Fire (Questões — fluxo rápido sem config)
+
+    /// Inicia uma sessão Quick Fire imediata: 10 questões, modo prática, sem
+    /// filtros restritivos. Escopo opcional: disciplineSlug e/ou topicIds.
+    /// Tap em qualquer nível da árvore de tópicos chama isso. Rafael 2026-04-26:
+    /// "questoes eh pra fazer questoes direto, em ordem rapida".
+    func startQuickFire(disciplineSlug: String? = nil, topicIds: Set<Int> = []) {
+        state.mode = .pratica
+        state.questionCount = 10
+        state.selectedInstitutionIds = []
+        state.selectedYears = []
+        state.selectedDifficulties = []
+        state.selectedStatus = nil
+        state.onlyResidence = false
+        state.onlyUnanswered = false
+        state.selectedTopicIds = topicIds
+
+        Task {
+            state.sessionLoading = true
+            state.error = nil
+            do {
+                let req = QBankCreateSessionRequest(
+                    questionCount: 10,
+                    institutionIds: nil,
+                    years: nil,
+                    difficulties: nil,
+                    topicIds: topicIds.isEmpty ? nil : Array(topicIds),
+                    disciplineIds: nil,
+                    disciplineSlugs: disciplineSlug.map { [$0] },
+                    onlyResidence: nil,
+                    onlyUnanswered: nil,
+                    title: nil,
+                    status: nil
+                )
+                let session = try await api.createQBankSession(request: req)
+                state.session = session
+                state.currentQuestionIndex = 0
+                state.sessionAnswers = [:]
+                state.sessionDetails = [:]
+                state.selectedAlternativeId = nil
+                state.answerResult = nil
+                state.showFeedback = false
+                state.questionStartDate = Date()
+                state.elapsedSeconds = 0
+                state.activeScreen = .session
+                sessionStartDate = Date()
+                VitaPostHogConfig.capture(event: "qbank_quickfire_started", properties: [
+                    "session_id": session.id,
+                    "discipline_slug": disciplineSlug ?? "global",
+                    "topic_count": topicIds.count,
+                ])
+                await loadCurrentQuestion()
+            } catch {
+                let msg = "\(error)".contains("404") || "\(error)".contains("No questions")
+                    ? "Nenhuma questão disponível pra esse escopo. Tenta outra disciplina/tópico."
+                    : "Erro ao iniciar sessão. Tenta de novo."
+                state.error = msg
+            }
+            state.sessionLoading = false
+        }
+    }
+
+    /// Abre a tela de tópicos da disciplina escolhida (Quick Fire flow).
+    func openTopics(for discipline: QBankDiscipline) {
+        state.topicsDiscipline = discipline
+        state.topicsExpandedNodeIds = []
+        state.activeScreen = .topics
+        // Garante que filters está carregado pra ter a árvore completa
+        if state.filters.disciplines.isEmpty {
+            loadFilters()
+        }
+    }
+
+    func goBackTopics() {
+        state.topicsDiscipline = nil
+        state.topicsExpandedNodeIds = []
+        state.activeScreen = .home
+    }
+
+    func toggleTopicNodeExpansion(_ id: Int) {
+        if state.topicsExpandedNodeIds.contains(id) {
+            state.topicsExpandedNodeIds.remove(id)
+        } else {
+            state.topicsExpandedNodeIds.insert(id)
+        }
     }
 
     // MARK: - Create Session

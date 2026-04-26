@@ -59,12 +59,16 @@ struct QBankHomeContent: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 14)
 
-                        // CTA — themed shell button (amber gradient for questoes)
+                        // CTA Quick Fire — Rafael 2026-04-26: "questoes eh pra
+                        // fazer questoes direto, em ordem rapida, apenas fazer
+                        // e pronto". Tap inicia sessão imediata 10q random
+                        // sem config. Simulado fica responsável pelo fluxo
+                        // configurado via aba dedicada.
                         StudyShellCTA(
-                            title: "Nova Sess\u{e3}o",
+                            title: "Modo Aleat\u{f3}rio (10 quest\u{f5}es)",
                             theme: .questoes,
-                            action: { vm.goToDisciplines() },
-                            systemImage: "plus.circle.fill"
+                            action: { vm.startQuickFire() },
+                            systemImage: "shuffle.circle.fill"
                         )
                         .padding(.horizontal, 16)
                         .padding(.top, 16)
@@ -96,15 +100,26 @@ struct QBankHomeContent: View {
                                     QBankDisciplineRow(
                                         name: entry.subject.name,
                                         count: entry.count,
-                                        isSelected: vm.state.selectedSubjectId == entry.subject.id,
+                                        isSelected: false,
                                         isLoading: vm.state.filtersLoading && entry.count == 0,
                                         theme: .questoes,
                                         action: {
-                                            let sameSelected = vm.state.selectedSubjectId == entry.subject.id
-                                            vm.setSelectedSubject(
-                                                id: sameSelected ? nil : entry.subject.id,
-                                                name: sameSelected ? nil : entry.subject.name
+                                            // Quick Fire — tap abre tópicos da disciplina (4 níveis).
+                                            // Lookup do AcademicSubject pelo nome → slug → seed
+                                            // QBankDiscipline. A topics view busca a árvore live
+                                            // em state.filters.disciplines quando carregar.
+                                            let academic = container.dataManager.enrolledDisciplines
+                                                .first(where: { $0.name == entry.subject.name })
+                                            let seed = QBankDiscipline(
+                                                id: abs((academic?.disciplineSlug ?? entry.subject.name).hashValue),
+                                                title: entry.subject.name,
+                                                slug: academic?.disciplineSlug,
+                                                parentId: nil,
+                                                level: 0,
+                                                questionCount: entry.count,
+                                                children: []
                                             )
+                                            vm.openTopics(for: seed)
                                         }
                                     )
                                 }
