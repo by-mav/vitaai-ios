@@ -71,17 +71,12 @@ struct SimuladoHomeScreen: View {
     }
 
     private var emptyRecentsMessage: some View {
-        VStack(spacing: 8) {
-            Text("Nenhum simulado ainda")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(SimuladoColors.textPrimary)
-            Text("Use o botão acima pra começar seu primeiro.")
-                .font(.system(size: 12))
-                .foregroundStyle(SimuladoColors.textMuted)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 24)
+        VitaEmptyState.mascot(
+            persona: .studying(prop: .pencil),
+            title: "Nenhum simulado ainda",
+            message: "Use o botão acima pra começar seu primeiro — eu vou te ajudar a navegar.",
+            mascotSize: 80
+        )
     }
 
     @ViewBuilder

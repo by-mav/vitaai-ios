@@ -79,6 +79,50 @@ extension VitaEmptyState where Icon == EmptyView {
     }
 }
 
+// MARK: - Convenience: with VitaSpeakingMascot (Duolingo pattern)
+
+/// Factory pra empty/error state com mascote contextual. Substitui o
+/// "Nenhum X ainda" + ícone genérico SF Symbol — Rafael 2026-04-25 pediu
+/// pra mascote aparecer em sub-telas educativas (estilo Duolingo).
+///
+/// Uso:
+/// ```swift
+/// VitaEmptyState.mascot(
+///     persona: .studying(prop: .book),
+///     title: "Sem flashcards ainda",
+///     message: "Conecte o portal e eu gero baralhos.",
+///     actionText: "Conectar",
+///     onAction: { ... },
+///     userName: authManager.userName
+/// )
+/// ```
+extension VitaEmptyState where Icon == VitaSpeakingMascot {
+    static func mascot(
+        persona: MascotPersona = .studying(),
+        title: String,
+        message: String,
+        actionText: String? = nil,
+        onAction: (() -> Void)? = nil,
+        userName: String? = nil,
+        mascotSize: CGFloat = 96
+    ) -> VitaEmptyState<VitaSpeakingMascot> {
+        VitaEmptyState<VitaSpeakingMascot>(
+            title: title,
+            message: message,
+            actionText: actionText,
+            onAction: onAction,
+            icon: {
+                VitaSpeakingMascot(
+                    persona: persona,
+                    size: mascotSize,
+                    speech: nil,
+                    userName: userName
+                )
+            }
+        )
+    }
+}
+
 // MARK: - Preview
 
 #if DEBUG
