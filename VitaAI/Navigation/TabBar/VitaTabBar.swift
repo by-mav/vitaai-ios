@@ -154,40 +154,33 @@ struct VitaTabBar: View {
 
     var body: some View {
         ZStack {
-            // Notched Liquid Glass bar — iOS 26+ usa .glassEffect() nativo,
-            // fallback Material pra iOS 17-25. Conteúdo do app passa por
-            // baixo (safeAreaInset reduzido), o vidro distorce/translúcido.
-            // Identidade BYMAV vem dos overlays (radial highlight + gold
-            // border) sobre o vidro. Ver shell.md §12.
-            barShape
-                .fill(.clear)
-                .background {
-                    if #available(iOS 26.0, *) {
-                        barShape.fill(.ultraThinMaterial).glassEffect()
-                    } else {
-                        barShape.fill(.ultraThinMaterial)
-                    }
-                }
-                .overlay(
-                    barShape.fill(
-                        RadialGradient(
-                            colors: [
-                                Color(red: 1.0, green: 0.910, blue: 0.733).opacity(0.10),
-                                Color.clear
-                            ],
-                            center: UnitPoint(x: 0.5, y: 0.0),
-                            startRadius: 0, endRadius: 120
+            // Liquid Glass bar — iOS 26+ usa .glassEffect() NATIVO Apple
+            // (refração + specular highlights + dynamic tint). Aplica em
+            // Color.clear (não em fill opaco) com a NotchedBarShape como
+            // shape do vidro. Tint warm gold sutil mantém identidade.
+            // Fallback iOS 17-25: ultraThinMaterial (Material plano).
+            // Conteúdo do app passa por baixo (safeAreaInset removido).
+            Group {
+                if #available(iOS 26.0, *) {
+                    Color.clear
+                        .glassEffect(
+                            .regular.tint(
+                                Color(red: 1.0, green: 0.910, blue: 0.733).opacity(0.06)
+                            ),
+                            in: barShape
                         )
-                    )
+                } else {
+                    barShape.fill(.ultraThinMaterial)
+                }
+            }
+            .overlay(
+                barShape.stroke(
+                    Color(red: 1.0, green: 0.941, blue: 0.839).opacity(0.18),
+                    lineWidth: 1
                 )
-                .overlay(
-                    barShape.stroke(
-                        Color(red: 1.0, green: 0.941, blue: 0.839).opacity(0.14),
-                        lineWidth: 1
-                    )
-                )
-                .shadow(color: .black.opacity(0.20), radius: 12, y: 4)
-                .frame(height: barHeight)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
+            .frame(height: barHeight)
 
             // Tab icons
             HStack(spacing: 0) {
