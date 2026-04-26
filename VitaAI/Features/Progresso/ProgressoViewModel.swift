@@ -74,7 +74,7 @@ final class ProgressoViewModel {
         // Fire all 5 independent requests in parallel — was serial (3-4s), now max(endpoint)
         async let progressResult = api.getProgress()
         async let statsResult = api.getGamificationStats()
-        async let leaderboardResult = api.getLeaderboard(period: leaderboardPeriod, limit: 10)
+        async let leaderboardResult = api.getLeaderboard(scope: leaderboardScope, period: leaderboardPeriod, limit: 10)
         async let achievementsResult = api.getAchievements()
         async let activityResult = api.getActivityFeed(limit: 8, offset: 0)
 
@@ -174,15 +174,23 @@ final class ProgressoViewModel {
         isLoading = false
     }
 
-    // Selected leaderboard period (weekly/monthly/total). UI binds to this.
+    // Selected leaderboard scope+period. UI binds (chips de período + tabs de escopo).
+    // 2026-04-25: backend ganhou scope=user|university (Rafael pediu ranking de
+    // faculdades). period continua weekly|monthly|all.
+    var leaderboardScope: LeaderboardScope = .user
     var leaderboardPeriod: String = "weekly"
 
-    func loadLeaderboard(period: String) async {
-        leaderboardPeriod = period
+    func loadLeaderboard(scope: LeaderboardScope? = nil, period: String? = nil) async {
+        if let scope { leaderboardScope = scope }
+        if let period { leaderboardPeriod = period }
         do {
-            leaderboard = try await api.getLeaderboard(period: period, limit: 10)
+            leaderboard = try await api.getLeaderboard(
+                scope: leaderboardScope,
+                period: leaderboardPeriod,
+                limit: 10
+            )
         } catch {
-            print("[PROGRESSO] getLeaderboard(\(period)) failed: \(error)")
+            print("[PROGRESSO] getLeaderboard(\(leaderboardScope.rawValue),\(leaderboardPeriod)) failed: \(error)")
         }
     }
 }

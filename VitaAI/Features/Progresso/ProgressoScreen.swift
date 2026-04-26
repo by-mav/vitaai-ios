@@ -16,6 +16,9 @@ struct ProgressoScreen: View {
     private let glassBorder = VitaColors.glassBorder
 
     @State private var selectedLeaderboardTab = 0
+    /// 0 = Alunos (.user), 1 = Faculdades (.university). Backend ganhou
+    /// scope=user|university 2026-04-25 — Rafael pediu ranking de unis.
+    @State private var selectedLeaderboardScope = 0
 
     var body: some View {
         let vm = container.progressoViewModel
@@ -449,30 +452,40 @@ struct ProgressoScreen: View {
 
             glassCard {
                 VStack(spacing: 0) {
-                    // Tabs
+                    // Scope segmented (Alunos / Faculdades) — Rafael pediu ranking
+                    // de unis 2026-04-25. Visual: 2 tabs grandes no topo do card.
+                    scopeSegmented
+                        .padding(.horizontal, 14)
+                        .padding(.top, 12)
+
+                    // Period chips (Semanal / Mensal / Tudo)
                     HStack(spacing: 4) {
                         lbTab("Semanal", index: 0)
                         lbTab("Mensal", index: 1)
-                        lbTab("Total", index: 2)
+                        lbTab("Tudo", index: 2)
                         Spacer()
                     }
                     .padding(.horizontal, 14)
-                    .padding(.top, 12)
+                    .padding(.top, 8)
 
                     if vm.leaderboard.isEmpty {
-                        Text("Nenhum dado de ranking ainda")
+                        Text(emptyMessageForCurrentLeaderboard)
                             .font(.system(size: 12))
                             .foregroundStyle(textSec)
                             .padding(.vertical, 20)
+                            .padding(.horizontal, 14)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                     } else {
-                        // Other users (not me)
+                        // Other entries (não eu / não minha faculdade)
                         let others = vm.leaderboard.filter { !$0.isMe }.prefix(5)
                         ForEach(Array(others.enumerated()), id: \.offset) { idx, entry in
                             lbRow(
                                 rank: entry.rank,
                                 initials: entry.initials,
                                 name: entry.name,
-                                xp: "\(entry.xp) XP",
+                                subtitle: subtitleFor(entry),
+                                xp: "\(formatXp(entry.xp)) XP",
                                 rankColor: rankColorForPosition(entry.rank),
                                 avatarBg: avatarColorForPosition(entry.rank),
                                 isMe: false
@@ -482,7 +495,7 @@ struct ProgressoScreen: View {
                             }
                         }
 
-                        // My entry
+                        // My entry (ou minha faculdade)
                         if let me = vm.myLeaderboardEntry {
                             Rectangle()
                                 .fill(goldPrimary.opacity(0.08))
@@ -491,7 +504,7 @@ struct ProgressoScreen: View {
                                 .padding(.top, 6)
 
                             HStack {
-                                Text("SUA POSICAO")
+                                Text(myPositionLabel)
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundStyle(VitaColors.textWarm.opacity(0.25))
                                     .tracking(0.5)
@@ -504,7 +517,8 @@ struct ProgressoScreen: View {
                                 rank: me.rank,
                                 initials: me.initials,
                                 name: me.name,
-                                xp: "\(me.xp) XP",
+                                subtitle: subtitleFor(me),
+                                xp: "\(formatXp(me.xp)) XP",
                                 rankColor: goldMuted.opacity(0.80),
                                 avatarBg: goldPrimary,
                                 isMe: true
@@ -517,10 +531,93 @@ struct ProgressoScreen: View {
         }
     }
 
+    // MARK: - Scope segmented (Alunos / Faculdades)
+
+    private var scopeSegmented: some View {
+        HStack(spacing: 0) {
+            scopeChip("Alunos", index: 0, icon: "person")
+            scopeChip("Faculdades", index: 1, icon: "graduationcap")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(3)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(VitaColors.glassInnerLight.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 1)
+                )
+        )
+    }
+
+    private func scopeChip(_ text: String, index: Int, icon: String) -> some View {
+        Button {
+            guard selectedLeaderboardScope != index else { return }
+            selectedLeaderboardScope = index
+            HapticManager.shared.fire(.light)
+            let scope: LeaderboardScope = index == 0 ? .user : .university
+            Task { await container.progressoViewModel.loadLeaderboard(scope: scope) }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .medium))
+                Text(text)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(
+                selectedLeaderboardScope == index
+                    ? goldMuted.opacity(0.95)
+                    : VitaColors.textWarm.opacity(0.45)
+            )
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(
+                        selectedLeaderboardScope == index
+                            ? VitaColors.accent.opacity(0.18)
+                            : Color.clear
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Helpers para scope-aware rendering
+
+    private var emptyMessageForCurrentLeaderboard: String {
+        selectedLeaderboardScope == 0
+            ? "Sem alunos no ranking ainda. Estuda hoje pra aparecer aqui."
+            : "Sem faculdades suficientes ainda. Convida tua turma!"
+    }
+
+    private var myPositionLabel: String {
+        selectedLeaderboardScope == 0 ? "SUA POSIÇÃO" : "SUA FACULDADE"
+    }
+
+    private func subtitleFor(_ entry: LeaderboardEntry) -> String? {
+        switch entry.scope {
+        case .user:
+            return entry.streak > 0 ? "\(entry.streak) dias 🔥" : nil
+        case .university:
+            let count = entry.studentCount.map { "\($0) alunos" } ?? ""
+            let loc = [entry.city, entry.state].compactMap { $0 }.joined(separator: "/")
+            return [count, loc].filter { !$0.isEmpty }.joined(separator: " · ")
+        }
+    }
+
+    private func formatXp(_ xp: Int) -> String {
+        if xp >= 1_000_000 { return String(format: "%.1fM", Double(xp) / 1_000_000) }
+        if xp >= 10_000 { return String(format: "%.1fk", Double(xp) / 1000).replacingOccurrences(of: ".0k", with: "k") }
+        return "\(xp)"
+    }
+
     private func lbTab(_ text: String, index: Int) -> some View {
         Button {
+            guard selectedLeaderboardTab != index else { return }
             selectedLeaderboardTab = index
-            let period = ["weekly", "monthly", "total"][index]
+            HapticManager.shared.fire(.light)
+            let period = ["weekly", "monthly", "all"][index]
             Task { await container.progressoViewModel.loadLeaderboard(period: period) }
         } label: {
             Text(text)
@@ -553,7 +650,7 @@ struct ProgressoScreen: View {
         .buttonStyle(.plain)
     }
 
-    private func lbRow(rank: Int, initials: String, name: String, xp: String, rankColor: Color, avatarBg: Color, isMe: Bool = false) -> some View {
+    private func lbRow(rank: Int, initials: String, name: String, subtitle: String? = nil, xp: String, rankColor: Color, avatarBg: Color, isMe: Bool = false) -> some View {
         HStack(spacing: 10) {
             Text("\(rank)")
                 .font(.system(size: 13, weight: .bold))
@@ -574,9 +671,18 @@ struct ProgressoScreen: View {
                         )
                 )
 
-            Text(name)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(isMe ? goldMuted.opacity(0.90) : Color.white.opacity(0.85))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(isMe ? goldMuted.opacity(0.90) : Color.white.opacity(0.85))
+                    .lineLimit(1)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: 10))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.40))
+                        .lineLimit(1)
+                }
+            }
 
             Spacer()
 
