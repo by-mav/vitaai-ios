@@ -16,6 +16,7 @@ struct ProfileScreen: View {
     @Environment(\.appData) private var appData
     @State private var gamStats: GamificationStatsResponse?
     @State private var profile: ProfileResponse?
+    @State private var flashcardStats: FlashcardStatsResponse?
     @State private var showEditSheet = false
 
     var body: some View {
@@ -72,12 +73,14 @@ struct ProfileScreen: View {
         .refreshable {
             async let statsTask: () = loadStats()
             async let profileTask: () = loadProfile()
-            _ = await (statsTask, profileTask)
+            async let flashcardTask: () = loadFlashcardStats()
+            _ = await (statsTask, profileTask, flashcardTask)
         }
         .task {
             async let statsTask: () = loadStats()
             async let profileTask: () = loadProfile()
-            _ = await (statsTask, profileTask)
+            async let flashcardTask: () = loadFlashcardStats()
+            _ = await (statsTask, profileTask, flashcardTask)
             ScreenLoadContext.finish(for: "Profile")
         }
         .trackScreen("Profile")
@@ -357,27 +360,34 @@ struct ProfileScreen: View {
     }
 
     // MARK: - Estatisticas (centered, gold values, no icons — matches mockup 2x2)
+    // Shell §5.2.2: ZERO mock hardcoded. API retorna 0/null → mostra "—" (verdade),
+    // nunca defaults inventados.
 
     private var estatisticas: some View {
-        let questions = gamStats?.totalQuestionsAnswered ?? 1847
-        let flashcards = gamStats?.totalCardsReviewed ?? 623
-        let studyHours = 48  // TODO: load from getProgress() — was incorrectly on ProfileResponse
-        let streak = gamStats?.currentStreak ?? 7
+        let questions = appData.qbankProgress?.totalAnswered ?? 0
+        let flashcards = flashcardStats?.totalReviews ?? 0
+        let studyMinutes = flashcardStats?.totalStudyMinutes ?? 0
+        let streak = gamStats?.streakDays ?? 0
 
         return LazyVGrid(columns: [
             GridItem(.flexible(), spacing: 8),
             GridItem(.flexible(), spacing: 8)
         ], spacing: 8) {
-            statCard(value: formatNumber(questions), label: "Questões")
-            statCard(value: formatNumber(flashcards), label: "Flashcards")
-            statCard(value: "\(studyHours)h", label: "Horas estudo")
+            statCard(value: questions > 0 ? formatNumber(questions) : "—", label: "Questões")
+            statCard(value: flashcards > 0 ? formatNumber(flashcards) : "—", label: "Flashcards")
+            statCard(value: studyMinutes > 0 ? formatHours(studyMinutes) : "—", label: "Horas estudo")
             statCard(
-                value: "\(streak) \u{1F525}",
+                value: streak > 0 ? "\(streak) \u{1F525}" : "—",
                 label: "Streak",
-                valueColor: VitaColors.dataAmber.opacity(0.90)
+                valueColor: streak > 0 ? VitaColors.dataAmber.opacity(0.90) : nil
             )
         }
         .padding(.top, 10)
+    }
+
+    private func formatHours(_ minutes: Int) -> String {
+        let h = minutes / 60
+        return h > 0 ? "\(h)h" : "\(minutes)m"
     }
 
     private func statCard(
@@ -405,6 +415,10 @@ struct ProfileScreen: View {
 
     private func loadStats() async {
         gamStats = try? await container.api.getGamificationStats()
+    }
+
+    private func loadFlashcardStats() async {
+        flashcardStats = try? await container.api.getFlashcardStats()
     }
 
     private func loadProfile() async {
