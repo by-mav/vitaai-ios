@@ -1194,20 +1194,15 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         }
     }
 
-    /// Snap-on-pause shape recognition (Goodnotes 6 pattern). Quando o usuário
-    /// solta a caneta, analisa o último stroke. Se for uma linha reta ou círculo
-    /// com alta confiança (residual normalizado <= 5%), substitui pelo shape
-    /// geometricamente perfeito. Senão, mantém o stroke original.
+    /// Snap-on-pause shape recognition (Goodnotes 6 pattern). DESLIGADO
+    /// temporariamente — bug 2026-04-26: estava substituindo strokes legítimos
+    /// (escrita à mão, letras) por shapes vazios, fazendo desenhos sumirem.
+    /// Algoritmo precisa de threshold mais conservador + telemetria antes de
+    /// re-habilitar. Mantenho a infra (PdfShapeSnap.swift + delegate hook)
+    /// pra reativar quando o algoritmo for revisto.
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
-        // Só processa strokes de inking (não eraser, lasso, pointer).
-        guard canvasView.tool is PKInkingTool else { return }
-        guard let lastStroke = canvasView.drawing.strokes.last else { return }
-
-        let result = PdfShapeSnap.detect(stroke: lastStroke)
-        guard case .none = result else {
-            applySnapResult(result, lastStroke: lastStroke, canvasView: canvasView)
-            return
-        }
+        // Bypass completo até calibração do detect() ficar segura.
+        return
     }
 
     /// Substitui o último stroke do canvas por uma versão geometricamente
@@ -1647,6 +1642,10 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     @objc func handleMaskingPan(_ gesture: UIPanGestureRecognizer) {
         // Decide modo: masking (preto) OU highlight livre (amarelo Goodnotes-style).
         // Highlight livre: arrasta em qualquer área da página, NÃO requer texto seletível.
+        // **Sempre exige isAnnotating=false** — guarda contra interceptar drag em
+        // modo desenho (bug 2026-04-26: drawing era apagado se highlight ativou
+        // antes e estado ficou desincronizado).
+        if viewModel.isAnnotating { return }
         let activeMode: PdfPanDragMode
         if isMaskingMode, !isStudyMode { activeMode = .mask }
         else if isHighlightMode { activeMode = .highlight }
