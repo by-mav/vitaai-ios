@@ -52,6 +52,7 @@
 		18BBEF0316C9D438575EE7E8 /* FlashcardContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0378CC209283D82A5B4FFC /* FlashcardContentView.swift */; };
 		18FDC5609D4731FAE1D45E3D /* LeaderboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4933995BB48420650CBF71C3 /* LeaderboardViewModel.swift */; };
 		1958275744F9A46A1CA0339B /* ProgressRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE1237FCB7636C982DFF2C41 /* ProgressRingView.swift */; };
+		19B5FAE4CD30022FB9FCFE11 /* AudioCompressor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B027A2F171D106D5A9C0343 /* AudioCompressor.swift */; };
 		1A1850D9E459E7057DAE1755 /* DeepLinkHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B869512A09C99A6DCF4177 /* DeepLinkHandler.swift */; };
 		1A22403509BD373659DF1FF4 /* WelcomeStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 166B2EDD46994090902659D5 /* WelcomeStep.swift */; };
 		1A2B6BBC2912EBBA84B727D5 /* FeedbackScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA8B37E247D62A4DC64032E /* FeedbackScreen.swift */; };
@@ -234,6 +235,7 @@
 		89E5E213E3113C09A90A1775 /* VitaAI.storekit in Resources */ = {isa = PBXBuildFile; fileRef = BBA019CD302ADAC93CAC7F13 /* VitaAI.storekit */; };
 		8B35A877FC3261B3C393E133 /* PdfPenStylesPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44C06662646A204B5E67E9A5 /* PdfPenStylesPopover.swift */; };
 		8B828145F3EF0A186E6D522D /* TextToSpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ECE46CA939DEDECC0CA2196 /* TextToSpeechManager.swift */; };
+		8BC094CA47F1CF4614DF9407 /* DashboardHeroCardBackgroundImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75DDFBBC15436F35ABD11447 /* DashboardHeroCardBackgroundImage.swift */; };
 		8C4826FC935C93861CF4F8FC /* FlashcardStatsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B30CDEA16FB26412092EDB /* FlashcardStatsViewModel.swift */; };
 		8C52823C0EEDFE9D799390DD /* VitaCardRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D1DEFA21BC1414F1621867C /* VitaCardRow.swift */; };
 		8C65C081946C5EB9325CA5C5 /* CanvasSilentReauth.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE31CC2592D05FF00976F24A /* CanvasSilentReauth.swift */; };
@@ -247,6 +249,7 @@
 		904C58A03B729B59AF4101FE /* StudyOverviewResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A5BA29C1A137A86F9A6AF9 /* StudyOverviewResponse.swift */; };
 		9255BF9F45EA8E29CAD0E8E9 /* View+GlassStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FBBCF3219680111FD841209 /* View+GlassStyle.swift */; };
 		93734B7529EAB73C1AE36F07 /* ExportDataScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E2B4483BF38F2C168810A1 /* ExportDataScreen.swift */; };
+		9378A302E67E0AE041E2EB39 /* SocialAuthButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75256D5F13D3F266611B87E4 /* SocialAuthButton.swift */; };
 		93A239882DF96A737F37181D /* GlassTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B583FE6C84F4FFF2A9BFB75 /* GlassTextField.swift */; };
 		9498CF9FCCC1FF64AD017D5A /* TranscricaoScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EA1E56084FA3D11CAD0F7E /* TranscricaoScreen.swift */; };
 		94CC00D0CF7ED87DB67D15BB /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C7EE91AF90098D6FB1DAD0 /* PushManager.swift */; };
@@ -606,8 +609,10 @@
 		74ACDDDAA41E5C2328A2F045 /* ProvasViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvasViewModel.swift; sourceTree = "<group>"; };
 		74E43BE1839E1855652DF329 /* MindMapEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapEditorView.swift; sourceTree = "<group>"; };
 		750AA0D588E930C62DAA317F /* TranscricaoClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoClient.swift; sourceTree = "<group>"; };
+		75256D5F13D3F266611B87E4 /* SocialAuthButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialAuthButton.swift; sourceTree = "<group>"; };
 		758AB570467AFC9E6ABD91AF /* ProvasScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvasScreen.swift; sourceTree = "<group>"; };
 		758D6D8F66D8C196A6A93DF1 /* IntegrationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationModels.swift; sourceTree = "<group>"; };
+		75DDFBBC15436F35ABD11447 /* DashboardHeroCardBackgroundImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardHeroCardBackgroundImage.swift; sourceTree = "<group>"; };
 		76F86A1C618650FFC7FE1B39 /* AppDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataManager.swift; sourceTree = "<group>"; };
 		7993D339523EA36C4CC8B25C /* ProgressoScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressoScreen.swift; sourceTree = "<group>"; };
 		7B354B45703FC01F5DBB4D68 /* FaculdadeDocumentosScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaculdadeDocumentosScreen.swift; sourceTree = "<group>"; };
@@ -657,6 +662,7 @@
 		987EF0B6643EBFB1180808A0 /* VitaButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaButton.swift; sourceTree = "<group>"; };
 		9998B44B0BDB981193E5EAF3 /* PdfViewerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfViewerScreen.swift; sourceTree = "<group>"; };
 		9A39A50DBBBBFF4725FAB863 /* DocumentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentModels.swift; sourceTree = "<group>"; };
+		9B027A2F171D106D5A9C0343 /* AudioCompressor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCompressor.swift; sourceTree = "<group>"; };
 		9B27D9B4C7F44B7779A43CE3 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
 		9B583FE6C84F4FFF2A9BFB75 /* GlassTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTextField.swift; sourceTree = "<group>"; };
 		9BDCF35E780F773E1F5CBC6A /* MindMapEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapEntity.swift; sourceTree = "<group>"; };
@@ -956,6 +962,7 @@
 				06FB6D9D262375144BC3E2EA /* MateriasAgendaWidget.swift */,
 				DE1237FCB7636C982DFF2C41 /* ProgressRingView.swift */,
 				4E1AF08937C97A79EB9351D1 /* SectionHeader.swift */,
+				75256D5F13D3F266611B87E4 /* SocialAuthButton.swift */,
 				3F425577B77E99E26BFCBE05 /* SubjectColorPicker.swift */,
 				BBCCFEE392F9CB2615DF85D8 /* VideoBackground.swift */,
 				1130013BF0504A0F42C04360 /* VitaAmbientBackground.swift */,
@@ -1238,6 +1245,7 @@
 				0D92FFBD8336F674485A7AA3 /* DashboardHeroCard.swift */,
 				9382A5EB9DE82A34485A167A /* DashboardHeroCardAction.swift */,
 				BD7B8AB9F6F4EDC09B88BF0B /* DashboardHeroCardBackground.swift */,
+				75DDFBBC15436F35ABD11447 /* DashboardHeroCardBackgroundImage.swift */,
 				8D7C5A3F86803E94DB0637D4 /* DashboardHeroCardCta.swift */,
 				4EBCC90E2A0A1B4640DDA686 /* DashboardHeroCardPillsInner.swift */,
 				9877E4BC0BCC5C79562154CD /* DashboardSubject.swift */,
@@ -1336,6 +1344,7 @@
 		7D2D794CB25A23471BF6B190 /* Transcricao */ = {
 			isa = PBXGroup;
 			children = (
+				9B027A2F171D106D5A9C0343 /* AudioCompressor.swift */,
 				330A738D52A76441153C62B0 /* TranscricaoAudioPlayer.swift */,
 				2A4C53F34FC1FDE66D790775 /* TranscricaoControls.swift */,
 				D08D6E184B50BFEE6FF44E77 /* TranscricaoDetailSheet.swift */,
@@ -1903,6 +1912,7 @@
 				0780E271D8611FDE00449801 /* AssinaturaScreen.swift in Sources */,
 				5EA049F87DDAF0DB70B98033 /* AtlasSceneScreen.swift in Sources */,
 				7CFF8534E23CEDF7BC374EB3 /* AtlasSearchSheet.swift in Sources */,
+				19B5FAE4CD30022FB9FCFE11 /* AudioCompressor.swift in Sources */,
 				E0CE8FD436F882D717038F8D /* AuthManager.swift in Sources */,
 				774FF3CFA293F2A1D9FFA28D /* AuthViewModel.swift in Sources */,
 				150EAC70F68E9DC56354A5ED /* BillingModels.swift in Sources */,
@@ -1935,6 +1945,7 @@
 				243DB0868BB6A019627AB054 /* DashboardHeroCard.swift in Sources */,
 				3F762321E8BA2481A3EE5BE9 /* DashboardHeroCardAction.swift in Sources */,
 				6B39D764E1FF15774658E978 /* DashboardHeroCardBackground.swift in Sources */,
+				8BC094CA47F1CF4614DF9407 /* DashboardHeroCardBackgroundImage.swift in Sources */,
 				C165D0EF96DF068A2464B509 /* DashboardHeroCardCta.swift in Sources */,
 				5B827EC5C87B6411384CF532 /* DashboardHeroCardPillsInner.swift in Sources */,
 				2E498AD583738C592569EDCF /* DashboardModels.swift in Sources */,
@@ -2145,6 +2156,7 @@
 				487EFBF97E3B04CEFCB27D47 /* SimuladoSessionScreen.swift in Sources */,
 				57546517A6A1EA8B3C9EC265 /* SimuladoViewModel.swift in Sources */,
 				3DB8FA5F571CDAC78653759B /* SleepStep.swift in Sources */,
+				9378A302E67E0AE041E2EB39 /* SocialAuthButton.swift in Sources */,
 				384B5A1A0D21EC35F33B3D14 /* SoundManager.swift in Sources */,
 				3FDB705B03C39389AC9B4604 /* SpeechRecognitionManager.swift in Sources */,
 				0896578C1CC42FD1DDFBC72B /* StartFocusSession200Response.swift in Sources */,

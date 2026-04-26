@@ -15,6 +15,7 @@ struct LoginScreen: View {
     @State private var loadingProvider: LoadingProvider = .none
     @State private var vitaTapped = false
     @State private var vitaDragX: CGFloat = 0
+    @State private var hintBounce: CGFloat = 0
 
     private enum LoadingProvider { case google, apple, none }
 
@@ -100,19 +101,33 @@ struct LoginScreen: View {
                     .opacity(1.0 - p / 0.25)
             }
 
-            // Swipe hint
+            // Swipe hint — sits right above Vita's head, double chevron with
+            // staggered upward bounce so it reads as motion guidance.
             if p < 0.2 {
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     Image(systemName: "chevron.up")
-                        .font(.system(size: 14, weight: .light))
-                        .foregroundStyle(.white.opacity(0.4))
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.55))
+                        .offset(y: hintBounce)
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .offset(y: hintBounce * 0.5)
                     Text("ARRASTE PARA CIMA")
-                        .font(.system(size: 10, weight: .medium))
-                        .tracking(2.4)
-                        .foregroundStyle(.white.opacity(0.35))
+                        .font(.system(size: 12, weight: .semibold))
+                        .tracking(3.0)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .padding(.top, 4)
                 }
-                .position(x: w / 2, y: h * 0.68)
-                .opacity(1.0 - p / 0.15)
+                .shadow(color: .black.opacity(0.5), radius: 12, x: 0, y: 4)
+                // Anchor right above Vita's visible head — top of mascot minus a small gap.
+                .position(x: w / 2, y: max(h * 0.55, mascotY - mascotSize / 2 - 70))
+                .opacity(1.0 - p / 0.18)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                        hintBounce = -8
+                    }
+                }
             }
 
             // Reveal headline
@@ -142,30 +157,25 @@ struct LoginScreen: View {
                             .scaleEffect(1.2)
                         Spacer().frame(height: 40)
                     } else {
-                        GlassAuthButton(
-                            label: "Continuar com Google",
-                            icon: AnyView(GoogleIcon()),
-                            isPrimary: true,
-                            isLoading: loadingProvider == .google
+                        SocialAuthButton(
+                            provider: .apple,
+                            label: "Continuar com Apple",
+                            isLoading: loadingProvider == .apple
                         ) {
-                            loadingProvider = .google
-                            authManager.signInWithGoogle()
+                            loadingProvider = .apple
+                            authManager.signInWithApple()
                         }
                         .padding(.horizontal, 36)
 
                         Spacer().frame(height: 12)
 
-                        GlassAuthButton(
-                            label: "Continuar com Apple",
-                            icon: AnyView(
-                                Image(systemName: "apple.logo")
-                                    .font(.system(size: 18))
-                                    .foregroundStyle(VitaColors.white)
-                            ),
-                            isLoading: loadingProvider == .apple
+                        SocialAuthButton(
+                            provider: .google,
+                            label: "Continuar com Google",
+                            isLoading: loadingProvider == .google
                         ) {
-                            loadingProvider = .apple
-                            authManager.signInWithApple()
+                            loadingProvider = .google
+                            authManager.signInWithGoogle()
                         }
                         .padding(.horizontal, 36)
                     }
@@ -216,27 +226,26 @@ struct LoginScreen: View {
         }
         .ignoresSafeArea()
         .contentShape(Rectangle())
+        // Bidirectional drag — pull up to reveal, pull down to put Vita back
+        // to sleep. Higher minimumDistance gives buttons/links room to register
+        // taps before the drag captures the gesture.
         .gesture(
-            DragGesture()
+            DragGesture(minimumDistance: 18)
                 .onChanged { value in
-                    if !revealed {
-                        let drag = -value.translation.height / (UIScreen.main.bounds.height * 0.45)
-                        withAnimation(.interactiveSpring()) {
-                            progress = max(0, min(1, drag))
-                        }
+                    let base: Double = revealed ? 1.0 : 0.0
+                    let delta = -Double(value.translation.height) / Double(UIScreen.main.bounds.height * 0.45)
+                    withAnimation(.interactiveSpring()) {
+                        progress = max(0, min(1, base + delta))
                     }
                 }
                 .onEnded { _ in
-                    if !revealed {
+                    withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) {
                         if progress > snapThreshold {
-                            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                                progress = 1.0
-                                revealed = true
-                            }
+                            progress = 1.0
+                            revealed = true
                         } else {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                                progress = 0
-                            }
+                            progress = 0
+                            revealed = false
                         }
                     }
                 }
@@ -249,12 +258,3 @@ struct LoginScreen: View {
     }
 }
 
-// MARK: - Google icon
-
-private struct GoogleIcon: View {
-    var body: some View {
-        Image(systemName: "g.circle.fill")
-            .font(.system(size: 20))
-            .foregroundStyle(Color.white)
-    }
-}
