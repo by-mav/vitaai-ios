@@ -191,6 +191,7 @@
 		7C60F66400B6ABCD55F78CB7 /* TrialStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A05E15ACA1ECED610485D66 /* TrialStep.swift */; };
 		7CBE85EFAC4C9CD96971BE4B /* MateriasAgendaWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FB6D9D262375144BC3E2EA /* MateriasAgendaWidget.swift */; };
 		7CE20889319B3D0E09BAA6DD /* TranscricaoDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D08D6E184B50BFEE6FF44E77 /* TranscricaoDetailSheet.swift */; };
+		7CFF8534E23CEDF7BC374EB3 /* AtlasSearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED50ABCC067B26FC10E09ED /* AtlasSearchSheet.swift */; };
 		7D2F1D9D856D558839E79B6A /* VoiceModeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB91BBC40C1F6D63A5607E71 /* VoiceModeViewModel.swift */; };
 		7DD897E19F8B879E2247B3E8 /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD675F659893240D25A7F451 /* Router.swift */; };
 		7EF3ABE6544C36265A832C52 /* InlinePortalLoginSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82CFE5C0E9138BCFCBE572A0 /* InlinePortalLoginSheet.swift */; };
@@ -594,6 +595,7 @@
 		9D945ADA906827F7F7509D5B /* TrabalhoScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrabalhoScreen.swift; sourceTree = "<group>"; };
 		9E7557D01511F8DFA457E786 /* DisciplineFolderCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisciplineFolderCard.swift; sourceTree = "<group>"; };
 		9E9567814921EC4C53B3F70C /* SubscriptionStatusProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionStatusProvider.swift; sourceTree = "<group>"; };
+		9ED50ABCC067B26FC10E09ED /* AtlasSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtlasSearchSheet.swift; sourceTree = "<group>"; };
 		9F70F963371379D809067BD4 /* VitaMenuPopout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaMenuPopout.swift; sourceTree = "<group>"; };
 		9FBBCF3219680111FD841209 /* View+GlassStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+GlassStyle.swift"; sourceTree = "<group>"; };
 		A0BCC426665D0F4F7F0A0634 /* CourseDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseDetailScreen.swift; sourceTree = "<group>"; };
@@ -1521,6 +1523,7 @@
 			isa = PBXGroup;
 			children = (
 				30670596AEFAD8034EF048D9 /* AtlasSceneScreen.swift */,
+				9ED50ABCC067B26FC10E09ED /* AtlasSearchSheet.swift */,
 			);
 			path = Atlas;
 			sourceTree = "<group>";
@@ -1740,6 +1743,7 @@
 				36E9C4E0AB2724D60B8B51CC /* AppearanceScreen.swift in Sources */,
 				0780E271D8611FDE00449801 /* AssinaturaScreen.swift in Sources */,
 				5EA049F87DDAF0DB70B98033 /* AtlasSceneScreen.swift in Sources */,
+				7CFF8534E23CEDF7BC374EB3 /* AtlasSearchSheet.swift in Sources */,
 				E0CE8FD436F882D717038F8D /* AuthManager.swift in Sources */,
 				774FF3CFA293F2A1D9FFA28D /* AuthViewModel.swift in Sources */,
 				150EAC70F68E9DC56354A5ED /* BillingModels.swift in Sources */,

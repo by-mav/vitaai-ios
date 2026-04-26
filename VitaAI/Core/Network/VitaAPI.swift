@@ -125,6 +125,33 @@ actor VitaAPI {
         return try await client.post("study/flashcards/generate", body: Body(discipline: discipline, count: count))
     }
 
+    /// Cria 1 flashcard solto. Cliente pode passar `deckTitle` pra criar/usar
+    /// um deck com aquele título (server resolve por nome quando deckId nil).
+    /// Usado pelo Atlas 3D (botão "Estudar 3 cards" no MeshDetailSheet).
+    @discardableResult
+    func createFlashcard(
+        front: String,
+        back: String,
+        deckTitle: String? = nil,
+        subjectId: String? = nil
+    ) async throws -> CreateFlashcardResponse {
+        struct Body: Encodable {
+            let front: String
+            let back: String
+            let deckTitle: String?
+            let subjectId: String?
+        }
+        return try await client.post(
+            "study/flashcards",
+            body: Body(front: front, back: back, deckTitle: deckTitle, subjectId: subjectId)
+        )
+    }
+
+    struct CreateFlashcardResponse: Decodable {
+        var id: String?
+        var deckId: String?
+    }
+
     @discardableResult
     func generateFlashcardsAutoSeed() async throws -> AutoSeedResponse {
         struct Body: Encodable { let autoSeed: Bool }

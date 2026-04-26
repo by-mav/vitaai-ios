@@ -167,6 +167,9 @@ struct AtlasSceneScreen: View {
                         focusedMesh = info
                         selectedMesh = info
                         hasTappedAnyMesh = true
+                        // Persist em history local pro chip "Continuar". Quando
+                        // NOVA publicar `POST /atlas/history` ligar aqui também.
+                        AtlasHistoryStore.recordView(info.id)
                         VitaPostHogConfig.capture(event: "atlas_search_picked", properties: [
                             "layers": analyticsLayers,
                             "structure": info.pt,
@@ -187,6 +190,20 @@ struct AtlasSceneScreen: View {
                 MeshDetailSheet(
                     info: info,
                     chatClient: container.chatClient,
+                    api: container.api,
+                    siblings: siblings(for: info),
+                    onNavigate: { newInfo in
+                        // Anterior / Próximo: troca a peça focada e registra
+                        // history pro chip "Continuar".
+                        selectedMesh = newInfo
+                        focusedMesh = newInfo
+                        AtlasHistoryStore.recordView(newInfo.id)
+                        VitaPostHogConfig.capture(event: "atlas_detail_navigated", properties: [
+                            "from": info.pt,
+                            "to": newInfo.pt,
+                            "system": newInfo.system,
+                        ])
+                    },
                     onExpandToFullChat: { customPrompt in
                         VitaPostHogConfig.capture(event: "atlas_ask_vita_expand", properties: [
                             "layers": analyticsLayers,
@@ -226,6 +243,9 @@ struct AtlasSceneScreen: View {
         selectedMesh = resolved.info
         lastTappedCandidates = candidates
         hasTappedAnyMesh = true
+        if resolved.hit {
+            AtlasHistoryStore.recordView(resolved.info.id)
+        }
         VitaPostHogConfig.capture(event: "atlas_mesh_tapped", properties: [
             "layers": analyticsLayers,
             "mesh_name": candidates.first ?? "",
@@ -235,6 +255,16 @@ struct AtlasSceneScreen: View {
             "lateralidade": resolved.lateralidade ?? "none",
             "pt_name": resolved.info.pt,
         ])
+    }
+
+    /// Lista de irmãos do mesmo `system` ordenada por id, usada pelos botões
+    /// Anterior/Próximo do detail sheet. Vazio quando o info veio do fallback
+    /// (system "" ou catálogo ausente) — botões somem.
+    private func siblings(for info: MeshInfo) -> [MeshInfo] {
+        guard !info.system.isEmpty else { return [] }
+        return lookup.values
+            .filter { $0.system == info.system }
+            .sorted { $0.id < $1.id }
     }
 
     /// "+"-joined sorted rawValues for telemetry (e.g. "arthrology+myology").
@@ -1355,6 +1385,13 @@ private struct MeshDetailSheet: View {
     /// Streams the chat reply directly into the sheet — we never leave the
     /// atlas viewport. Acts as actor since VitaChatClient is one.
     let chatClient: VitaChatClient
+    /// Para criar flashcards via `POST /api/study/flashcards`.
+    let api: VitaAPI
+    /// Mesmo system, ordenado por id — usado pra botões Anterior/Próximo.
+    let siblings: [MeshInfo]
+    /// Quando user toca em Anterior/Próximo, pai (AtlasSceneScreen) re-monta
+    /// o detail com a peça nova. Mantém focus mode sincronizado.
+    let onNavigate: (MeshInfo) -> Void
     /// Used by the "expand" button to escape into the full VitaChatScreen
     /// when the user wants more space / history / files. Optional.
     let onExpandToFullChat: (String) -> Void
@@ -1368,10 +1405,35 @@ private struct MeshDetailSheet: View {
     @State private var streamTask: Task<Void, Never>?
     @State private var streamError: String?
     @State private var conversationId: String?
+    /// Estado do botão "Estudar (3 cards)". Idle → loading → success/error.
+    @State private var studyState: StudyButtonState = .idle
+
+    enum StudyButtonState: Equatable {
+        case idle
+        case loading
+        case success
+        case error(String)
+    }
+
+    /// Index do `info` em `siblings`. -1 quando ausente (system vazio).
+    private var siblingIndex: Int? {
+        siblings.firstIndex(where: { $0.id == info.id })
+    }
+
+    private var prevSibling: MeshInfo? {
+        guard let i = siblingIndex, i > 0 else { return nil }
+        return siblings[i - 1]
+    }
+
+    private var nextSibling: MeshInfo? {
+        guard let i = siblingIndex, i + 1 < siblings.count else { return nil }
+        return siblings[i + 1]
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                navBar
                 VStack(alignment: .leading, spacing: 6) {
                     Text(info.pt)
                         .font(.system(size: 22, weight: .bold))
@@ -1397,6 +1459,8 @@ private struct MeshDetailSheet: View {
                 if let curiosity = info.curiosity, !curiosity.isEmpty {
                     sectionBlock("Curiosidade", content: curiosity, icon: "sparkles")
                 }
+
+                studyButton
 
                 // Inline chat: shows turns as they stream in. Composer always at
                 // the bottom of the sheet — user tweaks question, mic dictates,
@@ -1433,6 +1497,189 @@ private struct MeshDetailSheet: View {
         }
         .onDisappear {
             streamTask?.cancel()
+        }
+    }
+
+    // MARK: - Top nav (Anterior / Próximo)
+
+    @ViewBuilder
+    private var navBar: some View {
+        if prevSibling != nil || nextSibling != nil {
+            HStack(spacing: 8) {
+                navButton(
+                    label: "Anterior",
+                    symbol: "chevron.left",
+                    target: prevSibling,
+                    leading: true
+                )
+                navButton(
+                    label: "Próximo",
+                    symbol: "chevron.right",
+                    target: nextSibling,
+                    leading: false
+                )
+            }
+        }
+    }
+
+    private func navButton(
+        label: String,
+        symbol: String,
+        target: MeshInfo?,
+        leading: Bool
+    ) -> some View {
+        let enabled = target != nil
+        return Button {
+            guard let target else { return }
+            UISelectionFeedbackGenerator().selectionChanged()
+            onNavigate(target)
+        } label: {
+            HStack(spacing: 5) {
+                if leading {
+                    Image(systemName: symbol).font(.system(size: 11, weight: .semibold))
+                    Text(label).font(.system(size: 12, weight: .semibold))
+                    Text(target?.pt ?? "—")
+                        .font(.system(size: 11))
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .lineLimit(1)
+                } else {
+                    Spacer(minLength: 0)
+                    Text(target?.pt ?? "—")
+                        .font(.system(size: 11))
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .lineLimit(1)
+                    Text(label).font(.system(size: 12, weight: .semibold))
+                    Image(systemName: symbol).font(.system(size: 11, weight: .semibold))
+                }
+            }
+            .foregroundStyle(enabled ? VitaColors.textPrimary : VitaColors.textTertiary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(VitaColors.glassBorder, lineWidth: 0.6)
+            )
+            .opacity(enabled ? 1.0 : 0.4)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+    }
+
+    // MARK: - Study (3 cards) button
+
+    private var studyButton: some View {
+        Button(action: createStudyDeck) {
+            HStack(spacing: 8) {
+                Group {
+                    switch studyState {
+                    case .loading:
+                        ProgressView().scaleEffect(0.7).tint(VitaColors.accent)
+                    case .success:
+                        Image(systemName: "checkmark.circle.fill")
+                    case .error:
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    case .idle:
+                        Image(systemName: "rectangle.stack.badge.plus")
+                    }
+                }
+                .font(.system(size: 14, weight: .semibold))
+
+                Text(studyButtonLabel)
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(studyState == .success ? VitaColors.dataGreen : VitaColors.accent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(VitaColors.accent.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(VitaColors.accent.opacity(0.4), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(studyState == .loading || studyState == .success)
+    }
+
+    private var studyButtonLabel: String {
+        switch studyState {
+        case .idle: return "Estudar (3 cards)"
+        case .loading: return "Criando deck…"
+        case .success: return "3 cards adicionados ao deck Atlas anatômico"
+        case .error(let msg): return "Erro: \(msg)"
+        }
+    }
+
+    /// Cria 3 flashcards no deck "Atlas anatômico" via POST /study/flashcards.
+    /// PT↔EN, PT↔sistema (label PT), PT↔dica/curiosidade (fallback descrição).
+    private func createStudyDeck() {
+        guard studyState == .idle else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        studyState = .loading
+
+        // 3 pares (front, back) — pula o que estiver vazio.
+        var pairs: [(String, String)] = []
+        if !info.en.isEmpty && info.en != info.pt {
+            pairs.append(("Como se chama em inglês: \(info.pt)?", info.en))
+        }
+        if !info.system.isEmpty {
+            let sysLabel = systemLabel(info.system)
+            pairs.append(("A qual sistema pertence: \(info.pt)?", sysLabel))
+        }
+        if let tip = info.tip, !tip.isEmpty {
+            pairs.append(("Dica de prova sobre \(info.pt):", tip))
+        } else if let curiosity = info.curiosity, !curiosity.isEmpty {
+            pairs.append(("Curiosidade sobre \(info.pt):", curiosity))
+        } else if let desc = info.description, !desc.isEmpty {
+            pairs.append(("O que é \(info.pt)?", desc))
+        } else {
+            // Última cartada genérica pra sempre ter 3 cards
+            pairs.append(("O que você sabe sobre \(info.pt)?",
+                          "Estrutura anatômica do sistema \(systemLabel(info.system))."))
+        }
+        // Garantir 3 cards (caso só tenha 1 par válido)
+        while pairs.count < 3 {
+            if let curiosity = info.curiosity, pairs.count < 3 {
+                pairs.append(("Curiosidade sobre \(info.pt):", curiosity))
+            } else if let tip = info.tip, pairs.count < 3, !pairs.contains(where: { $0.0.contains("Dica") }) {
+                pairs.append(("Dica de prova sobre \(info.pt):", tip))
+            } else {
+                pairs.append(("Como se localiza \(info.pt)?",
+                              "Estrutura do sistema \(systemLabel(info.system)). Revise no Atlas 3D."))
+            }
+        }
+
+        Task {
+            do {
+                for (front, back) in pairs.prefix(3) {
+                    _ = try await api.createFlashcard(
+                        front: front,
+                        back: back,
+                        deckTitle: "Atlas anatômico",
+                        subjectId: nil
+                    )
+                }
+                await MainActor.run {
+                    studyState = .success
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    VitaPostHogConfig.capture(event: "atlas_study_deck_created", properties: [
+                        "structure": info.pt,
+                        "system": info.system,
+                    ])
+                }
+            } catch {
+                await MainActor.run {
+                    studyState = .error(error.localizedDescription)
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                }
+            }
         }
     }
 
@@ -1670,151 +1917,6 @@ private struct MeshDetailSheet: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(Capsule().fill(color))
-        }
-    }
-}
-
-// MARK: - Search sheet
-
-private struct AtlasSearchSheet: View {
-    let lookup: [String: MeshInfo]
-    let activeLayerIds: Set<String>
-    let onPick: (MeshInfo) -> Void
-
-    @State private var query: String = ""
-    @FocusState private var focused: Bool
-
-    private var filtered: [MeshInfo] {
-        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard q.count >= 2 else { return [] }
-        // Score: starts-with > contains; entries from any active layer float up.
-        var matches: [(MeshInfo, Int)] = []
-        for info in lookup.values {
-            let pt = info.pt.lowercased()
-            let en = info.en.lowercased()
-            var score = 0
-            if pt.hasPrefix(q) { score = 100 }
-            else if pt.contains(q) { score = 60 }
-            else if en.hasPrefix(q) { score = 40 }
-            else if en.contains(q) { score = 20 }
-            if score == 0 { continue }
-            if activeLayerIds.contains(info.system) { score += 50 }
-            matches.append((info, score))
-        }
-        return matches
-            .sorted { $0.1 > $1.1 || ($0.1 == $1.1 && $0.0.pt < $1.0.pt) }
-            .prefix(40)
-            .map { $0.0 }
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Search field
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(VitaColors.textSecondary)
-                TextField("Buscar estrutura — fíbula, aorta, miocárdio…", text: $query)
-                    .focused($focused)
-                    .font(.system(size: 15))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                if !query.isEmpty {
-                    Button { query = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.06))
-            )
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-
-            if query.count < 2 {
-                placeholderState
-            } else if filtered.isEmpty {
-                noResultsState
-            } else {
-                List(filtered) { info in
-                    Button { onPick(info) } label: {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(info.pt)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(VitaColors.textPrimary)
-                            HStack(spacing: 6) {
-                                if !info.system.isEmpty {
-                                    Text(systemLabel(info.system))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(VitaColors.textSecondary)
-                                }
-                                if info.en != info.pt {
-                                    Text("· \(info.en)")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(VitaColors.textSecondary.opacity(0.7))
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-            }
-
-            Spacer()
-        }
-        .onAppear { focused = true }
-    }
-
-    private var placeholderState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "books.vertical.fill")
-                .font(.system(size: 38))
-                .foregroundStyle(VitaColors.textSecondary.opacity(0.5))
-            Text("\(lookup.count) estruturas no catálogo")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(VitaColors.textPrimary)
-            Text("Digite ao menos 2 letras pra começar")
-                .font(.system(size: 12))
-                .foregroundStyle(VitaColors.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var noResultsState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 38))
-                .foregroundStyle(VitaColors.textSecondary.opacity(0.5))
-            Text("Nenhuma estrutura corresponde a \"\(query)\"")
-                .font(.system(size: 13))
-                .foregroundStyle(VitaColors.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func systemLabel(_ system: String) -> String {
-        switch system {
-        case "arthrology": return "Osteologia"
-        case "myology": return "Miologia"
-        case "neurology": return "Neurologia"
-        case "angiology": return "Angiologia"
-        case "splanchnology": return "Esplâncnologia"
-        case "lymphoid": return "Linfático"
-        case "joints": return "Articulações"
-        default: return system.capitalized
         }
     }
 }
