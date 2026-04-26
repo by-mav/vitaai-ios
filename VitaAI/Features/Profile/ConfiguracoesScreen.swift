@@ -28,6 +28,11 @@ struct ConfiguracoesScreen: View {
     @State private var isDeletingAccount: Bool = false
     @State private var deleteErrorMessage: String?
 
+    // Sons + vibração persistem em UserDefaults via SoundManager/HapticManager.
+    // @AppStorage espelha a chave pra UI atualizar instantâneo no toggle.
+    @AppStorage("vita_sound_enabled")  private var soundEnabled: Bool = true
+    @AppStorage("vita_haptic_enabled") private var hapticEnabled: Bool = true
+
     private let logoutColor = Color(red: 1.0, green: 0.47, blue: 0.31)
 
     private var appVersionString: String {
@@ -92,6 +97,20 @@ struct ConfiguracoesScreen: View {
                             label: "Aparência",
                             desc: "Tema e visual do app",
                             action: { onNavigateToAppearance?() }
+                        )
+                        rowDivider
+                        toggleRow(
+                            icon: "speaker.wave.2",
+                            label: "Efeitos sonoros",
+                            desc: "Tap, acerto/erro, conquistas",
+                            isOn: $soundEnabled
+                        )
+                        rowDivider
+                        toggleRow(
+                            icon: "iphone.radiowaves.left.and.right",
+                            label: "Vibração",
+                            desc: "Feedback tátil em interações",
+                            isOn: $hapticEnabled
                         )
                     }
                 }
@@ -395,6 +414,55 @@ struct ConfiguracoesScreen: View {
         Rectangle()
             .fill(VitaColors.textWarm.opacity(0.04))
             .frame(height: 1)
+    }
+
+    /// Linha com label + descrição + Toggle nativo. Persiste @AppStorage,
+    /// dispara haptic ao mudar (se haptic habilitado).
+    private func toggleRow(icon: String, label: String, desc: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                VitaColors.accentHover.opacity(0.18),
+                                VitaColors.accentDark.opacity(0.08)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 34, height: 34)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(VitaColors.accentHover.opacity(0.12), lineWidth: 1)
+                    )
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.80))
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.88))
+                Text(desc)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.35))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .tint(VitaColors.accent)
+                .onChange(of: isOn.wrappedValue) { _, _ in
+                    HapticManager.shared.fire(.light)
+                }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
     }
 
     // MARK: - Logout Button
