@@ -279,10 +279,25 @@ final class QBankViewModel {
     }
 
     func loadHomeData() {
-        Task {
+        // SWR pattern: paint cache instantâneo se hot, depois revalida em
+        // background. Cache cold → loading + fetch normal.
+        let slugs = scopedSlugsForHome()
+        let cachedProgress = dataManager.qbankProgress
+        let cachedSessions = dataManager.qbankSessions
+        // Progress global do AppDataManager é "all subjects"; só serve quando
+        // user NÃO filtrou por chip. Com chip selecionado, refetch específico.
+        let canUseCachedProgress = state.selectedSubjectId == nil && cachedProgress != nil
+
+        if canUseCachedProgress, let cached = cachedProgress {
+            state.progress = cached
+            state.recentSessions = cachedSessions?.sessions ?? []
+            state.progressLoading = false
+        } else {
             state.progressLoading = true
+        }
+
+        Task {
             do {
-                let slugs = scopedSlugsForHome()
                 async let progressTask = api.getQBankProgress(disciplineSlugs: slugs)
                 async let sessionsTask = api.getQBankSessions(limit: 5)
                 state.progress = try await progressTask
@@ -291,8 +306,10 @@ final class QBankViewModel {
                 state.error = nil
             } catch {
                 print("[QBank] loadHomeData failed: \(error)")
-                state.progress = .init()
-                state.recentSessions = []
+                if !canUseCachedProgress {
+                    state.progress = .init()
+                    state.recentSessions = []
+                }
                 state.error = nil
             }
             state.progressLoading = false

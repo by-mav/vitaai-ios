@@ -41,6 +41,7 @@ final class AppDataManager {
     var progress: ProgressResponse?
     var documentsBySubject: [String: [VitaDocument]] = [:]
     var foldersBySubject: [String: [MaterialFolder]] = [:]
+    var qbankSessions: QBankSessionsResponse?
 
     /// Subjects sorted by VitaScore descending (highest risk first)
     var subjectsByPriority: [DashboardSubject] {
@@ -201,7 +202,8 @@ final class AppDataManager {
         async let tr: () = refreshTranscricoes()
         async let tb: () = refreshTrabalhos()
         async let pr: () = refreshProgress()
-        _ = await (p, g, s, d, en, fc, qb, si, tr, tb, pr)
+        async let qs: () = refreshQBankSessions()
+        _ = await (p, g, s, d, en, fc, qb, si, tr, tb, pr, qs)
         // Tertiary prefetch — disciplinas individuais. Depende de enrolled
         // já estar populado, daí roda DEPOIS do gather acima.
         await prewarmDisciplines(ids: enrolledDisciplines.map { $0.id })
@@ -210,6 +212,12 @@ final class AppDataManager {
     private func refreshProgress() async {
         if let resp = try? await api.getProgress() {
             progress = resp
+        }
+    }
+
+    private func refreshQBankSessions() async {
+        if let resp = try? await api.getQBankSessions(limit: 5) {
+            qbankSessions = resp
         }
     }
 
