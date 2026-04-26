@@ -73,7 +73,8 @@ struct AboutScreen: View {
                         VStack(alignment: .leading, spacing: 0) {
                             // Version badge
                             HStack {
-                                Text("v0.1.0")
+                                // Shell §5.2.7: versão lida de Bundle, NUNCA hardcoded.
+                                Text("v\(appVersion)")
                                     .font(VitaTypography.labelLarge)
                                     .foregroundStyle(VitaColors.accent)
                                     .padding(.horizontal, 10)
