@@ -370,11 +370,12 @@ private struct QBankTopicNodeView: View {
                                 Text(Self.levelLabel(depth))
                                     .font(.system(size: 9, weight: .semibold))
                                     .foregroundStyle(VitaColors.accent)
-                                if let count = node.count, count > 0 {
+                                let aggregateCount = Self.aggregateCount(node, in: allTopics)
+                                if aggregateCount > 0 {
                                     Text("·")
                                         .font(.system(size: 10))
                                         .foregroundStyle(VitaColors.textTertiary)
-                                    Text("\(count) \(count == 1 ? "questão" : "questões")")
+                                    Text("\(aggregateCount) \(aggregateCount == 1 ? "questão" : "questões")")
                                         .font(.system(size: 10))
                                         .foregroundStyle(VitaColors.textSecondary)
                                         .monospacedDigit()
@@ -431,6 +432,18 @@ private struct QBankTopicNodeView: View {
             ids.formUnion(collectTopicIds(child, in: all))
         }
         return ids
+    }
+
+    /// Soma `count` direto deste nó + recursivo de toda a subtree.
+    /// Mostra "247 questões" no root mesmo que ele tenha 0 questões diretas
+    /// (todas estão nas folhas) — número real do que o tap inicia.
+    static func aggregateCount(_ node: QBankTopic, in all: [QBankTopic]) -> Int {
+        var total = node.count ?? 0
+        let directChildren = all.filter { $0.parentTopicId == node.id }
+        for child in directChildren {
+            total += aggregateCount(child, in: all)
+        }
+        return total
     }
 
     /// Label semântico por nível (0=TEMA, 1=SUBTEMA, 2=CONTEÚDO, 3=detalhe).
