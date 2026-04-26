@@ -1069,8 +1069,13 @@ private struct NativePdfView: UIViewRepresentable {
         context.coordinator.scrollToPage(viewModel.currentPage, in: pdfView)
         // Toggle annotation mode on all visible canvases
         context.coordinator.applyAnnotationMode(viewModel.isAnnotating)
-        // Sync highlight mode into coordinator
+        // Sync highlight mode into coordinator + reapply drag interactions pra
+        // que o pan custom capture drag livre (Goodnotes-style highlight).
+        let highlightChanged = context.coordinator.isHighlightMode != viewModel.isHighlightMode
         context.coordinator.isHighlightMode = viewModel.isHighlightMode
+        if highlightChanged {
+            context.coordinator.applyDragModeInteractions()
+        }
         // Sync text mode into coordinator
         context.coordinator.isTextMode = viewModel.isTextMode
         // Sync lasso mode — apply PKLassoTool or restore ink tool
@@ -1610,34 +1615,62 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
     func applyMaskingMode(_ masking: Bool) {
         guard isMaskingMode != masking else { return }
         isMaskingMode = masking
-        // While masking, disable PDFView scroll so single-finger drag draws the mask
-        // bbox instead of scrolling. Two-finger pan still works (PDFKit other recognizers).
+        applyDragModeInteractions()
+    }
+
+    /// Aplica enable/disable de scroll + canvas pra que o pan custom capture
+    /// drag em modo masking OU highlight. Chamado quando masking/highlight mudam.
+    func applyDragModeInteractions() {
+        // Drag livre (mask ou highlight) requer scroll pan desativado pra
+        // single-finger drag virar shape, não scroll.
+        let highlight = viewModel.isHighlightMode
+        let masking = isMaskingMode
         if let pdfView = self.pdfView {
             for subview in pdfView.subviews {
                 if let scrollView = subview as? UIScrollView {
-                    scrollView.panGestureRecognizer.isEnabled = !masking && !viewModel.isAnnotating
+                    scrollView.panGestureRecognizer.isEnabled = !masking && !highlight && !viewModel.isAnnotating
                 }
             }
         }
-        // Disable canvas interaction so drag goes to our pan recognizer, not PencilKit
+        // Disable canvas interaction so drag goes to our pan recognizer, not PencilKit.
         for (_, canvas) in pageToCanvas {
-            canvas.isUserInteractionEnabled = !masking && viewModel.isAnnotating
+            canvas.isUserInteractionEnabled = !masking && !highlight && viewModel.isAnnotating
         }
     }
 
+    /// Modos do pan gesture que partilha o mesmo recognizer (mask + highlight livre).
+    enum PdfPanDragMode {
+        case mask
+        case highlight
+    }
+
     @objc func handleMaskingPan(_ gesture: UIPanGestureRecognizer) {
-        guard isMaskingMode, !isStudyMode,
-              let pdfView = gesture.view as? PDFView else { return }
+        // Decide modo: masking (preto) OU highlight livre (amarelo Goodnotes-style).
+        // Highlight livre: arrasta em qualquer área da página, NÃO requer texto seletível.
+        let activeMode: PdfPanDragMode
+        if isMaskingMode, !isStudyMode { activeMode = .mask }
+        else if isHighlightMode { activeMode = .highlight }
+        else { return }
+
+        guard let pdfView = gesture.view as? PDFView else { return }
         let viewPoint = gesture.location(in: pdfView)
 
         switch gesture.state {
         case .began:
             maskDragStartView = viewPoint
             let layer = CAShapeLayer()
-            layer.strokeColor = UIColor.systemYellow.withAlphaComponent(0.8).cgColor
-            layer.fillColor = UIColor.black.withAlphaComponent(0.4).cgColor
-            layer.lineWidth = 1.0
-            layer.lineDashPattern = [4, 3]
+            switch activeMode {
+            case .mask:
+                layer.strokeColor = UIColor.systemYellow.withAlphaComponent(0.8).cgColor
+                layer.fillColor = UIColor.black.withAlphaComponent(0.4).cgColor
+                layer.lineWidth = 1.0
+                layer.lineDashPattern = [4, 3]
+            case .highlight:
+                let hex = Self.userHighlightColor()
+                layer.strokeColor = hex.withAlphaComponent(0.8).cgColor
+                layer.fillColor = hex.withAlphaComponent(0.35).cgColor
+                layer.lineWidth = 0
+            }
             pdfView.layer.addSublayer(layer)
             maskDragLayer = layer
 
@@ -1676,14 +1709,27 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
                 width: abs(p2.x - p1.x),
                 height: abs(p2.y - p1.y)
             )
-            let mask = PdfMaskAnnotation.makeAnnotation(bounds: pageRect)
-            page.addAnnotation(mask)
+            switch activeMode {
+            case .mask:
+                let mask = PdfMaskAnnotation.makeAnnotation(bounds: pageRect)
+                page.addAnnotation(mask)
+                VitaPostHogConfig.capture(event: "pdf_mask_created", properties: [
+                    "page_index": viewModel.currentPage,
+                    "width": Int(pageRect.width),
+                    "height": Int(pageRect.height),
+                ])
+            case .highlight:
+                let highlightColor = Self.userHighlightColor()
+                let annotation = PDFAnnotation(bounds: pageRect, forType: .highlight, withProperties: nil)
+                annotation.color = highlightColor
+                page.addAnnotation(annotation)
+                VitaPostHogConfig.capture(event: "pdf_highlight_free_drag", properties: [
+                    "page_index": viewModel.currentPage,
+                    "width": Int(pageRect.width),
+                    "height": Int(pageRect.height),
+                ])
+            }
             viewModel.saveHighlights()
-            VitaPostHogConfig.capture(event: "pdf_mask_created", properties: [
-                "page_index": viewModel.currentPage,
-                "width": Int(pageRect.width),
-                "height": Int(pageRect.height),
-            ])
 
         case .cancelled, .failed:
             maskDragLayer?.removeFromSuperlayer()
