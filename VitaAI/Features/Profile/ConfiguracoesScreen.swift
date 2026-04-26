@@ -9,14 +9,15 @@ import Sentry
 struct ConfiguracoesScreen: View {
     let authManager: AuthManager
 
-    var onNavigateToPerfil:        (() -> Void)?
-    var onNavigateToAppearance:    (() -> Void)?
-    var onNavigateToNotifications: (() -> Void)?
-    var onNavigateToConnections:   (() -> Void)?
-    var onNavigateToAbout:         (() -> Void)?
-    var onNavigateToAssinatura:    (() -> Void)?
-    var onNavigateToDisciplinas:   (() -> Void)?
-    var onBack:                    (() -> Void)?
+    var onNavigateToPerfil:           (() -> Void)?
+    var onNavigateToAppearance:       (() -> Void)?
+    var onNavigateToNotifications:    (() -> Void)?
+    var onNavigateToConnections:      (() -> Void)?
+    var onNavigateToAbout:            (() -> Void)?
+    var onNavigateToAssinatura:       (() -> Void)?
+    var onNavigateToDisciplinas:      (() -> Void)?
+    var onNavigateToPrivacyDocuments: (() -> Void)?
+    var onBack:                       (() -> Void)?
 
     @Environment(\.appContainer) private var appContainer
 
@@ -95,10 +96,19 @@ struct ConfiguracoesScreen: View {
                 .padding(.horizontal, 14)
 
                 // MARK: - Privacidade & Segurança — Shell §5.2.6
-                // PrivacyDocumentsScreen + ExportData + ActiveSessions: criar em commits seguintes.
+                // ExportData + ActiveSessions pendentes de endpoint.
                 settingsSectionLabel("Privacidade & Segurança")
                 VitaGlassCard {
-                    deleteAccountRow
+                    VStack(spacing: 0) {
+                        settingsRow(
+                            icon: "lock.shield",
+                            label: "Privacidade de documentos",
+                            desc: "O que coletamos, onde processamos, retenção",
+                            action: { onNavigateToPrivacyDocuments?() }
+                        )
+                        rowDivider
+                        deleteAccountRow
+                    }
                 }
                 .padding(.horizontal, 14)
 

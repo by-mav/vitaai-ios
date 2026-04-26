@@ -117,6 +117,7 @@
 		47178D051D81987CD6E9BF3D /* StudyOverviewSubject.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1611D36BC820AF3CB70BD36 /* StudyOverviewSubject.swift */; };
 		4857C5FF52A84F5942D119DD /* FaculdadeProfessoresScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969CC09E6ADAE216B40E2DD3 /* FaculdadeProfessoresScreen.swift */; };
 		487EFBF97E3B04CEFCB27D47 /* SimuladoSessionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E56A26BE9510D582EC34800 /* SimuladoSessionScreen.swift */; };
+		4910B03C5AEDF46BA2199B5F /* PrivacyDocumentsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AD37FFFDD11FB731B7FEEB3 /* PrivacyDocumentsScreen.swift */; };
 		49A64D845A6E0097EC4BF8F6 /* NotebookRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15EFE1C2CBA91CC861A89E22 /* NotebookRepository.swift */; };
 		4A4BE1087C1BCD34E22D934B /* PortalExtract200Response.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE96CDE20BAA6A7A9D29FCB9 /* PortalExtract200Response.swift */; };
 		4A5583355D2C15F4BA2A2B36 /* OsceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B883C713EB6970D28AB99E1 /* OsceViewModel.swift */; };
@@ -521,6 +522,7 @@
 		6A6BBDE731EBEA07A41B98E5 /* VitaOnboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaOnboarding.swift; sourceTree = "<group>"; };
 		6AA25EA393E9B3AA9F89CB2C /* DisciplineImages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisciplineImages.swift; sourceTree = "<group>"; };
 		6AD3662F13C50533D09CB569 /* EditorScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorScreen.swift; sourceTree = "<group>"; };
+		6AD37FFFDD11FB731B7FEEB3 /* PrivacyDocumentsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyDocumentsScreen.swift; sourceTree = "<group>"; };
 		6B2FBDF30C2F0A96A7EA33EA /* OnboardingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewModel.swift; sourceTree = "<group>"; };
 		6B97080B4329AB9C409C8FD0 /* VitaShimmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaShimmer.swift; sourceTree = "<group>"; };
 		6CFAD85F7F02DFFB8814579A /* GoogleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleModels.swift; sourceTree = "<group>"; };
@@ -1386,6 +1388,7 @@
 				D22584DB23356B862FEDC41E /* DisciplinasConfigScreen.swift */,
 				D3B62E7CE87B36210A70F708 /* EditProfileSheet.swift */,
 				3C615CE58F474E99F3FD2173 /* NotificationSettingsScreen.swift */,
+				6AD37FFFDD11FB731B7FEEB3 /* PrivacyDocumentsScreen.swift */,
 				D0AA34DA1F2E5FE7046BB9C1 /* ProfileScreen.swift */,
 			);
 			path = Profile;
@@ -1901,6 +1904,7 @@
 				833F3D1124AE7A5E53D303E7 /* PortalExtractRequestPagesInner.swift in Sources */,
 				7AC5BFDEB11AE245D988F564 /* PortalFilterFiles200Response.swift in Sources */,
 				9785A23EB0B29087BD76ADCF /* PostHogConfig.swift in Sources */,
+				4910B03C5AEDF46BA2199B5F /* PrivacyDocumentsScreen.swift in Sources */,
 				AC82F6D41F1DF2AFE11792F0 /* ProfessorProfileSheet.swift in Sources */,
 				BF46EFDE0F8BECBD1D47EC97 /* ProfessorProfileViewModel.swift in Sources */,
 				3CEBF87D5DD3BF842B3ABD91 /* Profile.swift in Sources */,

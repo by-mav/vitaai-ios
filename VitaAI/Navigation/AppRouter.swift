@@ -713,6 +713,11 @@ struct MainTabView: View {
                 onNavigateToAbout: { router.navigate(to: .about) },
                 onNavigateToAssinatura: { router.navigate(to: .paywall) },
                 onNavigateToDisciplinas: { router.navigate(to: .disciplinasConfig) },
+                onNavigateToPrivacyDocuments: { router.navigate(to: .privacyDocuments) },
+                onBack: { router.goBack() }
+            )
+        case .privacyDocuments:
+            PrivacyDocumentsScreen(
                 onBack: { router.goBack() }
             )
         case .disciplinasConfig:

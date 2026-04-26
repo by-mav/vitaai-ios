@@ -67,6 +67,7 @@ extension Route {
         case .connections:         return "Conexões"
         case .configuracoes:       return "Configurações"
         case .disciplinasConfig:   return "Disciplinas"
+        case .privacyDocuments:    return "Privacidade de documentos"
 
         // MARK: - Fora do breadcrumb
         // Root tabs (represented by TabItem, not path)
