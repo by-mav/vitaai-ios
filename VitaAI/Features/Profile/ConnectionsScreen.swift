@@ -185,31 +185,36 @@ struct ConnectionsScreen: View {
                         letter: "G", name: "Google Calendar",
                         color: Color(red: 0.26, green: 0.52, blue: 0.96),
                         connectorId: "google_calendar",
-                        state: vm.calendar, vm: vm
+                        state: vm.calendar, vm: vm,
+                        iconAsset: "mascot-google-calendar"
                     )
                     integrationCard(
                         letter: "G", name: "Google Drive",
                         color: Color(red: 0.13, green: 0.59, blue: 0.33),
                         connectorId: "google_drive",
-                        state: vm.drive, vm: vm
+                        state: vm.drive, vm: vm,
+                        iconAsset: "mascot-google-drive"
                     )
                     integrationCard(
                         letter: "S", name: "Spotify",
                         color: Color(red: 0.11, green: 0.73, blue: 0.33),
                         connectorId: "spotify",
-                        state: vm.spotify, vm: vm
+                        state: vm.spotify, vm: vm,
+                        iconAsset: "mascot-spotify"
                     )
                     integrationCard(
                         letter: "♥", name: "Apple Health",
                         color: Color(red: 0.96, green: 0.26, blue: 0.36),
                         connectorId: "apple_health",
-                        state: vm.appleHealth, vm: vm
+                        state: vm.appleHealth, vm: vm,
+                        iconAsset: "mascot-apple-health"
                     )
                     ConnectorCard(
                         letter: "W",
                         name: "WhatsApp",
                         status: vm.whatsapp.status,
                         color: Color(red: 0.15, green: 0.68, blue: 0.38),
+                        iconAsset: "mascot-whatsapp",
                         lastSync: vm.whatsapp.lastSync,
                         stats: vm.whatsapp.stats,
                         onConnect: {
@@ -527,13 +532,15 @@ struct ConnectionsScreen: View {
         private func integrationCard(
         letter: String, name: String, color: Color,
         connectorId: String, state: ConnectorState,
-        vm: ConnectorsViewModel
+        vm: ConnectorsViewModel,
+        iconAsset: String? = nil
     ) -> some View {
         ConnectorCard(
             letter: letter,
             name: name,
             status: state.status,
             color: color,
+            iconAsset: iconAsset,
             lastSync: state.lastSync,
             stats: state.stats,
             onConnect: { Task { await vm.connectIntegration(connectorId) } },

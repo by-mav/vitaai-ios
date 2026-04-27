@@ -15,6 +15,7 @@ struct ConnectorCard: View {
     let name: String
     let status: ConnectionItemStatus
     let color: Color
+    var iconAsset: String?           // optional asset name (mascot-google-calendar, etc) — fallback to letter if missing
     var subtitle: String?            // email, phone, or account info shown under name
     var lastSync: String?
     var lastPing: String?           // "sessao viva ha Xmin" — so quando status==connected e divergir do lastSync
@@ -87,17 +88,29 @@ struct ConnectorCard: View {
     // MARK: - Letter Icon
 
     private var letterIcon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(0.22))
-                .frame(width: 40, height: 40)
-                .overlay(
+        // Prefer the bundled mascot asset (Vita mascot + connector logo composited)
+        // Falls back to the colored letter tile when the asset isn't available
+        // (placeholder for new connectors until artwork is provided).
+        Group {
+            if let asset = iconAsset, UIImage(named: asset) != nil {
+                Image(asset)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 40, height: 40)
+            } else {
+                ZStack {
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(color.opacity(0.18), lineWidth: 1)
-                )
-            Text(letter)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(color.opacity(0.90))
+                        .fill(color.opacity(0.22))
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(color.opacity(0.18), lineWidth: 1)
+                        )
+                    Text(letter)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(color.opacity(0.90))
+                }
+            }
         }
     }
 
