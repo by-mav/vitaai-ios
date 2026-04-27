@@ -109,7 +109,7 @@ struct ActivityFeedScreen: View {
                 .refreshable { await vm.load() }
             } else {
                 Spacer()
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accent)
                 Spacer()
             }

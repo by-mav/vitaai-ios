@@ -75,7 +75,7 @@ struct ConnectionsScreen: View {
             if let vm {
                 mainContent(vm: vm)
             } else {
-                ProgressView().tint(VitaColors.accent)
+                DashboardSkeleton()
             }
         }
         .onAppear {

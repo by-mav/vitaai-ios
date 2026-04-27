@@ -20,7 +20,7 @@ struct DisciplinasConfigScreen: View {
                     .padding(.top, 8)
 
                 if isLoading {
-                    ProgressView()
+                    DashboardSkeleton()
                         .tint(VitaColors.accent)
                         .padding(.top, 80)
                 } else if subjects.isEmpty {

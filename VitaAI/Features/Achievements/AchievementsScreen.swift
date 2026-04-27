@@ -17,7 +17,7 @@ struct AchievementsScreen: View {
             } else {
                 ZStack {
                     Color.clear
-                    ProgressView()
+                    DashboardSkeleton()
                         .tint(VitaColors.accent)
                 }
             }
@@ -49,7 +49,7 @@ private struct AchievementsContent: View {
 
             if vm.isLoading {
                 Spacer()
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accent)
                 Spacer()
             } else {

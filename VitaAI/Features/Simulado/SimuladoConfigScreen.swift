@@ -15,7 +15,7 @@ struct SimuladoConfigScreen: View {
             if let vm {
                 configContent(vm: vm)
             } else {
-                ProgressView().tint(VitaColors.accent)
+                DashboardSkeleton()
             }
         }
         .onAppear {
@@ -530,7 +530,7 @@ struct SimuladoConfigScreen: View {
     private func ctaButton(vm: SimuladoViewModel) -> some View {
         if vm.state.isGenerating {
             HStack(spacing: 10) {
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accentLight)
                     .scaleEffect(0.85)
                 Text("Gerando simulado...")

@@ -31,7 +31,7 @@ struct MaterialFolderDetailScreen: View {
             VStack(alignment: .leading, spacing: 14) {
                 header
                 if isLoading {
-                    ProgressView()
+                    DashboardSkeleton()
                         .tint(VitaColors.accent)
                         .padding(.top, 60)
                         .frame(maxWidth: .infinity)

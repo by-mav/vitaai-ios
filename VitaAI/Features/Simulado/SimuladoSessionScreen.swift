@@ -108,7 +108,7 @@ struct SimuladoSessionScreen: View {
 
     private var loadingView: some View {
         VStack(spacing: 16) {
-            ProgressView()
+            DashboardSkeleton()
                 .tint(quizGold)
                 .scaleEffect(1.2)
             Text("Carregando simulado...")

@@ -42,7 +42,7 @@ struct SimuladoResultScreen: View {
     private var loadingView: some View {
         ZStack {
             Color.clear.ignoresSafeArea()
-            ProgressView()
+            DashboardSkeleton()
                 .tint(Color(red: 200/255, green: 155/255, blue: 70/255))
         }
         .ignoresSafeArea()

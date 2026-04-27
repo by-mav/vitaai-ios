@@ -27,7 +27,7 @@ struct SimuladoDiagnosticsScreen: View {
             } else {
                 ZStack {
                     Color.clear.ignoresSafeArea()
-                    ProgressView().tint(simuladoAccent)
+                    DashboardSkeleton()
                 }
             }
         }
@@ -86,7 +86,7 @@ struct SimuladoDiagnosticsScreen: View {
 
             if vm.state.isLoading {
                 Spacer()
-                ProgressView().tint(simuladoAccent)
+                DashboardSkeleton()
                 Spacer()
             } else if let diag = vm.state.diagnostics {
                 ScrollView {

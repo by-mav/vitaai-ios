@@ -112,7 +112,7 @@ struct FaculdadeDocumentosScreen: View {
 
     private var loadingState: some View {
         VStack(spacing: 12) {
-            ProgressView()
+            DashboardSkeleton()
                 .tint(VitaColors.accent)
             Text("Carregando documentos...")
                 .font(.system(size: 12))

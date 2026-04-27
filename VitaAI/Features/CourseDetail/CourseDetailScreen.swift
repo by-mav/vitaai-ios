@@ -25,7 +25,7 @@ struct CourseDetailScreen: View {
                     onNavigateToCanvasConnect: onNavigateToCanvasConnect
                 )
             } else {
-                ProgressView().tint(folderColor)
+                DashboardSkeleton()
             }
         }
         .onAppear {
@@ -74,7 +74,7 @@ private struct CourseDetailContent: View {
 
                 if vm.isLoading {
                     Spacer()
-                    ProgressView().tint(folderColor)
+                    DashboardSkeleton()
                     Spacer()
                 } else {
                     // Course header
@@ -387,7 +387,7 @@ private struct FileRow: View {
                         .frame(width: 42, height: 42)
 
                     if isDownloading {
-                        ProgressView()
+                        DashboardSkeleton()
                             .scaleEffect(0.7)
                             .tint(typeInfo.color)
                     } else {

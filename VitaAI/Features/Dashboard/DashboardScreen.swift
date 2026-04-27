@@ -52,7 +52,10 @@ struct DashboardScreen: View {
                     dashboardContent(viewModel: viewModel)
                 }
             } else {
-                ProgressView().tint(VitaColors.accent)
+                // Boot inicial — skeleton tematizado em vez de loader.
+                // Padrão Vita gold standard: nunca mostrar "Carregando" ao usuário.
+                // Decision: agent-brain/decisions/2026-04-27_no-loading-ever-gold-standard.md
+                DashboardSkeleton()
             }
         }
         .onAppear {

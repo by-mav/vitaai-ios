@@ -45,7 +45,7 @@ struct FlashcardTopicsScreen: View {
                 .padding(.bottom, 20)
 
                 if isLoading {
-                    ProgressView()
+                    DashboardSkeleton()
                         .tint(VitaColors.accentHover)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 40)

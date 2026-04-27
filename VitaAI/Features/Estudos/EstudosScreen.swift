@@ -46,7 +46,7 @@ struct EstudosScreen: View {
                     onNavigateToTrabalhos:        onNavigateToTrabalhos
                 )
             } else {
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accentHover)
             }
         }

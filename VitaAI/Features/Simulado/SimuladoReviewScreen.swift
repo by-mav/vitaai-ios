@@ -22,7 +22,7 @@ struct SimuladoReviewScreen: View {
             } else {
                 ZStack {
                     Color.clear.ignoresSafeArea()
-                    ProgressView().tint(simuladoAccent)
+                    DashboardSkeleton()
                 }
             }
         }

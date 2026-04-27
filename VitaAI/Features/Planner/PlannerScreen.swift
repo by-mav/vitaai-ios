@@ -18,7 +18,7 @@ struct PlannerScreen: View {
             } else {
                 ZStack {
                     Color.clear
-                    ProgressView()
+                    DashboardSkeleton()
                         .tint(VitaColors.accent)
                 }
             }
@@ -51,7 +51,7 @@ private struct PlannerContent: View {
 
             if vm.isLoading {
                 Spacer()
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accent)
                 Spacer()
             } else if let error = vm.errorMessage {

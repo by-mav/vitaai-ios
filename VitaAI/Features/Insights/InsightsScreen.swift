@@ -12,7 +12,7 @@ struct InsightsScreen: View {
             if let vm = viewModel {
                 insightsContent(vm: vm)
             } else {
-                ProgressView().tint(VitaColors.accent)
+                DashboardSkeleton()
             }
         }
         .onAppear {

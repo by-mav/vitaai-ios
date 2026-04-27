@@ -27,7 +27,7 @@ struct PortalConnectScreen: View {
             if let vm {
                 mainContent(vm: vm)
             } else {
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accent)
             }
         }
@@ -91,7 +91,7 @@ struct PortalConnectScreen: View {
 
             if vm.isLoading {
                 Spacer()
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accent)
                     .scaleEffect(1.2)
                 Spacer()

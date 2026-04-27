@@ -35,7 +35,7 @@ struct DisciplineDetailScreen: View {
         ScrollView(showsIndicators: false) {
             if let vm {
                 if vm.isLoading {
-                    ProgressView()
+                    DashboardSkeleton()
                         .tint(VitaColors.accent)
                         .padding(.top, 100)
                 } else if let error = vm.error {
@@ -66,7 +66,7 @@ struct DisciplineDetailScreen: View {
                     .padding(.top, 8)
                 }
             } else {
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accent)
                     .padding(.top, 100)
             }

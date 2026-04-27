@@ -87,7 +87,7 @@ struct FlashcardsListScreen: View {
                 }
 
                 if isLoading {
-                        ProgressView()
+                        DashboardSkeleton()
                             .tint(VitaColors.accentHover)
                             .frame(maxWidth: .infinity)
                             .padding(.top, 40)

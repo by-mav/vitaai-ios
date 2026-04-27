@@ -103,7 +103,7 @@ struct LeaderboardScreen: View {
                 }
             } else {
                 Spacer()
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accent)
                 Spacer()
             }

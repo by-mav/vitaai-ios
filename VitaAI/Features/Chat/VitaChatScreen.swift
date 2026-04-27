@@ -32,7 +32,7 @@ struct VitaChatScreen: View {
             if let viewModel {
                 chatContent(viewModel: viewModel)
             } else {
-                ProgressView()
+                DashboardSkeleton()
                     .tint(VitaColors.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

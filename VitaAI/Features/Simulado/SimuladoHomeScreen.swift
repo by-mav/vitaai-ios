@@ -39,10 +39,9 @@ struct SimuladoHomeScreen: View {
             if let vm {
                 homeContent(vm: vm)
             } else {
-                ZStack {
-                    Color.clear.ignoresSafeArea()
-                    ProgressView().tint(VitaColors.accent)
-                }
+                // Boot inicial — skeleton tematizado em vez de loader.
+                // Padrão Vita: nunca mostrar "carregando" ao usuário.
+                DashboardSkeleton()
             }
         }
         .onAppear {
@@ -59,7 +58,7 @@ struct SimuladoHomeScreen: View {
     private func homeContent(vm: SimuladoViewModel) -> some View {
         ZStack {
             if vm.state.isLoading {
-                ProgressView().tint(SimuladoColors.tealPrimary)
+                DashboardSkeleton()
             } else {
                 // Always render scrollContent so the Hero + CTA appear even
                 // when the user has zero attempts. Shell parity with QBank
