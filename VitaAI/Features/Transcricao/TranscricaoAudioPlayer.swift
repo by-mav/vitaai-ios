@@ -268,11 +268,20 @@ final class TranscricaoAudioPlayer: ObservableObject {
         }
         // Loop segment: ao cruzar boundary do segment atual, volta pro início.
         // Roda ANTES do active word check pra não atualizar UI durante o seek.
+        // Bug fix (Rafael 2026-04-27): quando audio chegava no FIM DO FILE,
+        // AVPlayer auto-pausava após `seek()`. Era preciso forçar `play()` +
+        // re-aplicar `rate` (pode dar 0 quando paused) pra continuar tocando.
         if loopSegmentEnabled, isPlaying, !segmentBoundaries.isEmpty {
             if let cur = segmentBoundaries.first(where: { time >= $0.start && time < $0.end + 0.3 }),
                time >= cur.end - 0.1 {
                 let target = CMTime(seconds: cur.start, preferredTimescale: 600)
-                player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+                player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+                    guard let self else { return }
+                    if self.isPlaying {
+                        self.player?.play()
+                        self.player?.rate = self.playbackRate
+                    }
+                }
                 currentTime = cur.start
                 lastActiveWordTime = cur.start
                 return
