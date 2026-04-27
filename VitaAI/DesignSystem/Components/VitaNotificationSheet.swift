@@ -14,6 +14,14 @@ struct VitaNotification: Identifiable, Decodable {
     var group: String? = nil
     var priority: String? = nil
 
+    // Portal source — added 2026-04-27. NULL = notif interna Vita.
+    // Populated when notification originates from a connected portal
+    // (canvas, mannesoft, sigaa, etc). Used by PortalIcon to render
+    // dynamic icon — no hardcoded portal-specific logic in client.
+    var source: String? = nil
+    var subjectId: String? = nil
+    var metadata: NotificationMetadata? = nil
+
     var icon: String {
         switch type {
         case "gradePosted": return "\u{1F4CA}"
@@ -56,6 +64,12 @@ struct VitaNotification: Identifiable, Decodable {
         case "transcriptionFailed", "uploadFailed": return "exclamationmark.circle.fill"
         case "portalCookieExpired": return "lock.rotation"
         case "quotaWarning": return "externaldrive.badge.exclamationmark"
+        case "portal_announcement": return "megaphone.fill"
+        case "portal_file_added": return "doc.fill"
+        case "portal_assignment_added": return "list.clipboard.fill"
+        case "portal_grade_posted": return "chart.bar.fill"
+        case "portal_update": return "arrow.triangle.2.circlepath"
+        case "portal_summary": return "tray.full.fill"
         default: return "bell.fill"
         }
     }
@@ -80,5 +94,40 @@ struct VitaNotification: Identifiable, Decodable {
         if let d = fmt.date(from: str) { return d }
         fmt.formatOptions = [.withInternetDateTime]
         return fmt.date(from: str)
+    }
+}
+
+// MARK: - NotificationMetadata
+// Backend self-contained payload (added 2026-04-27): icon URL + brand resolved
+// from portal_types at create-time, plus extra deep-link context. Client never
+// makes a separate lookup — render uses what's here.
+struct NotificationMetadata: Decodable {
+    var iconUrl: String?
+    var brandColor: String?
+    var portalDisplayName: String?
+    var externalId: String?
+    var canvasCourseId: String?
+    var courseName: String?
+    var dueAt: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case iconUrl, brandColor, portalDisplayName, externalId
+        case canvasCourseId, courseName, dueAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        iconUrl = try c.decodeIfPresent(String.self, forKey: .iconUrl)
+        brandColor = try c.decodeIfPresent(String.self, forKey: .brandColor)
+        portalDisplayName = try c.decodeIfPresent(String.self, forKey: .portalDisplayName)
+        externalId = try c.decodeIfPresent(String.self, forKey: .externalId)
+        // canvasCourseId may arrive as Int or String — accept both
+        if let i = try? c.decode(Int.self, forKey: .canvasCourseId) {
+            canvasCourseId = String(i)
+        } else {
+            canvasCourseId = try c.decodeIfPresent(String.self, forKey: .canvasCourseId)
+        }
+        courseName = try c.decodeIfPresent(String.self, forKey: .courseName)
+        dueAt = try c.decodeIfPresent(String.self, forKey: .dueAt)
     }
 }

@@ -359,6 +359,7 @@
 		DA66288AA1EC6878F4986357 /* VitaSubTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592B63FA996C5A6E62A174DE /* VitaSubTabBar.swift */; };
 		DB5C2B7F9757B2683C89B850 /* PdfScanOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B1E34202A8907EFFFFACD1 /* PdfScanOverlay.swift */; };
 		DD418FDA220081A89C78B51E /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BDFDAD7DC6888C96464781E /* FlowLayout.swift */; };
+		9CD5DCC96A62B9B685AB1C10 /* PortalIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11BC8FDD8AFFC36DC1450F91 /* PortalIcon.swift */; };
 		DD54025EF50E0E5227E2CAB4 /* RetentionChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5A89A1B0CCEDB9EF3722420 /* RetentionChartView.swift */; };
 		DEBC36D19EA98D5B4B2B297A /* VitaAmbientBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1130013BF0504A0F42C04360 /* VitaAmbientBackground.swift */; };
 		DECDA0E1A8B2FD483D001ACC /* CanvasSyncOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DBC6A00C517673F53DDAA5A /* CanvasSyncOrchestrator.swift */; };
@@ -452,6 +453,7 @@
 		1BB146376AA9EA99FCFF9BDE /* ProfessorProfileSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfessorProfileSheet.swift; sourceTree = "<group>"; };
 		1BB38BFAB4CE5F5F16BCCC45 /* UpcomingExamsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingExamsRow.swift; sourceTree = "<group>"; };
 		1BDFDAD7DC6888C96464781E /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
+		11BC8FDD8AFFC36DC1450F91 /* PortalIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalIcon.swift; sourceTree = "<group>"; };
 		1D3B1F8429E9FD9DA968053D /* QuickActionsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsModels.swift; sourceTree = "<group>"; };
 		1D7C5FABC907005EE5C43240 /* FlashcardSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardSettingsSheet.swift; sourceTree = "<group>"; };
 		2195501DA7E91A64A1786943 /* AchievementsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsScreen.swift; sourceTree = "<group>"; };
@@ -952,6 +954,7 @@
 				9E7557D01511F8DFA457E786 /* DisciplineFolderCard.swift */,
 				6AA25EA393E9B3AA9F89CB2C /* DisciplineImages.swift */,
 				1BDFDAD7DC6888C96464781E /* FlowLayout.swift */,
+				11BC8FDD8AFFC36DC1450F91 /* PortalIcon.swift */,
 				4115858B2E1C1E3408712051 /* GlassAuthButton.swift */,
 				A7CED112CB5D3505B980684B /* GlassChip.swift */,
 				9B583FE6C84F4FFF2A9BFB75 /* GlassTextField.swift */,
@@ -1968,6 +1971,7 @@
 				31DD2B7C8F58C499C24C4F2E /* FlashcardsListCache.swift in Sources */,
 				27A9F88AC2272C4E6F46D62F /* FlashcardsListScreen.swift in Sources */,
 				DD418FDA220081A89C78B51E /* FlowLayout.swift in Sources */,
+				9CD5DCC96A62B9B685AB1C10 /* PortalIcon.swift in Sources */,
 				C34209CD358D0234ACFE0674 /* FocusSession.swift in Sources */,
 				16F6E06B90BBFCA4410ABBCA /* FocusSessionLeaksInner.swift in Sources */,
 				FA6BC60B3A4CC7D69A2392DC /* FocusSessionScreen.swift in Sources */,
@@ -2277,7 +2281,7 @@
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 134;
+				CURRENT_PROJECT_VERSION = 135;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;
@@ -2321,7 +2325,7 @@
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 134;
+				CURRENT_PROJECT_VERSION = 135;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;

@@ -186,28 +186,40 @@ struct VitaNotifPopout: View {
 
     private func notifRow(_ item: VitaNotification) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            // Gold icon medallion — D4 carved feel
-            ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                VitaColors.accentHover.opacity(item.read ? 0.10 : 0.18),
-                                VitaColors.accent.opacity(item.read ? 0.06 : 0.10)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+            // Portal-aware icon: dynamic logo when notif came from a connector,
+            // gold medallion fallback for vita-internal notifs. Added 2026-04-27.
+            if let source = item.source, !source.isEmpty {
+                PortalIcon(
+                    source: source,
+                    iconUrl: item.metadata?.iconUrl,
+                    brandColor: item.metadata?.brandColor,
+                    size: 32
+                )
+                .opacity(item.read ? 0.75 : 1.0)
+            } else {
+                // Gold icon medallion — D4 carved feel (vita-internal notifs)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    VitaColors.accentHover.opacity(item.read ? 0.10 : 0.18),
+                                    VitaColors.accent.opacity(item.read ? 0.06 : 0.10)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .stroke(VitaColors.accentHover.opacity(item.read ? 0.12 : 0.22), lineWidth: 0.6)
-                    )
-                Image(systemName: item.sfSymbol)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(item.read ? VitaColors.accent.opacity(0.55) : VitaColors.accentHover.opacity(0.95))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .stroke(VitaColors.accentHover.opacity(item.read ? 0.12 : 0.22), lineWidth: 0.6)
+                        )
+                    Image(systemName: item.sfSymbol)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(item.read ? VitaColors.accent.opacity(0.55) : VitaColors.accentHover.opacity(0.95))
+                }
+                .frame(width: 32, height: 32)
             }
-            .frame(width: 32, height: 32)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title)
