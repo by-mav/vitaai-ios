@@ -137,9 +137,13 @@ struct StudioSourceMetadata: Decodable {
     let folderId: String?
     /// User-toggled favorite flag via PATCH.
     let favorite: Bool?
+    /// Capítulos auto-gerados por Qwen — populated em transcribe/route.ts +
+    /// /api/cron/whisper-backfill-chapters. Pode ser nil pra gravações curtas
+    /// (<60s) ou que ainda não foram chapterizadas.
+    let chapters: [WhisperChapter]?
 
     enum CodingKeys: String, CodingKey {
-        case duration, durationSeconds, fileName, fileSize, whisperModel, segments, audioFileId, audioR2Key, audioUrl, disciplineSlug, folderId, favorite
+        case duration, durationSeconds, fileName, fileSize, whisperModel, segments, audioFileId, audioR2Key, audioUrl, disciplineSlug, folderId, favorite, chapters
     }
 
     init(from decoder: Decoder) throws {
@@ -154,6 +158,7 @@ struct StudioSourceMetadata: Decodable {
         disciplineSlug = try c.decodeIfPresent(String.self, forKey: .disciplineSlug)
         folderId = try c.decodeIfPresent(String.self, forKey: .folderId)
         favorite = try c.decodeIfPresent(Bool.self, forKey: .favorite)
+        chapters = try c.decodeIfPresent([WhisperChapter].self, forKey: .chapters)
 
         // `duration` is the legacy key and may be Double (seconds) or String
         // ("~60min"). The new backend also writes `durationSeconds` directly —
@@ -189,6 +194,16 @@ struct WhisperWord: Decodable, Identifiable {
     let word: String
     let start: Double
     let end: Double
+}
+
+/// Capítulo auto-gerado por Qwen sobre a transcrição (lib/ai/transcript-chapters.ts).
+/// iOS DetailSheet renderiza no topo como tabela navegável tipo Plaud/Otter.
+struct WhisperChapter: Decodable, Identifiable {
+    var id: String { "\(start)-\(title)" }
+    let start: Double
+    let end: Double
+    let title: String
+    let summary: String
 }
 
 struct StudioChunk: Decodable, Identifiable {

@@ -522,7 +522,7 @@ struct TranscricaoDetailSheet: View {
 
             // Outputs existentes (summary, flashcards).
             if !outputs.isEmpty {
-                TranscricaoOutputsSection(outputs: outputs)
+                TranscricaoOutputsSection(outputs: outputs, player: audioPlayer)
             } else if !isReady && !fullTranscript.isEmpty {
                 // Transcript pronto mas LLM ainda roda — mostra skeleton do resumo.
                 sectionSkeleton(title: "RESUMO", hint: "Gerando resumo…")
@@ -595,6 +595,12 @@ struct TranscricaoDetailSheet: View {
 
     private var transcribedContent: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Capítulos auto-gerados por Qwen — Plaud/Otter pattern.
+            // Tabela navegável no topo, cada chapter chip clicável pula áudio.
+            if let chapters = sourceDetail?.metadata?.chapters, !chapters.isEmpty {
+                TranscricaoChaptersSection(chapters: chapters, player: audioPlayer)
+            }
+
             // Professor signals summary
             if !professorSignals.isEmpty {
                 ProfessorSignalsSummary(signals: professorSignals)
@@ -619,7 +625,7 @@ struct TranscricaoDetailSheet: View {
 
             // Existing outputs (summary, flashcards, etc)
             if !outputs.isEmpty {
-                TranscricaoOutputsSection(outputs: outputs)
+                TranscricaoOutputsSection(outputs: outputs, player: audioPlayer)
             }
 
             // Actions menu for generating more
@@ -684,6 +690,9 @@ struct TranscricaoDetailSheet: View {
                         words: allWords
                     )
                 }
+                // Alimenta segment boundaries pro loop trecho funcionar.
+                let boundaries = allSegments.map { (start: $0.start, end: $0.end) }
+                audioPlayer.setSegmentBoundaries(boundaries)
             }
         } catch {
             print("[TranscricaoDetail] loadData error: \(error)")
@@ -896,6 +905,7 @@ struct TranscricaoRealTranscriptSection: View {
 
 struct TranscricaoOutputsSection: View {
     let outputs: [StudioOutput]
+    var player: TranscricaoAudioPlayer? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -905,14 +915,73 @@ struct TranscricaoOutputsSection: View {
                 .tracking(0.5)
 
             ForEach(outputs) { output in
-                TranscricaoOutputCard(output: output)
+                TranscricaoOutputCard(output: output, player: player)
             }
         }
     }
 }
 
+/// Renderiza markdown do summary com `[mm:ss]` virando link clicável que pula
+/// áudio + auto-scroll do karaoke segue. Plaud/Granola pattern.
+///
+/// Usa AttributedString + custom URL scheme `vita-ts://<seconds>`. Quando user
+/// toca, openURL handler intercepta e chama `player.seekToTime`. Timestamps
+/// estilizados como chip dourado embed inline no texto.
+struct TranscricaoSummaryWithTimestamps: View {
+    let markdown: String
+    var player: TranscricaoAudioPlayer?
+
+    private var attributed: AttributedString {
+        var result: AttributedString = (try? AttributedString(markdown: markdown))
+            ?? AttributedString(markdown)
+
+        guard let regex = try? NSRegularExpression(pattern: "\\[(\\d+):(\\d{2})\\]") else {
+            return result
+        }
+        let raw = String(result.characters)
+        let nsRange = NSRange(raw.startIndex..<raw.endIndex, in: raw)
+        let matches = regex.matches(in: raw, range: nsRange).reversed()
+        for match in matches {
+            guard let mRange = Range(match.range, in: raw),
+                  let minRange = Range(match.range(at: 1), in: raw),
+                  let secRange = Range(match.range(at: 2), in: raw),
+                  let m = Int(raw[minRange]),
+                  let s = Int(raw[secRange])
+            else { continue }
+            let totalSeconds = m * 60 + s
+            if let attrRange = Range(mRange, in: result) {
+                result[attrRange].foregroundColor = .vitaAccentLight
+                result[attrRange].font = .system(size: 12, weight: .semibold, design: .monospaced).bold()
+                if let url = URL(string: "vita-ts://\(totalSeconds)") {
+                    result[attrRange].link = url
+                }
+            }
+        }
+        return result
+    }
+
+    var body: some View {
+        Text(attributed)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == "vita-ts",
+                      let host = url.host,
+                      let seconds = Int(host) else {
+                    return .systemAction
+                }
+                player?.seekToTime(Double(seconds))
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                return .handled
+            })
+    }
+}
+
+private extension Color {
+    static var vitaAccentLight: Color { VitaColors.accentLight }
+}
+
 struct TranscricaoOutputCard: View {
     let output: StudioOutput
+    var player: TranscricaoAudioPlayer? = nil
     @State private var isExpanded = false
 
     private var icon: String {
@@ -999,10 +1068,18 @@ struct TranscricaoOutputCard: View {
                     }
                     .padding(14)
                 }
-                // Markdown fallback
+                // Markdown fallback — pra summary, usa renderer custom que
+                // converte [mm:ss] em link clicável que pula áudio.
                 else if let markdown = content.markdown, !markdown.isEmpty {
-                    VitaMarkdown(content: markdown, fontSize: 12)
-                        .padding(14)
+                    if output.outputType == "summary", player != nil {
+                        TranscricaoSummaryWithTimestamps(markdown: markdown, player: player)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .padding(14)
+                    } else {
+                        VitaMarkdown(content: markdown, fontSize: 12)
+                            .padding(14)
+                    }
                 }
             }
         }
@@ -1148,6 +1225,29 @@ struct TranscricaoLivePlayerBar: View {
                     }
                     .buttonStyle(.plain)
 
+                    // Loop trecho — repete segment ativo (Otter pattern).
+                    // Útil pra estudar pronúncia/conceito difícil sem dar
+                    // seek manual cada vez.
+                    Button {
+                        player.loopSegmentEnabled.toggle()
+                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: player.loopSegmentEnabled ? "repeat.circle.fill" : "repeat")
+                                .font(.system(size: 10, weight: .medium))
+                            Text("Loop")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(player.loopSegmentEnabled ? VitaColors.accentLight : Color.white.opacity(0.50))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule().fill(player.loopSegmentEnabled ? VitaColors.accent.opacity(0.10) : Color.white.opacity(0.04))
+                                .overlay(Capsule().stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5))
+                        )
+                    }
+                    .buttonStyle(.plain)
+
                     Spacer()
                 }
             }
@@ -1170,6 +1270,121 @@ struct TranscricaoLivePlayerBar: View {
 }
 
 // MARK: - Karaoke Transcript Section
+
+// MARK: - Chapters Section (Plaud/Otter pattern)
+
+/// Tabela navegável de capítulos auto-gerados por Qwen. Cada chapter chip
+/// clicável pula áudio pra timestamp + auto-scroll do karaoke segue.
+/// Formato dourado discreto, ícone book.fill, expansível pra mostrar summary.
+struct TranscricaoChaptersSection: View {
+    let chapters: [WhisperChapter]
+    @ObservedObject var player: TranscricaoAudioPlayer
+    @State private var expandedChapterId: String? = nil
+
+    private static func formatTimestamp(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds))
+        let m = total / 60
+        let s = total % 60
+        return String(format: "%d:%02d", m, s)
+    }
+
+    /// Capítulo "ativo" baseado em currentTime do player.
+    private var activeChapterId: String? {
+        let t = player.currentTime
+        return chapters.first { t >= $0.start && t < $0.end }?.id
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("CAPÍTULOS")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                    .tracking(0.5)
+                Image(systemName: "book.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.5))
+                Spacer()
+                Text("\(chapters.count)")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.55))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(VitaColors.accent.opacity(0.10))
+                    .clipShape(Capsule())
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(chapters) { chapter in
+                    let isActive = activeChapterId == chapter.id
+                    let isExpanded = expandedChapterId == chapter.id
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Button {
+                            player.seekToTime(chapter.start)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                expandedChapterId = isExpanded ? nil : chapter.id
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                // Timestamp pill — ícone play.fill esclarece
+                                // que tap = pula áudio pra ali.
+                                HStack(spacing: 3) {
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 8, weight: .bold))
+                                    Text(Self.formatTimestamp(chapter.start))
+                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                }
+                                .foregroundStyle(isActive ? Color.black.opacity(0.85) : VitaColors.accentLight.opacity(0.85))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(isActive ? VitaColors.accent.opacity(0.95) : VitaColors.accent.opacity(0.10))
+                                .clipShape(Capsule())
+
+                                Text(chapter.title)
+                                    .font(.system(size: 13, weight: isActive ? .semibold : .medium))
+                                    .foregroundStyle(isActive ? VitaColors.accentLight : Color.white.opacity(0.85))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .lineLimit(2)
+
+                                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(Color.white.opacity(0.35))
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(isActive ? VitaColors.accent.opacity(0.06) : Color.white.opacity(0.02))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isActive ? VitaColors.accent.opacity(0.35) : Color.white.opacity(0.05), lineWidth: 0.5)
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        if isExpanded && !chapter.summary.isEmpty {
+                            Text(chapter.summary)
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.white.opacity(0.65))
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 4)
+                                .transition(.opacity)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(.ultraThinMaterial)
+        .background(VitaColors.accent.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5)
+        )
+    }
+}
 
 struct TranscricaoKaraokeTranscriptSection: View {
     let words: [WhisperWord]

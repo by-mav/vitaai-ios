@@ -25,6 +25,10 @@ final class TranscricaoAudioPlayer: ObservableObject {
     /// detector de palavra atual: se não há palavra ativa por >1.2s, salta
     /// pra próxima word.start. Sem reanalise do audio (custaria GPU+RAM).
     @Published var skipSilenceEnabled: Bool = false
+    /// Loop do segment ativo — quando ligado, ao chegar no fim do segment
+    /// atual, áudio volta pro início dele. Útil pra estudar pronúncia/conceito
+    /// difícil. Otter pattern. Persistido só na sessão (toggle reset por gravação).
+    @Published var loopSegmentEnabled: Bool = false
 
     /// Última palavra ativa (pra detectar gap de silêncio entre palavras).
     private var lastActiveWordTime: Double = 0
@@ -33,6 +37,9 @@ final class TranscricaoAudioPlayer: ObservableObject {
     private var timeObserver: Any?
     private var statusObserver: NSKeyValueObservation?
     private var words: [WhisperWord] = []
+    /// Boundaries dos segments do Whisper. Loop usa pra saber quando "voltar
+    /// pro início" (ao cruzar segment.end). Set via prepareFromUrl/Id.
+    private var segmentBoundaries: [(start: Double, end: Double)] = []
 
     deinit {
         if let observer = timeObserver, let player {
@@ -219,6 +226,12 @@ final class TranscricaoAudioPlayer: ObservableObject {
         }
     }
 
+    /// Define boundaries dos segments pra alimentar o loop trecho. Chamado
+    /// pelo DetailSheet após `prepareFromUrl` quando temos `allSegments`.
+    func setSegmentBoundaries(_ segments: [(start: Double, end: Double)]) {
+        segmentBoundaries = segments
+    }
+
     /// Seek absoluto em segundos (0..duration). Usado pelos timestamps clicáveis
     /// no início de cada segmento da transcrição (Plaud/Otter pattern).
     func seekToTime(_ seconds: Double) {
@@ -253,6 +266,19 @@ final class TranscricaoAudioPlayer: ObservableObject {
                 hi = mid - 1
             }
         }
+        // Loop segment: ao cruzar boundary do segment atual, volta pro início.
+        // Roda ANTES do active word check pra não atualizar UI durante o seek.
+        if loopSegmentEnabled, isPlaying, !segmentBoundaries.isEmpty {
+            if let cur = segmentBoundaries.first(where: { time >= $0.start && time < $0.end + 0.3 }),
+               time >= cur.end - 0.1 {
+                let target = CMTime(seconds: cur.start, preferredTimescale: 600)
+                player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+                currentTime = cur.start
+                lastActiveWordTime = cur.start
+                return
+            }
+        }
+
         if let b = best, words[b].end >= time - 0.1 {
             activeWordIndex = b
             lastActiveWordTime = time
