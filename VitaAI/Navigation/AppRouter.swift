@@ -546,7 +546,7 @@ struct MainTabView: View {
                 onNavigateToTrabalhos: { router.navigate(to: .trabalhos) }
             )
         case .faculdade:
-            FaculdadeHomeScreen()
+            JornadaScreen()
         case .progresso:
             ProgressoScreen()
         }
