@@ -1176,10 +1176,45 @@ struct TranscricaoKaraokeTranscriptSection: View {
     let segments: [WhisperSegment]
     let signals: [ProfessorSignals.Signal]
     @ObservedObject var player: TranscricaoAudioPlayer
-    @State private var copied = false
+    @State private var copyToast: String? = nil
+    // Search state — Otter/Plaud pattern: lupa abre TextField, matches contam,
+    // prev/next pula áudio + scroll pro match.
+    @State private var searchQuery: String = ""
+    @State private var showSearch: Bool = false
+    @State private var currentMatchIdx: Int = 0
+    @State private var showCopyMenu: Bool = false
+    @State private var showExportSheet: Bool = false
+    @State private var exportItems: [Any] = []
 
     private var fullText: String {
         words.map(\.word).joined(separator: " ")
+    }
+
+    /// Word indices que matcham searchQuery (case-insensitive). Atualiza em
+    /// tempo real conforme user digita.
+    private var matchIndices: [Int] {
+        let q = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        guard q.count >= 2 else { return [] }
+        return words.indices.filter { idx in
+            words[idx].word.lowercased().contains(q)
+        }
+    }
+
+    /// Texto com timestamps inline tipo `[0:34] Bla bla bla...`. Usado pelo
+    /// Copy menu quando user escolhe "Com timestamps".
+    private var fullTextWithTimestamps: String {
+        segments.map { seg in
+            "[\(Self.formatTimestamp(seg.start))] \(seg.text.trimmingCharacters(in: .whitespaces))"
+        }.joined(separator: "\n\n")
+    }
+
+    /// Markdown formatted — header com data + parágrafos com timestamp.
+    private var fullMarkdown: String {
+        let header = "# Transcrição\n\n"
+        let body = segments.map { seg in
+            "**`\(Self.formatTimestamp(seg.start))`** — \(seg.text.trimmingCharacters(in: .whitespaces))"
+        }.joined(separator: "\n\n")
+        return header + body
     }
 
     /// Formato [mm:ss] tipo Otter/Plaud — clicável pra pular áudio.
@@ -1188,6 +1223,25 @@ struct TranscricaoKaraokeTranscriptSection: View {
         let m = total / 60
         let s = total % 60
         return String(format: "%d:%02d", m, s)
+    }
+
+    /// Anima toast "Copiado" / "Copiado com timestamps" no botão Copy.
+    private func showCopyConfirm(_ label: String) {
+        withAnimation(.easeInOut(duration: 0.2)) { copyToast = label }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation { copyToast = nil }
+        }
+    }
+
+    /// Quando user toca prev/next match, áudio pula pra timestamp da palavra.
+    /// Auto-scroll do karaoke (no onChange de activeWordIndex) leva visual.
+    private func jumpToMatch() {
+        guard !matchIndices.isEmpty, currentMatchIdx < matchIndices.count else { return }
+        let wordIdx = matchIndices[currentMatchIdx]
+        guard wordIdx < words.count else { return }
+        player.seekToTime(words[wordIdx].start)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     var body: some View {
@@ -1204,27 +1258,117 @@ struct TranscricaoKaraokeTranscriptSection: View {
 
                 Spacer()
 
+                // Search toggle — Otter/Plaud pattern.
                 Button {
-                    UIPasteboard.general.string = fullText
-                    withAnimation(.easeInOut(duration: 0.2)) { copied = true }
-                    Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        withAnimation { copied = false }
+                    withAnimation(.spring(duration: 0.25, bounce: 0.15)) {
+                        showSearch.toggle()
+                    }
+                    if !showSearch {
+                        searchQuery = ""
+                        currentMatchIdx = 0
+                    }
+                } label: {
+                    Image(systemName: showSearch ? "magnifyingglass.circle.fill" : "magnifyingglass")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(showSearch ? VitaColors.accentLight : VitaColors.accent.opacity(0.70))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(showSearch ? VitaColors.accent.opacity(0.10) : Color.clear)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                // Copy menu — 3 formatos (plain, com timestamps, markdown) +
+                // export. Otter/Plaud/Granola pattern: user escolhe o formato
+                // certo pra cada destino (Notion vs Slack vs WhatsApp).
+                Menu {
+                    Button {
+                        UIPasteboard.general.string = fullText
+                        showCopyConfirm("Copiado")
+                    } label: {
+                        Label("Texto puro", systemImage: "doc.on.doc")
+                    }
+                    Button {
+                        UIPasteboard.general.string = fullTextWithTimestamps
+                        showCopyConfirm("Com timestamps")
+                    } label: {
+                        Label("Com timestamps", systemImage: "clock")
+                    }
+                    Button {
+                        UIPasteboard.general.string = fullMarkdown
+                        showCopyConfirm("Markdown")
+                    } label: {
+                        Label("Markdown", systemImage: "doc.richtext")
+                    }
+                    Divider()
+                    Button {
+                        exportItems = [fullMarkdown]
+                        showExportSheet = true
+                    } label: {
+                        Label("Exportar como Markdown…", systemImage: "square.and.arrow.up")
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        Image(systemName: copyToast != nil ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 11))
-                        Text(copied ? "Copiado" : "Copiar")
+                        Text(copyToast ?? "Copiar")
                             .font(.system(size: 10, weight: .medium))
                     }
-                    .foregroundStyle(copied ? VitaColors.dataGreen : VitaColors.accentLight)
+                    .foregroundStyle(copyToast != nil ? VitaColors.dataGreen : VitaColors.accentLight)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background((copied ? VitaColors.dataGreen : VitaColors.accent).opacity(0.1))
+                    .background((copyToast != nil ? VitaColors.dataGreen : VitaColors.accent).opacity(0.1))
                     .clipShape(Capsule())
                 }
-                .buttonStyle(.plain)
+            }
+
+            // Search bar inline — aparece quando lupa ativada. Match counter
+            // + botões prev/next que pulam áudio pro próximo match (Otter pattern).
+            if showSearch {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11))
+                        .foregroundStyle(VitaColors.accentLight.opacity(0.50))
+                    TextField("Buscar palavra na transcrição", text: $searchQuery)
+                        .font(.system(size: 12))
+                        .textFieldStyle(.plain)
+                        .submitLabel(.search)
+                        .onChange(of: searchQuery) { _, _ in currentMatchIdx = 0 }
+                    if !searchQuery.isEmpty {
+                        let count = matchIndices.count
+                        Text(count > 0 ? "\(currentMatchIdx + 1)/\(count)" : "0")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundStyle(count > 0 ? VitaColors.accentLight : Color.white.opacity(0.30))
+                        Button {
+                            guard !matchIndices.isEmpty else { return }
+                            currentMatchIdx = (currentMatchIdx - 1 + matchIndices.count) % matchIndices.count
+                            jumpToMatch()
+                        } label: {
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(matchIndices.isEmpty ? Color.white.opacity(0.20) : VitaColors.accentLight.opacity(0.70))
+                                .padding(4)
+                        }
+                        .disabled(matchIndices.isEmpty)
+                        Button {
+                            guard !matchIndices.isEmpty else { return }
+                            currentMatchIdx = (currentMatchIdx + 1) % matchIndices.count
+                            jumpToMatch()
+                        } label: {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(matchIndices.isEmpty ? Color.white.opacity(0.20) : VitaColors.accentLight.opacity(0.70))
+                                .padding(4)
+                        }
+                        .disabled(matchIndices.isEmpty)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.white.opacity(0.04))
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5))
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             // Render segment-by-segment com timestamp clicável tipo Otter/Plaud.
@@ -1232,6 +1376,11 @@ struct TranscricaoKaraokeTranscriptSection: View {
             // segment começa depois do início (>1s). Gravação curta de 1 bloco
             // começando do 0 não precisa — só polui (Rafael 2026-04-27).
             let showTimestamps = segments.count > 1 || (segments.first?.start ?? 0) > 1.0
+
+            // Auto-scroll seguindo a palavra ativa (Otter/Plaud pattern). Quando
+            // activeWordIndex muda de segment, ScrollViewReader anima pro segment
+            // novo, mantendo a palavra atual em vista.
+            ScrollViewReader { scrollProxy in
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(Array(segments.enumerated()), id: \.offset) { idx, seg in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -1283,13 +1432,35 @@ struct TranscricaoKaraokeTranscriptSection: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
+                    .id(idx)
                 }
+            }
+            .onChange(of: player.activeWordIndex) { _, newIdx in
+                // Auto-scroll: quando a palavra ativa muda de segment, anima pro
+                // segment novo. Nada de jerk — easeInOut + anchor center mantém
+                // a palavra visível sem encostar no topo. Otter/Plaud pattern.
+                guard let wordIdx = newIdx, wordIdx < words.count else { return }
+                let activeWord = words[wordIdx]
+                if let segIdx = segments.firstIndex(where: { seg in
+                    let segWords = seg.words ?? []
+                    return segWords.contains { $0.start == activeWord.start && $0.word == activeWord.word }
+                }) {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        scrollProxy.scrollTo(segIdx, anchor: .center)
+                    }
+                }
+            }
             }
 
             Text("Toque na palavra ou no timestamp pra pular o áudio")
                 .font(.system(size: 9))
                 .foregroundStyle(Color.white.opacity(0.25))
                 .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .sheet(isPresented: $showExportSheet) {
+            // Share sheet pra exportar Markdown — user escolhe destino (Notion,
+            // Notes, Files, Mail, etc). UIActivityViewController padrão iOS.
+            TranscricaoShareSheet(items: exportItems)
         }
     }
 }
