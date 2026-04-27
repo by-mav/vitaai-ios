@@ -102,6 +102,31 @@ final class ConnectorsViewModel {
         await loadIntegrations()
     }
 
+    /// Pull-to-refresh / "Sincronizar agora" handler.
+    ///
+    /// Pre-2026-04-27 the refresh gesture only re-fetched /api/portal/status
+    /// (loadAll), which never advances lastSyncAt — so cards stayed pinned at
+    /// "Sync travado · puxe pra atualizar" forever even when the user swiped
+    /// down 10 times. Backend had no user-auth trigger endpoint either.
+    ///
+    /// Now: hit POST /api/portal/sync-now first (Canvas inline re-scrape +
+    /// Mannesoft silent push for client-driven extract), then reload status.
+    /// lastPingAt bumps immediately on the server so the second loadAll() call
+    /// already shows fresh state for the visual "ping vivo" indicator. Real
+    /// lastSyncAt for Mannesoft updates ~1–2 min later when the iPhone bridge
+    /// ingest lands; iOS shows that on the next pull or background refresh.
+    func refreshAndSync() async {
+        do {
+            try await api.triggerPortalSyncNow()
+        } catch {
+            // Silent failure is OK: cron + silent-sync hourly still cover the
+            // user. Fall through to the same loadAll() the old gesture did so
+            // the card at minimum re-paints with current backend state.
+            NSLog("[Connectors] sync-now trigger failed: \(error.localizedDescription)")
+        }
+        await loadAll()
+    }
+
     // MARK: - University Portals
 
     private func loadUniversityPortals() async {

@@ -243,7 +243,7 @@ struct ConnectionsScreen: View {
             }
             .padding(.top, 8)
         }
-        .refreshable { await vm.loadAll() }
+        .refreshable { await vm.refreshAndSync() }
     }
 
     // MARK: - Institucional Section

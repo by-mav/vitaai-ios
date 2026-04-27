@@ -393,6 +393,12 @@ actor VitaAPI {
         ])
     }
 
+    /// Onda 1 vita-study-mcp: busca um output pelo ID (free-form ou source-based).
+    /// Usado quando coach SSE retorna toolArtifact com outputId — iOS abre tela nativa.
+    func getStudioOutputById(_ id: String) async throws -> StudioOutput {
+        try await client.get("studio/outputs/\(id)")
+    }
+
     private struct GenerateBody: Encodable {
         let sourceIds: [String]
         let type: String
@@ -449,6 +455,13 @@ actor VitaAPI {
 
     func listSimulados() async throws -> SimuladoListResponse {
         try await client.get("simulados")
+    }
+
+    /// BFF aggregator per-screen pra Simulado Home.
+    /// 1 RTT em vez de listSimulados + getSimuladoDiagnostics separado.
+    /// Padrão 2026 (memory: feedback_aggregator_per_screen_2026.md).
+    func getSimuladoScreen() async throws -> SimuladoScreenResponse {
+        try await client.get("simulados/screen")
     }
 
     func answerSimuladoQuestion(attemptId: String, body: AnswerSimuladoRequest) async throws -> AnswerSimuladoResponse {
@@ -604,6 +617,19 @@ actor VitaAPI {
         try await client.get("portal/status")
     }
 
+    /// User-triggered portal re-sync (pull-to-refresh, "Sincronizar agora").
+    /// Backend behavior:
+    ///   - Canvas: server-side re-scrape + ingest, inline (~5–10s).
+    ///   - Mannesoft: dispatches APNs silent push to this device for client-driven
+    ///     extract (~1–2 min wall clock for full bridge run). lastPingAt bumps
+    ///     immediately so the ConnectorCard exits "Sync travado" on next refresh.
+    /// Empty body re-syncs all active connections; pass connectionIds to scope it.
+    @discardableResult
+    func triggerPortalSyncNow(connectionIds: [String]? = nil) async throws -> EmptyResponse {
+        struct Body: Encodable { let connectionIds: [String]? }
+        return try await client.post("portal/sync-now", body: Body(connectionIds: connectionIds))
+    }
+
     func disconnectPortal() async throws {
         try await client.delete("portal/disconnect?portalType=mannesoft")
     }
@@ -622,6 +648,13 @@ actor VitaAPI {
 
     func postOnboarding(_ body: OnboardingPostRequest) async throws {
         let _: EmptyResponse = try await client.post("onboarding", body: body)
+    }
+
+    /// Onda 5b — onboarding v2 (Rafael 2026-04-27).
+    /// Backend deriva journeyType + journeyConfig + contentOrganizationMode.
+    /// Resposta: `OnboardingV2Response` com `derived` (debug/analytics).
+    func postOnboardingV2(_ body: OnboardingV2Request) async throws -> OnboardingV2Response {
+        try await client.post("onboarding/v2", body: body)
     }
 
     func requestUniversity(name: String, city: String, state: String) async throws {
@@ -978,6 +1011,49 @@ struct OnboardingPostRequest: Encodable {
     var year: Int?
     var selectedSubjects: [String]?
     var subjectDifficulties: [String: String]?
+}
+
+// MARK: - Onboarding v2 (Onda 5b — Rafael 2026-04-27)
+// SOT do payload: vitaai-web/src/lib/validators.ts onboardingV2Schema.
+
+struct OnboardingV2Request: Encodable {
+    /// FACULDADE | ENAMED | RESIDENCIA | REVALIDA
+    let goal: String
+    /// yes | graduated | skip — obrigatorio se goal != REVALIDA
+    var inFaculdade: String?
+    /// 1..12 — obrigatorio se inFaculdade=yes
+    var semester: Int?
+    var university: String?
+    var universityId: String?
+    var universityLms: String?
+    var selectedSubjects: [String]?
+    var studyGoal: String?
+    /// slug de medical_specialties — so se goal=RESIDENCIA
+    var targetSpecialty: String?
+    var targetInstitutions: [String]?
+    /// PRIMEIRA | SEGUNDA — so se goal=REVALIDA
+    var currentStage: String?
+    var focusAreas: [String]?
+}
+
+struct OnboardingV2Response: Decodable {
+    let ok: Bool
+    let profile: OnboardingV2Profile?
+    let derived: OnboardingV2Derived?
+}
+
+struct OnboardingV2Profile: Decodable {
+    let id: String?
+    let journeyType: String?
+    let moment: String?
+    let semester: Int?
+    let onboardingCompleted: Bool?
+}
+
+struct OnboardingV2Derived: Decodable {
+    let journeyType: String?
+    let contentOrganizationMode: String?
+    let moment: String?
 }
 
 struct UniversityRequestBody: Encodable {
