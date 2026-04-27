@@ -1,7 +1,12 @@
 import SwiftUI
 
-/// Displays transcript text with word-level karaoke highlighting synced to audio playback,
-/// plus professor signal highlights for important keywords.
+/// Transcript com word-level karaoke highlight + tap em qualquer palavra
+/// pula áudio. Implementação via AttributedString com link custom — SwiftUI
+/// Text.reduce concatena num Text único e NÃO suporta tap por palavra.
+/// AttributedString + URL handler é o jeito que funciona.
+///
+/// Custom URL scheme `vita-tap-word://<index>` interceptado pelo openURL
+/// handler que chama onTapWord(idx).
 struct TranscricaoKaraokeText: View {
     let words: [WhisperWord]
     let signals: [ProfessorSignals.Signal]
@@ -9,104 +14,30 @@ struct TranscricaoKaraokeText: View {
     let isPlaying: Bool
     let onTapWord: (Int) -> Void
 
-    /// Full plain text reconstructed from words
-    private var fullText: String {
-        words.map(\.word).joined(separator: " ")
-    }
-
-    var body: some View {
-        // Use FlowLayout-style word wrapping
-        WrappingHStack(words: words, signals: signals, activeWordIndex: activeWordIndex, isPlaying: isPlaying, onTapWord: onTapWord)
-    }
-}
-
-// MARK: - Wrapping word layout
-
-private struct WrappingHStack: View {
-    let words: [WhisperWord]
-    let signals: [ProfessorSignals.Signal]
-    let activeWordIndex: Int?
-    let isPlaying: Bool
-    let onTapWord: (Int) -> Void
-
-    // Precompute which word indices have professor signals
+    /// Word indices que match um ProfessorSignals (palavras-chave do prof).
+    /// Pre-computado via overlap de char ranges.
     private var signalIndices: Set<Int> {
         guard !signals.isEmpty else { return [] }
         let fullText = words.map(\.word).joined(separator: " ")
         let lowerFull = fullText.lowercased()
         var indices = Set<Int>()
-
         for signal in signals {
-            // Find which words overlap this signal's text range
             var charPos = 0
-            for (i, word) in words.enumerated() {
+            for (i, _) in words.enumerated() {
                 let wordStart = charPos
-                let wordEnd = charPos + word.word.count
-                let lowerWord = fullText[fullText.index(fullText.startIndex, offsetBy: wordStart)..<fullText.index(fullText.startIndex, offsetBy: min(wordEnd, fullText.count))]
-                _ = lowerWord // just for bounds
-
-                // Check if this word's position overlaps with any signal keyword
+                let wordEnd = charPos + words[i].word.count
                 let signalStart = lowerFull.distance(from: lowerFull.startIndex, to: signal.range.lowerBound)
                 let signalEnd = lowerFull.distance(from: lowerFull.startIndex, to: signal.range.upperBound)
-
                 if wordStart < signalEnd && wordEnd > signalStart {
                     indices.insert(i)
                 }
-                charPos = wordEnd + 1 // +1 for space
+                charPos = wordEnd + 1
             }
         }
         return indices
     }
 
-    var body: some View {
-        // Use Text concatenation for proper word wrapping
-        words.enumerated().reduce(Text("")) { result, pair in
-            let (index, word) = pair
-            let isActive = index == activeWordIndex && isPlaying
-            let isPassed = isPlaying && activeWordIndex != nil && index < (activeWordIndex ?? 0)
-            let isSignal = signalIndices.contains(index)
-
-            let separator = index == 0 ? Text("") : Text(" ")
-
-            var wordText = Text(word.word)
-                .font(.system(size: 13))
-
-            if isActive {
-                // Current word — gold highlight
-                wordText = wordText
-                    .foregroundColor(VitaColors.accentLight)
-                    .bold()
-            } else if isPassed {
-                // Already spoken — slightly brighter
-                wordText = wordText
-                    .foregroundColor(Color.white.opacity(0.70))
-            } else {
-                // Not yet spoken
-                wordText = wordText
-                    .foregroundColor(Color.white.opacity(0.45))
-            }
-
-            if isSignal {
-                // Professor signal — colored underline effect via background
-                wordText = wordText
-                    .foregroundColor(signalColor(for: index))
-                    .bold()
-                    .underline(true, color: signalColor(for: index).opacity(0.5))
-            }
-
-            return result + separator + wordText
-        }
-        .lineSpacing(6)
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(cornerRadius: 12)
-        // Suaviza transição entre palavra ativa N e N+1 (antes era hard-cut a cada 50ms,
-        // dava sensação de "indo aos saltos"). Easing curto = highlight respira.
-        .animation(.easeOut(duration: 0.18), value: activeWordIndex)
-    }
-
     private func signalColor(for wordIndex: Int) -> Color {
-        // Find which signal this word belongs to, return its category color
         let fullText = words.map(\.word).joined(separator: " ")
         let lowerFull = fullText.lowercased()
         var charPos = 0
@@ -125,6 +56,69 @@ private struct WrappingHStack: View {
             charPos += word.word.count + 1
         }
         return VitaColors.accentLight
+    }
+
+    /// Constrói AttributedString com cada palavra colorida pelo estado
+    /// (active/passed/upcoming/signal) + link `vita-tap-word://<idx>` pra
+    /// permitir tap.
+    private var attributed: AttributedString {
+        let active = activeWordIndex ?? -1
+        var result = AttributedString()
+        for (idx, word) in words.enumerated() {
+            var token = AttributedString(word.word)
+            token.font = .system(size: 13)
+
+            let isActive = idx == active && isPlaying
+            let isPassed = isPlaying && idx < active
+            let isSignal = signalIndices.contains(idx)
+
+            if isSignal {
+                token.foregroundColor = signalColor(for: idx)
+                token.font = .system(size: 13, weight: .semibold)
+                token.underlineStyle = .single
+            } else if isActive {
+                token.foregroundColor = VitaColors.accentLight
+                token.font = .system(size: 13, weight: .semibold)
+            } else if isPassed {
+                token.foregroundColor = Color.white.opacity(0.70)
+            } else {
+                token.foregroundColor = Color.white.opacity(0.45)
+            }
+
+            // Link invisível habilita tap. Scheme `vita-tap-word://` interceptado
+            // pelo openURL handler abaixo.
+            if let url = URL(string: "vita-tap-word://\(idx)") {
+                token.link = url
+            }
+
+            result.append(token)
+            if idx < words.count - 1 {
+                var space = AttributedString(" ")
+                space.font = .system(size: 13)
+                space.foregroundColor = Color.white.opacity(0.30)
+                result.append(space)
+            }
+        }
+        return result
+    }
+
+    var body: some View {
+        Text(attributed)
+            .lineSpacing(6)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(cornerRadius: 12)
+            .animation(.easeOut(duration: 0.18), value: activeWordIndex)
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == "vita-tap-word",
+                      let host = url.host,
+                      let idx = Int(host) else {
+                    return .systemAction
+                }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                onTapWord(idx)
+                return .handled
+            })
     }
 }
 
