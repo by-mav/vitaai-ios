@@ -271,7 +271,15 @@ struct ConnectionsScreen: View {
             return result
         }()
         let detectedPortals = vm.universityPortals.isEmpty ? fallbackPortals : vm.universityPortals
-        let detectedTypes = Set(detectedPortals.map(\.portalType))
+        // BUG fix 2026-04-27: webaluno e mannesoft são aliases do mesmo portal (ConnectorsViewModel:87
+        // mapeia ambos pro mesmo state). Sem essa expansão, "outros portais" mostrava o alias da
+        // detected como "disponível", duplicando visualmente. Agora dedup considera ambos.
+        let detectedTypes: Set<String> = {
+            var types = Set(detectedPortals.map(\.portalType))
+            if types.contains("mannesoft") { types.insert("webaluno") }
+            if types.contains("webaluno") { types.insert("mannesoft") }
+            return types
+        }()
         let otherPortals = allPortalTypes.filter { !detectedTypes.contains($0.type) }
 
         // Section header

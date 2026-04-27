@@ -560,14 +560,15 @@ final class ConnectorsViewModel {
         return "+\(digits)"
     }
 
-    /// Considera stale quando a última extração com dados foi > 12h atrás.
-    /// Usuario ve card conectado mas com aviso amarelo — sinal pra suspeitar.
+    /// Considera stale quando a última extração com dados foi > 1h atrás.
+    /// Threshold reduzido de 12h -> 1h em 2026-04-27 (Rafael): user merece saber
+    /// que sync travou, não esperar meio dia. Pull-to-refresh força re-sync.
     private func isStale(_ isoDate: String?) -> Bool {
         guard let isoDate else { return false }
         let fullFmt = ISO8601DateFormatter()
         fullFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let date = fullFmt.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate) else { return false }
-        return Date().timeIntervalSince(date) > 12 * 3600
+        return Date().timeIntervalSince(date) > 3600 // 1h
     }
 }
 

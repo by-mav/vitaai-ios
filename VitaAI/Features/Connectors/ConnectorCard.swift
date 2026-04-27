@@ -280,16 +280,18 @@ struct ConnectorCard: View {
             .padding(.horizontal, 14)
             .padding(.top, 8)
 
-            // Line 2: "Token vivo" — ONLY when connected and ping differs from sync
-            // NEVER when expired (token is dead, showing "vivo" is a lie)
-            if let ping = lastPing, status == .connected {
+            // Line 2: alerta stale (gold standard 2026-04-27 — doutrina BYMAV)
+            // "Token vivo" foi REMOVIDO — passava segurança falsa pro user.
+            // Memory canon: feedback_app_doctrine_llm_canon_user_correction.md.
+            // Só mostra quando há problema REAL (sync travado >1h). UX limpo no caso normal.
+            if isStale, status == .connected {
                 HStack(spacing: 4) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 7))
-                        .foregroundColor(Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.55))
-                    Text("Token vivo · verificado \(ping)")
-                        .font(.system(size: 9))
-                        .foregroundColor(Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.55))
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 8))
+                        .foregroundColor(VitaColors.dataAmber.opacity(0.85))
+                    Text("Sync travado · puxe pra atualizar")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(VitaColors.dataAmber.opacity(0.85))
                     Spacer()
                 }
                 .padding(.horizontal, 14)
