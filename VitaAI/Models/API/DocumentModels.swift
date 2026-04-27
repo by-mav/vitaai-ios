@@ -27,4 +27,17 @@ struct VitaDocument: Codable, Identifiable {
     var folderId: String?         // Apr 2026: material_folders.id (nullable = "Outros virtual")
     var createdAt: String?
     var updatedAt: String?
+    /// Data REAL em que o material foi subido no portal (Canvas/WebAluno).
+    /// Distinta de `createdAt` que é o timestamp do nosso ingest.
+    /// Quando ausente (docs antigos), UI faz fallback pra createdAt.
+    var portalCreatedAt: String?
+    /// Última modificação no portal — quase nunca difere de portalCreatedAt
+    /// pra docs estáticos, mas Canvas re-edita slides às vezes.
+    var portalModifiedAt: String?
+
+    /// Data canônica pra exibir ao usuário: prioriza data do portal e cai
+    /// pra nosso ingest se ausente. Use SEMPRE em UI em vez de createdAt direto.
+    var displayDate: String? {
+        portalCreatedAt ?? createdAt
+    }
 }

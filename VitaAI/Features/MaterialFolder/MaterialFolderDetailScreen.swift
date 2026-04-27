@@ -4,7 +4,7 @@ import SwiftUI
 //
 // Lista os documentos dentro de uma pasta de materiais (Slides, Provas,
 // Transcrições, Plano de ensino, custom, etc.). Navegação: tap num card
-// de pasta na DisciplineDetailScreen empurra esta tela na NavigationStack.
+// de pasta na DisciplineDetailScreen empurra a tela atual na NavigationStack.
 //
 // Backend: GET /api/folders/{id}/documents — newest first.
 
@@ -121,7 +121,9 @@ struct MaterialFolderDetailScreen: View {
                     .foregroundStyle(textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                if let date = doc.createdAt, let formatted = formatRelative(date) {
+                // Prioriza data REAL do portal (Canvas/WebAluno). Fallback pro
+                // nosso ingest pra docs antigos sem portalCreatedAt.
+                if let date = doc.displayDate, let formatted = formatRelative(date) {
                     Text(formatted)
                         .font(.system(size: 10))
                         .foregroundStyle(textDim)

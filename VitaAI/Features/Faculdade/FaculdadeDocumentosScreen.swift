@@ -266,7 +266,8 @@ struct FaculdadeDocumentosScreen: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     HStack(spacing: 6) {
-                        if let dateStr = doc.createdAt, let date = parseISO(dateStr) {
+                        // Prioriza data REAL do portal sobre data do nosso ingest.
+                        if let dateStr = doc.displayDate, let date = parseISO(dateStr) {
                             Text(date, style: .date)
                                 .font(.system(size: 10))
                                 .foregroundStyle(VitaColors.textWarm.opacity(0.40))

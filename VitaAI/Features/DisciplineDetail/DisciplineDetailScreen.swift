@@ -942,7 +942,8 @@ struct DisciplineDetailScreen: View {
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(textPrimary)
                                 .lineLimit(1)
-                            if let date = doc.createdAt {
+                            // Prioriza data REAL do portal sobre data do nosso ingest.
+                            if let date = doc.displayDate {
                                 Text(formatDate(date, format: "dd/MM/yyyy"))
                                     .font(.system(size: 10))
                                     .foregroundStyle(textDim)
