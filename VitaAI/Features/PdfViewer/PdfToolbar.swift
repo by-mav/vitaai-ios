@@ -80,6 +80,13 @@ struct PdfToolbar: View {
     /// o Menu nativo SwiftUI antigo que fazia popover overlap no próprio botão.
     var onToggleStudyActive: (() -> Void)? = nil
 
+    // Audio sync (Notability-style) — gravação + replay sincronizado com
+    // anotações. Estado true = mic vermelho pulsante (gravando).
+    var isAudioRecording: Bool = false
+    var hasAudioRecorded: Bool = false
+    var onToggleAudioRecording: (() -> Void)? = nil
+    var onTogglePlaybackOverlay: (() -> Void)? = nil
+
     var body: some View {
         VStack(spacing: 0) {
             navigationRow
@@ -229,6 +236,12 @@ struct PdfToolbar: View {
             // único botão menu, Rafael 2026-04-28). Pro user é UMA feature
             // de active recall: cobrir conteúdo pra testar memória depois.
             studyActiveMenuButton
+
+            // Audio sync (Notability-style) — gravação de aula sincronizada
+            // com anotações. Tap durante .idle → começa gravar. Tap durante
+            // .recording → para. Long-press / re-tap quando .loaded → abre
+            // overlay player. Mic muda visual: vermelho pulsante quando ON.
+            audioRecordButton
 
             // Pergunte ao Vita — substitui o FAB flutuante. Mesmo asset do
             // mascote, menorzinha, na toolbar. Tap = scan area + chat.
@@ -395,6 +408,72 @@ struct PdfToolbar: View {
         }
         .frame(width: 44, height: 44)
         .shadow(color: isStudyActive ? VitaColors.accent.opacity(0.5) : .clear, radius: 10, y: 1)
+    }
+
+    // MARK: - Audio record button (Notability-style)
+    //
+    // 3 estados visuais:
+    //   · .idle (sem gravação) → mic, cinza
+    //   · .recording           → mic.fill vermelho com pulse
+    //   · .loaded/playing      → waveform dourado (áudio existe, abre overlay)
+
+    @ViewBuilder
+    private var audioRecordButton: some View {
+        if isAudioRecording {
+            Button {
+                onToggleAudioRecording?()
+            } label: {
+                Image(systemName: "stop.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.red.opacity(0.18))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.red.opacity(0.7), lineWidth: 1.0)
+                    )
+                    .shadow(color: Color.red.opacity(0.5), radius: 10, y: 1)
+                    .symbolEffect(.pulse.byLayer, options: .repeating)
+            }
+            .buttonStyle(.plain)
+            .help("Parar gravação")
+            .accessibilityLabel("Parar gravação de áudio")
+        } else if hasAudioRecorded {
+            Button {
+                onTogglePlaybackOverlay?()
+            } label: {
+                Image(systemName: "waveform.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(VitaColors.accent)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(VitaColors.accent.opacity(0.18))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(VitaColors.accent.opacity(0.7), lineWidth: 1.0)
+                    )
+            }
+            .buttonStyle(.plain)
+            .help("Reproduzir aula gravada")
+            .accessibilityLabel("Reproduzir aula gravada")
+        } else {
+            Button {
+                onToggleAudioRecording?()
+            } label: {
+                Image(systemName: "mic")
+                    .font(.system(size: 17))
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .frame(width: 38, height: 38)
+            }
+            .buttonStyle(.plain)
+            .help("Gravar aula (sincroniza com anotações)")
+            .accessibilityLabel("Gravar aula")
+        }
     }
 
     // MARK: Row 3 — Draw sub-toolbar (só visível em isAnnotating)

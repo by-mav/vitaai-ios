@@ -192,6 +192,7 @@
 		68A2F100F450FDC473D22F86 /* MyReferralResponseRewards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942B739013AC758D9A7537EE /* MyReferralResponseRewards.swift */; };
 		696CBE7E1E29936CEF915F00 /* PdfSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 303BA1D3D9EFF7031A182BB5 /* PdfSettingsSheet.swift */; };
 		696DCAF3DF165C21D20CC27C /* PdfUserDocumentsPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6154D44C92401CA70E43E53 /* PdfUserDocumentsPicker.swift */; };
+		69B2470A27F772FEBB756905 /* PdfAudioPlaybackOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C254916C49A29BD2A2AF8D49 /* PdfAudioPlaybackOverlay.swift */; };
 		6B15F1C56BFAF71BAAD0881C /* VitaTypingMascot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1D7F50D43B24E6AA736C9A /* VitaTypingMascot.swift */; };
 		6B39D764E1FF15774658E978 /* DashboardHeroCardBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD7B8AB9F6F4EDC09B88BF0B /* DashboardHeroCardBackground.swift */; };
 		6B8AE07AB603782FBD8376C6 /* PdfBookmarksList.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8E084DA771ADE8DA5F560EE /* PdfBookmarksList.swift */; };
@@ -281,6 +282,7 @@
 		A01AFD8E7995AD999C2E44A5 /* QBankHomeContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D431F9DA5C56FB16C57122FE /* QBankHomeContent.swift */; };
 		A04B5152B730A4F842809843 /* VitaDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D816167F3CB6613AC61137 /* VitaDomain.swift */; };
 		A0A8B500BA2934F4C94DB235 /* TrabalhoEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6F3E04E70C2FFA771693FE /* TrabalhoEditorView.swift */; };
+		A0D884FE9DEB2419446F90C4 /* PdfAudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94DA95E5418CC2E30217857 /* PdfAudioRecorder.swift */; };
 		A3094421C736C77649A00DF9 /* JourneyType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240B2DA9522124E7FBAC4743 /* JourneyType.swift */; };
 		A35836BA3CF896D989F761FF /* NotificationsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2CEACE238BB315B6B8609E /* NotificationsStep.swift */; };
 		A43DAF430E852C6A5900BEB5 /* TokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389BFCF2463F09D0B4DBBD16 /* TokenRefresher.swift */; };
@@ -713,6 +715,7 @@
 		B75D2869DE32815B6A7A2E1B /* DashboardAgendaItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardAgendaItem.swift; sourceTree = "<group>"; };
 		B822D051C685233CF51426E3 /* View+FadeUpAppear.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+FadeUpAppear.swift"; sourceTree = "<group>"; };
 		B8E5AE07C95B12FFC564D9F6 /* VitaAPI+PdfMasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VitaAPI+PdfMasks.swift"; sourceTree = "<group>"; };
+		B94DA95E5418CC2E30217857 /* PdfAudioRecorder.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PdfAudioRecorder.swift; sourceTree = "<group>"; };
 		B9CC1451A7DEAC45439CDEE8 /* LocalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModels.swift; sourceTree = "<group>"; };
 		BBA019CD302ADAC93CAC7F13 /* VitaAI.storekit */ = {isa = PBXFileReference; path = VitaAI.storekit; sourceTree = "<group>"; };
 		BBCCFEE392F9CB2615DF85D8 /* VideoBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoBackground.swift; sourceTree = "<group>"; };
@@ -731,6 +734,7 @@
 		C0ACCC75B6BF005D29AF766F /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		C0FA504A01F65E8D393C782C /* TrabalhoDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrabalhoDetailScreen.swift; sourceTree = "<group>"; };
 		C1ACF21598F20E4035C39378 /* SyncProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncProgress.swift; sourceTree = "<group>"; };
+		C254916C49A29BD2A2AF8D49 /* PdfAudioPlaybackOverlay.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PdfAudioPlaybackOverlay.swift; sourceTree = "<group>"; };
 		C39B933A85A6134CD99362AE /* VitaInputPopout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaInputPopout.swift; sourceTree = "<group>"; };
 		C497BC21D3CC6ADFA5D26E4B /* DrawingCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingCanvasView.swift; sourceTree = "<group>"; };
 		C54CA1265460CA7509625A93 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
@@ -924,6 +928,8 @@
 				9998B44B0BDB981193E5EAF3 /* PdfViewerScreen.swift */,
 				543196E867D0B232733BEA7D /* PdfViewerViewModel.swift */,
 				BE8C2F04615A9F14625C6579 /* PdfWorkspace.swift */,
+				B94DA95E5418CC2E30217857 /* PdfAudioRecorder.swift */,
+				C254916C49A29BD2A2AF8D49 /* PdfAudioPlaybackOverlay.swift */,
 			);
 			path = PdfViewer;
 			sourceTree = "<group>";
@@ -1795,8 +1801,6 @@
 				3F7FD2A6B35DB3CF75D10AF9 /* PBXTargetDependency */,
 			);
 			name = VitaAIUITests;
-			packageProductDependencies = (
-			);
 			productName = VitaAIUITests;
 			productReference = 71A803CD05ACDB97E5A85BD7 /* VitaAIUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -2285,6 +2289,8 @@
 				BB3144C91665AED5016FA3DF /* WebAlunoWebViewScreen.swift in Sources */,
 				314B13E5687E06A6CB1030D6 /* WeekAgendaSection.swift in Sources */,
 				1A22403509BD373659DF1FF4 /* WelcomeStep.swift in Sources */,
+				A0D884FE9DEB2419446F90C4 /* PdfAudioRecorder.swift in Sources */,
+				69B2470A27F772FEBB756905 /* PdfAudioPlaybackOverlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

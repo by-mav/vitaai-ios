@@ -59,6 +59,12 @@ final class PdfViewerViewModel {
 
     private(set) var fileHash: String = ""
 
+    // MARK: - Audio sync (Notability-style)
+    /// Recorder de áudio + timeline de anotações. Bind no load(). Quando
+    /// `state == .recording`, cada saveDrawing/saveHighlights registra evento
+    /// com timestamp relativo ao início da gravação.
+    let audioRecorder = PdfAudioRecorder()
+
     // MARK: - Bookmarks
     var bookmarkedPages: Set<Int> = []
 
@@ -278,6 +284,9 @@ final class PdfViewerViewModel {
         logger.notice("[PDF.load] done. document=\(self.document != nil) pages=\(self.pageCount)")
         loadBookmarks()
         loadHighlights()
+        // Bind audio recorder ao fileHash atual — descobre se já existe áudio
+        // gravado pra este PDF (state vira .loaded) ou começa do .idle.
+        audioRecorder.bind(fileHash: fileHash)
         isLoading = false
     }
 
@@ -330,6 +339,13 @@ final class PdfViewerViewModel {
         isSaving = true
         let url = highlightFileURL()
         document.write(to: url)
+        // Audio sync — registra evento de "highlight/annotation" se gravando.
+        // Granularidade page-level é suficiente pro replay destacar o trecho.
+        audioRecorder.recordEvent(
+            type: .highlight,
+            pageIndex: currentPage,
+            id: "p\(currentPage)_save_\(Int(Date().timeIntervalSince1970 * 1000))"
+        )
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(600))
             self.isSaving = false
@@ -429,6 +445,13 @@ final class PdfViewerViewModel {
         isSaving = true
         let url = annotationFileURL(page: pageIndex)
         try? drawing.dataRepresentation().write(to: url)
+        // Audio sync — registra stroke event se gravando. Granularidade =
+        // página + número de strokes (proxy razoável p/ "qual traço").
+        audioRecorder.recordEvent(
+            type: .stroke,
+            pageIndex: pageIndex,
+            id: "p\(pageIndex)_strokes_\(drawing.strokes.count)"
+        )
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(600))
             self.isSaving = false

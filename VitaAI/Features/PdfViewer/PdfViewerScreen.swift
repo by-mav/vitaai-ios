@@ -117,6 +117,25 @@ struct PdfViewerScreen: View {
                 .frame(maxWidth: .infinity)
             }
 
+            // Audio sync overlay — pílula flutuante no bottom mostrando estado
+            // de gravação/playback. Visível durante .recording sempre, e quando
+            // .loaded/.playing/.paused se isOverlayVisible == true.
+            if viewModel.audioRecorder.isOverlayVisible
+                || viewModel.audioRecorder.state == .recording {
+                VStack {
+                    Spacer()
+                    PdfAudioPlaybackOverlay(
+                        recorder: viewModel.audioRecorder,
+                        onStartRecording: { toggleAudioRecording() },
+                        onStopRecording: { toggleAudioRecording() },
+                        onClose: { viewModel.audioRecorder.closeOverlay() }
+                    )
+                    .padding(.bottom, 24)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
             // Floating Study Mode indicator — fica no canto direito quando Study
             // ON. Tap abre stats sheet. Substitui o long-press escondido do ícone
             // da toolbar (Rafael 2026-04-28: "long-press não dá pra tirar da bunda").
@@ -456,6 +475,14 @@ struct PdfViewerScreen: View {
                         VitaPostHogConfig.capture(event: "pdf_study_active_toggle", properties: [
                             "open": showStudyActivePanel,
                         ])
+                    },
+                    isAudioRecording: viewModel.audioRecorder.state == .recording,
+                    hasAudioRecorded: viewModel.audioRecorder.state == .loaded
+                        || viewModel.audioRecorder.state == .playing
+                        || viewModel.audioRecorder.state == .paused,
+                    onToggleAudioRecording: { toggleAudioRecording() },
+                    onTogglePlaybackOverlay: {
+                        viewModel.audioRecorder.isOverlayVisible.toggle()
                     }
                 )
 
@@ -872,6 +899,28 @@ struct PdfViewerScreen: View {
             .padding(.vertical, 12)
         }
         .background(VitaColors.surfaceCard)
+    }
+
+    // MARK: - Audio sync (Notability-style)
+    //
+    // Tap no mic da toolbar → toggle gravação. Se .idle/.loaded → começa.
+    // Se .recording → para. Quando termina, .loaded permite playback via
+    // botão waveform (que abre o overlay do player flutuante).
+
+    private func toggleAudioRecording() {
+        switch viewModel.audioRecorder.state {
+        case .idle, .loaded, .paused:
+            Task { await viewModel.audioRecorder.startRecording() }
+            VitaPostHogConfig.capture(event: "pdf_audio_record_start")
+        case .recording:
+            viewModel.audioRecorder.stopRecording()
+            VitaPostHogConfig.capture(event: "pdf_audio_record_stop", properties: [
+                "duration_s": Int(viewModel.audioRecorder.totalDuration),
+                "events": viewModel.audioRecorder.timeline.events.count,
+            ])
+        case .playing:
+            viewModel.audioRecorder.pausePlayback()
+        }
     }
 
     // MARK: - Study Mode (masking pen)
