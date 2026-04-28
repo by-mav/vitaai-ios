@@ -44,8 +44,7 @@ struct PdfViewerScreen: View {
     @State private var showSettingsSheet: Bool = false
     // ZONE-C — Study Mode (masks pra estudar)
     @State private var isMaskingMode: Bool = false
-    @State private var maskingHintTask: Task<Void, Never>? = nil
-    @State private var showMaskingHint: Bool = false
+    // Masking hint state replaced by activeModeBanner (permanent, all modes).
     @State private var isStudyMode: Bool = false
     @State private var studyMaskPrompt: StudyMaskPrompt? = nil
     @State private var showStudyStatsSheet: Bool = false
@@ -98,15 +97,16 @@ struct PdfViewerScreen: View {
                     .transition(.opacity)
             }
 
-            // Masking hint overlay (top-center, auto-hides after 2.5s)
-            if showMaskingHint {
+            // Active-mode banner — permanent while ANY tool mode is on.
+            // Shows what the current mode does + "Sair" button to exit.
+            // Replaces the old 2.5s ephemeral masking-only hint.
+            if let banner = activeModeBanner {
                 VStack {
-                    maskingHintOverlay
+                    activeModeBannerView(banner)
                         .padding(.top, 110)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
-                .allowsHitTesting(false)
             }
 
         }
@@ -805,26 +805,8 @@ struct PdfViewerScreen: View {
             viewModel.isLassoMode = false
             isEraserMode = false
             isPointerMode = false
-            scheduleMaskingHint()
-        } else {
-            cancelMaskingHint()
         }
-    }
-
-    private func scheduleMaskingHint() {
-        cancelMaskingHint()
-        showMaskingHint = true
-        maskingHintTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2.5))
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.4)) { showMaskingHint = false }
-        }
-    }
-
-    private func cancelMaskingHint() {
-        maskingHintTask?.cancel()
-        maskingHintTask = nil
-        showMaskingHint = false
+        // Hint is now provided by activeModeBanner (permanent while mode is on).
     }
 
     private func toggleStudyMode() {
@@ -913,25 +895,114 @@ struct PdfViewerScreen: View {
         }
     }
 
+    // MARK: - Active mode banner (UX clarity per Rafael 2026-04-28)
+    //
+    // Permanent banner at the top while any tool mode is on. Shows what the
+    // mode does + "Sair" button. Replaces the old 2.5s ephemeral hint that
+    // only existed for masking. User has to ALWAYS know which mode they're in.
+
+    private struct ModeHint {
+        let icon: String
+        let title: String
+        let subtitle: String
+        /// Closure called when user taps "Sair" on the banner.
+        let onExit: () -> Void
+    }
+
+    /// Derives the current mode hint from viewModel state. Priority order matches
+    /// the tap-handler in Coordinator.handleTap (most-specific mode wins).
+    private var activeModeBanner: ModeHint? {
+        if viewModel.isStudyMode {
+            return ModeHint(
+                icon: "eye.fill",
+                title: "Study Mode",
+                subtitle: "Toque numa área coberta pra revelar e marcar acertou/errou.",
+                onExit: { toggleStudyMode() }
+            )
+        }
+        if viewModel.isMaskingMode {
+            return ModeHint(
+                icon: "rectangle.fill.on.rectangle.fill",
+                title: "Marcador opaco",
+                subtitle: "Arraste pra cobrir áreas. Toque numa máscara pra apagar.",
+                onExit: { toggleMaskingMode() }
+            )
+        }
+        if viewModel.isTextMode {
+            return ModeHint(
+                icon: "character.textbox",
+                title: "Caixa de texto",
+                subtitle: "Toque onde quer escrever. Toque num texto existente pra editar.",
+                onExit: { viewModel.toggleTextMode() }
+            )
+        }
+        if viewModel.isLassoMode {
+            return ModeHint(
+                icon: "lasso",
+                title: "Selecionar traços",
+                subtitle: "Circule traços pra mover, copiar ou apagar em grupo.",
+                onExit: { viewModel.isLassoMode = false }
+            )
+        }
+        if viewModel.isHighlightMode {
+            return ModeHint(
+                icon: "highlighter",
+                title: "Marca-texto",
+                subtitle: "Arraste sobre o texto pra destacar. Toque num destaque pra remover.",
+                onExit: { viewModel.toggleHighlightMode() }
+            )
+        }
+        if viewModel.isAnnotating {
+            return ModeHint(
+                icon: "scribble.variable",
+                title: "Modo Desenho",
+                subtitle: "Escreva ou desenhe com Apple Pencil ou dedo. Use a barra do PencilKit pra trocar ferramenta.",
+                onExit: { viewModel.toggleAnnotating() }
+            )
+        }
+        return nil
+    }
+
     @ViewBuilder
-    private var maskingHintOverlay: some View {
-        if showMaskingHint {
-            HStack(spacing: 8) {
-                Image(systemName: "rectangle.fill.on.rectangle.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(VitaColors.accent)
-                Text("Modo Marcador — arraste pra cobrir áreas pra estudar")
+    private func activeModeBannerView(_ hint: ModeHint) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: hint.icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(VitaColors.accent)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(hint.title)
                     .font(VitaTypography.labelMedium)
                     .foregroundStyle(VitaColors.textPrimary)
+                Text(hint.subtitle)
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(VitaColors.surfaceCard.opacity(0.9))
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(VitaColors.accent.opacity(0.4), lineWidth: 0.6))
-            .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
-            .transition(.move(edge: .top).combined(with: .opacity))
+            Button(action: hint.onExit) {
+                Text("Sair")
+                    .font(VitaTypography.labelSmall.weight(.semibold))
+                    .foregroundStyle(VitaColors.accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .stroke(VitaColors.accent.opacity(0.5), lineWidth: 0.8)
+                    )
+            }
+            .buttonStyle(.plain)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: 460)
+        .background(VitaColors.surfaceCard.opacity(0.92))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(VitaColors.accent.opacity(0.4), lineWidth: 0.6)
+        )
+        .shadow(color: .black.opacity(0.3), radius: 10, y: 3)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     // MARK: - Multi-doc workspace
@@ -1061,7 +1132,12 @@ private struct NativePdfView: UIViewRepresentable {
         // hit-testing priority pro PKCanvasView overlay receber os touches em
         // vez de PDFView interpretar como scroll. Sem isso, dedo/caneta
         // toca, mostra modo, mas NADA é desenhado.
-        pdfView.isInMarkupMode = true
+        // ATENÇÃO: este flag é DINAMICAMENTE alternado em updateUIView baseado
+        // em viewModel.isAnnotating. Quando o usuário NÃO está desenhando
+        // (modos texto, highlight, mask, study), o flag precisa ficar FALSE
+        // pra que UITapGestureRecognizer (handleTap) receba os touches.
+        // Caso contrário, todos os tap-handlers são bloqueados pelo PKCanvas.
+        pdfView.isInMarkupMode = false
         pdfView.backgroundColor = UIColor(VitaColors.surface)
         pdfView.pageOverlayViewProvider = context.coordinator
         pdfView.delegate = context.coordinator
@@ -1104,10 +1180,29 @@ private struct NativePdfView: UIViewRepresentable {
     }
 
     func updateUIView(_ pdfView: PDFView, context: Context) {
-        if pdfView.document !== viewModel.document {
+        // Document REFERENCE changed (initial load / file swap)
+        let referenceChanged = pdfView.document !== viewModel.document
+        // Document MUTATED in place (scanner appended pages, page deleted, reordered).
+        // Apple PDFKit needs explicit nil→doc reassign to refresh layout — same-ref
+        // assignment is a no-op (developer.apple.com/forums/thread/84737).
+        let revisionChanged = context.coordinator.lastDocumentRevision != viewModel.documentRevision
+
+        if referenceChanged {
             pdfView.document = viewModel.document
+        } else if revisionChanged {
+            let doc = viewModel.document
+            pdfView.document = nil
+            pdfView.document = doc
         }
-        // Scroll to page when thumbnail sidebar taps
+        context.coordinator.lastDocumentRevision = viewModel.documentRevision
+
+        // CRITICAL: isInMarkupMode controls PKCanvasView hit-testing priority
+        // (WWDC22 Session 10089). When true, PKCanvasView captures ALL touches
+        // → handleTap never fires → text mode, highlight tap-to-remove, mask
+        // tap, study-mode prompts ALL break. Only enable when actively drawing.
+        pdfView.isInMarkupMode = viewModel.isAnnotating
+
+        // Scroll to page when thumbnail sidebar taps OR scanner appended pages
         context.coordinator.scrollToPage(viewModel.currentPage, in: pdfView)
         // Toggle annotation mode on all visible canvases
         context.coordinator.applyAnnotationMode(viewModel.isAnnotating)
@@ -1147,6 +1242,13 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
 
     /// Mirror of viewModel.isHighlightMode, updated from updateUIView
     var isHighlightMode: Bool = false
+
+    /// Last documentRevision applied to the PDFView. Apple PDFKit does NOT
+    /// auto-refresh after PDFDocument mutations (insert/delete/move) — same-ref
+    /// reassign is a no-op. We force a nil→doc reassign whenever this counter
+    /// drifts from viewModel.documentRevision.
+    /// Bug confirmed: developer.apple.com/forums/thread/84737
+    var lastDocumentRevision: Int = 0
 
     /// Mirror of viewModel.isTextMode, updated from updateUIView.
     /// Exiting text mode clears any active freeText selection (Goodnotes pattern).

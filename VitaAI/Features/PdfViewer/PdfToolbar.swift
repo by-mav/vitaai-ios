@@ -259,40 +259,6 @@ struct PdfToolbar: View {
                 )
             }
 
-            // --- Secondary tools overflow (search, bookmark) ---
-            Menu {
-                Button(action: onToggleSearch) {
-                    Label("Buscar no PDF", systemImage: "magnifyingglass")
-                }
-                Button(action: onToggleBookmark) {
-                    Label(
-                        isBookmarked ? "Remover marcador" : "Marcar página",
-                        systemImage: isBookmarked ? "bookmark.fill" : "bookmark"
-                    )
-                }
-                if let onShowBookmarksList {
-                    Button(action: onShowBookmarksList) {
-                        Label("Marcações salvas", systemImage: "bookmark.circle")
-                    }
-                }
-                if let onShowOutline {
-                    Button(action: onShowOutline) {
-                        Label("Sumário (TOC)", systemImage: "list.bullet.indent")
-                    }
-                }
-                if let onShowSettings {
-                    Button(action: onShowSettings) {
-                        Label("Ajustes do PDF", systemImage: "slider.horizontal.3")
-                    }
-                }
-            } label: {
-                Image(systemName: "chevron.down.circle")
-                    .font(.system(size: 16))
-                    .foregroundStyle((isSearching || isBookmarked) ? VitaColors.accent : VitaColors.textSecondary)
-                    .frame(width: 36, height: 36)
-            }
-            .help("Mais ferramentas")
-
             // ZONE-C — Marcador opaco (study masks)
             toolButton(
                 icon: "rectangle.fill.on.rectangle.fill",
@@ -348,6 +314,34 @@ struct PdfToolbar: View {
             )
 
             Menu {
+                // Document tools (search, bookmark, TOC, settings) — moved here
+                // from the left chevron per Rafael 2026-04-28: settings belong
+                // grouped on the right side of the toolbar.
+                Button(action: onToggleSearch) {
+                    Label("Buscar no PDF", systemImage: "magnifyingglass")
+                }
+                Button(action: onToggleBookmark) {
+                    Label(
+                        isBookmarked ? "Remover marcador" : "Marcar página",
+                        systemImage: isBookmarked ? "bookmark.fill" : "bookmark"
+                    )
+                }
+                if let onShowBookmarksList {
+                    Button(action: onShowBookmarksList) {
+                        Label("Marcações salvas", systemImage: "bookmark.circle")
+                    }
+                }
+                if let onShowOutline {
+                    Button(action: onShowOutline) {
+                        Label("Sumário (TOC)", systemImage: "list.bullet.indent")
+                    }
+                }
+                if let onShowSettings {
+                    Button(action: onShowSettings) {
+                        Label("Ajustes do PDF", systemImage: "slider.horizontal.3")
+                    }
+                }
+                Divider()
                 if let onScanDocument {
                     Button(action: onScanDocument) {
                         Label("Escanear documento", systemImage: "doc.viewfinder")
@@ -359,7 +353,7 @@ struct PdfToolbar: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .font(.system(size: 16))
-                    .foregroundStyle(VitaColors.textSecondary)
+                    .foregroundStyle((isSearching || isBookmarked) ? VitaColors.accent : VitaColors.textSecondary)
                     .frame(width: 36, height: 36)
             }
             .help("Mais opções")

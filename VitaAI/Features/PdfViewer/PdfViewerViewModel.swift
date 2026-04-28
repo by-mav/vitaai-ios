@@ -15,6 +15,12 @@ final class PdfViewerViewModel {
     var fileName: String = ""
     var isLoading: Bool = true
     var isSaving: Bool = false
+    /// Bumped whenever the document is mutated in-place (insert/delete/move pages).
+    /// PDFView (UIKit, iOS 11 vintage) does NOT auto-refresh after PDFDocument
+    /// mutations — same-reference reassign is a no-op. NativePdfView observes
+    /// this counter and forces nil→doc reassign + scroll to currentPage.
+    /// Apple bug confirmed: developer.apple.com/forums/thread/84737
+    var documentRevision: Int = 0
 
     // MARK: - UI state
     var showThumbnails: Bool = false
@@ -104,6 +110,7 @@ final class PdfViewerViewModel {
             saveBookmarks()
         }
         pageCount = document.pageCount
+        documentRevision += 1
         isSaving = true
         saveHighlights()
     }
@@ -124,6 +131,7 @@ final class PdfViewerViewModel {
         try? FileManager.default.removeItem(at: url)
         pageCount = document.pageCount
         currentPage = min(currentPage, pageCount - 1)
+        documentRevision += 1
         isSaving = true
         saveHighlights()
     }
@@ -135,6 +143,7 @@ final class PdfViewerViewModel {
         guard let copy = page.copy() as? PDFPage else { return }
         document.insert(copy, at: index + 1)
         pageCount = document.pageCount
+        documentRevision += 1
         isSaving = true
         saveHighlights()
     }
@@ -143,11 +152,16 @@ final class PdfViewerViewModel {
     /// Cada UIImage vira uma PDFPage A4-sized.
     func appendScannedPages(_ images: [UIImage]) {
         guard let document, !images.isEmpty else { return }
+        let firstNewPageIndex = document.pageCount
         for image in images {
             guard let pdfPage = PDFPage(image: image) else { continue }
             document.insert(pdfPage, at: document.pageCount)
         }
         pageCount = document.pageCount
+        // Jump to first scanned page so user sees the result immediately.
+        currentPage = firstNewPageIndex
+        // Force PDFView refresh — Apple bug: same-ref reassign is no-op.
+        documentRevision += 1
         isSaving = true
         saveHighlights()
     }
