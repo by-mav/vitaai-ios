@@ -36,9 +36,14 @@ struct PdfToolbar: View {
     var canUndo: Bool = false
     var canRedo: Bool = false
 
-    // ZONE-C — Study Mode (owned by Agent C study-mode)
+    // ZONE-C — Estudo Ativo (Rafael 2026-04-28 redesign):
+    // Botão único do olho liga `isStudyActiveMode` que abre painel flutuante
+    // inline dentro do PDF com 2 ações (Criar máscaras / Revisar). isMaskingMode
+    // e isStudyMode são sub-modos visuais usados pra tint do botão (eye.fill
+    // quando algum sub-modo ativo, glow extra, etc).
     var isMaskingMode: Bool = false
     var isStudyMode: Bool = false
+    var isStudyActiveMode: Bool = false
 
     let onBack: () -> Void
     let onToggleThumbnails: () -> Void
@@ -71,6 +76,9 @@ struct PdfToolbar: View {
     var onToggleMasking: (() -> Void)? = nil
     var onToggleStudyMode: (() -> Void)? = nil
     var onShowStudyStats: (() -> Void)? = nil
+    /// Toggle do painel inline "Estudo Ativo" (Rafael 2026-04-28). Substitui
+    /// o Menu nativo SwiftUI antigo que fazia popover overlap no próprio botão.
+    var onToggleStudyActive: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -302,89 +310,91 @@ struct PdfToolbar: View {
         .padding(.vertical, 6)
     }
 
-        // MARK: - Estudo Ativo menu (fundiu Marcador opaco + Study Mode)
+    // MARK: - Estudo Ativo — botão olho (Rafael 2026-04-28 redesign v2)
     //
-    // Um botão único na toolbar abre menu com 3 ações:
-    //   · Criar máscaras (toggle isMaskingMode) — drag cria retângulo opaco
-    //   · Revisar       (toggle isStudyMode)    — tap revela e marca acerto/erro
-    //   · Estatísticas  (showStudyStats)        — accuracy + masks mais difíceis
+    // Substitui o Menu nativo SwiftUI antigo (que fazia popover overlap no
+    // próprio botão e ficou ruim). Agora é toggle direto: tap = liga/desliga
+    // painel flutuante inline DENTRO do PDF com 2 ações (Criar máscaras /
+    // Revisar). Painel fica posicionado canto inferior direito.
     //
-    // Estado ativo do botão = isMaskingMode || isStudyMode. Ícone reflete o
-    // sub-modo ativo (graduation cap quando inativo, rectangle quando criando,
-    // eye quando revisando). Cor dourada `prominent` sinaliza camada de estudo.
+    // Visual sempre dourado (gold accent) com glow + RadialGradient, mais brilho
+    // quando o painel está aberto OU algum sub-modo ativo. Asset `vita-btn-active`
+    // (mascote) flutuando ao lado dá o toque "vivo" Vita-style pedido.
 
-    private var isStudyActive: Bool { isMaskingMode || isStudyMode }
+    private var isStudyActive: Bool { isMaskingMode || isStudyMode || isStudyActiveMode }
 
-    private var studyActiveIcon: String {
-        if isStudyMode { return "eye.fill" }
-        if isMaskingMode { return "rectangle.fill.on.rectangle.fill" }
-        return "graduationcap.fill"
-    }
-
-    private var studyActiveLabel: String {
-        if isStudyMode { return "Estudo Ativo · Revisando" }
-        if isMaskingMode { return "Estudo Ativo · Criando máscaras" }
-        return "Estudo Ativo (cobrir + revisar)"
+    private var studyEyeIcon: String {
+        // Olho fechado quando inativo, aberto quando algum sub-modo ON
+        return isStudyActive ? "eye.fill" : "eye"
     }
 
     @ViewBuilder
     private var studyActiveMenuButton: some View {
-        Menu {
-            Button {
-                onToggleMasking?()
-            } label: {
-                Label(
-                    isMaskingMode ? "Parar de criar máscaras" : "Criar máscaras",
-                    systemImage: isMaskingMode ? "checkmark.rectangle.fill" : "rectangle.fill.on.rectangle.fill"
-                )
-            }
-            Button {
-                onToggleStudyMode?()
-            } label: {
-                Label(
-                    isStudyMode ? "Sair do modo Revisar" : "Revisar (cobrir + testar memória)",
-                    systemImage: isStudyMode ? "eye.slash.fill" : "eye.fill"
-                )
-            }
-            Divider()
-            Button {
-                onShowStudyStats?()
-            } label: {
-                Label("Estatísticas", systemImage: "chart.bar.fill")
-            }
+        Button {
+            onToggleStudyActive?()
         } label: {
             studyActiveLabelView
         }
-        .menuStyle(.borderlessButton)
-        .help(studyActiveLabel)
-        .accessibilityLabel(studyActiveLabel)
+        .buttonStyle(.plain)
+        .help("Estudo Ativo (cobrir + revisar)")
+        .accessibilityLabel("Estudo Ativo")
     }
 
     private var studyActiveLabelView: some View {
-        Image(systemName: studyActiveIcon)
-            .font(.system(size: 17, weight: isStudyActive ? .semibold : .regular))
-            .foregroundStyle(isStudyActive ? VitaColors.accent : VitaColors.textSecondary)
-            .frame(width: 38, height: 38)
-            .background(
-                ZStack {
-                    if isStudyActive {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        VitaColors.accent.opacity(0.36),
-                                        VitaColors.accent.opacity(0.18)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(VitaColors.accent.opacity(0.85), lineWidth: 1.0)
-                    }
-                }
+        ZStack {
+            // Halo radial dourado — sempre visível pra dar o toque "premium / vivo".
+            // Mais intenso quando ativo.
+            RadialGradient(
+                colors: [
+                    VitaColors.accent.opacity(isStudyActive ? 0.55 : 0.25),
+                    VitaColors.accent.opacity(0.0)
+                ],
+                center: .center,
+                startRadius: 2,
+                endRadius: isStudyActive ? 26 : 18
             )
-            .shadow(color: isStudyActive ? VitaColors.accent.opacity(0.45) : .clear, radius: 10, y: 1)
+            .frame(width: 50, height: 50)
+            .blur(radius: isStudyActive ? 4 : 2)
+
+            // Active state — cápsula gradient gold (mantém parity com toolButton prominent)
+            if isStudyActive {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                VitaColors.accent.opacity(0.42),
+                                VitaColors.accent.opacity(0.22)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 38, height: 38)
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(VitaColors.accent.opacity(0.95), lineWidth: 1.1)
+                    .frame(width: 38, height: 38)
+            }
+
+            // Olho — sempre dourado (Rafael "ícone do olho com gold + brilho")
+            Image(systemName: studyEyeIcon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(VitaColors.accent)
+                .shadow(color: VitaColors.accent.opacity(isStudyActive ? 0.7 : 0.4), radius: isStudyActive ? 6 : 3)
+                .frame(width: 38, height: 38)
+
+            // Mascote Vita pequenininho no canto top-trailing — sinaliza "feature
+            // Vita ativa". Asset reaproveitado do botão Pergunte ao Vita.
+            Image("vita-btn-active")
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 14, height: 14)
+                .offset(x: 13, y: -13)
+                .shadow(color: VitaColors.accent.opacity(0.6), radius: 4)
+                .opacity(isStudyActive ? 1.0 : 0.85)
+        }
+        .frame(width: 44, height: 44)
+        .shadow(color: isStudyActive ? VitaColors.accent.opacity(0.5) : .clear, radius: 10, y: 1)
     }
 
     // MARK: Row 3 — Draw sub-toolbar (só visível em isAnnotating)

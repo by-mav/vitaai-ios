@@ -160,11 +160,21 @@ final class PdfViewerViewModel {
         pageCount = document.pageCount
         // Jump to first scanned page so user sees the result immediately.
         currentPage = firstNewPageIndex
+        // Sinaliza pro Coordinator preservar zoom no próximo refresh — sem isso
+        // o `pdfView.document = nil; doc` reseta scaleFactor pra fit-page (zoom
+        // out enorme com várias páginas visíveis simultâneas, build 140 bug).
+        preserveScaleOnNextRevision = true
         // Force PDFView refresh — Apple bug: same-ref reassign is no-op.
         documentRevision += 1
         isSaving = true
         saveHighlights()
     }
+
+    /// Quando true, no próximo bump de `documentRevision` o NativePdfView
+    /// faz snapshot do `scaleFactor` antes do nil→doc reassign e restaura
+    /// depois. Setado por `appendScannedPages` (zoom não pode resetar).
+    /// Resetado pelo Coordinator depois do refresh.
+    var preserveScaleOnNextRevision: Bool = false
 
     /// Renderiza uma região da página atual em UIImage — usado pelo PdfScanOverlay
     /// pra mandar pra rota /api/ai/ask-image (Pergunte ao Vita com imagem).

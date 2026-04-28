@@ -48,6 +48,10 @@ struct PdfViewerScreen: View {
     @State private var studyMaskPrompt: StudyMaskPrompt? = nil
     @State private var showStudyStatsSheet: Bool = false
     @State private var attemptFlash: AttemptFlash? = nil
+    /// Painel flutuante inline "Estudo Ativo" (Rafael 2026-04-28 redesign).
+    /// Toggle controlado pelo ícone do olho na toolbar. Quando ON, aparece
+    /// card glass dentro do PDF com 2 ações (Criar máscaras / Revisar).
+    @State private var showStudyActivePanel: Bool = false
     // Mode banner — ephemeral hint (3s fade) when entering a mode.
     // "Sair" only dismisses the banner — to exit the mode, user taps the icon again.
     @State private var isModeBannerVisible: Bool = false
@@ -130,6 +134,25 @@ struct PdfViewerScreen: View {
                 .allowsHitTesting(true)
             }
 
+            // Painel flutuante "Estudo Ativo" — Rafael 2026-04-28 redesign.
+            // Card glass inline DENTRO do PDF (canto inferior direito) com
+            // 2 ações (Criar máscaras / Revisar). Substitui o Menu nativo
+            // SwiftUI antigo que sobrepunha o próprio botão.
+            if showStudyActivePanel {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        studyActivePanel
+                            .padding(.trailing, 16)
+                            .padding(.bottom, 24)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.scale(scale: 0.85, anchor: .topTrailing).combined(with: .opacity))
+                .allowsHitTesting(true)
+            }
+
         }
         .task {
             // Multi-doc workspace: open the URL passed by the router as a tab.
@@ -158,11 +181,24 @@ struct PdfViewerScreen: View {
                 ])
             }
         }
-        .onChange(of: activeModeBanner?.id) { _, newId in
+        .onChange(of: activeModeBanner?.id) { oldId, newId in
+            // Distingue 3 transições:
+            //   nil → id      (ligou modo)         → mostra banner com fade-in
+            //   idA → idB     (trocou de modo)     → re-mostra banner (novo conteúdo)
+            //   id → nil      (desligou modo)      → cancela timer, esconde DIRETO sem reanimar
+            // Bug pré-fix: o else esconde sem distinguir, mas como showModeBanner
+            // tinha rodado antes com 3s timer ainda pendente, ao desligar o
+            // banner reaparecia momentaneamente porque o `withAnimation` antigo
+            // ainda estava em flight. Agora ao desligar matamos o task e baixamos
+            // o flag sem nova animação — a view some no mesmo frame que
+            // activeModeBanner vira nil.
             if newId != nil {
-                showModeBanner()
+                if oldId != newId {
+                    showModeBanner()
+                }
             } else {
                 bannerHideTask?.cancel()
+                bannerHideTask = nil
                 isModeBannerVisible = false
             }
         }
@@ -344,6 +380,7 @@ struct PdfViewerScreen: View {
                     canRedo: canRedo,
                     isMaskingMode: isMaskingMode,
                     isStudyMode: isStudyMode,
+                    isStudyActiveMode: showStudyActivePanel,
                     onBack: {
                         viewModel.saveAllAnnotations()
                         onBack()
@@ -404,7 +441,22 @@ struct PdfViewerScreen: View {
                     onShowSettings: { showSettingsSheet = true },
                     onToggleMasking: { toggleMaskingMode() },
                     onToggleStudyMode: { toggleStudyMode() },
-                    onShowStudyStats: { showStudyStatsSheet = true }
+                    onShowStudyStats: { showStudyStatsSheet = true },
+                    onToggleStudyActive: {
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                            showStudyActivePanel.toggle()
+                        }
+                        // Ao FECHAR o painel, sai dos sub-modos (limpa estado).
+                        // Ao ABRIR, painel só mostra opções — sub-modos só ligam
+                        // quando user clica em Criar máscaras ou Revisar.
+                        if !showStudyActivePanel {
+                            if isMaskingMode { toggleMaskingMode() }
+                            if isStudyMode { toggleStudyMode() }
+                        }
+                        VitaPostHogConfig.capture(event: "pdf_study_active_toggle", properties: [
+                            "open": showStudyActivePanel,
+                        ])
+                    }
                 )
 
                 // Multi-doc tab bar (Goodnotes-style). Same fullscreen guard.
@@ -1016,6 +1068,133 @@ struct PdfViewerScreen: View {
         }
     }
 
+    /// Painel flutuante "Estudo Ativo" — abre quando user clica no olho da toolbar.
+    /// Card glass com 2 ações: Criar máscaras (ativa isMaskingMode) e Revisar
+    /// (ativa isStudyMode). Cada ação é toggle — re-clicar desliga aquele sub-modo.
+    /// Pequeno header explica o que é a feature em 1 linha.
+    @ViewBuilder
+    private var studyActivePanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: "eye.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(VitaColors.accent)
+                Text("Estudo Ativo")
+                    .font(VitaTypography.labelMedium.weight(.semibold))
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+
+            Text("Cobre conteúdo pra testar memória depois.")
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.textSecondary)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 12)
+
+            Divider()
+                .background(VitaColors.glassBorder.opacity(0.4))
+
+            // Ação 1 — Criar máscaras
+            Button {
+                toggleMaskingMode()
+                VitaPostHogConfig.capture(event: "pdf_study_active_panel_tap", properties: [
+                    "action": "mask",
+                    "active": isMaskingMode,
+                ])
+            } label: {
+                studyActionRow(
+                    icon: isMaskingMode ? "checkmark.rectangle.fill" : "rectangle.fill.on.rectangle.fill",
+                    title: isMaskingMode ? "Parar de criar máscaras" : "Criar máscaras",
+                    subtitle: "Arraste no PDF pra cobrir áreas",
+                    active: isMaskingMode
+                )
+            }
+            .buttonStyle(.plain)
+
+            Divider()
+                .background(VitaColors.glassBorder.opacity(0.3))
+                .padding(.leading, 44)
+
+            // Ação 2 — Revisar
+            Button {
+                toggleStudyMode()
+                VitaPostHogConfig.capture(event: "pdf_study_active_panel_tap", properties: [
+                    "action": "review",
+                    "active": isStudyMode,
+                ])
+            } label: {
+                studyActionRow(
+                    icon: isStudyMode ? "eye.slash.fill" : "eye.fill",
+                    title: isStudyMode ? "Sair do modo Revisar" : "Revisar",
+                    subtitle: "Toque numa máscara pra revelar",
+                    active: isStudyMode
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(width: 280)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .dark)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(VitaColors.surfaceCard.opacity(0.4))
+                // Inner top highlight — vibe iOS 26 liquid glass
+                LinearGradient(
+                    colors: [Color.white.opacity(0.08), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .frame(height: 16)
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(VitaColors.accent.opacity(0.45), lineWidth: 0.8)
+        )
+        .shadow(color: VitaColors.accent.opacity(0.3), radius: 18, y: 6)
+        .shadow(color: .black.opacity(0.4), radius: 16, y: 8)
+    }
+
+    @ViewBuilder
+    private func studyActionRow(icon: String, title: String, subtitle: String, active: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(active ? VitaColors.accent : VitaColors.textSecondary)
+                .frame(width: 32, height: 32)
+                .background(
+                    Circle()
+                        .fill(active ? VitaColors.accent.opacity(0.20) : Color.clear)
+                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(active ? VitaColors.accent : VitaColors.textPrimary)
+                Text(subtitle)
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+            Spacer(minLength: 0)
+            if active {
+                Circle()
+                    .fill(VitaColors.accent)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: VitaColors.accent, radius: 4)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+
     /// Floating chip mostrado no canto direito enquanto Study Mode está ON.
     /// Tap → abre `PdfStudyStatsSheet` (substitui long-press oculto). Mostra
     /// glow pulsante pra sinalizar "modo de estudo ativo".
@@ -1275,9 +1454,29 @@ private struct NativePdfView: UIViewRepresentable {
         if referenceChanged {
             pdfView.document = viewModel.document
         } else if revisionChanged {
+            // Snapshot zoom ANTES do reassign — sem isso o PDFView reseta pra
+            // fit-page no next layout pass (sintoma "zoom out gigante várias
+            // páginas visíveis" pós-scanner, Rafael 2026-04-28 build 140).
+            let savedScale = pdfView.scaleFactor
+            let preserveScale = viewModel.preserveScaleOnNextRevision
+            let targetPageIndex = viewModel.currentPage
             let doc = viewModel.document
             pdfView.document = nil
             pdfView.document = doc
+            // Restaura zoom + jump pra página escaneada na próxima runloop tick
+            // (PDFKit aplica auto-fit dentro do layoutSubviews, então precisamos
+            // setar DEPOIS dele rodar).
+            if preserveScale, let doc, let target = doc.page(at: targetPageIndex) {
+                DispatchQueue.main.async {
+                    let dest = PDFDestination(page: target, at: CGPoint(x: 0, y: target.bounds(for: .mediaBox).height))
+                    pdfView.go(to: dest)
+                    // Restore zoom — clamp dentro de min/max do PDFView pra evitar
+                    // edge cases quando scaleFactorForSizeToFit mudou.
+                    let clamped = max(pdfView.minScaleFactor, min(pdfView.maxScaleFactor, savedScale))
+                    pdfView.scaleFactor = clamped
+                }
+                viewModel.preserveScaleOnNextRevision = false
+            }
         }
         context.coordinator.lastDocumentRevision = viewModel.documentRevision
 
@@ -1656,7 +1855,18 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
             editor.removeFromSuperview()
         }
         pdfView.addSubview(editor)
-        editor.beginEditing()
+        // Garante que nenhum PKCanvasView visível esteja como firstResponder —
+        // se estiver, o teclado não sobe pro UITextView novo (Apple bug clássico
+        // quando duas views competem por firstResponder no mesmo run loop).
+        for (_, canvas) in pageToCanvas {
+            if canvas.isFirstResponder { canvas.resignFirstResponder() }
+        }
+        // Async permite a view entrar na hierarchy antes de pedir teclado.
+        // Sem isso, becomeFirstResponder() retorna false silenciosamente — o
+        // editor existe mas o teclado não sobe (sintoma do build 140).
+        DispatchQueue.main.async {
+            editor.beginEditing()
+        }
     }
 
     // MARK: Selection / drag / resize / edit-mode-reentry (Goodnotes parity)
@@ -1719,7 +1929,13 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
             editor.removeFromSuperview()
         }
         pdfView.addSubview(editor)
-        editor.beginEditing()
+        // Mesmo fix do placeTextAnnotation — resigna canvas + async pra teclado.
+        for (_, canvas) in pageToCanvas {
+            if canvas.isFirstResponder { canvas.resignFirstResponder() }
+        }
+        DispatchQueue.main.async {
+            editor.beginEditing()
+        }
     }
 
     /// Action sheet para mask em modo Marcador (não-Study): apagar.
