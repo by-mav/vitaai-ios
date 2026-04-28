@@ -185,6 +185,9 @@ struct VitaAIApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if GALLERY_MODE
+            GalleryView()
+            #else
             AppRouter(authManager: container.authManager)
                 .environment(\.appContainer, container)
                 .environment(\.appData, container.dataManager)
@@ -192,6 +195,7 @@ struct VitaAIApp: App {
                 // SwiftData (iOS 17+) - notes/mindmaps local persistence
                 .modifier(ModelContainerModifier(container: container))
                 .preferredColorScheme(.dark)
+            #endif
         }
         .onChange(of: scenePhase) { phase in
             switch phase {

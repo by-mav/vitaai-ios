@@ -383,6 +383,7 @@
 		EDD8F6E728065C3FF6BDE691 /* VitaMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = C84201C4AE38526C62B3DFD1 /* VitaMarkdown.swift */; };
 		EE4792714534A3C5D8C30E30 /* VitaHeroCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A0A672CEFBE535AB4832CC /* VitaHeroCard.swift */; };
 		EFCBB59972C369F34DED0E8F /* VitaChatScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9303E2BEC94F1B5C9607C134 /* VitaChatScreen.swift */; };
+		F09A858BDE77C268DE8D0424 /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE7E13E09E130DB29074B397 /* GalleryView.swift */; };
 		F26A1A794273B9DAC041774D /* ExtrasStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 547830FC76948B3C5AB77457 /* ExtrasStep.swift */; };
 		F364B8A8FDCFCA606C0693FF /* VideoBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBCCFEE392F9CB2615DF85D8 /* VideoBackground.swift */; };
 		F41E3D2110C2D8BF29AAC6A4 /* VitaAPI+MaterialFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C35522165E42799F3C2E84E /* VitaAPI+MaterialFolders.swift */; };
@@ -738,6 +739,7 @@
 		CC38A1510CD8212461642D56 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
 		CC47E9884B9D2670B72B460F /* ConnectorSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorSyncView.swift; sourceTree = "<group>"; };
 		CD10C9568121CE822C1C45E0 /* VitaEmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaEmptyState.swift; sourceTree = "<group>"; };
+		CE7E13E09E130DB29074B397 /* GalleryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
 		CFB516FEEE3F8C5A3FB28626 /* ConfiguracoesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfiguracoesScreen.swift; sourceTree = "<group>"; };
 		D08D6E184B50BFEE6FF44E77 /* TranscricaoDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoDetailSheet.swift; sourceTree = "<group>"; };
 		D0AA34DA1F2E5FE7046BB9C1 /* ProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileScreen.swift; sourceTree = "<group>"; };
@@ -1442,6 +1444,7 @@
 		9D2122E1D2613BC2EF19E8C2 /* _Gallery */ = {
 			isa = PBXGroup;
 			children = (
+				CE7E13E09E130DB29074B397 /* GalleryView.swift */,
 			);
 			name = _Gallery;
 			path = _Gallery;
@@ -2256,6 +2259,7 @@
 				E404201BF0F92AB8788934F2 /* GoalStep.swift in Sources */,
 				D7A3BE30CB3660A8C5CF3FBE /* RevalidaStageStep.swift in Sources */,
 				70D052F03DF78D0E362F66EB /* ResidenciaSpecialtyStep.swift in Sources */,
+				F09A858BDE77C268DE8D0424 /* GalleryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,0 +1,3 @@
+// gallery.xcconfig — build configuration para GalleryView
+// Use: xcodebuild -xcconfig gallery.xcconfig ...
+OTHER_SWIFT_FLAGS = $(inherited) -DGALLERY_MODE
