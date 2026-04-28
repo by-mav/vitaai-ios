@@ -21,6 +21,19 @@ final class OnboardingViewModel {
     // Fork por journeyType (REVALIDA/RESIDENCIA/ENAMED/FACULDADE).
     // SOT do payload: vitaai-web/src/lib/validators.ts onboardingV2Schema.
 
+    // Onda 5b refined (Rafael 2026-04-28): a primeira pergunta "fase na jornada"
+    // tem 3 opções macro (vestibulando/graduando/residencia). `inFaculdade` é
+    // derivado dessa fase pra compatibilidade com o backend `onboardingV2Schema`
+    // (que ainda fala em yes/graduated). Quando `vestibulando`, ainda não temos
+    // jornada própria — fica `nil` e o GoalStep filtra um caminho próprio.
+    var academicPhase: AcademicPhase? = nil {
+        didSet {
+            inFaculdade = academicPhase?.derivedInFaculdade
+            // Reset goal — filtragem dos goals depende da fase.
+            selectedGoal = nil
+        }
+    }
+
     var inFaculdade: InFaculdadeStatus? = nil
     var selectedGoal: OnboardingGoal? = nil
     var revalidaStage: RevalidaStage? = nil
@@ -261,7 +274,24 @@ enum OnboardingGoal: String, CaseIterable, Hashable {
 enum InFaculdadeStatus: String, Hashable {
     case yes
     case graduated
-    case skip
+}
+
+// Onda 5b refined (Rafael 2026-04-28): fase macro na jornada acadêmica, exibida
+// como primeira pergunta do onboarding. `vestibulando` ainda não tem jornada
+// dedicada no backend — mapeamento fica em aberto até bater o suporte. Por
+// enquanto deriva pra `nil` (sem inFaculdade) e o flow segue só pelo Goal step.
+enum AcademicPhase: String, Hashable, CaseIterable {
+    case vestibulando
+    case graduando
+    case residencia
+
+    var derivedInFaculdade: InFaculdadeStatus? {
+        switch self {
+        case .vestibulando: return nil
+        case .graduando:    return .yes
+        case .residencia:   return .graduated
+        }
+    }
 }
 
 // RevalidaStage definido em Core/Models/Journey/JourneyType.swift (Codable)

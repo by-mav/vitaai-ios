@@ -340,8 +340,8 @@
 "~2 minutos" = "~2 minutos";
 
 /* ═══ Mascot speech (interpolated) ═══ */
-"onboarding_welcome_speech" = "Ahh! Didn't see you there!!\n\nI'm Vita, ready to help you master medicine. Let's go — tell me where you study?";
-"onboarding_welcome_speech_name" = "Ahh! %@! Didn't see you there!!\n\nI'm Vita, ready to help you master medicine. Let's go — tell me where you study?";
+"onboarding_welcome_speech" = "Ahh, med student! Tell me where you study?\n\nThat way I can find your portal and help you organize your schedule, track your grades and attendance, and even work on assignments with you!";
+"onboarding_welcome_speech_name" = "Ahh, %@! Tell me where you study?\n\nThat way I can find your portal and help you organize your schedule, track your grades and attendance, and even work on assignments with you!";
 "onboarding_connect_multi" = "Nice, %1$@! I detected %2$d systems you use. Connect and I'll pull everything automatically.";
 "onboarding_connect_single" = "Nice, %1$@! I detected you use %2$@. Connect and I'll pull your courses and grades.";
 "onboarding_connect_none" = "Nice, %@! I don't know your university's portals yet, but connect any and I'll figure it out automatically.";
@@ -411,13 +411,10 @@ No charge for the first 7 days.";
 "sync_timeout" = "Timeout reached. Using partial data.";
 
 /* Onboarding v2 — Onda 5b */
-"onboarding_status_speech" = "First things first — tell me your academic status.";
-"onboarding_status_yes" = "Yes, I am studying";
-"onboarding_status_yes_sub" = "Med school in Brazil";
-"onboarding_status_graduated" = "I already graduated";
-"onboarding_status_graduated_sub" = "Got my MD diploma";
-"onboarding_status_skip" = "Skip for now";
-"onboarding_status_skip_sub" = "Rather not say";
+"onboarding_status_speech" = "Hii, didn't see you there 😳\n\nI'm Vita, your study assistant! So you're studying medicine? Tell me more — I'll set up the app based on where you are in your academic journey!";
+"onboarding_status_phase_vestibulando" = "Pre-med (entrance exam)";
+"onboarding_status_phase_graduando" = "In med school";
+"onboarding_status_phase_residencia" = "Residency";
 
 "onboarding_goal_speech" = "Cool. What is your main goal right now?";
 "onboarding_goal_faculdade" = "Pass med school";

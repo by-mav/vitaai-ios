@@ -8,6 +8,11 @@ struct WelcomeStep: View {
     @FocusState private var searchFocused: Bool
     @State private var showDropdown = false
 
+    // Semester picker mora aqui (Rafael 2026-04-28): saiu do StatusFaculdadeStep
+    // pra liberar layout — só faz sentido escolher semestre depois de
+    // confirmar que está cursando E selecionar a faculdade.
+    private let semesterColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 6)
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Search field
@@ -95,11 +100,48 @@ struct WelcomeStep: View {
                 .buttonStyle(.plain)
             }
 
-            // Selected university badge (semester ja capturado em StatusFaculdadeStep — Onda 5b)
+            // Selected university badge + semester picker (Onda 5b — Rafael 2026-04-28)
             if let selected = viewModel.selectedUniversity {
                 selectedUniversityBadge(selected)
+                semesterPicker
             }
         }
+    }
+
+    // Picker 1-12 só aparece depois que a faculdade foi escolhida. Bate com a
+    // gating do botão Continuar (`selectedUniversity != nil && selectedSemester >= 1`).
+    private var semesterPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "onboarding_semester_question"))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white.opacity(0.5))
+                .padding(.top, 4)
+
+            LazyVGrid(columns: semesterColumns, spacing: 8) {
+                ForEach(1...12, id: \.self) { sem in
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        viewModel.selectSemester(sem)
+                    } label: {
+                        Text("\(sem)\u{00BA}")
+                            .font(.system(size: 13, weight: viewModel.selectedSemester == sem ? .bold : .medium))
+                            .foregroundStyle(viewModel.selectedSemester == sem ? VitaColors.accent : .white.opacity(0.5))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 36)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(viewModel.selectedSemester == sem ? VitaColors.accent.opacity(0.15) : Color.white.opacity(0.03))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(viewModel.selectedSemester == sem ? VitaColors.accent.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
+                                    )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private func selectedUniversityBadge(_ selected: University) -> some View {

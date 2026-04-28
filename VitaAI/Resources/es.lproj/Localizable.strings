@@ -340,8 +340,8 @@
 "~2 minutos" = "~2 minutos";
 
 /* ═══ Mascot speech (interpolated) ═══ */
-"onboarding_welcome_speech" = "¡Ahh! ¡No te había visto!\n\nSoy Vita, listo para ayudarte a dominar medicina. Vamos — ¿dónde estudias?";
-"onboarding_welcome_speech_name" = "¡Ahh! ¡%@! ¡No te había visto!\n\nSoy Vita, listo para ayudarte a dominar medicina. Vamos — ¿dónde estudias?";
+"onboarding_welcome_speech" = "¡Ahh, estudiante de medicina! ¿Dónde estudias?\n\nAsí puedo encontrar tu portal y ayudarte a organizar tu agenda, seguir tus notas y asistencia, ¡y hasta hacer trabajos contigo!";
+"onboarding_welcome_speech_name" = "¡Ahh, %@! ¿Dónde estudias?\n\nAsí puedo encontrar tu portal y ayudarte a organizar tu agenda, seguir tus notas y asistencia, ¡y hasta hacer trabajos contigo!";
 "onboarding_connect_multi" = "¡Genial, %1$@! Detecté %2$d sistemas que usan. Conecta y traigo todo automáticamente.";
 "onboarding_connect_single" = "¡Genial, %1$@! Detecté que usan %2$@. Conecta y traigo tus materias y notas.";
 "onboarding_connect_none" = "¡Genial, %@! Aún no conozco los portales de tu universidad, pero conecta cualquiera y lo descubro automáticamente.";
@@ -411,13 +411,10 @@ Sin cobro los primeros 7 dias.";
 "sync_timeout" = "Tiempo limite alcanzado. Usando datos parciales.";
 
 /* Onboarding v2 — Onda 5b */
-"onboarding_status_speech" = "Antes que nada, cuentame tu situacion academica.";
-"onboarding_status_yes" = "Si, estoy cursando";
-"onboarding_status_yes_sub" = "Medicina en Brasil";
-"onboarding_status_graduated" = "Ya me gradue";
-"onboarding_status_graduated_sub" = "Diploma de medicina conseguido";
-"onboarding_status_skip" = "Prefiero saltar";
-"onboarding_status_skip_sub" = "No quiero responder";
+"onboarding_status_speech" = "Holaaa, no te había visto 😳\n\n¡Soy Vita, tu asistente de estudios! ¿Estudias medicina? Cuéntame más — voy a configurar la app según tu fase en el camino académico.";
+"onboarding_status_phase_vestibulando" = "Pre-grado (admisión)";
+"onboarding_status_phase_graduando" = "Cursando";
+"onboarding_status_phase_residencia" = "Residencia";
 
 "onboarding_goal_speech" = "Genial. Cual es tu objetivo principal?";
 "onboarding_goal_faculdade" = "Aprobar la facultad";

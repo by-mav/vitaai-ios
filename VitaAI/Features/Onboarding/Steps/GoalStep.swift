@@ -3,21 +3,30 @@ import SwiftUI
 // MARK: - GoalStep — P1 do onboarding v2 (Onda 5b, Rafael 2026-04-27)
 //
 // Pergunta: "Qual seu objetivo principal?"
-// Filtragem dinamica baseada em `inFaculdade` (resposta anterior):
-//   - inFaculdade=.yes → mostra todos: FACULDADE, ENAMED, RESIDENCIA, REVALIDA
-//   - inFaculdade=.graduated/.skip → mostra apenas pos-grad: ENAMED, RESIDENCIA, REVALIDA
+// Filtragem dinâmica baseada em `academicPhase` (resposta anterior — Onda 5b
+// refined, Rafael 2026-04-28):
+//   - .graduando    → todos: FACULDADE, ENAMED, RESIDENCIA, REVALIDA
+//   - .residencia   → só pós-grad: ENAMED, RESIDENCIA, REVALIDA
+//   - .vestibulando → só FACULDADE (objetivo natural: passar no vestibular)
 //
-// Decisao Rafael 2026-04-27: nao bloquear via modal; opcoes invalidas
-// "nem aparecem" (mais clean).
+// Decisão Rafael 2026-04-27/28: não bloquear via modal; opções inválidas
+// "nem aparecem" (mais clean). `.skip` foi removido do enum em 2026-04-28.
 
 struct GoalStep: View {
     @Bindable var viewModel: OnboardingViewModel
 
     private var visibleGoals: [OnboardingGoal] {
-        switch viewModel.inFaculdade {
-        case .yes:
+        switch viewModel.academicPhase {
+        case .graduando:
             return [.faculdade, .enamed, .residencia, .revalida]
-        case .graduated, .skip, nil:
+        case .residencia:
+            return [.enamed, .residencia, .revalida]
+        case .vestibulando:
+            // TODO Rafael: vestibulando ainda não tem jornada própria. Por
+            // enquanto cai em FACULDADE pra não quebrar fluxo. Decisão pendente
+            // sobre criar journeyType=VESTIBULAR.
+            return [.faculdade]
+        case nil:
             return [.enamed, .residencia, .revalida]
         }
     }

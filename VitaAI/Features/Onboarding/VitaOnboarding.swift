@@ -26,6 +26,9 @@ struct VitaOnboarding: View {
     @State private var sleepOpacity: Double = 1.0
     @State private var wakeFlash: Double = 0
     @State private var mascotScale: CGFloat = 1.0
+    // Vita "envergonhada" — bochechas vermelhas durante o "Oiii, não tinha
+    // te visto aí" logo após acordar. Disparado pelo wakeUp(). Rafael 2026-04-28.
+    @State private var mascotBlushing: Bool = false
     @State private var showManualEntry = false
     @State private var typeTextId: UUID = UUID()
     // WhatsApp quick-link sheet, used by the ExtrasStep.
@@ -115,14 +118,24 @@ struct VitaOnboarding: View {
                 let shrinkForSearch = step == .welcome
                     && !(viewModel?.universityQuery.isEmpty ?? true)
                     && viewModel?.selectedUniversity == nil
+                // Onda 5b refined: status precisa de mais espaço pras 3 opções
+                // de fase + speech bubble grande não cortar a 3ª opção.
+                let shrinkForCompactStep = step == .statusFaculdade
+                let mascotSize: CGFloat = {
+                    if step == .sleep { return 120 }
+                    if shrinkForSearch { return 44 }
+                    if shrinkForCompactStep { return 72 }
+                    return 100
+                }()
                 if !(step == .connect && inlineConnectPortal != nil) {
                     VitaMascot(
                         state: mascotState,
-                        size: step == .sleep ? 120 : (shrinkForSearch ? 44 : 100)
+                        size: mascotSize,
+                        isBlushing: mascotBlushing
                     )
                         .scaleEffect(mascotScale)
-                        .padding(.top, step == .sleep ? 60 : (shrinkForSearch ? 0 : 16))
-                        .padding(.bottom, step == .sleep ? 0 : (shrinkForSearch ? 0 : 8))
+                        .padding(.top, step == .sleep ? 60 : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 4 : 16)))
+                        .padding(.bottom, step == .sleep ? 0 : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 2 : 8)))
                         .overlay(alignment: .top) {
                             if step == .sleep && mascotState == .sleeping {
                                 SleepingZs()
@@ -143,7 +156,11 @@ struct VitaOnboarding: View {
                 if step == .sleep {
                     SleepStep(onWake: { wakeUp() })
                 } else {
-                    ScrollView(showsIndicators: false) {
+                    // Onda 5b refined (Rafael 2026-04-28): scroll indicator
+                    // visível pra avisar quando tem conteúdo abaixo do botão
+                    // Continuar (caso típico: Welcome com semester picker logo
+                    // após escolher faculdade — sem indicador o user não vê).
+                    ScrollView(showsIndicators: true) {
                         VStack(spacing: 0) {
                             if !speechText.isEmpty {
                                 OnboardingSpeechBubble(text: speechText, isTyping: isTyping)
@@ -382,9 +399,9 @@ struct VitaOnboarding: View {
         guard let vm = viewModel else { return true }
         switch step {
         case .statusFaculdade:
-            guard let status = vm.inFaculdade else { return true }
-            if status == .yes && vm.selectedSemester < 1 { return true }
-            return false
+            // Onda 5b refined: agora 3 fases macro. Continuar libera assim que
+            // o usuário escolhe uma das 3 (vestibulando/graduando/residencia).
+            return vm.academicPhase == nil
         case .goal:
             return vm.selectedGoal == nil
         case .revalidaStage:
@@ -392,7 +409,8 @@ struct VitaOnboarding: View {
         case .residenciaSpecialty:
             return vm.targetSpecialtySlug == nil
         case .welcome:
-            return vm.selectedUniversity == nil
+            // Onda 5b: agora exige faculdade + semestre nesta tela só.
+            return vm.selectedUniversity == nil || vm.selectedSemester < 1
         default:
             return false
         }
@@ -421,7 +439,20 @@ struct VitaOnboarding: View {
     private func goBack() {
         guard step.rawValue > 1 else { return }
         showContent = false
+
+        // Onda 5b refined: pra Graduando o Goal vem POSPOSTO depois de subjects.
+        // Espelha a ordem do nextStep: welcome → status, goal → subjects,
+        // notifications → goal.
+        let isGraduando = viewModel?.academicPhase == .graduando
         var prevRaw = step.rawValue - 1
+        if isGraduando && step == .welcome {
+            prevRaw = OnboardingStep.statusFaculdade.rawValue
+        } else if isGraduando && step == .goal {
+            prevRaw = OnboardingStep.subjects.rawValue
+        } else if isGraduando && step == .notifications {
+            prevRaw = OnboardingStep.goal.rawValue
+        }
+
         // Respect smart-skip: skip back past steps that should be skipped
         while prevRaw > 1, let candidate = OnboardingStep(rawValue: prevRaw), shouldSkipStep(candidate) {
             prevRaw -= 1
@@ -506,22 +537,48 @@ struct VitaOnboarding: View {
             }
         }
 
-        // Phase 4: Transition to first real step (status — Onda 5b)
+        // Phase 4: Transition to first real step (status — Onda 5b). A Vita
+        // entra envergonhada: bochechas acendem por ~2.5s enquanto fala
+        // "Oiii, não tinha te visto aí". Rafael 2026-04-28.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             withAnimation {
                 step = .statusFaculdade
                 mascotState = .happy
+                mascotBlushing = true
             }
             typeText(String(localized: "onboarding_status_speech"))
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 withAnimation { showContent = true }
+            }
+            // Bochechas mantêm cor por 2.5s e voltam ao normal.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                withAnimation(.easeInOut(duration: 0.7)) {
+                    mascotBlushing = false
+                }
             }
         }
     }
 
     private func nextStep() {
         showContent = false
+
+        // Onda 5b refined (Rafael 2026-04-28): pra Graduando, Welcome+Connect
+        // vêm DIRETO depois do Status. Goal de longo prazo é perguntado só
+        // depois da sincronização (subjects → goal). Pra Vestibulando/Residência
+        // continua o fluxo padrão (status → goal → ...).
+        let isGraduando = viewModel?.academicPhase == .graduando
         var nextRaw = step.rawValue + 1
+
+        if isGraduando && step == .statusFaculdade {
+            // Status → pula Goal e Revalida → cai em Welcome (faculdade+sem).
+            nextRaw = OnboardingStep.welcome.rawValue
+        } else if isGraduando && step == .subjects {
+            // Subjects → Goal (depois dos conectores estarem montados).
+            nextRaw = OnboardingStep.goal.rawValue
+        } else if isGraduando && step == .goal {
+            // Após Goal (já no fim, pós-conectores) → segue pra notifications.
+            nextRaw = OnboardingStep.notifications.rawValue
+        }
 
         // Smart skip: jump past steps that have no content
         while let candidate = OnboardingStep(rawValue: nextRaw), shouldSkipStep(candidate) {

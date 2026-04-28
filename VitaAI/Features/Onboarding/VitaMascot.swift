@@ -59,6 +59,10 @@ struct OrbMascot: View {
     // pulse, blink) AND eyes are hidden. Used by LoginScreen pre-drag state
     // where the orb is meant to look "asleep, hiding under the screen edge".
     var idleEnabled: Bool = true
+    // When true, draws two rosy cheeks on the orb (envergonhado). Used pelo
+    // VitaOnboarding logo após o user acordar a Vita: ela fala "Oiii, não tinha
+    // te visto aí" enquanto cora rapidamente. Rafael 2026-04-28.
+    var isBlushing: Bool = false
 
     @State private var floatY: CGFloat = 0
     @State private var glowIntensity: Double = 0.3
@@ -201,6 +205,7 @@ struct OrbMascot: View {
                 orbNebula
                 orbTerminator
                 orbEyes
+                orbCheeks
             }
             .rotationEffect(.degrees(headTilt))
 
@@ -422,6 +427,39 @@ struct OrbMascot: View {
         // eyes must be fully invisible. Smoothly fades back in as drag begins.
         .opacity(idleEnabled ? 1 : 0)
         .animation(.easeInOut(duration: 0.4), value: idleEnabled)
+    }
+
+    // Bochechas avermelhadas — Vita meio envergonhado por estar dormindo.
+    // Acendem rapidamente quando ela acaba de acordar e diz "oiii". Usa
+    // RadialGradient pra ficar suave, não dois círculos planos. Respeita
+    // headTilt porque é parte do "rosto".
+    private var orbCheeks: some View {
+        HStack(spacing: size * 0.42) {
+            cheekDot
+            cheekDot
+        }
+        .offset(y: size * 0.10)
+        .opacity(isBlushing ? 0.65 : 0)
+        .animation(.easeInOut(duration: 0.45), value: isBlushing)
+        .blendMode(.screen)
+    }
+
+    private var cheekDot: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [
+                        Color(red: 1.0, green: 0.55, blue: 0.62).opacity(0.95),
+                        Color(red: 1.0, green: 0.42, blue: 0.50).opacity(0.55),
+                        .clear,
+                    ],
+                    center: .center,
+                    startRadius: 1,
+                    endRadius: size * 0.13
+                )
+            )
+            .frame(width: size * 0.22, height: size * 0.18)
+            .blur(radius: 3)
     }
 
     private var eyeView: some View {
@@ -665,9 +703,16 @@ struct VitaMascot: View {
     var size: CGFloat = 120
     var showStaff: Bool = false
     var idleEnabled: Bool = true
+    var isBlushing: Bool = false
 
     var body: some View {
-        OrbMascot(palette: .vita, state: state, size: size, idleEnabled: idleEnabled)
+        OrbMascot(
+            palette: .vita,
+            state: state,
+            size: size,
+            idleEnabled: idleEnabled,
+            isBlushing: isBlushing
+        )
     }
 }
 

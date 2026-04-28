@@ -340,8 +340,8 @@
 "~2 minutos" = "~2 minutos";
 
 /* ═══ Mascot speech (interpolated) ═══ */
-"onboarding_welcome_speech" = "Ahh! Nao tinha te visto ai!!\n\nEu sou Vita, preparado pra te ajudar a dominar medicina. Bora la — me conta onde tu estuda?";
-"onboarding_welcome_speech_name" = "Ahh! %@! Nao tinha te visto ai!!\n\nEu sou Vita, preparado pra te ajudar a dominar medicina. Bora la — me conta onde tu estuda?";
+"onboarding_welcome_speech" = "Ahh, Graduando! Me conta onde tu estuda?\n\nAssim eu consigo achar teu portal e te ajudar a organizar tua agenda, acompanhar tuas notas e frequências, e até fazer trabalhos com você!";
+"onboarding_welcome_speech_name" = "Ahh, %@! Me conta onde tu estuda?\n\nAssim eu consigo achar teu portal e te ajudar a organizar tua agenda, acompanhar tuas notas e frequências, e até fazer trabalhos com você!";
 "onboarding_connect_multi" = "Show, %1$@! Detectei %2$d sistemas que voces usam. Conecta que eu puxo tudo automaticamente.";
 "onboarding_connect_single" = "Show, %1$@! Detectei que voces usam %2$@. Conecta que eu puxo tuas materias e notas.";
 "onboarding_connect_none" = "Show, %@! Ainda nao conheco os portais da tua faculdade, mas conecta qualquer um que eu descubro automaticamente.";
@@ -410,14 +410,11 @@ Sem cobranca nos primeiros 7 dias.";
 "onboarding_uni_request_sent" = "Obrigado! Vamos adicionar sua faculdade em breve.";
 "sync_timeout" = "Tempo limite atingido. Usando dados parciais.";
 
-/* Onboarding v2 — Onda 5b (Rafael 2026-04-27) */
-"onboarding_status_speech" = "Antes de mais nada, me conta tua situacao academica.";
-"onboarding_status_yes" = "Sim, estou cursando";
-"onboarding_status_yes_sub" = "Faculdade de medicina no Brasil";
-"onboarding_status_graduated" = "Ja me formei";
-"onboarding_status_graduated_sub" = "Diploma de medicina conquistado";
-"onboarding_status_skip" = "Prefiro pular";
-"onboarding_status_skip_sub" = "Nao quero responder agora";
+/* Onboarding v2 — Onda 5b (Rafael 2026-04-27/28) */
+"onboarding_status_speech" = "Oiii, não tinha te visto aí 😳\n\nEu sou Vita, seu assistente de estudos! Fiquei sabendo que tu faz medicina? Me conta mais — vou montar o app de acordo com a tua fase na jornada acadêmica!";
+"onboarding_status_phase_vestibulando" = "Vestibulando";
+"onboarding_status_phase_graduando" = "Graduando";
+"onboarding_status_phase_residencia" = "Residência";
 
 "onboarding_goal_speech" = "Show. Qual seu objetivo principal agora?";
 "onboarding_goal_faculdade" = "Passar na faculdade";

@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Onboarding step after the institutional portal: teaches the user that Vita
-/// also works outside the university portal (WhatsApp, Drive, Calendar, Spotify).
-///
-/// All connections are optional — user can hit "Pular" at the bottom button row.
-/// WhatsApp is the headline because it's already live end-to-end.
-/// The other cards open the existing `/integrations/<provider>` OAuth flow.
+/// Onboarding step DEPOIS do portal institucional: integrações pra vida fora
+/// do app. Rafael 2026-04-28: Google Drive e Google Calendar saíram daqui —
+/// vão pra outra fase de conectores extras (Settings/Conectores) depois.
+/// Aqui ficam só WhatsApp (recomendado, end-to-end live) e Spotify (música
+/// durante transcrição). Tudo opcional — botão "Pular, configuro depois" no
+/// rodapé do shell.
 struct ExtrasStep: View {
     let api: VitaAPI
     let onConnectWhatsApp: () -> Void
@@ -14,33 +14,17 @@ struct ExtrasStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             OnboardingSpeechBubble(
-                text: "A VITA também vive fora da faculdade. Conecta o que fizer sentido — tudo opcional."
+                text: "O Vita também consegue conectar com WhatsApp, Spotify e mais coisas pra te ajudar fora do app — recomendo o WhatsApp pra falar comigo direto pelo zap!"
             )
 
             VStack(spacing: 10) {
                 extraCard(
                     letter: "W",
                     name: "WhatsApp",
-                    subtitle: "Receba lembretes e fale com a VITA pelo zap",
+                    subtitle: "Receba lembretes e fale comigo pelo zap",
                     color: Color(red: 0.15, green: 0.68, blue: 0.38),
-                    badge: "DESTAQUE",
+                    badge: "RECOMENDADO",
                     action: onConnectWhatsApp
-                )
-                extraCard(
-                    letter: "D",
-                    name: "Google Drive",
-                    subtitle: "Vita lê e organiza seus PDFs do Drive",
-                    color: Color(red: 0.25, green: 0.52, blue: 0.96),
-                    badge: nil,
-                    action: { onConnectIntegration("google_drive") }
-                )
-                extraCard(
-                    letter: "C",
-                    name: "Google Calendar",
-                    subtitle: "Sincroniza provas, trabalhos e aulas",
-                    color: Color(red: 0.96, green: 0.55, blue: 0.25),
-                    badge: nil,
-                    action: { onConnectIntegration("google_calendar") }
                 )
                 extraCard(
                     letter: "♫",
