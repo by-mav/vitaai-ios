@@ -55,6 +55,13 @@ enum VitaColors {
     static let dataIndigo = VitaTokens.PrimitiveColors.indigo400    // #a78bfa
     static let dataTeal   = VitaTokens.PrimitiveColors.teal400      // rgba(60,180,170)
 
+    // Semantic state colors — agents UI usam estes em vez de Color.red/.green direto.
+    // Adicione tokens novos aqui quando aparecer demanda nova de state.
+    static let recording  = VitaTokens.PrimitiveColors.red500       // REC indicator (Apple Notes/Notability/Goodnotes pattern)
+    static let success    = VitaTokens.PrimitiveColors.green500     // ✓ acertou, salvo, conectado
+    static let danger     = VitaTokens.PrimitiveColors.red500       // delete, error, destructive action
+    static let warning    = VitaTokens.PrimitiveColors.amber500     // alerta não-bloqueante
+
     // Tool-specific accent colors
     static let toolQBank       = VitaTokens.PrimitiveColors.gold400    // gold
     static let toolSimulados   = VitaTokens.PrimitiveColors.blue400    // blue
