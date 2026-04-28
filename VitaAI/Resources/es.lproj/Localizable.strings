@@ -435,3 +435,9 @@ Sin cobro los primeros 7 dias.";
 "onboarding_revalida_stage_segunda" = "Etapa 2 (clinica)";
 "onboarding_revalida_focus_question" = "Areas para enfocarte";
 "onboarding_revalida_focus_hint" = "Opcional. Elige una o mas.";
+
+/* Onboarding v2 — Slice 4 RESIDENCIA */
+"onboarding_residencia_speech" = "Genial. Que especialidad buscas? Busca o desplazate.";
+"onboarding_residencia_search_placeholder" = "Buscar especialidad...";
+"onboarding_residencia_section_direct" = "Acceso directo";
+"onboarding_residencia_section_prereq" = "Con pre-requisito";

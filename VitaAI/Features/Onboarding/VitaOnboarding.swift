@@ -258,6 +258,11 @@ struct VitaOnboarding: View {
                 RevalidaStageStep(viewModel: vm)
             }
 
+        case .residenciaSpecialty:
+            if let vm = viewModel {
+                ResidenciaSpecialtyStep(viewModel: vm, api: container.api)
+            }
+
         case .welcome:
             if let vm = viewModel {
                 WelcomeStep(viewModel: vm, showManualEntry: $showManualEntry)
@@ -384,6 +389,8 @@ struct VitaOnboarding: View {
             return vm.selectedGoal == nil
         case .revalidaStage:
             return vm.revalidaStage == nil
+        case .residenciaSpecialty:
+            return vm.targetSpecialtySlug == nil
         case .welcome:
             return vm.selectedUniversity == nil
         default:
@@ -397,6 +404,7 @@ struct VitaOnboarding: View {
         case .statusFaculdade: return String(localized: "onboarding_btn_continue")
         case .goal: return String(localized: "onboarding_btn_continue")
         case .revalidaStage: return String(localized: "onboarding_btn_continue")
+        case .residenciaSpecialty: return String(localized: "onboarding_btn_continue")
         case .welcome: return String(localized: "onboarding_btn_continue")
         case .connect: return String(localized: "onboarding_btn_continue")
         case .extras: return String(localized: "onboarding_btn_continue")
@@ -454,6 +462,9 @@ struct VitaOnboarding: View {
         case .revalidaStage:
             // Onda 5b: so aparece se goal=REVALIDA
             return vm.selectedGoal != .revalida
+        case .residenciaSpecialty:
+            // Onda 5b Slice 4: so aparece se goal=RESIDENCIA
+            return vm.selectedGoal != .residencia
         case .welcome:
             // Onda 5b: universidade so faz sentido se inFaculdade=yes
             return vm.inFaculdade != .yes
@@ -539,6 +550,10 @@ struct VitaOnboarding: View {
             case .revalidaStage:
                 mascotState = .happy
                 typeText(String(localized: "onboarding_revalida_speech"))
+
+            case .residenciaSpecialty:
+                mascotState = .happy
+                typeText(String(localized: "onboarding_residencia_speech"))
 
             case .welcome:
                 mascotState = .happy

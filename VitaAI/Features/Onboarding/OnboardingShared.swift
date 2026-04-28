@@ -10,6 +10,7 @@ enum OnboardingStep: Int, CaseIterable {
     case statusFaculdade = 1
     case goal = 2
     case revalidaStage = 3
+    case residenciaSpecialty = 12  // Slice 4: so se goal=RESIDENCIA. Numero alto pra nao quebrar AppStorage migration legacy.
     case welcome = 4
     case connect = 5
     case extras = 6           // WhatsApp, Google Drive, Calendar, Spotify — tudo opcional

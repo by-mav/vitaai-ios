@@ -657,6 +657,12 @@ actor VitaAPI {
         try await client.post("onboarding/v2", body: body)
     }
 
+    /// Onda 5b Slice 4 — lista canonica CNRM/MEC de especialidades medicas.
+    /// 22 acesso direto + 41 com pre-requisito. Cacheable (1h SWR 24h backend-side).
+    func getMedicalSpecialties() async throws -> MedicalSpecialtiesResponse {
+        try await client.get("medical-specialties")
+    }
+
     func requestUniversity(name: String, city: String, state: String) async throws {
         let body = UniversityRequestBody(name: name, city: city, state: state)
         let _: EmptyResponse = try await client.post("universities/request", body: body)
@@ -1054,6 +1060,26 @@ struct OnboardingV2Derived: Decodable {
     let journeyType: String?
     let contentOrganizationMode: String?
     let moment: String?
+}
+
+// MARK: - Medical Specialties (Onda 5b Slice 4)
+// Tabela canonica CNRM/MEC. SOT: vita-web migration 0080_medical_specialties.sql.
+
+struct MedicalSpecialty: Identifiable, Decodable, Hashable {
+    let slug: String
+    let name: String
+    let type: String  // "direct_access" | "with_prerequisite"
+    let prerequisiteSlug: String?
+    let displayOrder: Int
+    let cnrmCode: String?
+
+    var id: String { slug }
+}
+
+struct MedicalSpecialtiesResponse: Decodable {
+    let directAccess: [MedicalSpecialty]
+    let withPrerequisite: [MedicalSpecialty]
+    let total: Int
 }
 
 struct UniversityRequestBody: Encodable {

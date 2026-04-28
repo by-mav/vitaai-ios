@@ -435,3 +435,9 @@ Sem cobranca nos primeiros 7 dias.";
 "onboarding_revalida_stage_segunda" = "2a Etapa (clinica)";
 "onboarding_revalida_focus_question" = "Areas que tu quer focar";
 "onboarding_revalida_focus_hint" = "Opcional. Selecione uma ou mais.";
+
+/* Onboarding v2 — Slice 4 RESIDENCIA */
+"onboarding_residencia_speech" = "Show. Qual especialidade tu quer fazer? Procura ou rola a lista.";
+"onboarding_residencia_search_placeholder" = "Buscar especialidade...";
+"onboarding_residencia_section_direct" = "Acesso direto";
+"onboarding_residencia_section_prereq" = "Com pre-requisito";

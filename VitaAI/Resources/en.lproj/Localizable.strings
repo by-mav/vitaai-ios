@@ -435,3 +435,9 @@ No charge for the first 7 days.";
 "onboarding_revalida_stage_segunda" = "Stage 2 (clinical)";
 "onboarding_revalida_focus_question" = "Areas to focus on";
 "onboarding_revalida_focus_hint" = "Optional. Pick one or more.";
+
+/* Onboarding v2 — Slice 4 RESIDENCIA */
+"onboarding_residencia_speech" = "Cool. Which specialty are you aiming for? Search or scroll.";
+"onboarding_residencia_search_placeholder" = "Search specialty...";
+"onboarding_residencia_section_direct" = "Direct access";
+"onboarding_residencia_section_prereq" = "With prerequisite";

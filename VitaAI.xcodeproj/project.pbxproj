@@ -198,6 +198,7 @@
 		701F9B358E51E025342B3299 /* VitaXpBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 024B58C1B155077488B4F39B /* VitaXpBar.swift */; };
 		703BF29ABD3889F1EC2E0E70 /* QBankModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270B16079B86077F2A7DF37A /* QBankModels.swift */; };
 		70CB738E65A003E945F709D4 /* StudyTipCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C79FDD1109E963526A23728 /* StudyTipCard.swift */; };
+		70D052F03DF78D0E362F66EB /* ResidenciaSpecialtyStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E96AB7A08423A8BCCE6071D /* ResidenciaSpecialtyStep.swift */; };
 		7211533225678DCDD34327F1 /* ConfiguracoesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB516FEEE3F8C5A3FB28626 /* ConfiguracoesScreen.swift */; };
 		72AA2C1A529171ACC522ED97 /* VoiceModeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72CE7EA9BA0EA4B90790643F /* VoiceModeScreen.swift */; };
 		7319EEAD250EC8A9D70605FD /* VitaGlassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231B6498AE9ECCFB21DB6A6E /* VitaGlassCard.swift */; };
@@ -547,6 +548,7 @@
 		4C9F8EED42B1047B96D90764 /* VitaChatClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaChatClient.swift; sourceTree = "<group>"; };
 		4DA661BED8D89320A464C8C7 /* Tokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tokens.swift; sourceTree = "<group>"; };
 		4E1AF08937C97A79EB9351D1 /* SectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeader.swift; sourceTree = "<group>"; };
+		4E96AB7A08423A8BCCE6071D /* ResidenciaSpecialtyStep.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ResidenciaSpecialtyStep.swift; sourceTree = "<group>"; };
 		4EB6BF61CB525B0164B5BD4B /* SubjectsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectsStep.swift; sourceTree = "<group>"; };
 		4EBCC90E2A0A1B4640DDA686 /* DashboardHeroCardPillsInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardHeroCardPillsInner.swift; sourceTree = "<group>"; };
 		505DF51B5393856BAA326D17 /* CreateCheckoutSession200Response.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateCheckoutSession200Response.swift; sourceTree = "<group>"; };
@@ -832,6 +834,7 @@
 				3A3E0B7791DFF9ED2339C93C /* StatusFaculdadeStep.swift */,
 				A696162E6910C46E7C61171B /* GoalStep.swift */,
 				A8D57A0A5D8F8E4C598623D4 /* RevalidaStageStep.swift */,
+				4E96AB7A08423A8BCCE6071D /* ResidenciaSpecialtyStep.swift */,
 			);
 			path = Steps;
 			sourceTree = "<group>";
@@ -1180,6 +1183,7 @@
 				C0924E04E0C3C4C5E2440A8C /* Trabalho */,
 				7D2D794CB25A23471BF6B190 /* Transcricao */,
 				DF5ADB235B9B0AE47A322BCA /* WebAluno */,
+				9D2122E1D2613BC2EF19E8C2 /* _Gallery */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -1433,6 +1437,14 @@
 				2421F4FE9CE16A93CEF4288B /* RealtimeStream.swift */,
 			);
 			path = Realtime;
+			sourceTree = "<group>";
+		};
+		9D2122E1D2613BC2EF19E8C2 /* _Gallery */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = _Gallery;
+			path = _Gallery;
 			sourceTree = "<group>";
 		};
 		9E10A3FC905CDBFCF714DCBD /* Config */ = {
@@ -2243,6 +2255,7 @@
 				7E48A4A7BAA3870B9DC19BB8 /* StatusFaculdadeStep.swift in Sources */,
 				E404201BF0F92AB8788934F2 /* GoalStep.swift in Sources */,
 				D7A3BE30CB3660A8C5CF3FBE /* RevalidaStageStep.swift in Sources */,
+				70D052F03DF78D0E362F66EB /* ResidenciaSpecialtyStep.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
