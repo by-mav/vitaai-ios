@@ -1671,15 +1671,68 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         }
     }
 
-    /// Snap-on-pause shape recognition (Goodnotes 6 pattern). DESLIGADO
-    /// temporariamente — bug 2026-04-26: estava substituindo strokes legítimos
-    /// (escrita à mão, letras) por shapes vazios, fazendo desenhos sumirem.
-    /// Algoritmo precisa de threshold mais conservador + telemetria antes de
-    /// re-habilitar. Mantenho a infra (PdfShapeSnap.swift + delegate hook)
-    /// pra reativar quando o algoritmo for revisto.
+    /// Snap-on-pause shape recognition (Goodnotes 6 / Notability pattern).
+    ///
+    /// **Histórico:**
+    ///   - 2026-04-26 commit f1e0f92: implementação inicial.
+    ///   - 2026-04-26 commit 29e9ead: DESLIGADO porque algoritmo convertia
+    ///     letras manuscritas em shapes vazios.
+    ///   - 2026-04-28: REATIVADO com guards conservadores e setting toggle.
+    ///
+    /// **Por que não usar API Apple:** PencilKit não expõe shape recognition
+    /// pública pra third-party (forums confirmam — só Notes/Markup têm).
+    /// WWDC24 mostra "pause-to-snap" no Marker mas o trigger é interno.
+    /// Implementamos custom com guards anti-letra robustos.
+    ///
+    /// **Setting:** `pdf.shapeSnap.enabled` (default OFF — segurança). Setting
+    /// vive em PdfSettingsSheet.
+    ///
+    /// **Confidence gate:** só aplica se `confidence >= 0.85` (resíduo bem
+    /// abaixo do threshold máximo). Reduz ainda mais falsos positivos.
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
-        // Bypass completo até calibração do detect() ficar segura.
-        return
+        // Setting toggle — default OFF. Usuário liga em PdfSettingsSheet.
+        guard UserDefaults.standard.bool(forKey: "pdf.shapeSnap.enabled") else { return }
+
+        guard let lastStroke = canvasView.drawing.strokes.last else { return }
+
+        let (result, outcome) = PdfShapeSnap.detect(stroke: lastStroke)
+
+        // Telemetria do outcome (mesmo quando rejeita — pra calibrar thresholds).
+        let outcomeProps: [String: Any]
+        switch outcome {
+        case .appliedLine(let conf):
+            outcomeProps = ["kind": "line", "confidence": Double(conf), "applied": false]
+        case .appliedCircle(let conf):
+            outcomeProps = ["kind": "circle", "confidence": Double(conf), "applied": false]
+        case .rejectedTooShort:
+            outcomeProps = ["kind": "none", "reason": "tooShort", "applied": false]
+        case .rejectedTooSmall:
+            outcomeProps = ["kind": "none", "reason": "tooSmall", "applied": false]
+        case .rejectedTooFewPoints:
+            outcomeProps = ["kind": "none", "reason": "tooFewPoints", "applied": false]
+        case .rejectedNoMatch:
+            outcomeProps = ["kind": "none", "reason": "noMatch", "applied": false]
+        }
+
+        // Confidence gate: só substitui se algoritmo está MUITO seguro.
+        let minConfidence: CGFloat = 0.85
+        let appliedKind: String?
+        switch (result, outcome) {
+        case (.line, .appliedLine(let conf)) where conf >= minConfidence:
+            applySnapResult(result, lastStroke: lastStroke, canvasView: canvasView)
+            appliedKind = "line"
+        case (.circle, .appliedCircle(let conf)) where conf >= minConfidence:
+            applySnapResult(result, lastStroke: lastStroke, canvasView: canvasView)
+            appliedKind = "circle"
+        default:
+            appliedKind = nil
+        }
+
+        // Evento final reflete o que efetivamente aconteceu.
+        var finalProps = outcomeProps
+        finalProps["applied"] = appliedKind != nil
+        if let appliedKind { finalProps["kind"] = appliedKind }
+        VitaPostHogConfig.capture(event: "pdf_shape_snap_applied", properties: finalProps)
     }
 
     /// Substitui o último stroke do canvas por uma versão geometricamente
@@ -1695,14 +1748,6 @@ private final class Coordinator: NSObject, PDFPageOverlayViewProvider, PDFViewDe
         strokes.removeLast()
         strokes.append(replacement)
         canvasView.drawing = PKDrawing(strokes: strokes)
-
-        let kind: String
-        switch result {
-        case .line: kind = "line"
-        case .circle: kind = "circle"
-        case .none: kind = "none"
-        }
-        VitaPostHogConfig.capture(event: "pdf_shape_snapped", properties: ["kind": kind])
     }
 
     // MARK: PDFViewDelegate — page change notification

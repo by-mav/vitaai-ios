@@ -33,40 +33,113 @@ enum PdfShapeSnap {
 
     /// Configuração de threshold. Valores mais altos = mais permissivo (pega
     /// mais shapes mas com mais falsos positivos). Default conservador.
+    ///
+    /// **Guards anti-letra (2026-04-28 reativação):** o bug de 2026-04-26 foi
+    /// substituir letras manuscritas por shapes vazios. Letras manuscritas
+    /// têm assinatura distinta de shapes intencionais:
+    ///   - Letras: rápidas (<0.3s), pequenas (<40pt bbox), poucos pontos
+    ///   - Shape intencional: usuário desacelera, ocupa espaço, mais pontos
+    /// Os campos `minStrokeDuration` + `minBboxSize` + `lineMinLength` +
+    /// `lineMinAspectRatio` somados eliminam praticamente todos os falsos
+    /// positivos em escrita à mão.
     struct Config {
         /// Mínimo de pontos pra considerar tentativa de snap (descarta micro-strokes).
-        var minPoints: Int = 8
+        /// Raised 8→20 (2026-04-28) — letras curtas (i, l, t, /) tinham 8-15 pontos.
+        var minPoints: Int = 20
+        /// Duração mínima do stroke. Letras são rabiscadas em <0.3s; shape
+        /// intencional o usuário pausa um pouco (>0.4s).
+        var minStrokeDuration: TimeInterval = 0.4
+        /// Tamanho mínimo do bounding box (max(width, height) em pontos).
+        /// Letras manuscritas tipicamente <40pt; shapes intencionais ≥60pt.
+        var minBboxSize: CGFloat = 60
         /// Resíduo máximo (normalizado pelo bounding box) pra aceitar como linha.
-        var lineResidualThreshold: CGFloat = 0.04
+        /// Apertado 0.04→0.025 (2026-04-28) — só linhas REALMENTE retas.
+        var lineResidualThreshold: CGFloat = 0.025
+        /// Comprimento mínimo da linha em pontos. Linhas curtas viram letras
+        /// tipo "I", "l", "/", "−". 100pt = ~2.5cm no display.
+        var lineMinLength: CGFloat = 100
+        /// Aspect ratio mínimo do bbox pra considerar linha (lado_longo/lado_curto).
+        /// Linha intencional é estreita (>5:1); letras são quase quadradas (~1:1).
+        var lineMinAspectRatio: CGFloat = 5.0
         /// Resíduo máximo pra aceitar como círculo.
-        var circleResidualThreshold: CGFloat = 0.05
+        /// Apertado 0.05→0.04 (2026-04-28).
+        var circleResidualThreshold: CGFloat = 0.04
         /// Razão mínima pra considerar círculo (perimetro / hipotenuse_bbox).
-        /// Círculo fechado tem ratio > 2.5 — descarta arcos abertos.
-        var circleClosureRatio: CGFloat = 2.0
+        /// Círculo fechado tem ratio > 2.5 — descarta arcos abertos. Subido pra 2.4.
+        var circleClosureRatio: CGFloat = 2.4
+        /// Razão de fechamento (distância entre primeiro e último ponto / perímetro).
+        /// Círculo fecha (<0.15); letra "C", "U", arco aberto não.
+        var circleMaxOpenness: CGFloat = 0.18
 
         static let `default` = Config()
     }
 
-    /// Detecta a melhor shape pra um stroke. Retorna `.none` se nada bater no
-    /// threshold (caller mantém o stroke original).
-    static func detect(stroke: PKStroke, config: Config = .default) -> Result {
+    /// Telemetria do que aconteceu no detect — pra PostHog poder ver se o
+    /// algoritmo está sendo chamado mas rejeitando, ou nem tentando.
+    enum DetectOutcome {
+        case appliedLine(confidence: CGFloat)
+        case appliedCircle(confidence: CGFloat)
+        case rejectedTooShort               // duração < minStrokeDuration
+        case rejectedTooSmall               // bbox < minBboxSize
+        case rejectedTooFewPoints           // < minPoints
+        case rejectedNoMatch                // passou guards mas nem linha nem círculo bateu
+    }
+
+    /// Detecta a melhor shape pra um stroke. Retorna Result + outcome telemetria.
+    ///
+    /// **Guards de entrada** (todos precisam passar antes de tentar fit):
+    ///   1. `points.count >= minPoints` (20)
+    ///   2. duração do stroke `>= minStrokeDuration` (0.4s)
+    ///   3. `max(bbox.width, bbox.height) >= minBboxSize` (60pt)
+    ///
+    /// Se algum guard falhar → `.none` + outcome correspondente. Garantia: nenhuma
+    /// letra manuscrita típica passa todos os 3.
+    static func detect(stroke: PKStroke, config: Config = .default) -> (result: Result, outcome: DetectOutcome) {
         let points = stroke.path.map { $0.location }
-        guard points.count >= config.minPoints else { return .none }
+
+        // Guard 1: mínimo de pontos.
+        guard points.count >= config.minPoints else {
+            return (.none, .rejectedTooFewPoints)
+        }
+
+        // Guard 2: duração do stroke. PKStrokePoint tem timeOffset; total =
+        // último - primeiro.
+        let duration: TimeInterval
+        if let firstPoint = stroke.path.first, let lastPoint = stroke.path.last {
+            duration = lastPoint.timeOffset - firstPoint.timeOffset
+        } else {
+            duration = 0
+        }
+        guard duration >= config.minStrokeDuration else {
+            return (.none, .rejectedTooShort)
+        }
+
+        // Guard 3: tamanho do bbox.
+        let bbox = boundingBox(points)
+        let bboxSize = max(bbox.width, bbox.height)
+        guard bboxSize >= config.minBboxSize else {
+            return (.none, .rejectedTooSmall)
+        }
 
         // Tenta linha primeiro (mais barato + mais comum).
-        if let line = tryLine(points: points, threshold: config.lineResidualThreshold) {
-            return .line(start: line.start, end: line.end)
+        if let line = tryLine(points: points,
+                              threshold: config.lineResidualThreshold,
+                              minLength: config.lineMinLength,
+                              minAspectRatio: config.lineMinAspectRatio,
+                              bbox: bbox) {
+            return (.line(start: line.start, end: line.end), .appliedLine(confidence: line.confidence))
         }
 
         // Tenta círculo (mais caro, requer pontos suficientes pra fit estável).
-        if points.count >= 12,
+        if points.count >= 24,
            let circle = tryCircle(points: points,
                                   residualThreshold: config.circleResidualThreshold,
-                                  closureRatio: config.circleClosureRatio) {
-            return .circle(center: circle.center, radius: circle.radius)
+                                  closureRatio: config.circleClosureRatio,
+                                  maxOpenness: config.circleMaxOpenness) {
+            return (.circle(center: circle.center, radius: circle.radius), .appliedCircle(confidence: circle.confidence))
         }
 
-        return .none
+        return (.none, .rejectedNoMatch)
     }
 
     /// Constrói um PKStroke geométrico limpo a partir de um Result, herdando o
@@ -86,7 +159,21 @@ enum PdfShapeSnap {
 
     /// Tenta ajustar uma reta aos pontos via least-squares. Retorna start/end
     /// projetados sobre a reta, com resíduo médio normalizado pelo bbox.
-    private static func tryLine(points: [CGPoint], threshold: CGFloat) -> (start: CGPoint, end: CGPoint)? {
+    ///
+    /// Guards adicionais (anti-letra):
+    ///   - `minLength`: linha curta vira letras "l"/"/"/"-".
+    ///   - `minAspectRatio`: bbox precisa ser longo+estreito (>5:1).
+    private static func tryLine(points: [CGPoint],
+                                threshold: CGFloat,
+                                minLength: CGFloat,
+                                minAspectRatio: CGFloat,
+                                bbox: CGRect) -> (start: CGPoint, end: CGPoint, confidence: CGFloat)? {
+        // Aspect ratio guard — letras manuscritas têm ratio ~1-2 (quase quadrado).
+        let longSide = max(bbox.width, bbox.height)
+        let shortSide = max(min(bbox.width, bbox.height), 1)  // evita /0
+        let aspectRatio = longSide / shortSide
+        guard aspectRatio >= minAspectRatio else { return nil }
+
         let n = CGFloat(points.count)
         var sumX: CGFloat = 0, sumY: CGFloat = 0, sumXX: CGFloat = 0, sumXY: CGFloat = 0
         for p in points {
@@ -94,55 +181,76 @@ enum PdfShapeSnap {
             sumXX += p.x * p.x; sumXY += p.x * p.y
         }
         let denom = n * sumXX - sumX * sumX
-        guard abs(denom) > 1e-6 else {
-            // Linha vertical — fallback: pega pontos extremos no eixo Y.
-            if let minY = points.min(by: { $0.y < $1.y }),
-               let maxY = points.max(by: { $0.y < $1.y }),
-               abs(maxY.y - minY.y) > 10 {
-                return (minY, maxY)
-            }
-            return nil
-        }
-        let slope = (n * sumXY - sumX * sumY) / denom
-        let intercept = (sumY - slope * sumX) / n
 
-        // Resíduo médio (distância perpendicular dos pontos à reta y = mx + b).
-        // d = |y - (mx + b)| / sqrt(1 + m^2)
-        let denomDist = sqrt(1 + slope * slope)
-        var residualSum: CGFloat = 0
-        for p in points {
-            residualSum += abs(p.y - (slope * p.x + intercept)) / denomDist
-        }
-        let avgResidual = residualSum / n
-
-        // Normaliza pelo tamanho do bbox.
-        let bbox = boundingBox(points)
+        let projFirst: CGPoint
+        let projLast: CGPoint
+        let avgResidual: CGFloat
         let bboxDiag = hypot(bbox.width, bbox.height)
         guard bboxDiag > 1 else { return nil }
-        let normResidual = avgResidual / bboxDiag
 
+        if abs(denom) > 1e-6 {
+            let slope = (n * sumXY - sumX * sumY) / denom
+            let intercept = (sumY - slope * sumX) / n
+
+            // Resíduo médio (distância perpendicular dos pontos à reta y = mx + b).
+            let denomDist = sqrt(1 + slope * slope)
+            var residualSum: CGFloat = 0
+            for p in points {
+                residualSum += abs(p.y - (slope * p.x + intercept)) / denomDist
+            }
+            avgResidual = residualSum / n
+
+            projFirst = projectOntoLine(point: points.first!, slope: slope, intercept: intercept)
+            projLast  = projectOntoLine(point: points.last!,  slope: slope, intercept: intercept)
+        } else {
+            // Linha vertical — fallback.
+            guard let minY = points.min(by: { $0.y < $1.y }),
+                  let maxY = points.max(by: { $0.y < $1.y }),
+                  abs(maxY.y - minY.y) > 10 else { return nil }
+            projFirst = minY
+            projLast = maxY
+            // Resíduo: dispersão em x.
+            let avgX = sumX / n
+            var residualSum: CGFloat = 0
+            for p in points { residualSum += abs(p.x - avgX) }
+            avgResidual = residualSum / n
+        }
+
+        // Comprimento mínimo (anti "l"/"/"/"-").
+        let lineLength = hypot(projLast.x - projFirst.x, projLast.y - projFirst.y)
+        guard lineLength >= minLength else { return nil }
+
+        let normResidual = avgResidual / bboxDiag
         guard normResidual <= threshold else { return nil }
 
-        // Projeta primeiro e último ponto sobre a reta pra obter endpoints
-        // perfeitos.
-        let first = points.first!
-        let last = points.last!
-        let projFirst = projectOntoLine(point: first, slope: slope, intercept: intercept)
-        let projLast = projectOntoLine(point: last, slope: slope, intercept: intercept)
-        return (projFirst, projLast)
+        // Confidence: 1.0 = resíduo zero, 0.0 = no threshold.
+        let confidence = max(0, 1 - (normResidual / threshold))
+        return (projFirst, projLast, confidence)
     }
 
     /// Algebraic least-squares circle fit. Retorna center+radius+resíduo.
     /// Algoritmo: minimiza ||A·x = b||^2 onde A = [2x, 2y, 1], x = [a, b, c],
     /// b = x²+y². Center = (a, b), radius = sqrt(c + a² + b²).
+    ///
+    /// Guards adicionais (anti-letra):
+    ///   - `closureRatio`: perímetro / diagonal_bbox ≥ 2.4 (círculo dá volta).
+    ///   - `maxOpenness`: gap(primeiro, último) / perímetro ≤ 0.18 (círculo fecha).
     private static func tryCircle(points: [CGPoint],
                                   residualThreshold: CGFloat,
-                                  closureRatio: CGFloat) -> (center: CGPoint, radius: CGFloat)? {
+                                  closureRatio: CGFloat,
+                                  maxOpenness: CGFloat) -> (center: CGPoint, radius: CGFloat, confidence: CGFloat)? {
         // Validação de fechamento — círculos têm perímetro >> hipotenusa do bbox.
         let perim = pathLength(points)
         let bbox = boundingBox(points)
         let bboxDiag = hypot(bbox.width, bbox.height)
         guard bboxDiag > 1, perim / bboxDiag >= closureRatio else { return nil }
+
+        // Openness — círculo intencional fecha. Letras "C", "U", arcos abertos
+        // têm gap grande relativo ao perímetro.
+        if let first = points.first, let last = points.last, perim > 1 {
+            let gap = hypot(last.x - first.x, last.y - first.y)
+            guard gap / perim <= maxOpenness else { return nil }
+        }
 
         // Monta sistema A·x = b (3x3 normal equations).
         var s00: CGFloat = 0, s01: CGFloat = 0, s02: CGFloat = 0
@@ -192,7 +300,8 @@ enum PdfShapeSnap {
         let normResidual = avgResidual / radius
 
         guard normResidual <= residualThreshold else { return nil }
-        return (center, radius)
+        let confidence = max(0, 1 - (normResidual / residualThreshold))
+        return (center, radius, confidence)
     }
 
     private static func projectOntoLine(point: CGPoint, slope: CGFloat, intercept: CGFloat) -> CGPoint {

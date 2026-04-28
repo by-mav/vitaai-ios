@@ -25,6 +25,9 @@ struct PdfSettingsSheet: View {
     @AppStorage("pdf.settings.darkMode")        private var darkMode: Bool = false
     @AppStorage("pdf.settings.brightness")      private var brightness: Double = 1.0
     @AppStorage("pdf.settings.freeTextSize")    private var freeTextSize: Double = 16.0
+    // Shape snap reactivated 2026-04-28 — default OFF (segurança até confirmar
+    // em uso real que guards anti-letra estão calibrados). Usuário liga aqui.
+    @AppStorage("pdf.shapeSnap.enabled")        private var shapeSnapEnabled: Bool = false
 
     @State private var showResetConfirm: Bool = false
 
@@ -58,6 +61,12 @@ struct PdfSettingsSheet: View {
                             disabled: !isPad
                         )
                         .onChange(of: twoPageSpread) { _, _ in applyLive() }
+
+                        toggleRow(
+                            title: "Snap de formas",
+                            subtitle: "Linha torta vira reta, círculo torto vira perfeito (estilo Goodnotes)",
+                            isOn: $shapeSnapEnabled
+                        )
                     }
 
                     section("Aparência") {
