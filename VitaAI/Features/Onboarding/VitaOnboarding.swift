@@ -2,7 +2,8 @@ import SwiftUI
 import UserNotifications
 
 // MARK: - VitaOnboarding — Full onboarding flow coordinator
-// Steps: Sleep -> Welcome -> Connect -> Syncing -> Subjects -> Notifications -> Trial -> Done
+// Steps (Onda 5b): Sleep -> StatusFaculdade -> Goal -> [RevalidaStage|Welcome] -> Connect -> Syncing -> Subjects -> Notifications -> Trial -> Done
+// Fork por journeyType (FACULDADE/INTERNATO/ENAMED/RESIDENCIA/REVALIDA). SOT: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md
 
 private struct PortalSheetItem: Identifiable {
     let id: String
@@ -13,7 +14,7 @@ struct VitaOnboarding: View {
     @Environment(\.appContainer) private var container
     // Persist current step so if the app restarts mid-onboarding the user
     // resumes where they stopped instead of going back to the sleep intro.
-    @AppStorage("vita_onboarding_last_step") private var lastStepRaw: Int = OnboardingStep.sleep.rawValue
+    @AppStorage("vita_onboarding_last_step_v2") private var lastStepRaw: Int = OnboardingStep.sleep.rawValue
     @State private var step: OnboardingStep = .sleep
     @State private var mascotState: VitaMascotState = .sleeping
     @State private var viewModel: OnboardingViewModel?
@@ -205,8 +206,21 @@ struct VitaOnboarding: View {
                 viewModel = OnboardingViewModel(tokenStore: container.tokenStore, api: container.api)
                 Task { await viewModel?.loadUniversities() }
             }
-            // Resume from the last step the user reached (unless they'd fully completed it —
-            // .done means the flow is over and we'd never be shown anyway).
+            // Onda 5b — migracao AppStorage v1 -> v2 (Rafael 2026-04-27).
+            // Enum mudou: sleep=0, statusFaculdade=1, goal=2, revalidaStage=3, welcome=4...
+            // Antes: sleep=0, welcome=1, connect=2, extras=3, syncing=4, subjects=5...
+            // Mapeamento: legacy >= 1 -> v2 = legacy + 3. Roda 1x se v2 ainda no default.
+            if lastStepRaw == OnboardingStep.sleep.rawValue {
+                let legacyDefaults = UserDefaults.standard
+                let legacyKey = "vita_onboarding_last_step"
+                let legacyValue = legacyDefaults.integer(forKey: legacyKey)
+                if legacyValue >= 1 && legacyValue <= 8 {
+                    let migrated = legacyValue + 3
+                    lastStepRaw = migrated
+                    print("[Onboarding] Migrated AppStorage v1=\(legacyValue) -> v2=\(migrated)")
+                }
+                legacyDefaults.removeObject(forKey: legacyKey)
+            }
             if let saved = OnboardingStep(rawValue: lastStepRaw),
                saved != .sleep,
                saved != .done {
@@ -228,6 +242,21 @@ struct VitaOnboarding: View {
         switch step {
         case .sleep:
             EmptyView()
+
+        case .statusFaculdade:
+            if let vm = viewModel {
+                StatusFaculdadeStep(viewModel: vm)
+            }
+
+        case .goal:
+            if let vm = viewModel {
+                GoalStep(viewModel: vm)
+            }
+
+        case .revalidaStage:
+            if let vm = viewModel {
+                RevalidaStageStep(viewModel: vm)
+            }
 
         case .welcome:
             if let vm = viewModel {
@@ -324,8 +353,8 @@ struct VitaOnboarding: View {
                         )
                 )
             }
-            .disabled(step == .welcome && viewModel?.selectedUniversity == nil)
-            .opacity(step == .welcome && viewModel?.selectedUniversity == nil ? 0.3 : 1)
+            .disabled(isContinueDisabled)
+            .opacity(isContinueDisabled ? 0.3 : 1)
 
             if step == .welcome || step == .connect || step == .extras || step == .subjects {
                 Button(action: {
@@ -343,9 +372,31 @@ struct VitaOnboarding: View {
         }
     }
 
+    /// Onda 5b: gating para o bottom button. Cada step tem regra propria.
+    private var isContinueDisabled: Bool {
+        guard let vm = viewModel else { return true }
+        switch step {
+        case .statusFaculdade:
+            guard let status = vm.inFaculdade else { return true }
+            if status == .yes && vm.selectedSemester < 1 { return true }
+            return false
+        case .goal:
+            return vm.selectedGoal == nil
+        case .revalidaStage:
+            return vm.revalidaStage == nil
+        case .welcome:
+            return vm.selectedUniversity == nil
+        default:
+            return false
+        }
+    }
+
     private var buttonText: String {
         switch step {
         case .sleep: return ""
+        case .statusFaculdade: return String(localized: "onboarding_btn_continue")
+        case .goal: return String(localized: "onboarding_btn_continue")
+        case .revalidaStage: return String(localized: "onboarding_btn_continue")
         case .welcome: return String(localized: "onboarding_btn_continue")
         case .connect: return String(localized: "onboarding_btn_continue")
         case .extras: return String(localized: "onboarding_btn_continue")
@@ -400,12 +451,17 @@ struct VitaOnboarding: View {
     private func shouldSkipStep(_ step: OnboardingStep) -> Bool {
         guard let vm = viewModel else { return false }
         switch step {
+        case .revalidaStage:
+            // Onda 5b: so aparece se goal=REVALIDA
+            return vm.selectedGoal != .revalida
+        case .welcome:
+            // Onda 5b: universidade so faz sentido se inFaculdade=yes
+            return vm.inFaculdade != .yes
+        case .connect:
+            return vm.inFaculdade != .yes
         case .syncing:
-            // Skip syncing if no portal was actually connected during onboarding.
-            // Having portals listed for the university doesn't mean the user connected them.
             return vm.activeSyncId == nil
         case .subjects:
-            // Skip subjects if sync didn't find any
             return vm.syncedSubjects.isEmpty
         default:
             return false
@@ -439,14 +495,13 @@ struct VitaOnboarding: View {
             }
         }
 
-        // Phase 4: Transition to welcome
+        // Phase 4: Transition to first real step (status — Onda 5b)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             withAnimation {
-                step = .welcome
+                step = .statusFaculdade
                 mascotState = .happy
             }
-            let firstName = userName.split(separator: " ").first.map(String.init) ?? ""
-            typeText(firstName.isEmpty ? String(localized: "onboarding_welcome_speech") : String(localized: "onboarding_welcome_speech_name").replacingOccurrences(of: "%@", with: firstName))
+            typeText(String(localized: "onboarding_status_speech"))
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 withAnimation { showContent = true }
             }
@@ -473,6 +528,23 @@ struct VitaOnboarding: View {
             }
 
             switch next {
+            case .statusFaculdade:
+                mascotState = .happy
+                typeText(String(localized: "onboarding_status_speech"))
+
+            case .goal:
+                mascotState = .happy
+                typeText(String(localized: "onboarding_goal_speech"))
+
+            case .revalidaStage:
+                mascotState = .happy
+                typeText(String(localized: "onboarding_revalida_speech"))
+
+            case .welcome:
+                mascotState = .happy
+                let firstName = userName.split(separator: " ").first.map(String.init) ?? ""
+                typeText(firstName.isEmpty ? String(localized: "onboarding_welcome_speech") : String(localized: "onboarding_welcome_speech_name").replacingOccurrences(of: "%@", with: firstName))
+
             case .connect:
                 mascotState = .thinking
                 let uniName = viewModel?.selectedUniversity?.shortName ?? ""

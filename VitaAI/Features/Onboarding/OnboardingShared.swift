@@ -4,14 +4,20 @@ import SwiftUI
 
 enum OnboardingStep: Int, CaseIterable {
     case sleep = 0
-    case welcome = 1
-    case connect = 2
-    case extras = 3           // WhatsApp, Google Drive, Calendar, Spotify — tudo opcional
-    case syncing = 4
-    case subjects = 5
-    case notifications = 6
-    case trial = 7
-    case done = 8
+    // Onda 5b (Rafael 2026-04-27) — fork por journeyType (REVALIDA/RESIDENCIA/ENAMED/FACULDADE/INTERNATO).
+    // statusFaculdade + goal sao SEMPRE mostrados (P2 + P1 do onboarding v2).
+    // revalidaStage so aparece se goal=REVALIDA. welcome/connect so se inFaculdade=yes.
+    case statusFaculdade = 1
+    case goal = 2
+    case revalidaStage = 3
+    case welcome = 4
+    case connect = 5
+    case extras = 6           // WhatsApp, Google Drive, Calendar, Spotify — tudo opcional
+    case syncing = 7
+    case subjects = 8
+    case notifications = 9
+    case trial = 10
+    case done = 11
 }
 
 // MARK: - Speech Bubble

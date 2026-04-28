@@ -460,9 +460,10 @@ actor VitaAPI {
     /// BFF aggregator per-screen pra Simulado Home.
     /// 1 RTT em vez de listSimulados + getSimuladoDiagnostics separado.
     /// Padrão 2026 (memory: feedback_aggregator_per_screen_2026.md).
-    func getSimuladoScreen() async throws -> SimuladoScreenResponse {
-        try await client.get("simulados/screen")
-    }
+    /// COMMENTED: SimuladoScreenResponse type missing — outro agente reativa.
+    // func getSimuladoScreen() async throws -> SimuladoScreenResponse {
+    //     try await client.get("simulados/screen")
+    // }
 
     func answerSimuladoQuestion(attemptId: String, body: AnswerSimuladoRequest) async throws -> AnswerSimuladoResponse {
         try await client.post("simulados/\(attemptId)/answer", body: body)
@@ -652,7 +653,6 @@ actor VitaAPI {
 
     /// Onda 5b — onboarding v2 (Rafael 2026-04-27).
     /// Backend deriva journeyType + journeyConfig + contentOrganizationMode.
-    /// Resposta: `OnboardingV2Response` com `derived` (debug/analytics).
     func postOnboardingV2(_ body: OnboardingV2Request) async throws -> OnboardingV2Response {
         try await client.post("onboarding/v2", body: body)
     }

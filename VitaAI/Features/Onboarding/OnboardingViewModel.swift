@@ -17,6 +17,17 @@ final class OnboardingViewModel {
     var selectedSemester: Int = 0
     var allUniversities: [University] = []
 
+    // MARK: - Onboarding v2 (Onda 5b, Rafael 2026-04-27)
+    // Fork por journeyType (REVALIDA/RESIDENCIA/ENAMED/FACULDADE).
+    // SOT do payload: vitaai-web/src/lib/validators.ts onboardingV2Schema.
+
+    var inFaculdade: InFaculdadeStatus? = nil
+    var selectedGoal: OnboardingGoal? = nil
+    var revalidaStage: RevalidaStage? = nil
+    var revalidaFocusAreas: [String] = []
+    var targetSpecialtySlug: String? = nil
+    var targetInstitutions: [String] = []
+
     // MARK: - Sync (shared between Connect → Syncing → Subjects → Done)
     var activeSyncId: String?
     var syncedSubjects: [SyncedSubject] = []
@@ -160,9 +171,18 @@ final class OnboardingViewModel {
             "semester": data.semester,
             "disciplines_count": subjects.count,
             "portal_connected": !syncedSubjects.isEmpty,
+            "goal": selectedGoal?.rawValue ?? "legacy",
+            "in_faculdade": inFaculdade?.rawValue ?? "n/a",
         ])
         await tokenStore.saveOnboardingData(data)
-        await postOnboardingToBackend(data: data)
+
+        if selectedGoal != nil {
+            // Onda 5b — onboarding v2 (fork journey)
+            await postOnboardingV2ToBackend(data: data)
+        } else {
+            // Legacy fallback (mid-flow users sem selectedGoal)
+            await postOnboardingToBackend(data: data)
+        }
         isSaving = false
     }
 
@@ -185,12 +205,66 @@ final class OnboardingViewModel {
         do {
             try await api.postOnboarding(body)
         } catch {
-            // HTTPClient already retries 3x with exponential backoff for 5xx/network errors
-            // and handles 401 with token refresh. If we still fail, log it.
             print("[OnboardingVM] Failed to post onboarding data: \(error.localizedDescription)")
         }
     }
+
+    /// Onda 5b — POST /api/onboarding/v2 (backend deriva journeyType + journeyConfig + contentOrganizationMode)
+    private func postOnboardingV2ToBackend(data: OnboardingData) async {
+        guard let api else {
+            print("[OnboardingVM] No API available to post onboarding v2 data")
+            return
+        }
+        guard let goal = selectedGoal else {
+            print("[OnboardingVM] postOnboardingV2 called without selectedGoal — skipping")
+            return
+        }
+
+        let semesterValue = inFaculdade == .yes && selectedSemester > 0 ? selectedSemester : nil
+        let universityName = inFaculdade == .yes ? selectedUniversity?.shortName : nil
+        let universityIdValue = inFaculdade == .yes ? selectedUniversity?.id : nil
+        let universityLmsValue = inFaculdade == .yes ? selectedUniversity?.primaryPortal?.portalType : nil
+        let subjectsValue = data.subjects.isEmpty ? nil : data.subjects
+
+        let body = OnboardingV2Request(
+            goal: goal.rawValue,
+            inFaculdade: inFaculdade?.rawValue,
+            semester: semesterValue,
+            university: universityName,
+            universityId: universityIdValue,
+            universityLms: universityLmsValue,
+            selectedSubjects: subjectsValue,
+            studyGoal: nil,
+            targetSpecialty: targetSpecialtySlug,
+            targetInstitutions: targetInstitutions.isEmpty ? nil : targetInstitutions,
+            currentStage: revalidaStage?.rawValue,
+            focusAreas: revalidaFocusAreas.isEmpty ? nil : revalidaFocusAreas
+        )
+
+        do {
+            _ = try await api.postOnboardingV2(body)
+        } catch {
+            print("[OnboardingVM] Failed to post onboarding v2 data: \(error.localizedDescription)")
+        }
+    }
 }
+
+// MARK: - Onboarding v2 enums (Onda 5b)
+
+enum OnboardingGoal: String, CaseIterable, Hashable {
+    case faculdade = "FACULDADE"
+    case enamed = "ENAMED"
+    case residencia = "RESIDENCIA"
+    case revalida = "REVALIDA"
+}
+
+enum InFaculdadeStatus: String, Hashable {
+    case yes
+    case graduated
+    case skip
+}
+
+// RevalidaStage definido em Core/Models/Journey/JourneyType.swift (Codable)
 
 // MARK: - Synced Subject (from API)
 

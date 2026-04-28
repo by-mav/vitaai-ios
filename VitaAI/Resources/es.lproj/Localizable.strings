@@ -409,3 +409,29 @@ Sin cobro los primeros 7 dias.";
 "onboarding_trial_f5" = "OSCE y casos clinicos";
 "onboarding_uni_request_sent" = "Gracias! Agregaremos tu universidad pronto.";
 "sync_timeout" = "Tiempo limite alcanzado. Usando datos parciales.";
+
+/* Onboarding v2 — Onda 5b */
+"onboarding_status_speech" = "Antes que nada, cuentame tu situacion academica.";
+"onboarding_status_yes" = "Si, estoy cursando";
+"onboarding_status_yes_sub" = "Medicina en Brasil";
+"onboarding_status_graduated" = "Ya me gradue";
+"onboarding_status_graduated_sub" = "Diploma de medicina conseguido";
+"onboarding_status_skip" = "Prefiero saltar";
+"onboarding_status_skip_sub" = "No quiero responder";
+
+"onboarding_goal_speech" = "Genial. Cual es tu objetivo principal?";
+"onboarding_goal_faculdade" = "Aprobar la facultad";
+"onboarding_goal_faculdade_sub" = "Examenes, asistencia, promedio";
+"onboarding_goal_enamed" = "Brillar en el ENAMED";
+"onboarding_goal_enamed_sub" = "Evaluacion Nacional Seriada";
+"onboarding_goal_residencia" = "Aprobar la residencia";
+"onboarding_goal_residencia_sub" = "Especialidad e instituciones objetivo";
+"onboarding_goal_revalida" = "Revalidar el diploma";
+"onboarding_goal_revalida_sub" = "REVALIDA-INEP";
+
+"onboarding_revalida_speech" = "Listo. En que etapa del REVALIDA estas?";
+"onboarding_revalida_stage_question" = "Etapa actual";
+"onboarding_revalida_stage_primeira" = "Etapa 1 (teorica)";
+"onboarding_revalida_stage_segunda" = "Etapa 2 (clinica)";
+"onboarding_revalida_focus_question" = "Areas para enfocarte";
+"onboarding_revalida_focus_hint" = "Opcional. Elige una o mas.";
