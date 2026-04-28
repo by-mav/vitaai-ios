@@ -87,7 +87,15 @@ struct PdfToolbar: View {
             )
             .frame(height: 0.5)
             toolsRow
+            // Sub-toolbar — só aparece em modos que têm ferramentas extras
+            // (Desenho hoje; futuramente pode aparecer pra outros). Mantém a
+            // toolbar principal limpa e sinaliza "estou em outra camada".
+            if isAnnotating {
+                drawSubToolbar
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.22), value: isAnnotating)
         .background(glassBackground)
         .overlay(alignment: .top) {
             // Inner top highlight — gives the "lit from above" liquid glass feel
@@ -204,83 +212,15 @@ struct PdfToolbar: View {
                 action: onToggleText
             )
 
-            if isAnnotating {
-                toolButton(
-                    icon: "eraser",
-                    active: isEraserMode,
-                    tint: VitaColors.accent,
-                    label: "Borracha",
-                    action: { onToggleEraser?() }
-                )
+            // Eraser/Pointer/Lasso/Undo/Redo/Transcribe migraram pra
+            // `drawSubToolbar` — mostrada abaixo só quando isAnnotating ON
+            // (Rafael 2026-04-28). Isso evita encher a toolbar principal e
+            // sinaliza que o user entrou em outra camada de ferramentas.
 
-                toolButton(
-                    icon: "cursorarrow",
-                    active: isPointerMode,
-                    tint: VitaColors.accent,
-                    label: "Apontador",
-                    action: { onTogglePointer?() }
-                )
-
-                toolButton(
-                    icon: "lasso",
-                    active: isLassoMode,
-                    tint: VitaColors.accentHover,
-                    label: "Selecionar traços",
-                    action: onToggleLasso
-                )
-
-                toolButton(
-                    icon: "arrow.uturn.backward",
-                    active: false,
-                    tint: VitaColors.textSecondary,
-                    label: "Desfazer",
-                    action: { onUndo?() },
-                    disabled: !canUndo
-                )
-
-                toolButton(
-                    icon: "arrow.uturn.forward",
-                    active: false,
-                    tint: VitaColors.textSecondary,
-                    label: "Refazer",
-                    action: { onRedo?() },
-                    disabled: !canRedo
-                )
-            }
-
-            if isAnnotating && hasInkOnCurrentPage {
-                toolButton(
-                    icon: isRecognizing ? "ellipsis.circle" : "text.viewfinder",
-                    active: false,
-                    tint: VitaColors.accent,
-                    label: "Reconhecer escrita",
-                    action: onTranscribe,
-                    disabled: isRecognizing
-                )
-            }
-
-            // ZONE-C — Marcador opaco (study masks)
-            toolButton(
-                icon: "rectangle.fill.on.rectangle.fill",
-                active: isMaskingMode,
-                tint: VitaColors.accent,
-                label: "Marcador opaco — cobrir áreas pra estudar",
-                action: { onToggleMasking?() }
-            )
-
-            // ZONE-C — Study Mode toggle (eye = revela conteúdo na hora; slash = cobre)
-            // Long-press abre stats sheet com accuracy + masks mais difíceis.
-            toolButton(
-                icon: isStudyMode ? "eye.fill" : "eye.slash",
-                active: isStudyMode,
-                tint: VitaColors.accent,
-                label: isStudyMode ? "Sair do Study Mode (segura: estatísticas)" : "Study Mode (segura: estatísticas)",
-                action: { onToggleStudyMode?() }
-            )
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.45)
-                    .onEnded { _ in onShowStudyStats?() }
-            )
+            // ZONE-C — Estudo Ativo (fundiu Marcador opaco + Study Mode num
+            // único botão menu, Rafael 2026-04-28). Pro user é UMA feature
+            // de active recall: cobrir conteúdo pra testar memória depois.
+            studyActiveMenuButton
 
             // Pergunte ao Vita — substitui o FAB flutuante. Mesmo asset do
             // mascote, menorzinha, na toolbar. Tap = scan area + chat.
@@ -362,7 +302,173 @@ struct PdfToolbar: View {
         .padding(.vertical, 6)
     }
 
-    // MARK: - Reusable tool button
+        // MARK: - Estudo Ativo menu (fundiu Marcador opaco + Study Mode)
+    //
+    // Um botão único na toolbar abre menu com 3 ações:
+    //   · Criar máscaras (toggle isMaskingMode) — drag cria retângulo opaco
+    //   · Revisar       (toggle isStudyMode)    — tap revela e marca acerto/erro
+    //   · Estatísticas  (showStudyStats)        — accuracy + masks mais difíceis
+    //
+    // Estado ativo do botão = isMaskingMode || isStudyMode. Ícone reflete o
+    // sub-modo ativo (graduation cap quando inativo, rectangle quando criando,
+    // eye quando revisando). Cor dourada `prominent` sinaliza camada de estudo.
+
+    private var isStudyActive: Bool { isMaskingMode || isStudyMode }
+
+    private var studyActiveIcon: String {
+        if isStudyMode { return "eye.fill" }
+        if isMaskingMode { return "rectangle.fill.on.rectangle.fill" }
+        return "graduationcap.fill"
+    }
+
+    private var studyActiveLabel: String {
+        if isStudyMode { return "Estudo Ativo · Revisando" }
+        if isMaskingMode { return "Estudo Ativo · Criando máscaras" }
+        return "Estudo Ativo (cobrir + revisar)"
+    }
+
+    @ViewBuilder
+    private var studyActiveMenuButton: some View {
+        Menu {
+            Button {
+                onToggleMasking?()
+            } label: {
+                Label(
+                    isMaskingMode ? "Parar de criar máscaras" : "Criar máscaras",
+                    systemImage: isMaskingMode ? "checkmark.rectangle.fill" : "rectangle.fill.on.rectangle.fill"
+                )
+            }
+            Button {
+                onToggleStudyMode?()
+            } label: {
+                Label(
+                    isStudyMode ? "Sair do modo Revisar" : "Revisar (cobrir + testar memória)",
+                    systemImage: isStudyMode ? "eye.slash.fill" : "eye.fill"
+                )
+            }
+            Divider()
+            Button {
+                onShowStudyStats?()
+            } label: {
+                Label("Estatísticas", systemImage: "chart.bar.fill")
+            }
+        } label: {
+            studyActiveLabelView
+        }
+        .menuStyle(.borderlessButton)
+        .help(studyActiveLabel)
+        .accessibilityLabel(studyActiveLabel)
+    }
+
+    private var studyActiveLabelView: some View {
+        Image(systemName: studyActiveIcon)
+            .font(.system(size: 17, weight: isStudyActive ? .semibold : .regular))
+            .foregroundStyle(isStudyActive ? VitaColors.accent : VitaColors.textSecondary)
+            .frame(width: 38, height: 38)
+            .background(
+                ZStack {
+                    if isStudyActive {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        VitaColors.accent.opacity(0.36),
+                                        VitaColors.accent.opacity(0.18)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(VitaColors.accent.opacity(0.85), lineWidth: 1.0)
+                    }
+                }
+            )
+            .shadow(color: isStudyActive ? VitaColors.accent.opacity(0.45) : .clear, radius: 10, y: 1)
+    }
+
+    // MARK: Row 3 — Draw sub-toolbar (só visível em isAnnotating)
+    //
+    // Mostrada abaixo da `toolsRow` quando o modo Desenho está ativo. Carrega
+    // ferramentas específicas do desenho (borracha, apontador, lasso, undo/redo,
+    // transcribe). Idéia: toolbar principal fica enxuta, sub-toolbar sinaliza
+    // visualmente "você entrou na camada de desenho".
+    private var drawSubToolbar: some View {
+        HStack(spacing: 2) {
+            toolButton(
+                icon: "eraser",
+                active: isEraserMode,
+                tint: VitaColors.accent,
+                label: "Borracha",
+                action: { onToggleEraser?() }
+            )
+            toolButton(
+                icon: "cursorarrow",
+                active: isPointerMode,
+                tint: VitaColors.accent,
+                label: "Apontador",
+                action: { onTogglePointer?() }
+            )
+            toolButton(
+                icon: "lasso",
+                active: isLassoMode,
+                tint: VitaColors.accentHover,
+                label: "Selecionar traços",
+                action: onToggleLasso
+            )
+
+            Spacer(minLength: 4)
+
+            toolButton(
+                icon: "arrow.uturn.backward",
+                active: false,
+                tint: VitaColors.textSecondary,
+                label: "Desfazer",
+                action: { onUndo?() },
+                disabled: !canUndo
+            )
+            toolButton(
+                icon: "arrow.uturn.forward",
+                active: false,
+                tint: VitaColors.textSecondary,
+                label: "Refazer",
+                action: { onRedo?() },
+                disabled: !canRedo
+            )
+
+            if hasInkOnCurrentPage {
+                toolButton(
+                    icon: isRecognizing ? "ellipsis.circle" : "text.viewfinder",
+                    active: false,
+                    tint: VitaColors.accent,
+                    label: "Reconhecer escrita",
+                    action: onTranscribe,
+                    disabled: isRecognizing
+                )
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            Rectangle()
+                .fill(VitaColors.accent.opacity(0.06))
+        )
+        .overlay(alignment: .top) {
+            // Indicador visual de "subcamada"
+            LinearGradient(
+                colors: [
+                    VitaColors.glassBorder.opacity(0.0),
+                    VitaColors.accent.opacity(0.4),
+                    VitaColors.glassBorder.opacity(0.0)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 0.5)
+        }
+    }
+
+// MARK: - Reusable tool button
 
     private func toolButton(
         icon: String,
@@ -370,9 +476,16 @@ struct PdfToolbar: View {
         tint: Color,
         label: String,
         action: @escaping () -> Void,
-        disabled: Bool = false
+        disabled: Bool = false,
+        prominent: Bool = false
     ) -> some View {
-        Button(action: action) {
+        let fillTop: Double = prominent ? 0.36 : 0.22
+        let fillBottom: Double = prominent ? 0.18 : 0.10
+        let strokeAlpha: Double = prominent ? 0.85 : 0.5
+        let strokeWidth: CGFloat = prominent ? 1.0 : 0.6
+        let shadowAlpha: Double = prominent ? 0.45 : 0.3
+        let shadowRadius: CGFloat = prominent ? 10 : 6
+        return Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 17, weight: active ? .semibold : .regular))
                 .foregroundStyle(active ? tint : VitaColors.textSecondary)
@@ -380,24 +493,26 @@ struct PdfToolbar: View {
                 .background(
                     ZStack {
                         if active {
-                            // Active state: liquid glass chip with gold gradient fill + glow
+                            // Active state: liquid glass chip with gold gradient fill + glow.
+                            // `prominent` boosts saturation+stroke pra modos de estudo
+                            // (Mask + Study Mode) — sinaliza camada premium.
                             RoundedRectangle(cornerRadius: 10)
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            tint.opacity(0.22),
-                                            tint.opacity(0.10)
+                                            tint.opacity(fillTop),
+                                            tint.opacity(fillBottom)
                                         ],
                                         startPoint: .top,
                                         endPoint: .bottom
                                     )
                                 )
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(tint.opacity(0.5), lineWidth: 0.6)
+                                .stroke(tint.opacity(strokeAlpha), lineWidth: strokeWidth)
                         }
                     }
                 )
-                .shadow(color: active ? tint.opacity(0.3) : .clear, radius: 6, y: 1)
+                .shadow(color: active ? tint.opacity(shadowAlpha) : .clear, radius: shadowRadius, y: 1)
         }
         .disabled(disabled)
         .help(label)

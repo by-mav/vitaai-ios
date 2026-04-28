@@ -44,11 +44,14 @@ struct PdfViewerScreen: View {
     @State private var showSettingsSheet: Bool = false
     // ZONE-C — Study Mode (masks pra estudar)
     @State private var isMaskingMode: Bool = false
-    // Masking hint state replaced by activeModeBanner (permanent, all modes).
     @State private var isStudyMode: Bool = false
     @State private var studyMaskPrompt: StudyMaskPrompt? = nil
     @State private var showStudyStatsSheet: Bool = false
     @State private var attemptFlash: AttemptFlash? = nil
+    // Mode banner — ephemeral hint (3s fade) when entering a mode.
+    // "Sair" only dismisses the banner — to exit the mode, user taps the icon again.
+    @State private var isModeBannerVisible: Bool = false
+    @State private var bannerHideTask: Task<Void, Never>? = nil
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
@@ -97,16 +100,34 @@ struct PdfViewerScreen: View {
                     .transition(.opacity)
             }
 
-            // Active-mode banner — permanent while ANY tool mode is on.
-            // Shows what the current mode does + "Sair" button to exit.
-            // Replaces the old 2.5s ephemeral masking-only hint.
-            if let banner = activeModeBanner {
+            // Active-mode banner — ephemeral hint (3s fade) when entering a mode.
+            // "Sair" só dismissa o banner; sair do modo é re-tap no ícone do modo
+            // (Rafael 2026-04-28). Banner reaparece toda vez que o modo é
+            // re-ligado ou trocado por outro.
+            if let banner = activeModeBanner, isModeBannerVisible {
                 VStack {
                     activeModeBannerView(banner)
                         .padding(.top, 110)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
+            }
+
+            // Floating Study Mode indicator — fica no canto direito quando Study
+            // ON. Tap abre stats sheet. Substitui o long-press escondido do ícone
+            // da toolbar (Rafael 2026-04-28: "long-press não dá pra tirar da bunda").
+            if isStudyMode {
+                VStack {
+                    HStack {
+                        Spacer()
+                        studyModeFloatingIndicator
+                            .padding(.top, 130)
+                            .padding(.trailing, 16)
+                    }
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(true)
             }
 
         }
@@ -135,6 +156,14 @@ struct PdfViewerScreen: View {
                     "loaded": viewModel.document != nil,
                     "tab_count": workspace.openDocs.count,
                 ])
+            }
+        }
+        .onChange(of: activeModeBanner?.id) { _, newId in
+            if newId != nil {
+                showModeBanner()
+            } else {
+                bannerHideTask?.cancel()
+                isModeBannerVisible = false
             }
         }
         // Goodnotes-style: + tab abre picker dos PDFs do user (Vita library),
@@ -337,11 +366,12 @@ struct PdfViewerScreen: View {
                         }
                     },
                     onAskVita: {
+                        let willEnable = !isScanMode
                         withAnimation(.easeInOut(duration: 0.22)) {
-                            isScanMode = true
+                            isScanMode = willEnable
                             scanSelection = nil
                         }
-                        VitaPostHogConfig.capture(event: "pergunte_ao_vita_tap")
+                        VitaPostHogConfig.capture(event: "pergunte_ao_vita_tap", properties: ["enabled": willEnable])
                     },
                     onExport: {
                         Task { await exportPDF(document: document) }
@@ -902,65 +932,120 @@ struct PdfViewerScreen: View {
     // only existed for masking. User has to ALWAYS know which mode they're in.
 
     private struct ModeHint {
+        let id: String
         let icon: String
         let title: String
         let subtitle: String
-        /// Closure called when user taps "Sair" on the banner.
-        let onExit: () -> Void
     }
 
     /// Derives the current mode hint from viewModel state. Priority order matches
     /// the tap-handler in Coordinator.handleTap (most-specific mode wins).
+    /// Banner é puramente informativo — fechar não desliga o modo.
     private var activeModeBanner: ModeHint? {
         if viewModel.isStudyMode {
             return ModeHint(
+                id: "study",
                 icon: "eye.fill",
                 title: "Study Mode",
-                subtitle: "Toque numa área coberta pra revelar e marcar acertou/errou.",
-                onExit: { toggleStudyMode() }
+                subtitle: "Toque numa área coberta pra revelar e marcar acertou/errou."
             )
         }
         if viewModel.isMaskingMode {
             return ModeHint(
+                id: "mask",
                 icon: "rectangle.fill.on.rectangle.fill",
                 title: "Marcador opaco",
-                subtitle: "Arraste pra cobrir áreas. Toque numa máscara pra apagar.",
-                onExit: { toggleMaskingMode() }
+                subtitle: "Arraste pra cobrir áreas. Toque numa máscara pra apagar."
             )
         }
         if viewModel.isTextMode {
             return ModeHint(
+                id: "text",
                 icon: "character.textbox",
                 title: "Caixa de texto",
-                subtitle: "Toque onde quer escrever. Toque num texto existente pra editar.",
-                onExit: { viewModel.toggleTextMode() }
+                subtitle: "Toque onde quer escrever. Toque num texto existente pra editar."
             )
         }
         if viewModel.isLassoMode {
             return ModeHint(
+                id: "lasso",
                 icon: "lasso",
                 title: "Selecionar traços",
-                subtitle: "Circule traços pra mover, copiar ou apagar em grupo.",
-                onExit: { viewModel.isLassoMode = false }
+                subtitle: "Circule traços pra mover, copiar ou apagar em grupo."
             )
         }
         if viewModel.isHighlightMode {
             return ModeHint(
+                id: "highlight",
                 icon: "highlighter",
                 title: "Marca-texto",
-                subtitle: "Arraste sobre o texto pra destacar. Toque num destaque pra remover.",
-                onExit: { viewModel.toggleHighlightMode() }
+                subtitle: "Arraste sobre o texto pra destacar. Toque num destaque pra remover."
             )
         }
         if viewModel.isAnnotating {
             return ModeHint(
+                id: "draw",
                 icon: "scribble.variable",
                 title: "Modo Desenho",
-                subtitle: "Escreva ou desenhe com Apple Pencil ou dedo. Use a barra do PencilKit pra trocar ferramenta.",
-                onExit: { viewModel.toggleAnnotating() }
+                subtitle: "Escreva ou desenhe com Apple Pencil ou dedo. Use a barra do PencilKit pra trocar ferramenta."
             )
         }
         return nil
+    }
+
+    /// Mostra o banner por 3s e agenda fade-out automático.
+    /// "Sair" no banner chama `dismissModeBanner()` (cancela o timer).
+    private func showModeBanner() {
+        bannerHideTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.22)) {
+            isModeBannerVisible = true
+        }
+        bannerHideTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(3000))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.28)) {
+                isModeBannerVisible = false
+            }
+        }
+    }
+
+    private func dismissModeBanner() {
+        bannerHideTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.22)) {
+            isModeBannerVisible = false
+        }
+    }
+
+    /// Floating chip mostrado no canto direito enquanto Study Mode está ON.
+    /// Tap → abre `PdfStudyStatsSheet` (substitui long-press oculto). Mostra
+    /// glow pulsante pra sinalizar "modo de estudo ativo".
+    private var studyModeFloatingIndicator: some View {
+        Button {
+            showStudyStatsSheet = true
+            VitaPostHogConfig.capture(event: "pdf_study_stats_tap_indicator")
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "eye.fill")
+                    .font(.system(size: 13, weight: .bold))
+                Text("Study")
+                    .font(VitaTypography.labelSmall.weight(.semibold))
+            }
+            .foregroundStyle(VitaColors.accent)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(
+                Capsule()
+                    .fill(VitaColors.surfaceCard.opacity(0.92))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(VitaColors.accent.opacity(0.7), lineWidth: 1.0)
+            )
+            .shadow(color: VitaColors.accent.opacity(0.5), radius: 12, y: 0)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Estatísticas do Study Mode")
+        .transition(.move(edge: .trailing).combined(with: .opacity))
     }
 
     @ViewBuilder
@@ -979,18 +1064,18 @@ struct PdfViewerScreen: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             }
-            Button(action: hint.onExit) {
-                Text("Sair")
-                    .font(VitaTypography.labelSmall.weight(.semibold))
-                    .foregroundStyle(VitaColors.accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+            Button(action: dismissModeBanner) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .frame(width: 22, height: 22)
                     .background(
-                        Capsule()
-                            .stroke(VitaColors.accent.opacity(0.5), lineWidth: 0.8)
+                        Circle()
+                            .stroke(VitaColors.surfaceBorder.opacity(0.5), lineWidth: 0.8)
                     )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Fechar dica")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
