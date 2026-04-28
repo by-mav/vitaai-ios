@@ -672,9 +672,10 @@ struct MainTabView: View {
             SimuladoDiagnosticsScreen(
                 onBack: { router.goBack() }
             )
-        case .portalConnect(let type):
+        case .portalConnect(let type, let defaultUrl):
             PortalConnectScreen(
                 portalType: type,
+                defaultInstanceUrl: defaultUrl ?? "",
                 onBack: { router.goBack() }
             )
         // Legacy routes → unified PortalConnectScreen
@@ -708,7 +709,9 @@ struct MainTabView: View {
             NotificationSettingsScreen()
         case .connections:
             ConnectionsScreen(
-                onPortalConnect: { type in router.navigate(to: .portalConnect(type: type)) },
+                onPortalConnect: { type, defaultUrl in
+                    router.navigate(to: .portalConnect(type: type, defaultUrl: defaultUrl))
+                },
                 onBack: { router.goBack() }
             )
         case .paywall:

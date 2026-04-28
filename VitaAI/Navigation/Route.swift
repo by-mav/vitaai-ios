@@ -12,7 +12,10 @@ enum Route: Hashable {
     case agenda
     case insights
     case profile
-    case portalConnect(type: String)
+    /// `defaultUrl` was added 2026-04-27 so the Connections screen can route
+    /// Moodle/SIGAA/TOTVS/etc. taps with the correct portal URL — without it
+    /// the inline WebView rendered blank/stretched (Rafael 2026-04-27).
+    case portalConnect(type: String, defaultUrl: String? = nil)
 
     // Legacy aliases — redirect to portalConnect(type:) in AppRouter
     case canvasConnect

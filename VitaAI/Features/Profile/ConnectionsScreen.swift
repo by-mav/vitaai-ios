@@ -15,7 +15,10 @@ struct CapturedPortalPage {
 
 struct ConnectionsScreen: View {
     /// Single callback for navigating to any portal's connect screen.
-    var onPortalConnect: ((String) -> Void)?
+    /// `defaultUrl` is the portal instance URL from the university catalog —
+    /// required so Moodle/SIGAA/TOTVS/etc. land on PortalConnectScreen with a
+    /// real WebView URL instead of an empty stretched-out frame.
+    var onPortalConnect: ((String, String?) -> Void)?
     var onBack: (() -> Void)?
 
     @Environment(\.appContainer) private var container
@@ -562,8 +565,11 @@ struct ConnectionsScreen: View {
             canvasInstanceUrl = instanceUrl ?? vm?.canvas.instanceUrl ?? "https://ulbra.instructure.com"
             showCanvasWebView = true
         default:
-            // Unknown portal — fallback to connect screen
-            onPortalConnect?(portalType)
+            // Moodle / SIGAA / TOTVS / Sagres / Lyceum / Blackboard / Platos.
+            // Unified shell — same PortalConnectScreen as Canvas/WebAluno but
+            // with the URL piped through so the inline WebView loads the right
+            // login page (Rafael 2026-04-27 fix).
+            onPortalConnect?(portalType, instanceUrl)
         }
     }
 

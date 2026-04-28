@@ -99,12 +99,19 @@ struct PortalConnectScreen: View {
                 connectedContent(vm: vm)
             } else if portalType == "canvas" && (vm.isSyncing || cookiesCaptured) {
                 canvasSyncContent(vm: vm)
-            } else if (portalType == "webaluno" || portalType == "mannesoft") && vm.isSyncing {
+            } else if isBridgePortal && vm.isSyncing {
                 webalunoSyncContent(vm: vm)
-            } else if portalType == "canvas" {
-                canvasWebViewLogin(vm: vm)
-            } else {
+            } else if vm.isOAuth {
                 disconnectedContent(vm: vm)
+            } else {
+                // Unified shell for ALL non-OAuth portals: canvas, webaluno,
+                // mannesoft, moodle, sigaa, totvs, sagres, lyceum. Same chrome,
+                // same flow — only the URL in the centered card changes.
+                // Pre-2026-04-27 only canvas got the inline WebView; the rest
+                // fell through to a button that opened a hardcoded WebAluno
+                // fullscreen sheet, which loaded the wrong URL for Moodle/SIGAA
+                // and rendered with a broken layout (Rafael 2026-04-27).
+                inlinePortalLogin(vm: vm)
             }
         }
     }
@@ -258,63 +265,117 @@ struct PortalConnectScreen: View {
         }
     }
 
-    // MARK: - Canvas WebView Login
+    // MARK: - Inline Portal WebView Login (universal shell)
+    // Used by ALL non-OAuth portal types. Same chrome, same flow — only the
+    // URL in the centered card changes per portal. PortalWebView itself is
+    // already universal (handles canvas, webaluno, moodle, sigaa, totvs,
+    // sagres, lyceum login URL conventions; see OnboardingConnectSheet.swift
+    // PortalWebView.buildURL).
 
     @ViewBuilder
-    private func canvasWebViewLogin(vm: PortalConnectViewModel) -> some View {
-        VStack(spacing: 12) {
-            VitaGlassCard {
-                HStack(spacing: 12) {
-                    Image(systemName: "globe")
-                        .font(.system(size: 20))
-                        .foregroundColor(VitaColors.accent)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Faca login no Canvas")
-                            .font(VitaTypography.titleSmall)
-                            .fontWeight(.semibold)
-                            .foregroundColor(VitaColors.textPrimary)
-                        Text("Vita importa disciplinas, notas e materiais")
-                            .font(VitaTypography.bodySmall)
-                            .foregroundColor(VitaColors.textSecondary)
-                    }
-                    Spacer()
-                }
-                .padding(16)
+    private func inlinePortalLogin(vm: PortalConnectViewModel) -> some View {
+        if vm.instanceUrl.isEmpty {
+            // No URL configured for this portal/university combination. Without
+            // it the WebView would render blank or stretched; render an explicit
+            // empty state instead of leaving the card looking broken.
+            VStack(spacing: 16) {
+                Spacer()
+                Image(systemName: "link.badge.plus")
+                    .font(.system(size: 40))
+                    .foregroundColor(VitaColors.accent.opacity(0.6))
+                Text("URL do portal não configurada")
+                    .font(VitaTypography.titleSmall)
+                    .fontWeight(.semibold)
+                    .foregroundColor(VitaColors.textPrimary)
+                Text("Esta universidade ainda não tem o endereço do \(vm.displayName) cadastrado. Toque em Voltar e selecione outro portal.")
+                    .font(VitaTypography.bodySmall)
+                    .foregroundColor(VitaColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                Spacer()
             }
-            .padding(.horizontal, 20)
-
-            VStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 9))
-                        .foregroundColor(VitaColors.textTertiary)
-                    Text(vm.instanceUrl.replacingOccurrences(of: "https://", with: ""))
-                        .font(.system(size: 10))
-                        .foregroundColor(VitaColors.textTertiary)
-                        .lineLimit(1)
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.03))
-
-                PortalWebView(
-                    portalType: "canvas",
-                    portalURL: vm.instanceUrl.replacingOccurrences(of: "https://", with: ""),
-                    onSessionCaptured: { cookie in
-                        cookiesCaptured = true
-                        vm.connectCanvas(cookies: cookie, instanceUrl: vm.instanceUrl)
+        } else {
+            VStack(spacing: 12) {
+                VitaGlassCard {
+                    HStack(spacing: 12) {
+                        Image(systemName: "globe")
+                            .font(.system(size: 20))
+                            .foregroundColor(VitaColors.accent)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Faca login no \(vm.displayName)")
+                                .font(VitaTypography.titleSmall)
+                                .fontWeight(.semibold)
+                                .foregroundColor(VitaColors.textPrimary)
+                            Text("Vita importa disciplinas, notas e materiais")
+                                .font(VitaTypography.bodySmall)
+                                .foregroundColor(VitaColors.textSecondary)
+                        }
+                        Spacer()
                     }
+                    .padding(16)
+                }
+                .padding(.horizontal, 20)
+
+                VStack(spacing: 0) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(VitaColors.textTertiary)
+                        Text(vm.instanceUrl.replacingOccurrences(of: "https://", with: ""))
+                            .font(.system(size: 10))
+                            .foregroundColor(VitaColors.textTertiary)
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.03))
+
+                    PortalWebView(
+                        portalType: portalType,
+                        portalURL: vm.instanceUrl.replacingOccurrences(of: "https://", with: ""),
+                        onSessionCaptured: { cookie in
+                            cookiesCaptured = true
+                            handleCookieCaptured(cookie: cookie, vm: vm)
+                        }
+                    )
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
                 )
+                .padding(.horizontal, 20)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-            )
-            .padding(.horizontal, 20)
+            .padding(.top, 8)
         }
-        .padding(.top, 8)
+    }
+
+    /// Bridge-driven portals (Cloudflare-protected, no REST API) need a fullscreen
+    /// WebView session lifecycle for bridge.js to extract pages. Canvas grabs the
+    /// cookie inline and re-scrapes server-side via REST.
+    private var isBridgePortal: Bool {
+        switch portalType {
+        case "webaluno", "mannesoft", "moodle", "sigaa", "totvs", "sagres", "lyceum":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func handleCookieCaptured(cookie: String, vm: PortalConnectViewModel) {
+        switch portalType {
+        case "canvas":
+            vm.connectCanvas(cookies: cookie, instanceUrl: vm.instanceUrl)
+        default:
+            // All bridge-driven portals share the same client-driven extract path
+            // (server cannot fetch Cloudflare-protected pages at SaaS scale; see
+            // feedback_client_driven_extraction_is_correct_for_saas_scale.md).
+            // Lift to fullscreen WebView sheet so bridge.js has a stable lifecycle
+            // for the extraction phase.
+            vm.connectMannesoft(cookie: cookie)
+            showPortalWebView = true
+        }
     }
 
     // MARK: - Canvas Sync Content

@@ -114,7 +114,28 @@ final class PortalConnectViewModel {
                 stats = [(data.counts?.files ?? 0, "arquivos")]
 
             default:
-                isConnected = false
+                // Generic portal lookup (moodle, sigaa, totvs, sagres, lyceum, etc).
+                // /api/portal/status returns ALL connections regardless of type;
+                // match by portalType so the screen renders "Conectado" + last
+                // sync correctly for portals beyond canvas/mannesoft.
+                let status = try await api.getCanvasStatus()
+                let conn = status.connections?.first { $0.portalType == portalType }
+                if let conn {
+                    if let url = conn.instanceUrl, !url.isEmpty { instanceUrl = url }
+                    if conn.status == "active" {
+                        isConnected = true
+                        lastSync = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
+                        stats = [
+                            (conn.counts?.subjects ?? 0, "disciplinas"),
+                            (conn.counts?.evaluations ?? 0, "notas"),
+                            (conn.counts?.schedule ?? 0, "aulas"),
+                        ]
+                    } else {
+                        isConnected = false
+                    }
+                } else {
+                    isConnected = false
+                }
             }
         } catch {
             isConnected = false
