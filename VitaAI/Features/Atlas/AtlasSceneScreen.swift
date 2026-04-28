@@ -20,9 +20,16 @@ private let atlasLog = Logger(subsystem: "com.bymav.vitaai", category: "Atlas3D"
 
 struct AtlasSceneScreen: View {
     var onBack: () -> Void
-    var onAskVita: ((String) -> Void)?
 
     @Environment(\.appContainer) private var container
+
+    /// Sheet `VitaChatScreen` aberto POR CIMA do Atlas quando o user expande a
+    /// conversa do `MeshDetailSheet`. Mesmo padrão canônico do PdfViewer
+    /// (Rafael 2026-04-28): mantém o Atlas visível atrás, com detents
+    /// `[.large, .medium]` + drag indicator, em vez do overlay-no-root que
+    /// fazia `goBack()` e perdia o contexto da peça.
+    @State private var showPerguntaVita: Bool = false
+    @State private var perguntaVitaPrompt: String? = nil
 
     /// Single shared scene built once with lights + camera. Layers attach as
     /// child nodes (added/removed live), so toggling Ossos+Músculos keeps both
@@ -210,9 +217,15 @@ struct AtlasSceneScreen: View {
                             "structure": info.pt,
                             "system": info.system,
                         ])
+                        // Fecha o detail sheet e abre `VitaChatScreen` POR CIMA
+                        // do Atlas (mesmo padrão canônico do PdfViewer). Pequeno
+                        // delay deixa o sheet inferior animar a saída antes do
+                        // chat slide-up — sem isso o iOS recusa a 2ª presentation.
                         selectedMesh = nil
-                        // Hand off to the full chat screen with the same seed.
-                        onAskVita?(customPrompt)
+                        perguntaVitaPrompt = customPrompt
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            showPerguntaVita = true
+                        }
                     },
                     onHide: {
                         // Exclude the "layer-<rawValue>" container nodes — those
@@ -234,6 +247,23 @@ struct AtlasSceneScreen: View {
                     onClose: { selectedMesh = nil }
                 )
             }
+        }
+        // "Pergunte ao Vita" — full chat opens as sheet ON TOP of the Atlas
+        // viewport, exactly like the PdfViewer flow. Atlas stays mounted behind
+        // (peça selecionada não some), e o user volta com swipe-down. Detents +
+        // drag indicator + ultraThinMaterial são canon BYMAV.
+        // vita-modals-ignore: VitaChatScreen é tela completa autocontida (próprio header, fundo, scroll) — VitaSheet duplicaria header e quebra layout interno do chat
+        .sheet(isPresented: $showPerguntaVita) {
+            VitaChatScreen(
+                onClose: {
+                    showPerguntaVita = false
+                    perguntaVitaPrompt = nil
+                },
+                initialPrompt: perguntaVitaPrompt
+            )
+            .presentationDetents([.large, .medium])
+            .presentationDragIndicator(.visible)
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
         .trackScreen("Atlas3D")
     }

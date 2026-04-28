@@ -727,13 +727,12 @@ struct MainTabView: View {
         case .paywall:
             VitaPaywallScreen(onDismiss: { router.goBack() })
         case .atlas3D:
+            // VitaChat agora abre POR CIMA do Atlas via sheet local na própria
+            // AtlasSceneScreen (mesmo padrão do PdfViewer, Rafael 2026-04-28).
+            // Não precisamos mais setar chatInitialPrompt + showChat aqui —
+            // antes esse handoff fazia goBack() e perdia a peça selecionada.
             AtlasSceneScreen(
-                onBack: { router.goBack() },
-                onAskVita: { prompt in
-                    chatInitialPrompt = prompt
-                    router.goBack()
-                    withAnimation(.easeInOut(duration: 0.25)) { showChat = true }
-                }
+                onBack: { router.goBack() }
             )
         case .osce:
             OsceScreen(onBack: { router.goBack() })
