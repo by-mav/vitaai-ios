@@ -639,19 +639,37 @@ struct MainTabView: View {
         case .flashcardStats:
             FlashcardStatsView(onBack: { router.goBack() })
         case .simuladoHome:
-            SimuladoHomeScreen(
+            // Fase 4 (2026-04-29): SimuladoBuilderScreen reescrito substitui
+            // SimuladoHomeScreen + SimuladoConfigScreen. Tela única com toggle
+            // Template/Custom no topo, cronômetro visível, filtros lente-aware.
+            SimuladoBuilderScreen(
                 onBack: { router.goBack() },
-                onNewSimulado: { router.navigate(to: .simuladoConfig) },
-                onOpenSession: { id in router.navigate(to: .simuladoSession(attemptId: id)) },
-                onOpenResult: { id in router.navigate(to: .simuladoResult(attemptId: id)) },
-                onOpenDiagnostics: { router.navigate(to: .simuladoDiagnostics) }
+                onSessionCreated: { id in
+                    router.navigate(to: .simuladoSession(attemptId: id))
+                },
+                onOpenAttempt: { attempt in
+                    if attempt.finishedAt == nil {
+                        router.navigate(to: .simuladoSession(attemptId: attempt.id))
+                    } else {
+                        router.navigate(to: .simuladoResult(attemptId: attempt.id))
+                    }
+                }
             )
         case .simuladoConfig:
-            SimuladoConfigScreen(
+            // Legacy route — quem ainda chama .simuladoConfig cai no Builder.
+            // Pode ser removida do enum em sweep futuro.
+            SimuladoBuilderScreen(
                 onBack: { router.goBack() },
-                onStartSession: { id in
+                onSessionCreated: { id in
                     router.path.removeLast()
                     router.navigate(to: .simuladoSession(attemptId: id))
+                },
+                onOpenAttempt: { attempt in
+                    if attempt.finishedAt == nil {
+                        router.navigate(to: .simuladoSession(attemptId: attempt.id))
+                    } else {
+                        router.navigate(to: .simuladoResult(attemptId: attempt.id))
+                    }
                 }
             )
         case .simuladoSession(let attemptId):
@@ -811,12 +829,18 @@ struct MainTabView: View {
             QBankCoordinatorScreen(onBack: { router.goBack() })
         case .transcricao:
             TranscricaoScreen(onBack: { router.goBack() })
-        case .flashcardHome(let subjectId):
-            FlashcardsListScreen(
-                initialSubjectId: subjectId,
+        case .flashcardHome:
+            // Fase 5 (2026-04-29): FlashcardBuilderScreen reescrito substitui
+            // FlashcardsListScreen como entry point. Hero + Mode (Revisão/Específico/
+            // Novos) + Lente + Drill + Decks grid embaixo + CTA sticky.
+            // FlashcardsListScreen virou apenas decks grid 2-col (177 linhas),
+            // ainda compilável como fallback.
+            // initialSubjectId associated value ignorado — Builder não tem foco em
+            // deck único; usuário navega via Decks Grid embaixo. (TODO: passar
+            // como filtro inicial em Onda 4 via setSubject(slug).)
+            FlashcardBuilderScreen(
                 onBack: { router.goBack() },
-                onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
-                onOpenTopics: nil  // Anki pattern: tap deck → session directly, no topics screen
+                onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) }
             )
         case .disciplineDetail(let disciplineId, let disciplineName):
             DisciplineDetailScreen(
