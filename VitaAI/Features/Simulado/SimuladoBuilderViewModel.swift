@@ -404,31 +404,28 @@ final class SimuladoBuilderViewModel {
         defer { state.previewLoading = false }
 
         let groupSlugsArr = Array(state.selectedGroupSlugs)
-        let subgroupSlugs = state.selectedSubgroupIds.compactMap { id -> String? in
-            id.split(separator: "/", maxSplits: 1).last.map(String.init)
-        }
-        let years: QBankPreviewYears? = (state.selectedYearMin == nil && state.selectedYearMax == nil)
+        let years: SimuladoPreviewYears? = (state.selectedYearMin == nil && state.selectedYearMax == nil)
             ? nil
-            : QBankPreviewYears(min: state.selectedYearMin, max: state.selectedYearMax)
+            : SimuladoPreviewYears(min: state.selectedYearMin, max: state.selectedYearMax)
 
-        let body = QBankPreviewBody(
+        let body = SimuladoPreviewBody(
             lens: state.lens.rawValue,
             groupSlugs: groupSlugsArr.nilIfEmpty,
-            subgroupSlugs: subgroupSlugs.nilIfEmpty,
             institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
-            topicIds: nil,
             years: years,
             difficulties: Array(state.selectedDifficulties).nilIfEmpty,
             format: Array(state.selectedFormats).nilIfEmpty,
             hideAnswered: nil,
             hideAnnulled: nil,
-            hideReviewed: nil,
             excludeNoExplanation: true,
-            includeSynthetic: false
+            includeSynthetic: false,
+            questionCount: state.questionCount,
+            timed: state.timerEnabled,
+            timeLimitMinutes: state.timerEnabled ? state.timerMinutes : nil
         )
 
         do {
-            let resp = try await api.previewQBankPool(body: body)
+            let resp = try await api.previewSimuladoPool(body: body)
             state.previewCount = resp.total
         } catch {
             state.previewCount = nil

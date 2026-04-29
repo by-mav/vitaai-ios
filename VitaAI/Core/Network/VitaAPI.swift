@@ -255,6 +255,22 @@ actor VitaAPI {
         )
     }
 
+    /// GET /api/study/flashcards/preview — due/learning/new + projectedSessionTime
+    /// pro Flashcard Builder. Spec: openapi.yaml linha 5132. Added 2026-04-29.
+    func previewFlashcards(lens: String? = nil, groupSlug: String? = nil, mode: String = "due") async throws -> FlashcardsPreviewResp {
+        var items: [URLQueryItem] = [URLQueryItem(name: "mode", value: mode)]
+        if let lens, !lens.isEmpty { items.append(URLQueryItem(name: "lens", value: lens)) }
+        if let groupSlug, !groupSlug.isEmpty { items.append(URLQueryItem(name: "groupSlug", value: groupSlug)) }
+        return try await client.get("study/flashcards/preview", queryItems: items)
+    }
+
+    /// POST /api/study/flashcards/session — cria fila SRS (FSRS scheduling) pro
+    /// Flashcard Builder. Retorna sessionId (uuid client-side) + cardIds ordenados.
+    /// Spec: openapi.yaml linha 5169. Added 2026-04-29.
+    func createFlashcardSession(body: FlashcardSessionBody) async throws -> FlashcardSessionResp {
+        try await client.post("study/flashcards/session", body: body)
+    }
+
     // MARK: - Grades
 
     func getGrades(subjectId: String? = nil, limit: Int = 20) async throws -> [GradeEntry] {
@@ -499,6 +515,14 @@ actor VitaAPI {
             URLQueryItem(name: "subject", value: subject),
             URLQueryItem(name: "period", value: period),
         ])
+    }
+
+    /// POST /api/simulados/preview — count + estimatedMinutes pro Simulado Builder.
+    /// Espelha previewQBankPool mas com questionCount + timed + timeLimitMinutes
+    /// pra tela de Simulado calcular tempo correto. Spec: openapi.yaml linha 6639.
+    /// Added 2026-04-29.
+    func previewSimuladoPool(body: SimuladoPreviewBody) async throws -> SimuladoPreviewResp {
+        try await client.post("simulados/preview", body: body)
     }
 
     // MARK: - QBank

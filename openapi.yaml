@@ -1128,6 +1128,21 @@ components:
               displayOrder:
                 type: integer
                 nullable: true
+              children:
+                description: 'Filhos hierárquicos. Tradicional: temas (qbank_topics). PBL: clusters de sintomas. Added 2026-04-29.'
+                type: array
+                items:
+                  type: object
+                  required: [slug, name, count, parentSlug]
+                  properties:
+                    slug:
+                      type: string
+                    name:
+                      type: string
+                    count:
+                      type: integer
+                    parentSlug:
+                      type: string
         institutions:
           type: array
           items:
@@ -1233,6 +1248,12 @@ components:
           items:
             type: string
           nullable: true
+        subgroupSlugs:
+          description: 'Slugs do subnível: clusters de sintoma PBL OU topic IDs (string) Tradicional. Added 2026-04-29.'
+          type: array
+          items:
+            type: string
+          nullable: true
         institutionIds:
           type: array
           items:
@@ -1313,6 +1334,151 @@ components:
           type: string
           nullable: true
           description: 'Echo do journeyType usado pra ranking automático (debug-friendly).'
+
+    SimuladoPreviewRequest:
+      type: object
+      description: 'Body do POST /api/simulados/preview. Added 2026-04-29.'
+      properties:
+        lens:
+          type: string
+          enum: [tradicional, pbl, great-areas]
+          nullable: true
+        groupSlugs:
+          type: array
+          items: { type: string }
+          nullable: true
+        institutionIds:
+          type: array
+          items: { type: integer }
+          nullable: true
+        years:
+          type: object
+          nullable: true
+          properties:
+            min: { type: integer }
+            max: { type: integer }
+        difficulties:
+          type: array
+          items: { type: string, enum: [easy, medium, hard] }
+          nullable: true
+        format:
+          type: array
+          items: { type: string, enum: [objective, discursive, withImage] }
+          nullable: true
+        hideAnswered:
+          type: boolean
+          nullable: true
+        hideAnnulled:
+          type: boolean
+          nullable: true
+        excludeNoExplanation:
+          type: boolean
+          nullable: true
+        includeSynthetic:
+          type: boolean
+          nullable: true
+        questionCount:
+          type: integer
+          nullable: true
+          description: 'Pra calcular estimatedMinutes (1.5 min/Q se !timed).'
+        timed:
+          type: boolean
+          nullable: true
+        timeLimitMinutes:
+          type: integer
+          nullable: true
+
+    SimuladoPreviewResponse:
+      type: object
+      required: [total, estimatedMinutes]
+      properties:
+        total:
+          type: integer
+        estimatedMinutes:
+          type: integer
+          description: 'timeLimitMinutes se timed=true, senão questionCount * 1.5.'
+        byDifficulty:
+          type: object
+          additionalProperties: { type: integer }
+        byYear:
+          type: object
+          additionalProperties: { type: integer }
+        topGroups:
+          type: array
+          items:
+            type: object
+            properties:
+              slug: { type: string }
+              name: { type: string }
+              count: { type: integer }
+        appliedJourneyBoost:
+          type: string
+          nullable: true
+
+    FlashcardsPreviewResponse:
+      type: object
+      required: [due, learning, new, projectedSessionTime]
+      properties:
+        due:
+          type: integer
+          description: 'Cards REVIEW com nextReviewAt vencido.'
+        learning:
+          type: integer
+        new:
+          type: integer
+          description: 'Cards nunca vistos (state=NEW).'
+        projectedSessionTime:
+          type: integer
+          description: 'Minutos estimados (8s/card revisão + 15s/card novo).'
+        topDecks:
+          type: array
+          items:
+            type: object
+            properties:
+              disciplineSlug: { type: string }
+              due: { type: integer }
+
+    FlashcardSessionRequest:
+      type: object
+      required: [mode]
+      properties:
+        lens:
+          type: string
+          nullable: true
+          enum: [tradicional, pbl, great-areas]
+        groupSlugs:
+          type: array
+          items: { type: string }
+          nullable: true
+        mode:
+          type: string
+          enum: [due, specific, new]
+        limit:
+          type: integer
+          default: 20
+        showHints:
+          type: boolean
+          nullable: true
+        skipEasy:
+          type: boolean
+          nullable: true
+
+    FlashcardSessionResponse:
+      type: object
+      required: [sessionId, cardIds, totalCards, expectedMinutes]
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+          description: 'UUID client-side, não persistido server (sessão vive no cliente).'
+        cardIds:
+          type: array
+          items: { type: string }
+          description: 'Ordem da fila SRS (mais atrasado primeiro).'
+        totalCards:
+          type: integer
+        expectedMinutes:
+          type: integer
 
     QBankQuestion:
       type: object
@@ -3430,6 +3596,16 @@ paths:
   # INTERNAL / CRON
   # ════════════════════════════════════════
 
+  /api/cron/observability/bullmq-runs-snapshot:
+    get:
+      tags: [internal]
+      operationId: cronBullMqRunsSnapshot
+      summary: Cron — BullMQ runs snapshot (added 2026-04-29, stub do sync-engine)
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          description: OK
+  # 2026-04-29: SQL fix app_id column (smoke detected by sync-engine-smoke.ts)
   /api/cron/observability/app-store-reviews-fetch:
     get:
       tags: [internal]
@@ -4184,7 +4360,10 @@ paths:
 
   /api/portal/ingest:
     post:
-      description: Portal ingest — judge dispara só em geração de fingerprint (Camada 1) desde 2026-04-27.
+      description: |
+        Portal ingest — judge dispara so em geracao de fingerprint (Camada 1) desde 2026-04-27.
+        Accepts polymorphic payload: Canvas format (with courses, assignments, files, calendarEvents)
+        or WebAluno format (with grades, curriculum, schedule, frequency).
       tags: [portal]
       operationId: portalIngest
       summary: Ingest data from Canvas or WebAluno portal (canonical EN statuses from 2026-04-17)
@@ -4205,9 +4384,6 @@ paths:
   # 2026-04-22: ingest response carries an `audit` field with canonical-model issues detected after normalize (#147 C7+E12)
   # 2026-04-22: dashboard 5.77s→0.12s (merge dup queries + agg SQL); Drizzle dev logger in src/db/index.ts
   # 2026-04-22: ingest response also carries `autofix` field with applied deterministic fixes (#147 E12-bis)
-      description: |
-        Accepts polymorphic payload: Canvas format (with courses, assignments, files, calendarEvents)
-        or WebAluno format (with grades, curriculum, schedule, frequency).
       security:
         - cookieAuth: []
         - extensionToken: []
@@ -4950,6 +5126,70 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '402':
           $ref: '#/components/responses/PlanLimit'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/study/flashcards/preview:
+    get:
+      tags: [study, flashcards]
+      operationId: previewFlashcards
+      summary: Count due/learning/new + tempo estimado pra Flashcard Builder
+      description: |
+        Retorna count de cards REVIEW vencidos (due), em LEARNING, e NEW (nunca
+        vistos), filtrado opcionalmente por groupSlug (disciplineSlug do deck).
+        Mode `due|specific|new` ajusta o `projectedSessionTime`. Added 2026-04-29.
+      parameters:
+        - name: lens
+          in: query
+          schema:
+            type: string
+            enum: [tradicional, pbl, great-areas]
+        - name: groupSlug
+          in: query
+          schema:
+            type: string
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [due, specific, new]
+            default: due
+      responses:
+        '200':
+          description: Flashcard preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardsPreviewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/study/flashcards/session:
+    post:
+      tags: [study, flashcards]
+      operationId: createFlashcardSession
+      summary: Cria fila SRS pra sessão de estudo (FSRS scheduling)
+      description: |
+        Retorna sessionId (uuid client-side) + cardIds ordenados por prioridade
+        FSRS (mais atrasado primeiro). Reviews subsequentes vão pelo endpoint
+        existente /api/study/flashcards/{id}/review. Added 2026-04-29.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlashcardSessionRequest'
+      responses:
+        '200':
+          description: Sessão criada (queue ordenada)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -5715,45 +5955,6 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /api/queues/status:
-    get:
-      tags: [admin]
-      operationId: getQueuesStatus
-      summary: Sync Engine status — schedules ativos + counts (stub, owned by sync-engine session)
-      responses:
-        '200':
-          description: Status payload (shape varia conforme sync-engine evolui)
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-  /api/queues/trigger:
-    post:
-      tags: [admin]
-      operationId: triggerQueueSchedule
-      summary: Forçar disparo manual de schedule da sync engine (admin only, stub)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      responses:
-        '200':
-          description: Trigger result
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
   /api/qbank/wrongAnswers:
     get:
       tags: [qbank]
@@ -6176,7 +6377,7 @@ paths:
     post:
       tags: [qbank]
       operationId: createQBankSession
-      summary: QBank session endpoints (status enum updated 2026-04-17)
+      summary: QBank session endpoints (handler aligned with 3 lens fields 2026-04-29)
       requestBody:
         required: true
         content:
@@ -6432,6 +6633,32 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '402':
           $ref: '#/components/responses/PlanLimit'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/simulados/preview:
+    post:
+      tags: [simulados]
+      operationId: previewSimulado
+      summary: Count + breakdown ANTES de criar simulado (debounced)
+      description: |
+        Espelha /api/qbank/preview mas devolve `estimatedMinutes` e top 5 grupos
+        conforme lente. Pool de Q vem de qbank_questions. Added 2026-04-29.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimuladoPreviewRequest'
+      responses:
+        '200':
+          description: Pool preview pra simulado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimuladoPreviewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -11469,21 +11696,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
-
-# focus/end metadata typing internal fix 2026-04-26 (no contract change)
-
-  /api/subjects/{id}/screen:
-    get:
-      summary: BFF aggregator per-screen pra DisciplineDetail
-      tags: [subjects]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { type: object } } } }
-        '401': { description: Unauthorized }
 
   /api/onboarding/screen:
     get:

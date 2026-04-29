@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Session Mode
 
-enum FlashcardSessionMode: String, CaseIterable {
+enum FlashcardFilterMode: String, CaseIterable {
     case all = "all"
     case newOnly = "new"
     case reviewOnly = "review"
@@ -45,7 +45,7 @@ enum FlashcardSortOrder: String, CaseIterable {
 @Observable
 final class FlashcardSettings {
     // Session
-    var sessionMode: FlashcardSessionMode = .all
+    var sessionMode: FlashcardFilterMode = .all
     var sortOrder: FlashcardSortOrder = .random
 
     // Daily limits (Anki defaults: 20 new, 200 review)
@@ -131,7 +131,7 @@ struct FlashcardSettingsScreen: View {
             // MARK: Session Mode
             sectionHeader("Modo da sessão")
             VStack(spacing: 6) {
-                ForEach(FlashcardSessionMode.allCases, id: \.self) { mode in
+                ForEach(FlashcardFilterMode.allCases, id: \.self) { mode in
                     modeRow(mode, settings: settings)
                 }
             }
@@ -284,7 +284,7 @@ struct FlashcardSettingsScreen: View {
         .buttonStyle(.plain)
     }
 
-    private func modeRow(_ mode: FlashcardSessionMode, settings: FlashcardSettings) -> some View {
+    private func modeRow(_ mode: FlashcardFilterMode, settings: FlashcardSettings) -> some View {
         let isSelected = settings.sessionMode == mode
         return Button(action: { settings.sessionMode = mode }) {
             HStack(spacing: 12) {

@@ -121,6 +121,17 @@ struct FlashcardBuilderState {
     var reviewedToday: Int = 0
     var streakDays: Int = 0
 
+    // Preview (GET /api/study/flashcards/preview) — render no Hero/CTA
+    var previewDue: Int = 0
+    var previewLearning: Int = 0
+    var previewNew: Int = 0
+    var previewProjectedMinutes: Int = 0
+    var previewLoading: Bool = false
+
+    // Sessão criada (POST /api/study/flashcards/session)
+    var lastSessionId: String? = nil
+    var lastSessionCardIds: [String] = []
+
     // Decks
     var decks: [FlashcardDeckEntry] = []
 
@@ -186,14 +197,43 @@ final class FlashcardBuilderViewModel {
     }
 
     private func loadAll() async {
-        // Boot paralelo (decks + stats + filters/groups). Render progressivo
+        // Boot paralelo (decks + stats + filters/groups + preview). Render progressivo
         // assim que cada um chega — Hero render imediato com stats, decks
         // hidratam grid embaixo, filtros lente-aware ficam prontos pro modo
         // .specific. Se algum falha, o resto continua.
         async let decksTask: Void = loadDecks()
         async let statsTask: Void = loadStats()
         async let filtersTask: Void = loadFilters()
-        _ = await (decksTask, statsTask, filtersTask)
+        async let previewTask: Void = refreshPreview()
+        _ = await (decksTask, statsTask, filtersTask, previewTask)
+    }
+
+    /// GET /api/study/flashcards/preview — atualiza counts due/learning/new
+    /// + projectedSessionTime sem criar sessão. Chamar quando mode/lens/groupSlug
+    /// mudar. Spec: openapi.yaml linha 5132.
+    func refreshPreview() async {
+        state.previewLoading = true
+        defer { state.previewLoading = false }
+        let firstGroup = state.selectedGroupSlugs.first
+        let modeStr: String
+        switch state.mode {
+        case .due: modeStr = "due"
+        case .specific: modeStr = "specific"
+        case .newCards: modeStr = "new"
+        }
+        do {
+            let resp = try await api.previewFlashcards(
+                lens: state.lens.rawValue,
+                groupSlug: firstGroup,
+                mode: modeStr
+            )
+            state.previewDue = resp.due
+            state.previewLearning = resp.learning
+            state.previewNew = resp.new
+            state.previewProjectedMinutes = resp.projectedSessionTime
+        } catch {
+            NSLog("[FlashcardBuilder] previewFlashcards error: %@", String(describing: error))
+        }
     }
 
     private func loadDecks() async {
@@ -242,6 +282,7 @@ final class FlashcardBuilderViewModel {
     func setMode(_ m: FlashcardSessionMode) {
         guard state.mode != m else { return }
         state.mode = m
+        Task { await refreshPreview() }
     }
 
     func setLens(_ lens: ContentOrganizationMode) {
@@ -249,7 +290,10 @@ final class FlashcardBuilderViewModel {
         state.lens = lens
         state.selectedGroupSlugs.removeAll()
         state.selectedSubgroupIds.removeAll()
-        Task { await loadFilters() }
+        Task {
+            await loadFilters()
+            await refreshPreview()
+        }
     }
 
     func setOrigin(_ o: FlashcardOrigin) {
@@ -270,6 +314,7 @@ final class FlashcardBuilderViewModel {
         } else {
             state.selectedGroupSlugs.insert(slug)
         }
+        Task { await refreshPreview() }
     }
 
     func toggleSubgroup(parentSlug: String, childSlug: String) {
@@ -280,25 +325,53 @@ final class FlashcardBuilderViewModel {
             state.selectedSubgroupIds.insert(id)
             state.selectedGroupSlugs.insert(parentSlug)
         }
+        Task { await refreshPreview() }
     }
 
     func clearAllFilters() {
         state.selectedGroupSlugs.removeAll()
         state.selectedSubgroupIds.removeAll()
         state.origin = .all
+        Task { await refreshPreview() }
     }
 
     // MARK: - Create session
 
-    /// Tenta criar sessão SRS via endpoint dedicado (A5 wave). Se 404,
-    /// fallback graceful: retorna ID do primeiro deck due.
-    /// Caller navega pra `FlashcardSessionScreen(deckId: id)`.
+    /// Cria sessão SRS via POST /api/study/flashcards/session (FSRS scheduling).
+    /// Hidrata `state.lastSessionId` + `state.lastSessionCardIds`. Retorna
+    /// deckId do primeiro deck que casa com o mode pra compat com a navegação
+    /// atual (`FlashcardSessionScreen(deckId:)`); refactor pra cardIds[]/sessionId
+    /// é trabalho do A2/A3 quando reescrevem a Session screen.
+    /// Spec: openapi.yaml linha 5169.
     func createSession() async -> String? {
         state.creatingSession = true
         defer { state.creatingSession = false }
 
-        // Backend session endpoint não existe ainda (issue Fase 5 backend).
-        // Fallback: abre primeiro deck due. Mantém UX viva.
+        let modeStr: String
+        switch state.mode {
+        case .due: modeStr = "due"
+        case .specific: modeStr = "specific"
+        case .newCards: modeStr = "new"
+        }
+        let limit = state.sessionLimit.rawValue == 0 ? nil : state.sessionLimit.rawValue
+        let body = FlashcardSessionBody(
+            lens: state.lens.rawValue,
+            groupSlugs: state.selectedGroupSlugs.isEmpty ? nil : Array(state.selectedGroupSlugs),
+            mode: modeStr,
+            limit: limit,
+            showHints: state.showHints,
+            skipEasy: state.skipTooEasy
+        )
+
+        do {
+            let resp = try await api.createFlashcardSession(body: body)
+            state.lastSessionId = resp.sessionId
+            state.lastSessionCardIds = resp.cardIds
+        } catch {
+            NSLog("[FlashcardBuilder] createFlashcardSession error: %@", String(describing: error))
+            // Não bloqueia UX — segue pro fallback deck-based.
+        }
+
         return firstDeckId(for: state.mode)
     }
 
