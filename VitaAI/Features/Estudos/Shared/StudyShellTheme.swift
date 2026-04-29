@@ -153,3 +153,73 @@ struct StudyShellCTA: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - LensSwitcher (3 lentes Tradicional / PBL / CNRM-Enare)
+
+/// Segmented switcher entre as 3 lentes de organização do conteúdo.
+///
+/// Aparece logo abaixo do hero nas três páginas Estudos (Questões, Simulados,
+/// Flashcards) e troca a forma como disciplinas/sistemas/áreas aparecem nos
+/// chips e na lista detalhada.
+///
+/// SOT do enum: `Generated/Models/ContentOrganizationMode.swift` + helpers em
+/// `Core/Models/Journey/JourneyType+Helpers.swift`. Decisão canônica:
+/// `agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md`.
+struct LensSwitcher: View {
+    @Binding var selection: ContentOrganizationMode
+    var theme: StudyShellTheme
+    var onChange: ((ContentOrganizationMode) -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(ContentOrganizationMode.allCases, id: \.self) { mode in
+                lensPill(mode: mode)
+            }
+        }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(theme.primaryMuted.opacity(0.18), lineWidth: 0.75)
+        )
+    }
+
+    @ViewBuilder
+    private func lensPill(mode: ContentOrganizationMode) -> some View {
+        let isSelected = selection == mode
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                selection = mode
+            }
+            onChange?(mode)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: mode.icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(mode.displayName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .tracking(-0.1)
+            }
+            .foregroundStyle(
+                isSelected ? theme.primaryLight.opacity(0.98) : VitaColors.textSecondary
+            )
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 7)
+            .background(
+                ZStack {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(theme.primary.opacity(0.22))
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(theme.primaryLight.opacity(0.32), lineWidth: 0.75)
+                    }
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}

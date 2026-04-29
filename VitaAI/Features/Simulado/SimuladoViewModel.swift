@@ -49,6 +49,10 @@ struct SimuladoUiState {
     var reviewFilter = "all"
     var error: String? = nil
 
+    // Lente de organização (3 modos). Sincroniza com profile no Home; override
+    // local não persiste no backend nessa onda — só re-rotula chips/listas.
+    var selectedLens: ContentOrganizationMode = .greatAreas
+
     var currentQuestion: SimuladoQuestionEntry? {
         questions.indices.contains(currentQuestionIndex) ? questions[currentQuestionIndex] : nil
     }
@@ -88,6 +92,18 @@ final class SimuladoViewModel {
         self.api = api
         self.gamificationEvents = gamificationEvents
         self.dataManager = dataManager
+    }
+
+    /// Sincroniza `selectedLens` com `profile.contentOrganizationMode`. Chamada
+    /// no `onAppear` do Home; override manual via `setSelectedLens`.
+    func syncLensFromProfile() {
+        if let mode = dataManager.profile?.contentOrganizationMode {
+            state.selectedLens = mode
+        }
+    }
+
+    func setSelectedLens(_ mode: ContentOrganizationMode) {
+        state.selectedLens = mode
     }
 
     // MARK: - Home

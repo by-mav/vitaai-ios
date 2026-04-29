@@ -47,6 +47,7 @@ struct SimuladoHomeScreen: View {
         .onAppear {
             if vm == nil { vm = SimuladoViewModel(api: container.api, gamificationEvents: container.gamificationEvents, dataManager: container.dataManager) }
             Task {
+                vm?.syncLensFromProfile()
                 vm?.loadAttempts()
                 SentrySDK.reportFullyDisplayed()
             }
@@ -95,6 +96,18 @@ struct SimuladoHomeScreen: View {
                 )
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
+
+                // LENTE — Tradicional / PBL / CNRM-Enare. Default herda do
+                // profile; override local só re-rotula próximas listas.
+                LensSwitcher(
+                    selection: Binding(
+                        get: { vm.state.selectedLens },
+                        set: { vm.setSelectedLens($0) }
+                    ),
+                    theme: .simulados
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
 
                 // CTA — themed blue shell button
                 StudyShellCTA(

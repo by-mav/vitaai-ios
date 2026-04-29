@@ -91,6 +91,11 @@ struct QBankUiState {
     var selectedSubjectId: String? = nil
     var selectedSubjectName: String? = nil
 
+    // Lente de organização (3 modos). Default herda do `profile.contentOrganizationMode`,
+    // com fallback `.greatAreas` quando profile ainda não carregou ou está nil.
+    // Override local não persiste no backend ainda — Onda 4 só ajusta UI.
+    var selectedLens: ContentOrganizationMode = .greatAreas
+
     // Search (client-side)
     var institutionSearch: String = ""
     var topicSearch: String = ""
@@ -350,6 +355,21 @@ final class QBankViewModel {
         state.selectedSubjectId = id
         state.selectedSubjectName = name
         loadHomeData()
+    }
+
+    /// Sincroniza `state.selectedLens` com o que vier do profile carregado.
+    /// Chamada no onAppear e quando profile atualiza. Override local persiste
+    /// até o usuário voltar pra Home — não toca backend (Onda 4).
+    func syncLensFromProfile() {
+        if let mode = dataManager.profile?.contentOrganizationMode {
+            state.selectedLens = mode
+        }
+    }
+
+    /// Override manual da lente (vem do `LensSwitcher`). Não persiste no backend
+    /// nessa onda — só re-renderiza chips/listas com o agrupamento escolhido.
+    func setSelectedLens(_ mode: ContentOrganizationMode) {
+        state.selectedLens = mode
     }
 
     /// Slugs to send to `/api/qbank/progress`. One slug when a chip is

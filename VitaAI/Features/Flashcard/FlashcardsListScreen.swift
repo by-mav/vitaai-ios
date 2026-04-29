@@ -37,6 +37,10 @@ struct FlashcardsListScreen: View {
     @State private var heroTotalCards: Int = 0
     @State private var heroReviewedToday: Int = 0
 
+    /// Lente de organização (3 modos). Default herda do profile;
+    /// override local apenas re-rotula próximas listas.
+    @State private var selectedLens: ContentOrganizationMode = .greatAreas
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
@@ -52,6 +56,14 @@ struct FlashcardsListScreen: View {
                     theme: .flashcards
                 )
                 .padding(.top, 14)
+
+                // LENTE — Tradicional / PBL / CNRM-Enare
+                LensSwitcher(
+                    selection: $selectedLens,
+                    theme: .flashcards
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
 
                 // Search bar
                 if !isLoading && !isEmpty {
@@ -240,6 +252,11 @@ struct FlashcardsListScreen: View {
 
             await overviewTask
             hydrateHeroFromStore()
+
+            // Sync lente do profile assim que appData carrega
+            if let mode = appData.profile?.contentOrganizationMode {
+                selectedLens = mode
+            }
 
             // Wait for the other two so the accordion has enrolledDisciplines
             // and the filtered currentDecks list.
