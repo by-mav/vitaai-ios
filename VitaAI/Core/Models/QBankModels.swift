@@ -380,6 +380,49 @@ struct QBankCreateSessionRequest: Encodable {
     /// Quality filter — when false, drop LLM-generated questions
     /// (isSynthetic=true, year>=2025, source=medsimple). Default true (only oficiais).
     let includeSynthetic: Bool?
+    /// Spec §11.4 — Avançadas. Backend aceita os campos (placeholder no-op
+    /// enquanto a table de revisão consolidada não existe). Enviar somente
+    /// quando true; nil/false ⇒ campo omitido do JSON via `init` default.
+    let hideAnnulled: Bool?
+    let hideReviewed: Bool?
+    /// Spec §3.1 — formato (objective/discursive/withImage). Multi-select.
+    let format: [String]?
+
+    init(
+        questionCount: Int,
+        institutionIds: [Int]? = nil,
+        years: [Int]? = nil,
+        difficulties: [String]? = nil,
+        topicIds: [Int]? = nil,
+        disciplineIds: [Int]? = nil,
+        disciplineSlugs: [String]? = nil,
+        onlyResidence: Bool? = nil,
+        onlyUnanswered: Bool? = nil,
+        title: String? = nil,
+        status: String? = nil,
+        excludeNoExplanation: Bool? = nil,
+        includeSynthetic: Bool? = nil,
+        hideAnnulled: Bool? = nil,
+        hideReviewed: Bool? = nil,
+        format: [String]? = nil
+    ) {
+        self.questionCount = questionCount
+        self.institutionIds = institutionIds
+        self.years = years
+        self.difficulties = difficulties
+        self.topicIds = topicIds
+        self.disciplineIds = disciplineIds
+        self.disciplineSlugs = disciplineSlugs
+        self.onlyResidence = onlyResidence
+        self.onlyUnanswered = onlyUnanswered
+        self.title = title
+        self.status = status
+        self.excludeNoExplanation = excludeNoExplanation
+        self.includeSynthetic = includeSynthetic
+        self.hideAnnulled = hideAnnulled
+        self.hideReviewed = hideReviewed
+        self.format = format
+    }
 }
 
 struct QBankSession: Decodable, Identifiable {
