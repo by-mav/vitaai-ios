@@ -270,11 +270,305 @@ struct SpecialtyMultiSelect: View {
     }
 }
 
-// MARK: - HierarchicalGroupSelect — tree expandível com sub-niveis
+// MARK: - BreadcrumbDrillDown — navegação por níveis dentro do card
 
-/// Substitui SpecialtyMultiSelect quando os groups têm `children` populated.
-/// Cada row é expandível: toca no chevron pra ver clusters/temas.
-/// Tap no group seleciona ele inteiro; tap num child filtra mais granular.
+/// Substitui HierarchicalGroupSelect com navegação tipo Files app:
+/// - Root: lista de groups (Sistemas / Disciplinas / Áreas)
+/// - Tap em group com children → navega pra dentro (substitui card content)
+/// - Dentro de um group: breadcrumb topo + lista de filhos + opção "Selecionar tudo"
+/// - Voltar: tap no breadcrumb root
+///
+/// Decisão Rafael 2026-04-29: ao invés de expand vertical (lista interna
+/// do card crescendo), card SOFRE drill-down — só uma lista por vez.
+struct BreadcrumbDrillDown: View {
+    let title: String
+    let groups: [QBankGroup]
+    @Binding var selectedGroupSlugs: Set<String>
+    @Binding var selectedSubgroupIds: Set<String>
+    let theme: StudyShellTheme
+
+    @State private var navSlug: String? = nil
+    @State private var search: String = ""
+
+    private var currentNode: QBankGroup? {
+        guard let slug = navSlug else { return nil }
+        return groups.first(where: { $0.slug == slug })
+    }
+
+    private var filteredGroups: [QBankGroup] {
+        guard !search.isEmpty else { return groups }
+        let q = search.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+        return groups.filter { g in
+            g.name.folding(options: .diacriticInsensitive, locale: .current).lowercased().contains(q)
+        }
+    }
+
+    private var filteredChildren: [QBankGroupChild] {
+        guard let node = currentNode else { return [] }
+        guard !search.isEmpty else { return node.children }
+        let q = search.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+        return node.children.filter { c in
+            c.name.folding(options: .diacriticInsensitive, locale: .current).lowercased().contains(q)
+        }
+    }
+
+    var body: some View {
+        VitaGlassCard(cornerRadius: 14) {
+            VStack(alignment: .leading, spacing: 0) {
+                breadcrumbHeader
+                searchBar
+                Divider().background(VitaColors.glassBorder.opacity(0.4))
+                if currentNode == nil {
+                    rootList
+                } else {
+                    childList
+                }
+            }
+        }
+    }
+
+    // MARK: Breadcrumb
+
+    private var breadcrumbHeader: some View {
+        HStack(spacing: 6) {
+            // Root tab — sempre presente
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    navSlug = nil
+                    search = ""
+                }
+            } label: {
+                Text(title.uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(0.8)
+                    .foregroundStyle(navSlug == nil ? theme.primaryLight : VitaColors.sectionLabel)
+            }
+            .buttonStyle(.plain)
+
+            if let node = currentNode {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(VitaColors.textTertiary)
+                Text(node.name)
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(0.5)
+                    .foregroundStyle(theme.primaryLight)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            if !selectedGroupSlugs.isEmpty || !selectedSubgroupIds.isEmpty {
+                Text("\(selectedGroupSlugs.count + selectedSubgroupIds.count) selec.")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(theme.primaryLight.opacity(0.85))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+    }
+
+    // MARK: Search
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12))
+                .foregroundStyle(VitaColors.textTertiary)
+            TextField("Buscar...", text: $search)
+                .font(.system(size: 13))
+                .foregroundStyle(VitaColors.textPrimary)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            if !search.isEmpty {
+                Button { search = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(VitaColors.surfaceElevated.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .padding(.horizontal, 14)
+        .padding(.bottom, 10)
+    }
+
+    // MARK: Root list (sistemas/disciplinas/áreas)
+
+    @ViewBuilder
+    private var rootList: some View {
+        if filteredGroups.isEmpty {
+            Text(search.isEmpty ? "Nenhum disponível" : "Nada encontrado para \"\(search)\"")
+                .font(.system(size: 12))
+                .foregroundStyle(VitaColors.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 20)
+        } else {
+            VStack(spacing: 0) {
+                ForEach(filteredGroups) { group in
+                    let isSelected = selectedGroupSlugs.contains(group.slug)
+                    let hasChildren = !group.children.isEmpty
+                    rootRow(group: group, isSelected: isSelected, hasChildren: hasChildren)
+                    if group.slug != filteredGroups.last?.slug {
+                        Divider()
+                            .background(VitaColors.glassBorder.opacity(0.3))
+                            .padding(.leading, 40)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rootRow(group: QBankGroup, isSelected: Bool, hasChildren: Bool) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                if isSelected {
+                    selectedGroupSlugs.remove(group.slug)
+                    selectedSubgroupIds = selectedSubgroupIds.filter { !$0.hasPrefix("\(group.slug)/") }
+                } else {
+                    selectedGroupSlugs.insert(group.slug)
+                }
+            } label: {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textTertiary.opacity(0.5))
+            }
+            .buttonStyle(.plain)
+
+            // Tap no nome → navega pra dentro (se tem children) OU seleciona (se folha)
+            Button {
+                if hasChildren {
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        navSlug = group.slug
+                        search = ""
+                    }
+                } else {
+                    if isSelected { selectedGroupSlugs.remove(group.slug) }
+                    else { selectedGroupSlugs.insert(group.slug) }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(group.name)
+                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                        .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textPrimary.opacity(0.9))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Spacer()
+                    Text(formatCount(group.count))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(VitaColors.textSecondary)
+                    if hasChildren {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(VitaColors.textTertiary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+    }
+
+    // MARK: Child list (clusters/topics)
+
+    @ViewBuilder
+    private var childList: some View {
+        if let node = currentNode {
+            VStack(spacing: 0) {
+                // "Selecionar [pai] inteiro" como primeira opção
+                let parentSelected = selectedGroupSlugs.contains(node.slug)
+                Button {
+                    if parentSelected {
+                        selectedGroupSlugs.remove(node.slug)
+                        selectedSubgroupIds = selectedSubgroupIds.filter { !$0.hasPrefix("\(node.slug)/") }
+                    } else {
+                        selectedGroupSlugs.insert(node.slug)
+                        selectedSubgroupIds = selectedSubgroupIds.filter { !$0.hasPrefix("\(node.slug)/") }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: parentSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 16))
+                            .foregroundStyle(parentSelected ? theme.primaryLight : VitaColors.textTertiary.opacity(0.5))
+                        Text("\(node.name) inteiro")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(parentSelected ? theme.primaryLight : VitaColors.textPrimary.opacity(0.9))
+                        Spacer()
+                        Text(formatCount(node.count))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(theme.primary.opacity(parentSelected ? 0.12 : 0))
+                }
+                .buttonStyle(.plain)
+
+                Divider().background(VitaColors.glassBorder.opacity(0.4))
+
+                if filteredChildren.isEmpty {
+                    Text(search.isEmpty ? "Sem subgranularidade disponível" : "Nada encontrado para \"\(search)\"")
+                        .font(.system(size: 12))
+                        .foregroundStyle(VitaColors.textTertiary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 20)
+                } else {
+                    ForEach(filteredChildren) { child in
+                        let id = child.id
+                        let childSelected = selectedSubgroupIds.contains(id)
+                        Button {
+                            if childSelected {
+                                selectedSubgroupIds.remove(id)
+                            } else {
+                                selectedSubgroupIds.insert(id)
+                                selectedGroupSlugs.insert(child.parentSlug)
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: childSelected ? "checkmark.square.fill" : "square")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(childSelected ? theme.primaryLight : VitaColors.textTertiary.opacity(0.5))
+                                Text(child.name)
+                                    .font(.system(size: 13, weight: childSelected ? .semibold : .regular))
+                                    .foregroundStyle(childSelected ? theme.primaryLight : VitaColors.textPrimary.opacity(0.85))
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                Spacer()
+                                Text(formatCount(child.count))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(VitaColors.textSecondary)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.plain)
+                        if child.id != filteredChildren.last?.id {
+                            Divider()
+                                .background(VitaColors.glassBorder.opacity(0.3))
+                                .padding(.leading, 40)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func formatCount(_ n: Int) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "pt_BR")
+        return f.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+}
+
+// MARK: - HierarchicalGroupSelect — DEPRECATED, mantido por compat (usar BreadcrumbDrillDown)
 struct HierarchicalGroupSelect: View {
     let title: String
     let groups: [QBankGroup]
@@ -639,26 +933,6 @@ struct StickyBottomCTA: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            HStack {
-                if isLoading {
-                    ProgressView()
-                        .tint(theme.primaryLight)
-                        .scaleEffect(0.6)
-                    Text("Calculando...")
-                        .font(.system(size: 11))
-                        .foregroundStyle(VitaColors.textSecondary)
-                } else {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.primaryLight.opacity(0.9))
-                    Text("\(formattedCount) questões disponíveis")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-
             if isCreating {
                 HStack(spacing: 8) {
                     ProgressView().tint(theme.primaryLight)
@@ -680,8 +954,8 @@ struct StickyBottomCTA: View {
                 .padding(.horizontal, 16)
             }
         }
-        .padding(.top, 8)
-        .padding(.bottom, 32)
+        .padding(.top, 12)
+        .padding(.bottom, 140)  // tab bar (90px) + safeArea bottom (~34px) + breathing room
         .background(
             LinearGradient(
                 stops: [

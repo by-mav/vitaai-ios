@@ -69,8 +69,12 @@ struct QBankBuilderScreen: View {
                         onClearAll: { vm.clearAllFilters() }
                     )
 
-                    // 4. Especialidades / Sistemas / Áreas (lente-aware) — hierarchical
-                    HierarchicalGroupSelect(
+                    // 4. Especialidades / Sistemas / Áreas (lente-aware) — breadcrumb drill-down
+                    if vm.state.groups.isEmpty && vm.state.filtersLoading {
+                        groupsSkeleton
+                            .padding(.horizontal, 16)
+                    } else {
+                    BreadcrumbDrillDown(
                         title: groupTitle(for: vm.state.lens),
                         groups: vm.state.groups,
                         selectedGroupSlugs: Binding(
@@ -99,16 +103,10 @@ struct QBankBuilderScreen: View {
                                 }
                             }
                         ),
-                        expandedSlugs: Binding(
-                            get: { vm.state.expandedGroupSlugs },
-                            set: { newSet in
-                                let toggleAll = newSet.symmetricDifference(vm.state.expandedGroupSlugs)
-                                for slug in toggleAll { vm.toggleExpand(slug: slug) }
-                            }
-                        ),
                         theme: .questoes
                     )
                     .padding(.horizontal, 16)
+                    }
 
                     // 5. Quantidade (sempre visível)
                     quantitySection(vm: vm)
@@ -159,7 +157,7 @@ struct QBankBuilderScreen: View {
 
             // CTA sticky
             StickyBottomCTA(
-                title: "Iniciar Sessão (\(vm.state.questionCount) questões)",
+                title: ctaTitle(vm: vm),
                 count: vm.state.displayCount,
                 isLoading: vm.state.previewLoading,
                 isCreating: vm.state.creatingSession,
@@ -341,6 +339,42 @@ struct QBankBuilderScreen: View {
                 action: { vm.setIncludeSynthetic(!(!vm.state.includeSynthetic)) }
             ),
         ]
+    }
+
+    private var groupsSkeleton: some View {
+        VitaGlassCard(cornerRadius: 14) {
+            VStack(spacing: 0) {
+                ForEach(0..<5, id: \.self) { idx in
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(VitaColors.glassBg)
+                            .frame(width: 16, height: 16)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(VitaColors.glassBg)
+                            .frame(height: 12)
+                            .frame(maxWidth: .infinity)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(VitaColors.glassBg)
+                            .frame(width: 40, height: 12)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .opacity(0.4)
+                    if idx < 4 {
+                        Divider().background(VitaColors.glassBorder.opacity(0.3))
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func ctaTitle(vm: QBankBuilderViewModel) -> String {
+        let pool = vm.state.displayCount
+        let count = min(vm.state.questionCount, pool)
+        if pool == 0 { return "Sem questões disponíveis" }
+        if vm.state.previewLoading { return "Iniciar Sessão" }
+        return "Iniciar (\(count) de \(formatNumber(pool)))"
     }
 
     private func parseId(_ id: String) -> (String, String)? {
