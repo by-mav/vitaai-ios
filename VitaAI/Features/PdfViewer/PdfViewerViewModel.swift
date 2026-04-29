@@ -609,7 +609,18 @@ final class PdfViewerViewModel {
 
         // 1. Cria freeText annotation no bbox dos strokes novos.
         let inset: CGFloat = 4
-        let textBounds = bounds.insetBy(dx: inset, dy: inset)
+        let textBoundsView = bounds.insetBy(dx: inset, dy: inset)
+        // PKCanvasView (overlay PDFKit) usa Y top-left; PDFAnnotation usa Y
+        // bottom-left no PDF page space. Sem flip, annotation vai pra fora da
+        // viewport e strokes apagam silenciosamente. Pesquisa: Apple forum
+        // "PDFPageOverlayViewProvider PencilKit" + Medium "Drawing on PDF iOS".
+        let pageH = page.bounds(for: .mediaBox).height
+        let textBounds = CGRect(
+            x: textBoundsView.minX,
+            y: pageH - textBoundsView.maxY,
+            width: textBoundsView.width,
+            height: textBoundsView.height
+        )
         let lineCount = max(1, trimmed.components(separatedBy: "\n").count)
         let fontSize = max(10, min(24, (textBounds.height / CGFloat(lineCount)) * 0.7))
 
@@ -656,7 +667,15 @@ final class PdfViewerViewModel {
 
         // Padding leve dentro do bbox pra texto não colar nas bordas.
         let inset: CGFloat = 4
-        let textBounds = bounds.insetBy(dx: inset, dy: inset)
+        let textBoundsView = bounds.insetBy(dx: inset, dy: inset)
+        // Y-flip canvas overlay → PDF page space (idem auto-convert).
+        let pageH = page.bounds(for: .mediaBox).height
+        let textBounds = CGRect(
+            x: textBoundsView.minX,
+            y: pageH - textBoundsView.maxY,
+            width: textBoundsView.width,
+            height: textBoundsView.height
+        )
 
         // Tamanho de fonte derivado da altura do desenho (mín 10pt, máx 24pt).
         // 1 linha de texto ocupa ~70% da altura do bbox; multi-linha o user

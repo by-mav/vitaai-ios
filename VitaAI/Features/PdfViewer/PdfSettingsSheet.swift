@@ -26,7 +26,7 @@ struct PdfSettingsSheet: View {
     // Shape snap reactivated 2026-04-28 — default OFF (segurança até confirmar
     // em uso real que guards anti-letra estão calibrados). Usuário liga aqui.
     @AppStorage("pdf.shapeSnap.enabled")        private var shapeSnapEnabled: Bool = true
-    @AppStorage("pdf.handwriting.autoConvert")  private var autoConvertHandwriting: Bool = false
+    @AppStorage("pdf.handwriting.autoConvert")  private var autoConvertHandwriting: Bool = true
 
     @State private var showResetConfirm: Bool = false
 
@@ -35,7 +35,7 @@ struct PdfSettingsSheet: View {
     }
 
     var body: some View {
-        VitaSheet(title: "Ajustes do PDF") {
+        VitaSheet(title: "Ajustes do PDF", detents: [.large]) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     section("Comportamento") {
@@ -69,7 +69,7 @@ struct PdfSettingsSheet: View {
 
                         toggleRow(
                             title: "Auto-converter escrita em texto",
-                            subtitle: "BETA — pode apagar texto se reconhecimento falhar. Quando você para de escrever, vira digitado sozinho",
+                            subtitle: "Quando você para de escrever, vira digitado sozinho",
                             isOn: $autoConvertHandwriting
                         )
                     }

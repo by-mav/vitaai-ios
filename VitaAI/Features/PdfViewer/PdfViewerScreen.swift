@@ -737,10 +737,26 @@ struct PdfViewerScreen: View {
         let pageByPage = info["pageByPage"] as? Bool ?? false
         let twoPageSpread = info["twoPageSpread"] as? Bool ?? false
 
+        let newMode: PDFDisplayMode
         if twoPageSpread && UIDevice.current.userInterfaceIdiom == .pad {
-            pdfView.displayMode = pageByPage ? .twoUp : .twoUpContinuous
+            newMode = pageByPage ? .twoUp : .twoUpContinuous
         } else {
-            pdfView.displayMode = pageByPage ? .singlePage : .singlePageContinuous
+            newMode = pageByPage ? .singlePage : .singlePageContinuous
+        }
+
+        // Apple PDFKit bug (forum thread/81507): toggling displayMode entre
+        // single↔two-up deixa PDFView 25% off-center + páginas em branco
+        // intermitentes (tela preta entre slides em landscape). Workaround
+        // canônico: nil→reassign do document força reset interno do
+        // minScaleFactor / scaleFactorForSizeToFit. Preserva página atual.
+        let currentPage = pdfView.currentPage
+        pdfView.displayMode = newMode
+        if let doc = pdfView.document {
+            pdfView.document = nil
+            pdfView.document = doc
+            DispatchQueue.main.async {
+                if let page = currentPage { pdfView.go(to: page) }
+            }
         }
     }
 
