@@ -69,9 +69,18 @@ struct QBankBuilderState {
     var creatingSession: Bool = false
     var error: String? = nil
 
-    /// Display count: prefere preview live; fallback `totalQuestions` da última carga.
+    /// Display count: SEMPRE reflete preview API (count real com filtros aplicados).
+    /// Reclamação Rafael #14: 'o 2327 questões não sai dali, independente do que tá selecionado'.
+    /// Bug antigo: fallback em `totalQuestions` (count do banco com filtros vazios) ficava fixo
+    /// quando user mudava filtro e preview ainda não retornou. Agora retorna 0 enquanto loading
+    /// — UI já tem `previewLoading` flag pra esconder o número e mostrar shimmer.
+    /// Se preview ainda não foi chamado (state.previewCount nil + !previewLoading), cai no
+    /// progressTotal (hero stats) que reflete o que o user tem disponível no banco — não
+    /// hardcode, é dinâmico via getQBankProgress.
     var displayCount: Int {
-        previewCount ?? totalQuestions
+        if let live = previewCount { return live }
+        if previewLoading { return 0 }
+        return progressTotal
     }
 
     var hasActiveFilters: Bool {
@@ -325,7 +334,11 @@ final class QBankBuilderViewModel {
 
         do {
             let resp = try await api.previewQBankPool(body: body)
-            NSLog("[QBankBuilder] preview RESPONSE total=%d", resp.total)
+            NSLog("[QBankBuilder] preview RESPONSE total=%d displayCount=%d (lens=%@ groupSlugs=%@)",
+                  resp.total,
+                  resp.total,
+                  state.lens.rawValue,
+                  String(describing: groupSlugsArr))
             state.previewCount = resp.total
         } catch {
             NSLog("[QBankBuilder] preview ERROR: %@", String(describing: error))
