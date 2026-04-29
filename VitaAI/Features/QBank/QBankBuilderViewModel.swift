@@ -115,13 +115,22 @@ final class QBankBuilderViewModel {
 
     private func loadAll() async {
         state.filtersLoading = true
-        async let filters = loadFilters()
-        async let progress = loadProgress()
-        async let recents = loadRecents()
-        _ = await (filters, progress, recents)
+        state.previewLoading = true
+        // Boot paralelo: filtros + progresso + recents + preview inicial em uma onda só.
+        // Antes era sequencial (filters→progress→recents→DEBOUNCE 300ms→preview), causava
+        // grupos/áreas piscando vazio. Reclamação Rafael #13: "tu não colocou tudo no promise.all?"
+        async let filtersTask: Void = loadFilters()
+        async let progressTask: Void = loadProgress()
+        async let recentsTask: Void = loadRecents()
+        async let previewTask: Void = loadInitialPreview()
+        _ = await (filtersTask, progressTask, recentsTask, previewTask)
         state.filtersLoading = false
-        // Após carga, dispara preview inicial pra hidratar count com filtros vazios
-        scheduleRefreshPreview()
+    }
+
+    /// Preview inicial sem debounce — roda em paralelo com filters no boot.
+    /// Subsequent reloads em mutações de filtro continuam via `scheduleRefreshPreview()` (debounced).
+    private func loadInitialPreview() async {
+        await refreshPreview()
     }
 
     // MARK: - Filters
