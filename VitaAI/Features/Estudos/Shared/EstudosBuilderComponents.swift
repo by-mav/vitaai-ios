@@ -459,6 +459,388 @@ struct StickyBottomCTA: View {
     }
 }
 
+// MARK: - CollapsibleSectionCard — wrapper genérico pra seções colapsáveis
+//
+// Spec §11.2: as 5 seções secundárias (Instituições, Anos, Formato,
+// Dificuldade, Avançadas) iniciam colapsadas. AdvancedSection já tem o
+// padrão; este wrapper aplica o mesmo a Formato/Dificuldade sem reescrever.
+struct CollapsibleSectionCard<Content: View>: View {
+    let title: String
+    let icon: String?
+    let summary: String?       // ex: "Todos · 60", "Sem filtro"
+    let theme: StudyShellTheme
+    @Binding var expanded: Bool
+    let content: () -> Content
+
+    var body: some View {
+        VitaGlassCard(cornerRadius: 14) {
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: 8) {
+                        if let icon {
+                            Image(systemName: icon)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(theme.primaryLight.opacity(0.9))
+                        }
+                        Text(title.uppercased())
+                            .font(.system(size: 11, weight: .bold))
+                            .tracking(0.8)
+                            .foregroundStyle(VitaColors.sectionLabel)
+                        if let summary, !expanded {
+                            Text("· \(summary)")
+                                .font(.system(size: 11))
+                                .foregroundStyle(VitaColors.textSecondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(VitaColors.textTertiary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if expanded {
+                    Divider().background(VitaColors.glassBorder.opacity(0.4))
+                    content()
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .transition(.opacity)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - InstitutionsCollapsibleSection — header colapsável que abre sheet
+//
+// Header colapsado mostra "🏥 Instituições · Todas (60) ›". Tap abre sheet
+// full-screen com search + lista buscável + checkboxes. Selecionados aparecem
+// como tags removíveis no FilterChipsRow (composição na screen).
+struct InstitutionsCollapsibleSection: View {
+    let institutions: [QBankInstitution]
+    @Binding var selectedIds: Set<Int>
+    let theme: StudyShellTheme
+
+    @State private var sheetOpen: Bool = false
+
+    private var summaryText: String {
+        if selectedIds.isEmpty { return "Todas (\(institutions.count))" }
+        return "\(selectedIds.count) selecionada\(selectedIds.count == 1 ? "" : "s")"
+    }
+
+    var body: some View {
+        VitaGlassCard(cornerRadius: 14) {
+            Button {
+                sheetOpen = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "building.2")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(theme.primaryLight.opacity(0.9))
+                    Text("INSTITUIÇÕES")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(0.8)
+                        .foregroundStyle(VitaColors.sectionLabel)
+                    Text("· \(summaryText)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .lineLimit(1)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .sheet(isPresented: $sheetOpen) {
+            InstitutionsPickerSheet(
+                institutions: institutions,
+                selectedIds: $selectedIds,
+                theme: theme
+            )
+            .presentationDetents([.large])
+            .presentationBackground(.ultraThinMaterial)
+        }
+    }
+}
+
+private struct InstitutionsPickerSheet: View {
+    let institutions: [QBankInstitution]
+    @Binding var selectedIds: Set<Int>
+    let theme: StudyShellTheme
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var search: String = ""
+
+    private var filtered: [QBankInstitution] {
+        guard !search.isEmpty else { return institutions }
+        let q = search.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+        return institutions.filter {
+            $0.name.folding(options: .diacriticInsensitive, locale: .current)
+                .lowercased()
+                .contains(q)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Instituições")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer()
+                if !selectedIds.isEmpty {
+                    Button("Limpar") { selectedIds.removeAll() }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.primaryLight)
+                }
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
+
+            // Search bar
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13))
+                    .foregroundStyle(VitaColors.textTertiary)
+                TextField("Buscar instituição...", text: $search)
+                    .font(.system(size: 14))
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                if !search.isEmpty {
+                    Button { search = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(VitaColors.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(VitaColors.surfaceElevated.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+
+            Divider().background(VitaColors.glassBorder.opacity(0.4))
+
+            // List
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    if filtered.isEmpty {
+                        Text(search.isEmpty ? "Nenhuma instituição disponível" : "Nada encontrado para \"\(search)\"")
+                            .font(.system(size: 13))
+                            .foregroundStyle(VitaColors.textTertiary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 24)
+                    } else {
+                        ForEach(filtered) { inst in
+                            row(for: inst)
+                            if inst.id != filtered.last?.id {
+                                Divider()
+                                    .background(VitaColors.glassBorder.opacity(0.3))
+                                    .padding(.leading, 44)
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func row(for inst: QBankInstitution) -> some View {
+        let isSelected = selectedIds.contains(inst.id)
+        Button {
+            if isSelected { selectedIds.remove(inst.id) }
+            else { selectedIds.insert(inst.id) }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 18))
+                    .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textTertiary.opacity(0.55))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(inst.name)
+                        .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                        .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textPrimary.opacity(0.92))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    if let state = inst.state, !state.isEmpty {
+                        Text(state)
+                            .font(.system(size: 11))
+                            .foregroundStyle(VitaColors.textTertiary)
+                    }
+                }
+                Spacer()
+                if let count = inst.count, count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(VitaColors.textSecondary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - YearsRangeSection — presets + range slider
+//
+// Header colapsado: "📅 Anos · Todos · Tap pra filtrar ›". Expand inline com
+// 3 presets [Todos] [Últimos 5] [Desde 2020] + range slider 1995-2026.
+struct YearsRangeSection: View {
+    @Binding var minYear: Int?
+    @Binding var maxYear: Int?
+    let availableMin: Int
+    let availableMax: Int
+    let theme: StudyShellTheme
+    @Binding var expanded: Bool
+    /// Callback unificado pra disparar refresh preview no VM (debounced lá).
+    let onChange: () -> Void
+
+    private var summaryText: String {
+        switch (minYear, maxYear) {
+        case (nil, nil): return "Todos"
+        case (let lo?, let hi?): return "\(lo)–\(hi)"
+        case (let lo?, nil):    return "Desde \(lo)"
+        case (nil, let hi?):    return "Até \(hi)"
+        default:                return "Todos"
+        }
+    }
+
+    var body: some View {
+        CollapsibleSectionCard(
+            title: "Anos",
+            icon: "calendar",
+            summary: summaryText,
+            theme: theme,
+            expanded: $expanded
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Presets
+                HStack(spacing: 6) {
+                    presetChip(label: "Todos", isSelected: minYear == nil && maxYear == nil) {
+                        minYear = nil; maxYear = nil; onChange()
+                    }
+                    presetChip(label: "Últimos 5", isSelected: isPresetLast5()) {
+                        minYear = max(availableMin, availableMax - 4)
+                        maxYear = availableMax
+                        onChange()
+                    }
+                    presetChip(label: "Desde 2020", isSelected: minYear == 2020 && maxYear == nil) {
+                        minYear = 2020
+                        maxYear = nil
+                        onChange()
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                // Range info
+                HStack {
+                    Text("\(minYear ?? availableMin)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.primaryLight)
+                    Spacer()
+                    Text("\(maxYear ?? availableMax)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.primaryLight)
+                }
+
+                // Min/Max sliders (SwiftUI native; double-handle range slider not native iOS 16,
+                // mantemos 2 sliders empilhados claros — sem AI slop de gesture custom).
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Ano mínimo")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(VitaColors.textTertiary)
+                    Slider(
+                        value: Binding(
+                            get: { Double(minYear ?? availableMin) },
+                            set: { newVal in
+                                let v = Int(newVal.rounded())
+                                minYear = v == availableMin ? nil : v
+                                if let mx = maxYear, v > mx { maxYear = v }
+                                onChange()
+                            }
+                        ),
+                        in: Double(availableMin)...Double(availableMax),
+                        step: 1
+                    )
+                    .tint(theme.primaryLight)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Ano máximo")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(VitaColors.textTertiary)
+                    Slider(
+                        value: Binding(
+                            get: { Double(maxYear ?? availableMax) },
+                            set: { newVal in
+                                let v = Int(newVal.rounded())
+                                maxYear = v == availableMax ? nil : v
+                                if let mn = minYear, v < mn { minYear = v }
+                                onChange()
+                            }
+                        ),
+                        in: Double(availableMin)...Double(availableMax),
+                        step: 1
+                    )
+                    .tint(theme.primaryLight)
+                }
+            }
+        }
+    }
+
+    private func isPresetLast5() -> Bool {
+        guard let lo = minYear, let hi = maxYear else { return false }
+        return lo == max(availableMin, availableMax - 4) && hi == availableMax
+    }
+
+    @ViewBuilder
+    private func presetChip(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textSecondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? theme.primary.opacity(0.22) : Color.clear)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? theme.primaryLight.opacity(0.32) : VitaColors.glassBorder, lineWidth: 0.75)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - ModePills — variantes "modo" pra Simulado e Flashcard
 
 /// Selector de "modo" tipo segmented control gold-glass. Usado em:
