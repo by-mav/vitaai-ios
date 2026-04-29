@@ -73,10 +73,20 @@ struct QBankBuilderScreen: View {
                         groupsSkeleton
                             .padding(.horizontal, 16)
                     } else {
-                    BreadcrumbDrillDown(
-                        title: groupTitle(for: vm.state.lens),
-                        groups: vm.state.groups,
-                        selectedGroupSlugs: Binding(
+                    HorizontalDrillDown(
+                        n1Title: groupTitle(for: vm.state.lens),
+                        n2Title: n2Title(for: vm.state.lens),
+                        n3Title: "Conteúdos",
+                        theme: .questoes,
+                        n1Items: vm.state.groups.map { g in
+                            DrillItem(
+                                id: g.slug,
+                                name: g.name,
+                                count: g.count,
+                                hasChildren: !g.children.isEmpty
+                            )
+                        },
+                        selectedN1Ids: Binding(
                             get: { vm.state.selectedGroupSlugs },
                             set: { newSet in
                                 let removed = vm.state.selectedGroupSlugs.subtracting(newSet)
@@ -85,7 +95,21 @@ struct QBankBuilderScreen: View {
                                 for s in added { vm.toggleGroup(slug: s) }
                             }
                         ),
-                        selectedSubgroupIds: Binding(
+                        n2ItemsFor: { n1Id in
+                            guard let group = vm.state.groups.first(where: { $0.slug == n1Id }) else { return [] }
+                            return group.children.map { c in
+                                DrillItem(
+                                    id: "\(c.parentSlug)/\(c.slug)",
+                                    name: c.name,
+                                    count: c.count,
+                                    // N3 (conteúdos) ainda não vem no payload atual; quando
+                                    // backend expor children.children ou parentSlug=, troca
+                                    // pra `true`. Hoje N2 é folha selecionável.
+                                    hasChildren: false
+                                )
+                            }
+                        },
+                        selectedN2Ids: Binding(
                             get: { vm.state.selectedSubgroupIds },
                             set: { newSet in
                                 let removed = vm.state.selectedSubgroupIds.subtracting(newSet)
@@ -102,7 +126,9 @@ struct QBankBuilderScreen: View {
                                 }
                             }
                         ),
-                        theme: .questoes
+                        n3ItemsFor: { _ in [] },
+                        selectedN3Ids: .constant([]),
+                        onSelectionChange: { /* ViewModel já dispara scheduleRefreshPreview no toggle */ }
                     )
                     .padding(.horizontal, 16)
                     }
@@ -282,6 +308,15 @@ struct QBankBuilderScreen: View {
         case .tradicional: return "Disciplinas"
         case .pbl: return "Sistemas"
         case .greatAreas: return "Áreas"
+        }
+    }
+
+    /// Label genérico do nível 2 — usado em mensagens "sem X disponíveis".
+    private func n2Title(for lens: ContentOrganizationMode) -> String {
+        switch lens {
+        case .tradicional: return "Temas"
+        case .pbl: return "Clusters"
+        case .greatAreas: return "Subáreas"
         }
     }
 
