@@ -16,6 +16,9 @@ import Sentry
 struct FlashcardBuilderScreen: View {
     @Environment(\.appContainer) private var container
     @State private var vm: FlashcardBuilderViewModel?
+    /// Quando vem de DisciplineDetailScreen → flashcardHome(subjectId), pré-seleciona
+    /// essa disciplina e abre em mode `.specific`. nil = comportamento padrão (mode `.due`).
+    var initialSubjectId: String? = nil
     let onBack: () -> Void
     let onOpenDeck: (String) -> Void
 
@@ -31,6 +34,7 @@ struct FlashcardBuilderScreen: View {
             if vm == nil {
                 vm = FlashcardBuilderViewModel(api: container.api, dataManager: container.dataManager)
                 vm?.boot()
+                vm?.setInitialSubject(slug: initialSubjectId)
                 SentrySDK.reportFullyDisplayed()
             }
         }

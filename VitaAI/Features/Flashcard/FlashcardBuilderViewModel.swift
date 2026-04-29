@@ -196,6 +196,19 @@ final class FlashcardBuilderViewModel {
         Task { await loadAll() }
     }
 
+    /// Pré-seleciona uma disciplina (vem de DisciplineDetailScreen → flashcardHome).
+    /// Switcha mode pra `.specific` (faz sentido — user veio de tela de disciplina,
+    /// quer estudar AQUELA disciplina, não revisão geral). Idempotente: chamar 2x
+    /// não duplica nem volta a desmarcar.
+    /// Onda 5 (2026-04-29) — restaura comportamento perdido na Onda 3 router rewire.
+    func setInitialSubject(slug: String?) {
+        guard let slug, !slug.isEmpty else { return }
+        guard !state.selectedGroupSlugs.contains(slug) else { return }
+        state.mode = .specific
+        state.selectedGroupSlugs.insert(slug)
+        Task { await refreshPreview() }
+    }
+
     private func loadAll() async {
         // Boot paralelo (decks + stats + filters/groups + preview). Render progressivo
         // assim que cada um chega — Hero render imediato com stats, decks

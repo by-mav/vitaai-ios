@@ -829,16 +829,14 @@ struct MainTabView: View {
             QBankCoordinatorScreen(onBack: { router.goBack() })
         case .transcricao:
             TranscricaoScreen(onBack: { router.goBack() })
-        case .flashcardHome:
+        case .flashcardHome(let subjectId):
             // Fase 5 (2026-04-29): FlashcardBuilderScreen reescrito substitui
             // FlashcardsListScreen como entry point. Hero + Mode (Revisão/Específico/
             // Novos) + Lente + Drill + Decks grid embaixo + CTA sticky.
-            // FlashcardsListScreen virou apenas decks grid 2-col (177 linhas),
-            // ainda compilável como fallback.
-            // initialSubjectId associated value ignorado — Builder não tem foco em
-            // deck único; usuário navega via Decks Grid embaixo. (TODO: passar
-            // como filtro inicial em Onda 4 via setSubject(slug).)
+            // initialSubjectId pré-seleciona disciplina e abre em mode .specific
+            // (Onda 5 restaurou — vem de DisciplineDetailScreen).
             FlashcardBuilderScreen(
+                initialSubjectId: subjectId,
                 onBack: { router.goBack() },
                 onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) }
             )
