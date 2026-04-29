@@ -256,25 +256,22 @@ struct HorizontalDrillDown: View {
 
     @ViewBuilder
     private func row(item: DrillItem, level: Level) -> some View {
+        // Split target (decisão Rafael 2026-04-29):
+        //   • Bolinha + nome + count → toggle SELECT (pega todas as Q daquela categoria)
+        //   • Chevron isolada (só se hasChildren) → DRILL pra próxima granularidade
+        // Antes: tap em qualquer lugar com children → drill; sem children → select.
+        // Era confuso — usuário selecionava "Cardiovascular" e ia drill em vez de
+        // marcar Cardio inteira. Agora drill é gesto explícito (chevron).
         let isSelected = isSelected(item: item, level: level)
         HStack(spacing: 10) {
+            // Region 1: SELECT (bolinha + nome + count) — abrange ~85% da row
             Button {
                 toggle(item: item, level: level)
             } label: {
-                Image(systemName: checkboxIcon(level: level, selected: isSelected))
-                    .font(.system(size: level == .n3 ? 14 : 16))
-                    .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textTertiary.opacity(0.5))
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                if item.hasChildren {
-                    drill(into: item, level: level)
-                } else {
-                    toggle(item: item, level: level)
-                }
-            } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: checkboxIcon(level: level, selected: isSelected))
+                        .font(.system(size: level == .n3 ? 14 : 16))
+                        .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textTertiary.opacity(0.5))
                     Text(item.name)
                         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textPrimary.opacity(0.9))
@@ -284,14 +281,26 @@ struct HorizontalDrillDown: View {
                     Text(formatCount(item.count))
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(VitaColors.textSecondary)
-                    if item.hasChildren {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(VitaColors.textTertiary)
-                    }
                 }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
+            // Region 2: DRILL (chevron isolada) — só renderiza se tem filhos.
+            // Tap-target adequado (44pt mínimo Apple HIG) via padding generoso.
+            if item.hasChildren {
+                Button {
+                    drill(into: item, level: level)
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.primaryLight.opacity(0.85))
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Abrir subcategorias de \(item.name)")
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
