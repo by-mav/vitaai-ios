@@ -2,7 +2,7 @@
 openapi: 3.1.0
 info:
   title: Vita AI API
-  version: 1.0.9
+  version: 1.0.10
   # 2026-04-09: internal phantom table cleanup (no API surface changes)
   # 2026-04-09: cron-to-ingest auth fix (internal, no API surface changes)
   # 2026-04-09: portal extraction uses vLLM direct, chat includes portal data (no API surface changes)
@@ -1099,6 +1099,35 @@ components:
     QBankFilters:
       type: object
       properties:
+        lens:
+          description: 'Lente aplicada na resposta atual. Echo do query param OU profile.contentOrganizationMode. Added 2026-04-28.'
+          type: string
+          enum: [tradicional, pbl, great-areas]
+        groups:
+          description: |
+            Agrupamento de Q conforme `lens`. Substitui `disciplines` (deprecated)
+            como filtro principal de UI. Cada item tem slug + name + count global.
+            - tradicional: vita.disciplines (96 itens)
+            - pbl: vita.pbl_systems (12 itens)
+            - great-areas: vita.exam_great_areas (5 itens)
+            Ordenado por count desc. Added 2026-04-28.
+          type: array
+          items:
+            type: object
+            required: [slug, name, count]
+            properties:
+              slug:
+                type: string
+              name:
+                type: string
+              count:
+                type: integer
+              icon:
+                type: string
+                nullable: true
+              displayOrder:
+                type: integer
+                nullable: true
         institutions:
           type: array
           items:
@@ -1189,6 +1218,101 @@ components:
         stage:
           type: string
           nullable: true
+
+    QBankPreviewRequest:
+      type: object
+      description: 'Body do POST /api/qbank/preview. Todos os campos opcionais; backend aplica defaults conservadores. Added 2026-04-28.'
+      properties:
+        lens:
+          type: string
+          enum: [tradicional, pbl, great-areas]
+          nullable: true
+        groupSlugs:
+          description: 'Slugs do agrupamento atual (disciplines/pbl_systems/exam_great_areas conforme lens).'
+          type: array
+          items:
+            type: string
+          nullable: true
+        institutionIds:
+          type: array
+          items:
+            type: integer
+          nullable: true
+        years:
+          type: object
+          nullable: true
+          properties:
+            min:
+              type: integer
+            max:
+              type: integer
+        difficulties:
+          type: array
+          items:
+            type: string
+            enum: [easy, medium, hard]
+          nullable: true
+        format:
+          description: 'Filtro de formato. objective/discursive/withImage podem combinar.'
+          type: array
+          items:
+            type: string
+            enum: [objective, discursive, withImage]
+          nullable: true
+        hideAnswered:
+          type: boolean
+          nullable: true
+          description: 'Oculta Q já respondidas pelo user.'
+        hideAnnulled:
+          type: boolean
+          nullable: true
+          description: 'Oculta Q anuladas (isCancelled=true).'
+        hideReviewed:
+          type: boolean
+          nullable: true
+          description: 'Oculta Q em listas de revisão do user.'
+        excludeNoExplanation:
+          type: boolean
+          nullable: true
+          description: 'Default true client-side. Drop Q sem comentário substancial.'
+        includeSynthetic:
+          type: boolean
+          nullable: true
+          description: 'Default false. Se false, exclui Q geradas por IA (isSynthetic=true).'
+
+    QBankPreviewResponse:
+      type: object
+      required: [total]
+      properties:
+        total:
+          type: integer
+          description: 'Quantas Q batem com TODOS os filtros aplicados.'
+        byDifficulty:
+          type: object
+          additionalProperties:
+            type: integer
+          description: 'Breakdown por dificuldade (easy/medium/hard).'
+        byYear:
+          type: object
+          additionalProperties:
+            type: integer
+          description: 'Top 10 anos com mais Q dentro do filtro.'
+        topGroups:
+          type: array
+          description: 'Top 5 grupos (disciplines/systems/areas) dentro do filtro.'
+          items:
+            type: object
+            properties:
+              slug:
+                type: string
+              name:
+                type: string
+              count:
+                type: integer
+        appliedJourneyBoost:
+          type: string
+          nullable: true
+          description: 'Echo do journeyType usado pra ranking automático (debug-friendly).'
 
     QBankQuestion:
       type: object
@@ -1500,6 +1624,69 @@ components:
           type: string
           format: date-time
           nullable: true
+
+    SimuladoScreen:
+      type: object
+      description: 'BFF aggregator response pra Simulado Home. Added 2026-04-28 substituindo o stub additionalProperties:true.'
+      required: [attempts, stats]
+      properties:
+        attempts:
+          description: 'Tentativas do user, ordenadas por createdAt desc.'
+          type: array
+          items:
+            $ref: '#/components/schemas/SimuladoAttempt'
+        stats:
+          description: 'Estatísticas agregadas (mesmo shape de GET /api/simulados.stats).'
+          type: object
+          properties:
+            totalAttempts:
+              type: integer
+            completedAttempts:
+              type: integer
+            totalQuestions:
+              type: integer
+            totalCorrect:
+              type: integer
+            avgScore:
+              type: number
+        templates:
+          description: 'Templates oficiais pre-carregados (Revalida-100, ENARE-100, etc).'
+          type: array
+          items:
+            $ref: '#/components/schemas/SimuladoTemplate'
+        diagnostics:
+          description: 'Resumo de pontos fortes/fracos por área. Null quando user tem <3 simulados completos.'
+          type: object
+          nullable: true
+          properties:
+            byArea:
+              type: array
+              items:
+                type: object
+                properties:
+                  areaSlug:
+                    type: string
+                  areaName:
+                    type: string
+                  attempts:
+                    type: integer
+                  avgScore:
+                    type: number
+            recentAvgScore:
+              type: number
+        inProgress:
+          description: 'Simulado iniciado mas não finalizado, pra retomar com 1 tap.'
+          type: object
+          nullable: true
+          properties:
+            attemptId:
+              type: string
+            answeredCount:
+              type: integer
+            totalCount:
+              type: integer
+            elapsedSeconds:
+              type: integer
 
     SimuladoQuestion:
       type: object
@@ -1857,7 +2044,7 @@ components:
           description: P1 — objetivo macro
         inFaculdade:
           type: string
-          enum: [yes, graduated, skip]
+          enum: [yes, graduated]
           description: P2 — status faculdade. Obrigatório exceto se goal=REVALIDA
         semester:
           type: integer
@@ -3125,7 +3312,7 @@ paths:
       security: []
       responses:
         '302':
-          description: Redirect to vitaai://auth/callback with token, name, email, image, or error query params
+          description: Redirect to vitaai://auth/callback with unsigned session token, name, email, image, or error query params
 
   /api/auth/mobile-callback-onehub:
     get:
@@ -3243,6 +3430,42 @@ paths:
   # INTERNAL / CRON
   # ════════════════════════════════════════
 
+  /api/cron/observability/app-store-reviews-fetch:
+    get:
+      tags: [internal]
+      operationId: cronAppStoreReviewsFetch
+      summary: Cron — fetch App Store reviews snapshot (added 2026-04-28, untracked stub)
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          description: OK
+  /api/cron/observability/portal-health-snapshot:
+    get:
+      tags: [internal]
+      operationId: cronPortalHealthSnapshot
+      summary: Cron — portal health snapshot (added 2026-04-28, untracked stub)
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          description: OK
+  /api/cron/observability/sentry-issues-snapshot:
+    get:
+      tags: [internal]
+      operationId: cronSentryIssuesSnapshot
+      summary: Cron — Sentry issues snapshot (added 2026-04-28, untracked stub)
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          description: OK
+  /api/cron/observability/trigger-runs-snapshot:
+    get:
+      tags: [internal]
+      operationId: cronTriggerRunsSnapshot
+      summary: Cron — Trigger.dev runs snapshot (added 2026-04-28, untracked stub)
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          description: OK
   /api/cron/portal-sync:
     get:
       tags: [internal]
@@ -3556,6 +3779,150 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/pdf/masks/attempt:
+    post:
+      tags: [pdf]
+      operationId: recordPdfMaskAttempt
+      summary: Record a Study Mode mask attempt (acertou/errou)
+      description: |
+        UPSERT em (userId, documentId, maskId). Se a máscara já tem registro,
+        attempts++, e correct soma 1 se acertou. lastAttemptAt = now().
+        iOS chama em fire-and-forget — falha silenciosa OK (UserDefaults é SOT
+        primária local).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentId, maskId, pageIndex, bbox, correct]
+              properties:
+                documentId: { type: string }
+                maskId: { type: string }
+                pageIndex: { type: integer }
+                bbox:
+                  type: object
+                  required: [x, y, width, height]
+                  properties:
+                    x: { type: number }
+                    y: { type: number }
+                    width: { type: number }
+                    height: { type: number }
+                correct: { type: boolean }
+      responses:
+        '200':
+          description: Attempt registrada (UPSERT)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  row:
+                    type: object
+        '400': { description: Bad payload }
+        '401': { description: Unauthorized }
+  /api/pdf/masks/attempts/{documentId}:
+    get:
+      tags: [pdf]
+      operationId: listPdfMaskAttempts
+      summary: List Study Mode attempts agregados pra um documento
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista de máscaras com counters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  masks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        maskId: { type: string }
+                        pageIndex: { type: integer }
+                        bbox: { type: object }
+                        attempts: { type: integer }
+                        correct: { type: integer }
+                        lastAttemptAt: { type: string, format: date-time, nullable: true }
+        '401': { description: Unauthorized }
+  /api/pdf/annotations/{documentId}:
+    put:
+      tags: [pdf]
+      operationId: uploadPdfAnnotations
+      summary: Upload do PDF binário com anotações pro R2 (cross-device sync)
+      description: |
+        iOS envia o arquivo _highlights.pdf gerado pelo PDFKit. Backend salva
+        no R2 e atualiza linha em vita.pdf_annotations (last-write-wins por
+        userId+documentId, version++).
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Device-Id
+          schema: { type: string }
+          required: false
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Upload registrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  row: { type: object }
+        '401': { description: Unauthorized }
+        '413': { description: Payload too large (>50MB) }
+    get:
+      tags: [pdf]
+      operationId: downloadPdfAnnotations
+      summary: Download do PDF binário com anotações (ou metadata via ?meta=1)
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: meta
+          schema: { type: string, enum: ["1"] }
+          required: false
+      responses:
+        '200':
+          description: |
+            Binário PDF (default) ou JSON metadata se ?meta=1.
+            Headers: X-Annotation-Version, X-Annotation-Sha256
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: integer }
+                  sha256: { type: string }
+                  sizeBytes: { type: integer }
+                  updatedAt: { type: string, format: date-time }
+                  deviceId: { type: string, nullable: true }
+        '401': { description: Unauthorized }
+        '404': { description: Not synced yet }
   /api/portal/sync-now:
     post:
       tags: [portal]
@@ -4452,6 +4819,42 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+  /api/study/plan:
+    get:
+      tags: [study]
+      operationId: getStudyPlan
+      summary: Estudar tab — hierarchy por lens (banca/tradicional/pbl)
+      description: >
+        Hierarchy de greatAreas/disciplines/pblSystems com question counts
+        filtrado por lens. UI Estudar consome.
+      parameters:
+        - name: lens
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [banca, tradicional, pbl]
+            default: banca
+      responses:
+        '200':
+          description: Hierarchy por lens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lens:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Profile not found
+        '500':
+          $ref: '#/components/responses/ServerError'
   /api/study/overview:
     get:
       tags: [study]
@@ -5255,7 +5658,22 @@ paths:
     get:
       tags: [qbank]
       operationId: getQBankFilters
-      summary: Get available filter options for QBank (status enum updated 2026-04-17)
+      summary: Get available filter options for QBank (lens-aware since 2026-04-28)
+      parameters:
+        - name: lens
+          in: query
+          required: false
+          description: |
+            Lente de organização do conteúdo. Define o agrupamento retornado
+            em `groups`:
+            - `tradicional`: 96 disciplinas Vita (vita.disciplines)
+            - `pbl`: 12 sistemas (vita.pbl_systems)
+            - `great-areas`: 5 grandes áreas CNRM/Enare (vita.exam_great_areas)
+            Quando ausente, usa profile.contentOrganizationMode (default
+            tradicional). SOT: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md
+          schema:
+            type: string
+            enum: [tradicional, pbl, great-areas]
       responses:
         '200':
           description: Filter options
@@ -5263,6 +5681,131 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QBankFilters'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/qbank/preview:
+    post:
+      tags: [qbank]
+      operationId: previewQBankPool
+      summary: Count + breakdown da pool ANTES de criar sessão (debounced)
+      description: |
+        Calcula em tempo real quantas Q batem com os filtros atuais. Usado
+        pelo builder das telas Estudos pra atualizar o número grande do CTA
+        sticky a cada toque. Substitui o hack `getQBankQuestions?limit=1`.
+        Backend aplica boost invisível conforme `userProfiles.journeyType`
+        (RESIDENCIA → isResidence; REVALIDA/ENAMED → INEP). Added 2026-04-28.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QBankPreviewRequest'
+      responses:
+        '200':
+          description: Pool preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QBankPreviewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/queues/status:
+    get:
+      tags: [admin]
+      operationId: getQueuesStatus
+      summary: Sync Engine status — schedules ativos + counts (stub, owned by sync-engine session)
+      responses:
+        '200':
+          description: Status payload (shape varia conforme sync-engine evolui)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/queues/trigger:
+    post:
+      tags: [admin]
+      operationId: triggerQueueSchedule
+      summary: Forçar disparo manual de schedule da sync engine (admin only, stub)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Trigger result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/qbank/wrongAnswers:
+    get:
+      tags: [qbank]
+      operationId: getQBankWrongAnswers
+      summary: Lista Q que o user errou — Caderno de Erros
+      description: |
+        Retorna Q que aluno respondeu errado, ordenadas por last-answered desc.
+        Filtrável por lente/groupSlugs pra "treinar Cardio que errei". Added 2026-04-28.
+      parameters:
+        - name: lens
+          in: query
+          schema:
+            type: string
+            enum: [tradicional, pbl, great-areas]
+        - name: groupSlugs[]
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: olderThan
+          in: query
+          description: 'ISO date — só Q erradas há mais de N dias (ótimo pra revisão espaçada).'
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Wrong answers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QBankQuestion'
+                  stats:
+                    type: object
+                    properties:
+                      totalWrong:
+                        type: integer
+                      recoveredAfterReview:
+                        type: integer
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -5684,6 +6227,42 @@ paths:
                   items:
                     type: string
                   nullable: true
+                lens:
+                  description: 'Lente aplicada na sessão (tradicional/pbl/great-areas). Backend usa pra determinar qual coluna `groupSlugs[]` consulta. Added 2026-04-28.'
+                  type: string
+                  enum: [tradicional, pbl, great-areas]
+                  nullable: true
+                pblSystemSlugs:
+                  description: 'Filtra qbank_questions.pblSystemSlug IN (...). Usado quando lens=pbl. Added 2026-04-28.'
+                  type: array
+                  items:
+                    type: string
+                  nullable: true
+                examGreatAreaSlugs:
+                  description: 'Filtra qbank_questions.examGreatAreaSlug IN (...). Usado quando lens=great-areas. Added 2026-04-28.'
+                  type: array
+                  items:
+                    type: string
+                  nullable: true
+                format:
+                  description: 'Filtro de formato. objective/discursive/withImage. Added 2026-04-28.'
+                  type: array
+                  items:
+                    type: string
+                    enum: [objective, discursive, withImage]
+                  nullable: true
+                hideAnswered:
+                  type: boolean
+                  nullable: true
+                  description: 'Oculta Q já respondidas pelo user. Added 2026-04-28.'
+                hideAnnulled:
+                  type: boolean
+                  nullable: true
+                  description: 'Oculta Q anuladas (isCancelled=true). Added 2026-04-28.'
+                hideReviewed:
+                  type: boolean
+                  nullable: true
+                  description: 'Oculta Q em listas de revisão. Added 2026-04-28.'
                 onlyResidence:
                   type: boolean
                   nullable: true
@@ -5861,7 +6440,10 @@ paths:
       tags: [simulados]
       operationId: simuladosScreen
       summary: BFF aggregator pra Simulado Home (substitui N+1 listSimulados+getDiagnostics)
-      description: Stub minimal adicionado pra desbloquear pre-commit gate. Agente original deve completar com schema completo.
+      description: |
+        Payload agregado da home Simulados em 1 RTT. Schema completo desde
+        2026-04-28 (era stub). Inclui attempts, stats, templates pre-carregados,
+        diagnostics resumido e in-flight session se houver.
       security: [{ sessionCookie: [], extensionToken: [] }]
       responses:
         '200':
@@ -5869,8 +6451,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/SimuladoScreen'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -10862,23 +11443,6 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /api/simulados/screen:
-    get:
-      tags: [screen]
-      operationId: getSimuladosScreen
-      summary: BFF agregado da tela Simulados (lista + estatísticas + sessions ativas em 1 RTT)
-      responses:
-        '200':
-          description: Payload agregado da home de simulados
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
 
   /api/subjects/{id}/screen:
     get:

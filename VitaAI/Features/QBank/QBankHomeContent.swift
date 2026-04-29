@@ -72,20 +72,6 @@ struct QBankHomeContent: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 12)
 
-                        // CTA Quick Fire — Rafael 2026-04-26: "questoes eh pra
-                        // fazer questoes direto, em ordem rapida, apenas fazer
-                        // e pronto". Tap inicia sessão imediata 10q random
-                        // sem config. Simulado fica responsável pelo fluxo
-                        // configurado via aba dedicada.
-                        StudyShellCTA(
-                            title: "Modo Aleat\u{f3}rio (10 quest\u{f5}es)",
-                            theme: .questoes,
-                            action: { vm.startQuickFire() },
-                            systemImage: "shuffle.circle.fill"
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-
                         // DISCIPLINAS — VitaScore-ordered chips (inline filter)
                         if !sortedSubjects.isEmpty {
                             StudySubjectChips(
