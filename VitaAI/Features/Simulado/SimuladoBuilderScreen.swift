@@ -18,6 +18,11 @@ import Sentry
 struct SimuladoBuilderScreen: View {
     @Environment(\.appContainer) private var container
     @State private var vm: SimuladoBuilderViewModel?
+    // Default state §11.2 — Instituições/Anos/Formato/Dificuldade colapsadas.
+    // Hero, Lente, Tags, Drill, Cronômetro, Quantidade, Recents, CTA abertas.
+    @State private var yearsExpanded: Bool = false
+    @State private var formatExpanded: Bool = false
+    @State private var difficultyExpanded: Bool = false
     let onBack: () -> Void
     let onSessionCreated: (String) -> Void
     let onOpenAttempt: (SimuladoAttemptEntry) -> Void
@@ -50,10 +55,7 @@ struct SimuladoBuilderScreen: View {
                 StudyHeroStat(
                     primary: heroPrimary(avgScore: vm.state.statsAvgScore),
                     primaryCaption: "score médio",
-                    stats: [
-                        .init(value: "\(vm.state.statsCompletedAttempts)", label: "simulados"),
-                        .init(value: formatNumber(vm.state.statsTotalQuestions), label: "questões"),
-                    ],
+                    stats: heroStats(vm: vm),
                     theme: .simulados
                 )
                 .padding(.horizontal, 16)
@@ -146,25 +148,81 @@ struct SimuladoBuilderScreen: View {
                         .padding(.horizontal, 16)
                     }
 
-                    // 6. Formato
-                    FormatPills(
-                        selected: Binding(
-                            get: { vm.state.selectedFormats },
-                            set: { newSet in
-                                let removed = vm.state.selectedFormats.subtracting(newSet)
-                                let added = newSet.subtracting(vm.state.selectedFormats)
-                                for f in removed { vm.toggleFormat(f) }
-                                for f in added { vm.toggleFormat(f) }
-                            }
-                        ),
-                        theme: .simulados
-                    )
+                    // ── Seções secundárias colapsadas por default (spec §11.2) ──
+
+                    // 5b. Instituições — abre sheet full-screen com search
+                    if !vm.state.institutions.isEmpty {
+                        InstitutionsCollapsibleSection(
+                            institutions: vm.state.institutions,
+                            selectedIds: Binding(
+                                get: { vm.state.selectedInstitutionIds },
+                                set: { newSet in
+                                    let removed = vm.state.selectedInstitutionIds.subtracting(newSet)
+                                    let added = newSet.subtracting(vm.state.selectedInstitutionIds)
+                                    for id in removed { vm.toggleInstitution(id: id) }
+                                    for id in added { vm.toggleInstitution(id: id) }
+                                }
+                            ),
+                            theme: .simulados
+                        )
+                        .padding(.horizontal, 16)
+                    }
+
+                    // 5c. Anos — presets + range slider, expand inline
+                    if !vm.state.years.isEmpty {
+                        YearsRangeSection(
+                            minYear: Binding(
+                                get: { vm.state.selectedYearMin },
+                                set: { vm.state.selectedYearMin = $0 }
+                            ),
+                            maxYear: Binding(
+                                get: { vm.state.selectedYearMax },
+                                set: { vm.state.selectedYearMax = $0 }
+                            ),
+                            availableMin: vm.state.years.min() ?? 1995,
+                            availableMax: vm.state.years.max() ?? 2026,
+                            theme: .simulados,
+                            expanded: $yearsExpanded,
+                            onChange: { vm.scheduleRefreshPreview() }
+                        )
+                        .padding(.horizontal, 16)
+                    }
+
+                    // 6. Formato — collapsed por default §11.2
+                    CollapsibleSectionCard(
+                        title: "Formato",
+                        icon: "doc.text",
+                        summary: vm.state.selectedFormats.isEmpty ? "Todos" : "\(vm.state.selectedFormats.count) selecionado(s)",
+                        theme: .simulados,
+                        expanded: $formatExpanded
+                    ) {
+                        FormatPills(
+                            selected: Binding(
+                                get: { vm.state.selectedFormats },
+                                set: { newSet in
+                                    let removed = vm.state.selectedFormats.subtracting(newSet)
+                                    let added = newSet.subtracting(vm.state.selectedFormats)
+                                    for f in removed { vm.toggleFormat(f) }
+                                    for f in added { vm.toggleFormat(f) }
+                                }
+                            ),
+                            theme: .simulados
+                        )
+                    }
                     .padding(.horizontal, 16)
 
-                    // 7. Dificuldade
+                    // 7. Dificuldade — collapsed por default §11.2
                     if !vm.state.difficulties.isEmpty {
-                        difficultySection(vm: vm)
-                            .padding(.horizontal, 16)
+                        CollapsibleSectionCard(
+                            title: "Dificuldade",
+                            icon: "chart.bar",
+                            summary: vm.state.selectedDifficulties.isEmpty ? "Todas" : "\(vm.state.selectedDifficulties.count) selecionada(s)",
+                            theme: .simulados,
+                            expanded: $difficultyExpanded
+                        ) {
+                            difficultyContent(vm: vm)
+                        }
+                        .padding(.horizontal, 16)
                     }
                 }
 
@@ -411,30 +469,22 @@ struct SimuladoBuilderScreen: View {
         }
     }
 
-    // MARK: - Difficulty section
+    // MARK: - Difficulty content (sem card wrapper — usado dentro de collapsibleSection)
 
-    private func difficultySection(vm: SimuladoBuilderViewModel) -> some View {
-        VitaGlassCard(cornerRadius: 14) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("DIFICULDADE")
-                    .font(.system(size: 11, weight: .bold))
-                    .tracking(0.8)
-                    .foregroundStyle(VitaColors.sectionLabel)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(vm.state.difficulties) { dc in
-                            let label = "\(dc.displayLabel) (\(dc.count))"
-                            QBankChip(
-                                label: label,
-                                isSelected: vm.state.selectedDifficulties.contains(dc.difficulty)
-                            ) { vm.toggleDifficulty(dc.difficulty) }
-                        }
-                    }
+    private func difficultyContent(vm: SimuladoBuilderViewModel) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(vm.state.difficulties) { dc in
+                    let label = "\(dc.displayLabel) (\(dc.count))"
+                    QBankChip(
+                        label: label,
+                        isSelected: vm.state.selectedDifficulties.contains(dc.difficulty)
+                    ) { vm.toggleDifficulty(dc.difficulty) }
                 }
             }
-            .padding(14)
         }
     }
+
 
     // MARK: - Recents section
 
@@ -547,6 +597,17 @@ struct SimuladoBuilderScreen: View {
             }
             .padding(.vertical, 4)
         }
+    }
+
+    private func heroStats(vm: SimuladoBuilderViewModel) -> [StudyHeroStat.Stat] {
+        var stats: [StudyHeroStat.Stat] = [
+            .init(value: "\(vm.state.statsCompletedAttempts)", label: "simulados"),
+            .init(value: formatNumber(vm.state.statsTotalQuestions), label: "questões"),
+        ]
+        if vm.state.streakDays > 0 {
+            stats.append(.init(value: "\(vm.state.streakDays)d", label: "ofensiva"))
+        }
+        return stats
     }
 
     private func heroPrimary(avgScore: Double) -> String {

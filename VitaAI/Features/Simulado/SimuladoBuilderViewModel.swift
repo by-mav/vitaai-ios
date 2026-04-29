@@ -131,6 +131,7 @@ struct SimuladoBuilderState {
     var groups: [QBankGroup] = []
     var institutions: [QBankInstitution] = []
     var difficulties: [QBankDifficultyStat] = []
+    var years: [Int] = []
     var totalQuestions: Int = 0
 
     // Seleções (modo Custom)
@@ -157,6 +158,7 @@ struct SimuladoBuilderState {
     var statsCompletedAttempts: Int = 0
     var statsAvgScore: Double = 0
     var statsTotalQuestions: Int = 0
+    var streakDays: Int = 0
 
     // Recents (attempts)
     var recentAttempts: [SimuladoAttemptEntry] = []
@@ -219,7 +221,8 @@ final class SimuladoBuilderViewModel {
         async let screenTask: Void = loadScreen()
         async let filtersTask: Void = loadFilters()
         async let previewTask: Void = refreshPreview()
-        _ = await (screenTask, filtersTask, previewTask)
+        async let streakTask: Void = loadStreak()
+        _ = await (screenTask, filtersTask, previewTask, streakTask)
         state.screenLoading = false
         state.filtersLoading = false
     }
@@ -271,6 +274,17 @@ final class SimuladoBuilderViewModel {
         }
     }
 
+    // MARK: - Streak (Hero 3rd stat — paridade com QBank/Flashcard)
+
+    private func loadStreak() async {
+        do {
+            let progress = try await api.getProgress()
+            state.streakDays = progress.streakDays
+        } catch {
+            // Silencia — streak é opcional no Hero. Não vai aparecer se 0.
+        }
+    }
+
     // MARK: - Filters (Custom mode)
 
     private func loadFilters() async {
@@ -279,6 +293,7 @@ final class SimuladoBuilderViewModel {
             state.groups = resp.groups
             state.institutions = resp.institutions
             state.difficulties = resp.difficulties
+            state.years = resp.years
             state.totalQuestions = resp.totalQuestions
         } catch {
             NSLog("[SimuladoBuilder] loadFilters ERROR: %@", String(describing: error))
@@ -361,6 +376,12 @@ final class SimuladoBuilderViewModel {
         } else {
             state.selectedFormats.insert(f)
         }
+        scheduleRefreshPreview()
+    }
+
+    func setYears(min: Int?, max: Int?) {
+        state.selectedYearMin = min
+        state.selectedYearMax = max
         scheduleRefreshPreview()
     }
 
