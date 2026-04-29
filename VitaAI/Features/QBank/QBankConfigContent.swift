@@ -4,7 +4,6 @@ import SwiftUI
 
 struct QBankConfigContent: View {
     @Bindable var vm: QBankViewModel
-    @Environment(\.appContainer) private var container
     let onBack: () -> Void
 
     @State private var showInstitutionSheet = false
@@ -12,141 +11,68 @@ struct QBankConfigContent: View {
 
     private let presetCounts = [10, 20, 30, 50]
 
-    /// Enrolled subjects ordered by VitaScore desc. Same source the Dashboard
-    /// uses (`AppDataManager.gradesResponse.current`).
-    private var sortedSubjects: [StudySubjectChipItem] {
-        let grades = container.dataManager.gradesResponse?.current ?? []
-        let dm = container.dataManager
-        return grades
-            .sorted { dm.vitaScore(for: $0.subjectName) > dm.vitaScore(for: $1.subjectName) }
-            .map { StudySubjectChipItem(id: $0.id, name: $0.subjectName) }
-    }
-
-    /// Hero secondary stats — total disponíveis (com filtros) + acerto agregado.
-    private var heroStats: [StudyHeroStat.Stat] {
-        let p = vm.state.progress
-        let acc = Int((p.normalizedAccuracy * 100).rounded())
-        let availLabel = vm.state.selectedSubjectId == nil ? "disponíveis" : "na matéria"
-        return [
-            .init(value: formatNumber(p.totalAvailable), label: availLabel),
-            .init(value: "\(acc)%", label: "acerto"),
-        ]
-    }
-
-    private var heroPrimaryCaption: String {
-        if let name = vm.state.selectedSubjectName, !name.isEmpty {
-            return "respondidas em \(name.lowercased())"
-        }
-        return "questões respondidas"
-    }
-
-    private var filteredSessions: [QBankSessionSummary] {
-        guard let name = vm.state.selectedSubjectName, !name.isEmpty else {
-            return vm.state.recentSessions
-        }
-        let key = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-        return vm.state.recentSessions.filter { session in
-            (session.disciplineTitles ?? []).contains { t in
-                t.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current) == key
-            }
-        }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
-            // Top bar enxuta — só "Limpar" quando tem filtro ativo
-            if vm.state.hasActiveFilters {
-                HStack {
-                    Spacer()
-                    Button("Limpar filtros") { vm.clearFilters() }
-                        .font(.system(size: 12, weight: .medium))
+            // Top bar
+            HStack {
+                Button(action: onBack) {
+                    Image(systemName: "arrow.left")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityIdentifier("backButton")
+                Text("Configurar Sessão")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer()
+                if vm.state.hasActiveFilters {
+                    Button("Limpar") { vm.clearFilters() }
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(VitaColors.accent)
-                        .padding(.trailing, 16)
-                        .padding(.top, 8)
+                        .padding(.trailing, 8)
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
 
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-
-                    // HERO — themed amber (questoes)
-                    StudyHeroStat(
-                        primary: formatNumber(vm.state.progress.totalAnswered),
-                        primaryCaption: heroPrimaryCaption,
-                        stats: heroStats,
-                        theme: .questoes
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
-
-                    // LENTE — Tradicional / PBL / CNRM-Enare
-                    LensSwitcher(
-                        selection: Binding(
-                            get: { vm.state.selectedLens },
-                            set: { vm.setSelectedLens($0) }
-                        ),
-                        theme: .questoes
-                    )
-                    .padding(.horizontal, 16)
-
-                    // DISCIPLINAS chips — VitaScore-ordered (filtro inline rápido)
-                    if !sortedSubjects.isEmpty {
-                        StudySubjectChips(
-                            subjects: sortedSubjects,
-                            selectedId: Binding(
-                                get: { vm.state.selectedSubjectId },
-                                set: { id in
-                                    let name = sortedSubjects.first(where: { $0.id == id })?.name
-                                    vm.setSelectedSubject(id: id, name: name)
-                                }
-                            ),
-                            theme: .questoes
-                        )
-                    }
-
-                    if vm.state.filtersLoading {
-                        VStack(spacing: 12) {
-                            ProgressView().tint(VitaColors.accent)
-                            Text("Carregando filtros...")
-                                .font(.system(size: 13))
-                                .foregroundStyle(VitaColors.textTertiary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                    } else {
-
-                        // [1] Available count banner — live
-                        availableCountBanner
-                            .padding(.horizontal, 16)
-
+            if vm.state.filtersLoading {
+                Spacer()
+                VStack(spacing: 12) {
+                    ProgressView().tint(VitaColors.accent)
+                    Text("Carregando filtros...")
+                        .font(.system(size: 13))
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                Spacer()
+            } else {
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 20) {
                         // [M] Mode toggle (Prática / Simulado)
                         modeToggleSection
-                            .padding(.horizontal, 16)
 
                         // [0] Selected disciplines summary
                         if !vm.state.selectedDisciplineIds.isEmpty {
                             selectedDisciplinesSummary
-                                .padding(.horizontal, 16)
                         }
+
+                        // [1] Available count banner
+                        availableCountBanner
 
                         // [2] Question count
                         questionCountSection
-                            .padding(.horizontal, 16)
 
                         // [3] Difficulty
                         if !vm.state.filters.difficulties.isEmpty {
                             difficultySection
-                                .padding(.horizontal, 16)
                         }
 
-                        // [4] Quality filters
+                        // [4] Quality filters (Rafael 2026-04-27 — A5 UI-SHIPPER)
                         qualitySection
-                            .padding(.horizontal, 16)
 
                         // [5] Year range
                         if !vm.state.filters.years.isEmpty {
                             yearRangeSection
-                                .padding(.horizontal, 16)
                         }
 
                         // [6] Institution picker
@@ -163,83 +89,51 @@ struct QBankConfigContent: View {
                             ) {
                                 showInstitutionSheet = true
                             }
-                            .padding(.horizontal, 16)
                         }
 
                         // [7] Topic expandable section
                         if !vm.state.filters.topics.isEmpty {
                             topicExpandableSection
-                                .padding(.horizontal, 16)
                         }
-                    }
 
-                    // Filter error
-                    if let filterError = vm.state.filterError {
-                        HStack(spacing: 8) {
-                            Image(systemName: "wifi.slash")
-                                .font(.system(size: 12))
-                                .foregroundStyle(VitaColors.textTertiary)
-                            Text(filterError)
-                                .font(.system(size: 12))
-                                .foregroundStyle(VitaColors.textSecondary)
-                            Spacer()
-                            Button {
-                                vm.retryLoadFilters()
-                            } label: {
-                                Text("Tentar")
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(VitaColors.accent)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .glassCard(cornerRadius: 10)
-                        .padding(.horizontal, 16)
-                    }
-
-                    if let error = vm.state.error {
-                        Text(error)
-                            .font(.system(size: 12))
-                            .foregroundStyle(VitaColors.dataRed)
-                            .padding(.horizontal, 16)
-                    }
-
-                    // SESSÕES RECENTES — sempre no rodapé
-                    QBankSectionLabel(title: "Sessões recentes")
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-
-                    if filteredSessions.isEmpty {
-                        QBankInfoCard(
-                            icon: "clock",
-                            message: vm.state.selectedSubjectName.map { "Nenhuma sessão de \($0) ainda." } ?? "Suas sessões recentes aparecerão aqui."
-                        )
-                        .padding(.horizontal, 16)
-                    } else {
-                        VStack(spacing: 10) {
-                            ForEach(filteredSessions) { session in
-                                QBankSessionCard(session: session, theme: .questoes) {
-                                    vm.resumeSession(session)
+                        // Filter error
+                        if let filterError = vm.state.filterError {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(VitaColors.textTertiary)
+                                Text(filterError)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(VitaColors.textSecondary)
+                                Spacer()
+                                Button {
+                                    vm.retryLoadFilters()
+                                } label: {
+                                    Text("Tentar")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundStyle(VitaColors.accent)
                                 }
                             }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .glassCard(cornerRadius: 10)
                         }
-                        .padding(.horizontal, 16)
+
+                        // Error
+                        if let error = vm.state.error {
+                            Text(error)
+                                .font(.system(size: 12))
+                                .foregroundStyle(VitaColors.dataRed)
+                        }
+
+                        Spacer(minLength: 20)
                     }
-
-                    Spacer(minLength: 100)
+                    .padding(16)
                 }
-                .padding(.bottom, 16)
-            }
-            .task {
-                vm.syncLensFromProfile()
-                vm.loadHomeData()
-                if vm.state.filters.disciplines.isEmpty {
-                    vm.loadFilters()
-                }
-            }
 
-            // Bottom CTA — sticky
-            bottomCTA
+                // Bottom CTA
+                bottomCTA
+            }
         }
         .background(Color.clear)
         .sheet(isPresented: $showInstitutionSheet) {

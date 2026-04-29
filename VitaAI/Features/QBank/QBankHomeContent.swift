@@ -257,7 +257,7 @@ struct QBankHomeContent: View {
 
 // MARK: - QBank Info Card (shared empty state)
 
-struct QBankInfoCard: View {
+private struct QBankInfoCard: View {
     let icon: String
     let message: String
 

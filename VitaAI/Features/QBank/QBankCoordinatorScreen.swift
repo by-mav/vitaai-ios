@@ -46,13 +46,7 @@ struct QBankCoordinatorScreen: View {
     private func coordinator(vm: QBankViewModel) -> some View {
         switch vm.state.activeScreen {
         case .home:
-            // Builder unificado — Hero + Lente + Disciplinas chips + Filtros + Recents + CTA Iniciar.
-            // O antigo "Configurar Sessão" foi fundido ao Home. `.config` é alias preservado pra
-            // compat (ex: navegação programática que ainda chamava goToConfig).
-            ZStack {
-                QBankBackground()
-                QBankConfigContent(vm: vm, onBack: onBack)
-            }
+            QBankHomeContent(vm: vm, onBack: onBack)
 
         case .topics:
             QBankTopicsContent(vm: vm, onBack: {
@@ -65,11 +59,9 @@ struct QBankCoordinatorScreen: View {
             })
 
         case .config:
-            // Alias do home (mesmo conteúdo). Mantido pra rotas legadas.
-            ZStack {
-                QBankBackground()
-                QBankConfigContent(vm: vm, onBack: onBack)
-            }
+            QBankConfigContent(vm: vm, onBack: {
+                vm.state.activeScreen = .disciplines
+            })
 
         case .session:
             QBankSessionContent(vm: vm, onBack: {
