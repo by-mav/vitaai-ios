@@ -419,12 +419,23 @@ final class AuthManager: ObservableObject {
     /// Tracks when login last succeeded
     private var lastLoginAt: Date?
 
-    func logout() {
+    /// Reason for logout - lets us distinguish telemetry signals.
+    /// See incident agent-brain/incidents/pixio/2026-04-29_posthog-phantom-logouts.md
+    enum LogoutReason: String {
+        case userInitiated = "user_initiated"
+        case sessionExpired = "session_expired"
+    }
+
+    func logout(reason: LogoutReason = .userInitiated) {
         if let loginTime = lastLoginAt, Date().timeIntervalSince(loginTime) < 5 {
             NSLog("[AuthManager] Ignoring 401 logout — login was %.1fs ago", Date().timeIntervalSince(loginTime))
             return
         }
         Task {
+            // Capture state BEFORE reset so we only emit telemetry for real logouts
+            // (not the phantom 401 on cold launch when there was no session in the first place).
+            let wasLoggedIn = isLoggedIn
+
             await tokenStore.clearSession()
             userName = nil
             userEmail = nil
@@ -434,7 +445,13 @@ final class AuthManager: ObservableObject {
             // Clear onboarding resume marker so next login starts clean.
             UserDefaults.standard.removeObject(forKey: "vita_onboarding_last_step")
             SentryConfig.clearUser()
-            PostHogTracker.shared.event(.userLoggedOut)
+
+            // PostHog: only fire user_logged_out if the user was actually signed in.
+            // Without this guard, every cold launch with no session = 1 phantom logout
+            // event (PostHog audit 2026-04-29: 251/253 user_logged_out events were orphan).
+            if wasLoggedIn {
+                PostHogTracker.shared.event(.userLoggedOut, properties: ["reason": reason.rawValue])
+            }
             VitaPostHogConfig.reset()
         }
     }

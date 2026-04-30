@@ -142,7 +142,7 @@ final class AppContainer: ObservableObject {
         // Wire 401 interceptor → auto-logout on HTTPClient + all SSE clients
         let authMgr = authManager
         let logoutHandler: @Sendable @MainActor () -> Void = {
-            authMgr.logout()
+            authMgr.logout(reason: .sessionExpired)
         }
         Task {
             await httpClient.setOnUnauthorized(logoutHandler)
