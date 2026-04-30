@@ -963,7 +963,7 @@ final class QBankViewModel {
                 state.answerResult = result
                 state.sessionAnswers[question.id] = result
                 state.showFeedback = true
-                VitaPostHogConfig.capture(event: "qbank_question_answered", properties: [
+                PostHogTracker.shared.event(.qbankQuestionAnswered, properties: [
                     "question_id": question.id,
                     "correct": result.isCorrect,
                     "seconds_elapsed": Int(responseTimeMs / 1000),

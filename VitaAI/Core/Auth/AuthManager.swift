@@ -206,7 +206,7 @@ final class AuthManager: ObservableObject {
                         "platform": "ios",
                     ])
                 }
-                VitaPostHogConfig.capture(event: "login", properties: ["method": "apple"])
+                PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "apple"])
             } else {
                 error = json?["error"] as? String ?? "Erro no login com Apple"
             }
@@ -229,7 +229,7 @@ final class AuthManager: ObservableObject {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["email": email, "password": password, "callbackURL": "/"])
 
-        await performEmailAuthRequest(req, email: email)
+        await performEmailAuthRequest(req, email: email, isSignUp: false)
     }
 
     func signUpWithEmail(email: String, password: String, name: String) async {
@@ -243,7 +243,7 @@ final class AuthManager: ObservableObject {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["email": email, "password": password, "name": name, "callbackURL": "/"])
 
-        await performEmailAuthRequest(req, email: email)
+        await performEmailAuthRequest(req, email: email, isSignUp: true)
     }
 
     // MARK: - App Store Review Token
@@ -292,7 +292,7 @@ final class AuthManager: ObservableObject {
                     "platform": "ios",
                 ])
             }
-            VitaPostHogConfig.capture(event: "login", properties: ["method": "review_token"])
+            PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "review_token"])
         } catch {
             self.error = "Erro de conexao"
         }
@@ -310,7 +310,7 @@ final class AuthManager: ObservableObject {
         _ = try? await session.data(for: req)
     }
 
-    private func performEmailAuthRequest(_ request: URLRequest, email: String) async {
+    private func performEmailAuthRequest(_ request: URLRequest, email: String, isSignUp: Bool) async {
         do {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else {
@@ -342,7 +342,10 @@ final class AuthManager: ObservableObject {
                     "name": name ?? "",
                     "platform": "ios",
                 ])
-                VitaPostHogConfig.capture(event: "login", properties: ["method": "email"])
+                if isSignUp {
+                    PostHogTracker.shared.event(.userSignedUp, properties: ["method": "email"])
+                }
+                PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "email"])
             } else {
                 error = json?["message"] as? String ?? "Email ou senha incorretos"
             }
@@ -409,7 +412,7 @@ final class AuthManager: ObservableObject {
                 "platform": "ios",
             ])
         }
-        VitaPostHogConfig.capture(event: "login", properties: ["method": "oauth"])
+        PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "oauth"])
         lastLoginAt = Date()
     }
 
@@ -431,7 +434,7 @@ final class AuthManager: ObservableObject {
             // Clear onboarding resume marker so next login starts clean.
             UserDefaults.standard.removeObject(forKey: "vita_onboarding_last_step")
             SentryConfig.clearUser()
-            VitaPostHogConfig.capture(event: "logout")
+            PostHogTracker.shared.event(.userLoggedOut)
             VitaPostHogConfig.reset()
         }
     }

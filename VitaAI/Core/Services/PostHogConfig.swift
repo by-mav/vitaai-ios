@@ -1,6 +1,6 @@
 import Foundation
 import OSLog
-import PostHog
+@_spi(Experimental) import PostHog
 
 // MARK: - VitaPostHogConfig
 //
@@ -11,12 +11,21 @@ import PostHog
 //     Debug events carry property `$environment = "development"` so Rafael
 //     can filter dev vs prod in PostHog dashboards.
 //   - Session replay enabled with masked text inputs
-//   - Host: PostHog US cloud
+//   - Host: PostHog SELF-HOST BYMAV (https://posthog.vita-ai.cloud)
 //
 // Silent DEBUG gating was removed 2026-04-20 after we discovered zero iOS
 // events had reached PostHog since 2026-04-17 (incident: PDF viewer debug
 // session. Agents had no observability to diagnose. Sentry had the same
 // issue — fixed in the same pass).
+//
+// Self-host swap 2026-04-29: migrated from us.i.posthog.com (Cloud) to
+// posthog.vita-ai.cloud (BYMAV self-host). New project_token = phc_mzQJ8...
+// Same gold-standard config; added errorTrackingConfig.autoCapture=true
+// (PostHog 3.49.0+ experimental API; replaces missing `captureExceptions`)
+// and explicit flushIntervalSeconds=30 per shell.md Camada 6.
+//
+// `sendDefaultPii` does NOT exist on iOS SDK (3.49.0/main checked) —
+// IP resolution is server-side decision in self-host PostHog UI.
 
 enum VitaPostHogConfig {
 
@@ -24,14 +33,26 @@ enum VitaPostHogConfig {
 
     // MARK: - Keys
 
-    private static let apiKey = "phc_Lp1EkqO9t2IRymz41phAJUAP3Jm0opa9RyGQfvcsy2t"
-    private static let host = "https://us.i.posthog.com"
+    private static let apiKey = "phc_mzQJ8vcdn2vDboWP7e3uStSezD65d6mY9CzHEDAdB83J"
+    private static let host = "https://posthog.vita-ai.cloud"
 
     // MARK: - Initialize
 
     /// Bootstraps PostHog SDK. Active in ALL build configurations.
+    /// PROIBIDO `#if DEBUG return` aqui — quebra obs em prod (LEI shell.md).
     static func initialize() {
         let config = PostHog.PostHogConfig(apiKey: apiKey, host: host)
+
+        // Auto-capture lifecycle + screens
+        config.captureApplicationLifecycleEvents = true
+        config.captureScreenViews = true
+
+        // Exception / crash autocapture — surface uncaught NSExceptions,
+        // POSIX signals (SIGSEGV/SIGABRT/etc), and Mach exceptions to the
+        // PostHog Error Tracking dashboard. Pairs with Sentry for coverage.
+        // SDK 3.49.0+ — experimental API (@_spi(Experimental)).
+        // Disabled when debugger attached (debugger intercepts signals first).
+        config.errorTrackingConfig.autoCapture = true
 
         // Session replay — screenshotMode OBRIGATÓRIO em SwiftUI
         // (sem isso views aparecem mascaradas integral no replay, útil=0).
@@ -42,19 +63,11 @@ enum VitaPostHogConfig {
         config.sessionReplayConfig.maskAllImages = false
         config.sessionReplayConfig.captureNetworkTelemetry = true
 
-        // LGPD — estudantes BR. IP é resolvido server-side pelo PostHog
-        // (US/EU ingest). Desligado em project settings UI, não no SDK iOS.
-        config.captureApplicationLifecycleEvents = true
-
-        // Capture screen views automatically
-        config.captureScreenViews = true
-
-        // Flush more aggressively in dev so events show up quickly
-        #if DEBUG
-        config.flushAt = 1
-        #else
+        // Flush cadence — gold standard 2026: batch up to 20 events OR
+        // flush every 30s, whichever comes first. Same in dev & prod —
+        // facilita testar real-time ingest do self-host.
         config.flushAt = 20
-        #endif
+        config.flushIntervalSeconds = 30
 
         PostHogSDK.shared.setup(config)
 
@@ -66,7 +79,7 @@ enum VitaPostHogConfig {
         #endif
         PostHogSDK.shared.register(["$environment": env, "platform": "ios"])
 
-        logger.info("PostHog initialized (env=\(env, privacy: .public))")
+        logger.info("PostHog initialized self-host (env=\(env, privacy: .public))")
     }
 
     // MARK: - User Identification
@@ -83,7 +96,8 @@ enum VitaPostHogConfig {
 
     // MARK: - Events
 
-    /// Captures a custom analytics event.
+    /// Captures a custom analytics event (raw string).
+    /// Prefer `PostHogTracker.shared.event(_:properties:)` with `VitaEvent`.
     static func capture(event: String, properties: [String: Any]? = nil) {
         PostHogSDK.shared.capture(event, properties: properties)
     }

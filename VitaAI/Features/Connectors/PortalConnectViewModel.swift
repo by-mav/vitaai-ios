@@ -190,7 +190,7 @@ final class PortalConnectViewModel {
                             mannesoftSyncDone = true
                             isConnected = true
                             isSyncing = false
-                            VitaPostHogConfig.capture(event: "portal_connect_succeeded", properties: [
+                            PostHogTracker.shared.event(.portalConnectSucceeded, properties: [
                                 "portal_type": "mannesoft",
                                 "instance_url": instanceUrl,
                                 "seconds_elapsed": Int(Date().timeIntervalSince(connectStart)),
@@ -201,7 +201,7 @@ final class PortalConnectViewModel {
                         if progress.isError {
                             error = label
                             isSyncing = false
-                            VitaPostHogConfig.capture(event: "portal_connect_failed", properties: [
+                            PostHogTracker.shared.event(.portalConnectFailed, properties: [
                                 "portal_type": "mannesoft",
                                 "instance_url": instanceUrl,
                                 "reason": label,
@@ -225,7 +225,7 @@ final class PortalConnectViewModel {
                 isConnecting = false
                 isSyncing = false
                 self.error = "Erro de conexão. Verifique sua internet."
-                VitaPostHogConfig.capture(event: "portal_connect_failed", properties: [
+                PostHogTracker.shared.event(.portalConnectFailed, properties: [
                     "portal_type": "mannesoft",
                     "instance_url": instanceUrl,
                     "reason": error.localizedDescription,
@@ -302,7 +302,7 @@ final class PortalConnectViewModel {
                     result.pdfExtracted.map { "\($0) PDFs processados" },
                 ].compactMap { $0 }.joined(separator: ", ")
                 self.successMessage = summary.isEmpty ? "Extracao completa!" : "Pronto! \(summary)"
-                VitaPostHogConfig.capture(event: "portal_connect_succeeded", properties: [
+                PostHogTracker.shared.event(.portalConnectSucceeded, properties: [
                     "portal_type": "canvas",
                     "instance_url": instanceUrl,
                     "seconds_elapsed": Int(Date().timeIntervalSince(canvasStart)),
@@ -316,7 +316,7 @@ final class PortalConnectViewModel {
                 self.isSyncing = false
                 self.canvasSyncPhase = .error
                 self.error = "Erro: \(error.localizedDescription)"
-                VitaPostHogConfig.capture(event: "portal_connect_failed", properties: [
+                PostHogTracker.shared.event(.portalConnectFailed, properties: [
                     "portal_type": "canvas",
                     "instance_url": instanceUrl,
                     "reason": error.localizedDescription,

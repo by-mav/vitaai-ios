@@ -179,7 +179,7 @@ final class OnboardingViewModel {
             subjects: subjects,
             subjectDifficulties: subjectDifficulties
         )
-        VitaPostHogConfig.capture(event: "onboarding_completed", properties: [
+        PostHogTracker.shared.event(.onboardingCompleted, properties: [
             "university_name": data.universityName,
             "semester": data.semester,
             "disciplines_count": subjects.count,

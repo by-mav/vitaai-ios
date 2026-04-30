@@ -246,7 +246,7 @@ final class SimuladoViewModel {
                 state.sessionStartDate = now
                 state.questionStartDate = now
                 state.result = nil
-                VitaPostHogConfig.capture(event: "simulado_started", properties: [
+                PostHogTracker.shared.event(.simuladoStarted, properties: [
                     "simulado_id": response.id,
                     "question_count": response.questions.count,
                     "subject": subject,

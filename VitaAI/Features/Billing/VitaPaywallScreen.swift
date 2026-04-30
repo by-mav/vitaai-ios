@@ -204,7 +204,7 @@ struct VitaPaywallScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await storeKit.loadProducts() }
         .onAppear {
-            VitaPostHogConfig.capture(event: "paywall_shown", properties: ["screen": "VitaPaywall"])
+            PostHogTracker.shared.event(.paywallShown, properties: ["screen": "VitaPaywall"])
             SentrySDK.reportFullyDisplayed()
         }
         .onChange(of: storeKit.isSubscribed) { _, newValue in
