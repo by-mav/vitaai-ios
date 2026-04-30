@@ -122,11 +122,27 @@ struct GradesCurrentResponse: Codable {
     var summary: GradesSummary = GradesSummary()
 }
 
+/// Single evaluation entry from the portal — title is preserved as the portal
+/// shows it (AP1, AS, P1, Recuperação, Final, etc.). UI renders dynamically per
+/// portal/faculty (350+ supported) instead of hardcoding a 4-column ULBRA layout.
+struct Evaluation: Codable, Hashable {
+    var title: String
+    var kind: String?       // partial | final | makeup | assignment | seminar | quiz
+    var sequence: Int?      // 1, 2, 3 within kind
+    var score: Double?
+    var weight: Double?
+    var maxScore: Double?
+}
+
 struct GradeSubject: Codable, Identifiable {
     var id: String { subjectId ?? subjectName }
     var subjectId: String?
     var subjectName: String = ""
     var professor: String?
+    /// Canonical evaluation list — render dynamic columns from this. Populated
+    /// from `academic_evaluations` rows via /api/dashboard. Sorted partial→final→makeup.
+    var evaluations: [Evaluation] = []
+    /// DEPRECATED — back-compat for screens still reading flat fields.
     var grade1: Double?
     var grade2: Double?
     var grade3: Double?
@@ -141,7 +157,8 @@ struct GradeSubject: Codable, Identifiable {
 
     private enum CodingKeys: String, CodingKey {
         case subjectId = "id"
-        case subjectName, professor, grade1, grade2, grade3, finalGrade, status, attendance, absences, workload
+        case subjectName, professor, evaluations
+        case grade1, grade2, grade3, finalGrade, status, attendance, absences, workload
         case weight1, weight2, weight3
     }
 
@@ -150,6 +167,7 @@ struct GradeSubject: Codable, Identifiable {
         subjectId = try? c.decode(String.self, forKey: .subjectId)
         subjectName = (try? c.decode(String.self, forKey: .subjectName)) ?? ""
         professor = try? c.decode(String.self, forKey: .professor)
+        evaluations = (try? c.decode([Evaluation].self, forKey: .evaluations)) ?? []
         grade1 = Self.flexDouble(c, .grade1)
         grade2 = Self.flexDouble(c, .grade2)
         grade3 = Self.flexDouble(c, .grade3)

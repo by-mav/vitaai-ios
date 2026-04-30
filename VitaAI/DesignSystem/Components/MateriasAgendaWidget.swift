@@ -106,15 +106,17 @@ struct MateriasAgendaWidget: View {
                     .padding(.vertical, 12)
                     .padding(.horizontal, 16)
             } else {
-                // Column headers
+                // Dynamic column headers — derived from union of all subjects'
+                // evaluations. Supports any portal/faculty (AP1/AS/Recuperação/P1/etc.)
+                // without hardcoded ULBRA-only schema.
+                let columns = canonicalColumns(for: subjects)
                 HStack(spacing: 0) {
                     Color.clear.frame(width: 7)
                     Text("DISCIPLINA")
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("AP1").frame(width: 34, alignment: .center)
-                    Text("AP2").frame(width: 34, alignment: .center)
-                    Text("AF").frame(width: 34, alignment: .center)
-                    Text("AS").frame(width: 34, alignment: .center)
+                    ForEach(columns, id: \.self) { col in
+                        Text(col).frame(width: 34, alignment: .center)
+                    }
                     Text("FREQ").frame(width: 40, alignment: .center)
                 }
                 .font(.system(size: 10, weight: .bold))
@@ -125,7 +127,7 @@ struct MateriasAgendaWidget: View {
                 // Rows
                 VStack(spacing: 0) {
                     ForEach(subjects) { subject in
-                        materiaRow(subject)
+                        materiaRow(subject, columns: columns)
                         if subject.id != subjects.last?.id {
                             Rectangle()
                                 .fill(textWarm.opacity(0.06))
@@ -154,7 +156,7 @@ struct MateriasAgendaWidget: View {
     // MARK: - Row
 
     @ViewBuilder
-    private func materiaRow(_ subject: GradeSubject) -> some View {
+    private func materiaRow(_ subject: GradeSubject, columns: [String]) -> some View {
         let color = SubjectColors.colorFor(subject: subject.subjectName)
 
         Button {
@@ -172,16 +174,68 @@ struct MateriasAgendaWidget: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                gradeCell(subject.grade1)
-                gradeCell(subject.grade2)
-                gradeCell(subject.finalGrade)
-                gradeCell(subject.grade3)
+                ForEach(columns, id: \.self) { col in
+                    gradeCell(scoreFor(subject: subject, column: col))
+                }
                 freqCell(subject.attendance)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Dynamic columns
+
+    /// Resolve the score this subject has for a given column label by matching
+    /// against `evaluations[]` first (preferred — what the LLM extracted from
+    /// the portal verbatim), falling back to the legacy grade1/2/3/finalGrade
+    /// for subjects whose backend hasn't populated `evaluations` yet.
+    private func scoreFor(subject: GradeSubject, column: String) -> Double? {
+        if let match = subject.evaluations.first(where: { $0.title.caseInsensitiveCompare(column) == .orderedSame }) {
+            return match.score
+        }
+        // Legacy fallback (back-compat).
+        switch column.uppercased() {
+        case "AP1", "P1", "N1": return subject.grade1
+        case "AP2", "P2", "N2": return subject.grade2
+        case "AP3", "P3", "N3": return subject.grade3
+        case "AF", "MÉDIA", "MEDIA", "FINAL": return subject.finalGrade
+        case "AS": return subject.grade3 // ULBRA legacy mapping
+        default: return nil
+        }
+    }
+
+    /// Compute the column list for the materia table by aggregating evaluation
+    /// titles across subjects, then sorting (partial → final → makeup → other).
+    /// Caps at 5 columns to fit on the home screen.
+    private func canonicalColumns(for subjects: [GradeSubject]) -> [String] {
+        struct Col: Hashable {
+            let title: String
+            let kind: String
+            let sequence: Int
+        }
+        var seen: [String: Col] = [:]
+        for s in subjects {
+            for e in s.evaluations {
+                let key = e.title.uppercased()
+                if seen[key] == nil {
+                    seen[key] = Col(title: e.title, kind: e.kind ?? "other", sequence: e.sequence ?? 99)
+                }
+            }
+        }
+        if seen.isEmpty {
+            // Backend hasn't shipped evaluations[] yet — fall back to legacy ULBRA columns.
+            return ["AP1", "AP2", "AF", "AS"]
+        }
+        let kindOrder: [String: Int] = ["partial": 0, "final": 1, "makeup": 2]
+        let cols = Array(seen.values).sorted { a, b in
+            let ka = kindOrder[a.kind] ?? 9
+            let kb = kindOrder[b.kind] ?? 9
+            if ka != kb { return ka < kb }
+            return a.sequence < b.sequence
+        }
+        return Array(cols.prefix(5)).map { $0.title.uppercased() }
     }
 
     // MARK: - Cells
