@@ -1,0 +1,19 @@
+appId: com.bymav.vitaai
+tags:
+  - audit
+  - visual
+  - all-screens
+---
+# Wrapper canon que reusa o flow `e2e/51-visual-all-screens.yaml`.
+#
+# Razão: skill /audit (apps.json) registra `audit-all-screens` como nome
+# padronizado entre Vita + Pixio (paridade cross-app). O canon real do Vita
+# vive em `e2e/51-visual-all-screens.yaml` (numbered porque parte do conjunto
+# e2e/). Esta entry existe pra que `audit-ios.sh vita-ios --flow=audit-all-screens`
+# encontre o file e delegue pro canon — sem duplicar conteúdo.
+#
+# Se mudar o flow visual, edita apenas o canônico:
+#   /Users/mav/vitaai-ios/.maestro/e2e/51-visual-all-screens.yaml
+
+- runFlow:
+    file: e2e/51-visual-all-screens.yaml
