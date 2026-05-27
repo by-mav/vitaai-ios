@@ -298,7 +298,11 @@ struct VitaOnboarding: View {
                     }
                 )
             } else {
-                ConnectStep(university: viewModel?.selectedUniversity, allPortalTypes: viewModel?.allPortalTypes ?? []) { portalType in
+                ConnectStep(
+                    university: viewModel?.selectedUniversity,
+                    allPortalTypes: viewModel?.allPortalTypes ?? [],
+                    api: container.api
+                ) { portalType in
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     withAnimation(.spring(response: 0.3)) {
                         inlineConnectPortal = portalType
@@ -618,18 +622,9 @@ struct VitaOnboarding: View {
                 typeText(firstName.isEmpty ? String(localized: "onboarding_welcome_speech") : String(localized: "onboarding_welcome_speech_name").replacingOccurrences(of: "%@", with: firstName))
 
             case .connect:
-                mascotState = .thinking
-                let uniName = viewModel?.selectedUniversity?.shortName ?? ""
-                let portalCount = viewModel?.selectedUniversity?.portals?.count ?? 0
-
-                if portalCount > 1 {
-                    typeText(String(localized: "onboarding_connect_multi").replacingOccurrences(of: "%1$@", with: uniName).replacingOccurrences(of: "%2$d", with: String(portalCount)))
-                } else if portalCount == 1 {
-                    let portalName = viewModel?.selectedUniversity?.primaryPortal?.displayName ?? "portal"
-                    typeText(String(localized: "onboarding_connect_single").replacingOccurrences(of: "%1$@", with: uniName).replacingOccurrences(of: "%2$@", with: portalName))
-                } else {
-                    typeText(String(localized: "onboarding_connect_none").replacingOccurrences(of: "%@", with: uniName))
-                }
+                mascotState = .happy
+                let uniName = viewModel?.selectedUniversity?.shortName ?? "tua faculdade"
+                typeText("\(uniName)! Pra poder te ajudar, conecta teu portal de ensino que eu puxo tudo automaticamente!")
 
             case .syncing:
                 mascotState = .thinking

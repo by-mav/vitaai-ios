@@ -57,17 +57,9 @@ struct ConnectionsScreen: View {
     // Design tokens
     private let goldSubtle = VitaColors.accentLight
 
-    // All known portal types (for "Outros portais" fallback)
     private let allPortalTypes: [PortalTypeInfo] = [
         PortalTypeInfo(type: "canvas"),
-        PortalTypeInfo(type: "webaluno"),
         PortalTypeInfo(type: "moodle"),
-        PortalTypeInfo(type: "sigaa"),
-        PortalTypeInfo(type: "totvs"),
-        PortalTypeInfo(type: "lyceum"),
-        PortalTypeInfo(type: "sagres"),
-        PortalTypeInfo(type: "blackboard"),
-        PortalTypeInfo(type: "platos"),
     ]
 
     // MARK: - Body
@@ -278,16 +270,10 @@ struct ConnectionsScreen: View {
             }
             return result
         }()
-        let detectedPortals = vm.universityPortals.isEmpty ? fallbackPortals : vm.universityPortals
-        // BUG fix 2026-04-27: webaluno e mannesoft são aliases do mesmo portal (ConnectorsViewModel:87
-        // mapeia ambos pro mesmo state). Sem essa expansão, "outros portais" mostrava o alias da
-        // detected como "disponível", duplicando visualmente. Agora dedup considera ambos.
-        let detectedTypes: Set<String> = {
-            var types = Set(detectedPortals.map(\.portalType))
-            if types.contains("mannesoft") { types.insert("webaluno") }
-            if types.contains("webaluno") { types.insert("mannesoft") }
-            return types
-        }()
+        let supportedTypes: Set<String> = ["canvas", "moodle"]
+        let detectedPortals = (vm.universityPortals.isEmpty ? fallbackPortals : vm.universityPortals)
+            .filter { supportedTypes.contains($0.portalType) }
+        let detectedTypes = Set(detectedPortals.map(\.portalType))
         let otherPortals = allPortalTypes.filter { !detectedTypes.contains($0.type) }
 
         // Section header

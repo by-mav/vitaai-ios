@@ -110,6 +110,7 @@
 		2E498AD583738C592569EDCF /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1DCBDFFA9AF803B4B4E56E7 /* DashboardModels.swift */; };
 		2EB9BC4DA508140BDB0F8D49 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E1AF08937C97A79EB9351D1 /* SectionHeader.swift */; };
 		2EBA6BD1D6E6506B391676F9 /* MindMapEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74E43BE1839E1855652DF329 /* MindMapEditorView.swift */; };
+		2EC965E8CA38DC5139F287E3 /* Pods_VitaAI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADC3BA719473213C4BB95C9C /* Pods_VitaAI.framework */; };
 		2ED752FCAC57E01E5CBCA494 /* QBankBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71AA7FA079A0F707F475518E /* QBankBuilderScreen.swift */; };
 		2F780D695604E4AA6A4D3437 /* CanvasModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F46FC65E46432288132289 /* CanvasModels.swift */; };
 		305CEED5D49052D0DCC78E5F /* HeatmapCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E970AF5E86340355DF449F9 /* HeatmapCalendarView.swift */; };
@@ -279,6 +280,7 @@
 		9378A302E67E0AE041E2EB39 /* SocialAuthButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75256D5F13D3F266611B87E4 /* SocialAuthButton.swift */; };
 		937EAB4130927B19FF53B014 /* QBankFiltersDisciplinesInner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A6EBA6D7C6FD7FA65AF1A61 /* QBankFiltersDisciplinesInner.swift */; };
 		93A239882DF96A737F37181D /* GlassTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B583FE6C84F4FFF2A9BFB75 /* GlassTextField.swift */; };
+		9457836679DC9A8EBA11E0A8 /* AddTokenSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD5929AD18E7C9B9B7B8CDB /* AddTokenSheet.swift */; };
 		9498CF9FCCC1FF64AD017D5A /* TranscricaoScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EA1E56084FA3D11CAD0F7E /* TranscricaoScreen.swift */; };
 		94CC00D0CF7ED87DB67D15BB /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C7EE91AF90098D6FB1DAD0 /* PushManager.swift */; };
 		94FB657CBA1170A3F4EB2675 /* StudyShellTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8B8F6A0A39DA9F089559142 /* StudyShellTheme.swift */; };
@@ -629,6 +631,7 @@
 		6AD37FFFDD11FB731B7FEEB3 /* PrivacyDocumentsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyDocumentsScreen.swift; sourceTree = "<group>"; };
 		6B2FBDF30C2F0A96A7EA33EA /* OnboardingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewModel.swift; sourceTree = "<group>"; };
 		6B97080B4329AB9C409C8FD0 /* VitaShimmer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaShimmer.swift; sourceTree = "<group>"; };
+		6CD5929AD18E7C9B9B7B8CDB /* AddTokenSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AddTokenSheet.swift; sourceTree = "<group>"; };
 		6CFAD85F7F02DFFB8814579A /* GoogleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleModels.swift; sourceTree = "<group>"; };
 		6E96A2F8EC619718B744BFD6 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		7032B7F8C0B61415B9E30313 /* VitaBreadcrumb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaBreadcrumb.swift; sourceTree = "<group>"; };
@@ -731,6 +734,7 @@
 		ABD7E02F013E5DCB1B7E41BB /* OsceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OsceModels.swift; sourceTree = "<group>"; };
 		AD5CF5C5AEA9ACE3D2E0C370 /* EnvironmentKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentKeys.swift; sourceTree = "<group>"; };
 		AD675F659893240D25A7F451 /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
+		ADC3BA719473213C4BB95C9C /* Pods_VitaAI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_VitaAI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AE0C81D77D122B30D6B15BA1 /* VitaAPI+QuickActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VitaAPI+QuickActions.swift"; sourceTree = "<group>"; };
 		AE31CC2592D05FF00976F24A /* CanvasSilentReauth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasSilentReauth.swift; sourceTree = "<group>"; };
 		AE820FA12745A79A71139683 /* VitaStreakBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaStreakBadge.swift; sourceTree = "<group>"; };
@@ -740,6 +744,7 @@
 		B1B869512A09C99A6DCF4177 /* DeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandler.swift; sourceTree = "<group>"; };
 		B26F29C8F6797062934D4D8F /* NotebookListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookListViewModel.swift; sourceTree = "<group>"; };
 		B30F475603BEE5DD42020C1E /* ReferralCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferralCaptureService.swift; sourceTree = "<group>"; };
+		B359E2597AA0C44A98105A61 /* Pods-VitaAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-VitaAI.release.xcconfig"; path = "Target Support Files/Pods-VitaAI/Pods-VitaAI.release.xcconfig"; sourceTree = "<group>"; };
 		B39730C4459D428670423B22 /* CrowdModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrowdModels.swift; sourceTree = "<group>"; };
 		B3E9812C67CBB8FA05BFEEDE /* StoreKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitManager.swift; sourceTree = "<group>"; };
 		B3EA4225C0D0DC9A0A495001 /* ReferralScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferralScreen.swift; sourceTree = "<group>"; };
@@ -829,6 +834,7 @@
 		E8B8F6A0A39DA9F089559142 /* StudyShellTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyShellTheme.swift; sourceTree = "<group>"; };
 		E924DCF6AA655A4D83A473DD /* VitaMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaMascot.swift; sourceTree = "<group>"; };
 		E94679ADA237C7F8A3B01896 /* SoundManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundManager.swift; sourceTree = "<group>"; };
+		E9D7F3B0E85C9461362F0A57 /* Pods-VitaAI.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-VitaAI.debug.xcconfig"; path = "Target Support Files/Pods-VitaAI/Pods-VitaAI.debug.xcconfig"; sourceTree = "<group>"; };
 		EC8FE94587B7F5721A573CFB /* EmailAuthSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAuthSheet.swift; sourceTree = "<group>"; };
 		ECA6A8C8C58763ADD42697C2 /* GradeAlertMeta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradeAlertMeta.swift; sourceTree = "<group>"; };
 		ED0343F16BF93C40BA29E8D8 /* AboutScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutScreen.swift; sourceTree = "<group>"; };
@@ -873,6 +879,7 @@
 				65B3D9025C1304C171AA8537 /* SentrySwiftUI in Frameworks */,
 				A63BA82F96785DD38FE2EFD5 /* PostHog in Frameworks */,
 				162C02F9A35AE862A245FE75 /* GLTFKit2 in Frameworks */,
+				2EC965E8CA38DC5139F287E3 /* Pods_VitaAI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1112,6 +1119,14 @@
 			path = Network;
 			sourceTree = "<group>";
 		};
+		1CD69186B724830D9489A708 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				ADC3BA719473213C4BB95C9C /* Pods_VitaAI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		22DD7A207D7C54681DAFF65D /* Auth */ = {
 			isa = PBXGroup;
 			children = (
@@ -1133,6 +1148,7 @@
 				82CFE5C0E9138BCFCBE572A0 /* InlinePortalLoginSheet.swift */,
 				F4708991B14929DDDC793ACE /* PortalConnectScreen.swift */,
 				27F6AD78A7F2B4F76991CD5D /* PortalConnectViewModel.swift */,
+				6CD5929AD18E7C9B9B7B8CDB /* AddTokenSheet.swift */,
 			);
 			path = Connectors;
 			sourceTree = "<group>";
@@ -1581,6 +1597,16 @@
 			path = DI;
 			sourceTree = "<group>";
 		};
+		BD6EEB3AD782287AB840CC93 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				E9D7F3B0E85C9461362F0A57 /* Pods-VitaAI.debug.xcconfig */,
+				B359E2597AA0C44A98105A61 /* Pods-VitaAI.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		BF075C4FA8D29B17090241DC /* Progresso */ = {
 			isa = PBXGroup;
 			children = (
@@ -1824,6 +1850,8 @@
 				3BE0254CCE43999AFC726DCD /* VitaAI */,
 				067354EBEA40CBE7A43750FE /* VitaAIUITests */,
 				DCD696659AC5F5DDCA830456 /* Products */,
+				BD6EEB3AD782287AB840CC93 /* Pods */,
+				1CD69186B724830D9489A708 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1864,8 +1892,6 @@
 				3F7FD2A6B35DB3CF75D10AF9 /* PBXTargetDependency */,
 			);
 			name = VitaAIUITests;
-			packageProductDependencies = (
-			);
 			productName = VitaAIUITests;
 			productReference = 71A803CD05ACDB97E5A85BD7 /* VitaAIUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -1874,9 +1900,12 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A6A02A75AB11A56D3892D836 /* Build configuration list for PBXNativeTarget "VitaAI" */;
 			buildPhases = (
+				FD22E671E9E83C08C0DBD81A /* [CP] Check Pods Manifest.lock */,
 				9DC411835BE7FBAD1D60620B /* Sources */,
 				DCF7F65E07A04D7E489F14CA /* Resources */,
 				8D316E3925B10FBADC3AE28A /* Frameworks */,
+				C621F069D2D96F370F07E74C /* [CP] Embed Pods Frameworks */,
+				3DDC71663BD7E6FC80972717 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -1952,6 +1981,65 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		3DDC71663BD7E6FC80972717 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		C621F069D2D96F370F07E74C /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		FD22E671E9E83C08C0DBD81A /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-VitaAI-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		790C9D6C62C811C580545C8D /* Sources */ = {
@@ -2377,6 +2465,7 @@
 				BB3144C91665AED5016FA3DF /* WebAlunoWebViewScreen.swift in Sources */,
 				314B13E5687E06A6CB1030D6 /* WeekAgendaSection.swift in Sources */,
 				1A22403509BD373659DF1FF4 /* WelcomeStep.swift in Sources */,
+				9457836679DC9A8EBA11E0A8 /* AddTokenSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2406,12 +2495,13 @@
 /* Begin XCBuildConfiguration section */
 		17F644E06A464C6E71D372DB /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E9D7F3B0E85C9461362F0A57 /* Pods-VitaAI.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 148;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;
@@ -2450,12 +2540,13 @@
 		};
 		4DEDB9BDAC62FE99364DEFEE /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = B359E2597AA0C44A98105A61 /* Pods-VitaAI.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 148;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;

@@ -706,9 +706,11 @@ struct MainTabView: View {
                 defaultInstanceUrl: defaultUrl ?? "",
                 onBack: { router.goBack() }
             )
-        // Legacy routes → unified PortalConnectScreen
+        // Canvas: pivot 2026-05-07 — token-based via AddTokenSheet (inline pra
+        // nao depender de novo arquivo no Xcode project)
         case .canvasConnect:
-            PortalConnectScreen(portalType: "canvas", onBack: { router.goBack() })
+            CanvasTokenEntry(onBack: { router.goBack() })
+        // Legacy routes (NÃO migradas — webaluno sem API token; google_* OAuth nativo)
         case .webalunoConnect:
             PortalConnectScreen(portalType: "webaluno", onBack: { router.goBack() })
         case .googleCalendarConnect:
@@ -869,6 +871,29 @@ struct MainTabView: View {
             )
         default:
             EmptyView()
+        }
+    }
+}
+
+/// Pivot 2026-05-07: tela leve que apresenta `AddTokenSheet` como sheet sobre
+/// fundo transparente. Substitui PortalConnectScreen webview legacy pra Canvas.
+/// Inline aqui pra nao precisar adicionar arquivo novo ao .xcodeproj.
+private struct CanvasTokenEntry: View {
+    let onBack: () -> Void
+    @State private var showSheet = true
+
+    var body: some View {
+        ZStack {
+            VitaAmbientBackground { Color.clear }
+                .ignoresSafeArea()
+        }
+        .navigationBarHidden(true)
+        .sheet(isPresented: $showSheet) {
+            AddTokenSheet()
+                .presentationDetents([.large])
+        }
+        .onChange(of: showSheet) { _, newValue in
+            if !newValue { onBack() }
         }
     }
 }

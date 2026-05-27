@@ -778,20 +778,90 @@ actor VitaAPI {
         try await client.get("portal/status")
     }
 
-    // Backend só serve portal/*. Estas funções viram NO-OPs até as features
-    // que dependem delas (CourseDetail, Estudos files picker, Simulado files
-    // picker, conectores via cookies) serem migradas/removidas. NÃO bater
-    // na rede: hits 404 anteriores estavam disparando logout em loop.
+    // Pivot 2026-05-07: webview/scrape extinto. Conectar Canvas via
+    // Personal Access Token student-side. Backend valida token + persiste
+    // em portal_connections.sessionCookie (encrypted) com portalType='canvas_api'.
+    // Spec: agent-brain/decisions/2026-05-07_vita-pivot-llm-extract-to-api-token-and-manual.md
 
+    /// POST /api/connectors/canvas/token — valida + persiste Personal Access Token.
     func connectCanvas(accessToken: String, instanceUrl: String) async throws -> CanvasConnectResponse {
-        return CanvasConnectResponse(success: false, error: "canvas_connect_legacy_disabled")
+        struct Body: Encodable {
+            let token: String
+            let baseUrl: String
+        }
+        struct Response: Decodable {
+            let connectionId: String
+            let canvasUser: CanvasUserPayload?
+            let instanceUrl: String?
+        }
+        struct CanvasUserPayload: Decodable {
+            let id: Int
+            let name: String
+            let email: String?
+        }
+        do {
+            let res: Response = try await client.post(
+                "connectors/canvas/token",
+                body: Body(token: accessToken, baseUrl: instanceUrl)
+            )
+            return CanvasConnectResponse(success: true, connectionId: res.connectionId, updated: false, error: nil)
+        } catch let APIError.serverError(code) {
+            return CanvasConnectResponse(success: false, error: "Falha ao conectar Canvas (HTTP \(code))")
+        }
     }
 
+    /// POST /api/connectors/moodle/token — valida + persiste Moodle Web Service Token.
+    func connectMoodle(accessToken: String, instanceUrl: String) async throws -> CanvasConnectResponse {
+        struct Body: Encodable {
+            let token: String
+            let baseUrl: String
+        }
+        struct Response: Decodable {
+            let connectionId: String
+        }
+        do {
+            let res: Response = try await client.post(
+                "connectors/moodle/token",
+                body: Body(token: accessToken, baseUrl: instanceUrl)
+            )
+            return CanvasConnectResponse(success: true, connectionId: res.connectionId, updated: false, error: nil)
+        } catch let APIError.serverError(code) {
+            return CanvasConnectResponse(success: false, error: "Falha ao conectar Moodle (HTTP \(code))")
+        }
+    }
+
+    /// POST /api/connectors/canvas/sync — puxa cursos+assignments via API oficial.
+    func syncCanvas(connectionId: String) async throws -> CanvasSyncResponse {
+        struct Body: Encodable { let connectionId: String }
+        struct Response: Decodable {
+            let ok: Bool
+            let subjectsCreated: Int
+            let subjectsUpdated: Int
+            let evaluationsCreated: Int
+            let evaluationsUpdated: Int
+        }
+        let res: Response = try await client.post(
+            "connectors/canvas/sync",
+            body: Body(connectionId: connectionId)
+        )
+        return CanvasSyncResponse(
+            courses: res.subjectsCreated + res.subjectsUpdated,
+            files: 0,
+            assignments: res.evaluationsCreated + res.evaluationsUpdated,
+            calendarEvents: 0,
+            pdfExtracted: 0,
+            studyEvents: 0,
+            errors: res.ok ? [] : ["sync_failed"]
+        )
+    }
+
+    /// Compat com chamadas legacy sem connectionId. NO-OP — preserva ABI.
     func syncCanvas() async throws -> CanvasSyncResponse {
         return CanvasSyncResponse()
     }
 
     func disconnectCanvas() async throws {
+        // TODO: rota /api/connectors/canvas/disconnect (criar Fase 2.1)
         try await client.delete("portal/disconnect?portalType=canvas")
     }
 
