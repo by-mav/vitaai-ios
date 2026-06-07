@@ -11,9 +11,7 @@ name: iOS Build
 
 on:
   push:
-    branches:
-      - 'claude/**'
-      - main
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -38,6 +36,31 @@ jobs:
           echo "--- Available iPhone simulators ---"
           xcrun simctl list devices available | grep -i iphone || true
 
+      - name: Cache Bundler gems
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('Gemfile') }}
+          restore-keys: ${{ runner.os }}-gems-
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-pods-${{ hashFiles('Podfile.lock') }}
+          restore-keys: ${{ runner.os }}-pods-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: ${{ runner.os }}-dd-${{ hashFiles('Podfile.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dd-${{ hashFiles('Podfile.lock') }}-
+            ${{ runner.os }}-dd-
+
       - name: Install dependencies (Bundler + CocoaPods)
         run: |
           bundle config set --local path 'vendor/bundle'
@@ -55,4 +78,5 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/DerivedData \
             -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES

@@ -9,6 +9,8 @@ name: iOS Simulator Screenshot
 # Dispatch this workflow to "open the simulator and see the app" from anywhere.
 
 on:
+  push:
+    branches: ['ci/sim-shot']
   workflow_dispatch:
     inputs:
       sim_name:
@@ -42,6 +44,31 @@ jobs:
           if [ -n "$LATEST" ]; then sudo xcode-select -s "$LATEST/Contents/Developer"; fi
           xcodebuild -version
 
+      - name: Cache Bundler gems
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('Gemfile') }}
+          restore-keys: ${{ runner.os }}-gems-
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-pods-${{ hashFiles('Podfile.lock') }}
+          restore-keys: ${{ runner.os }}-pods-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: ${{ runner.os }}-dd-${{ hashFiles('Podfile.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dd-${{ hashFiles('Podfile.lock') }}-
+            ${{ runner.os }}-dd-
+
       - name: Install dependencies (Bundler + CocoaPods)
         run: |
           bundle config set --local path 'vendor/bundle'
@@ -59,7 +86,8 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/DerivedData \
             -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES
 
       - name: Locate built .app
         id: app
@@ -97,7 +125,7 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl launch "$UDID" com.bymav.vitaai || true
-          sleep "${{ inputs.settle_seconds }}"
+          SECS="${{ inputs.settle_seconds }}"; sleep "${SECS:-12}"
           xcrun simctl io "$UDID" screenshot artifacts/screenshot.png
           ls -la artifacts
           xcrun simctl terminate "$UDID" com.bymav.vitaai || true
