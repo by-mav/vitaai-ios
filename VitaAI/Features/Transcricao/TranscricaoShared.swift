@@ -136,16 +136,16 @@ struct TranscricaoModeToggle: View {
                             : Color.white.opacity(0.40)
                     )
                     .frame(maxWidth: .infinity, minHeight: 32)
-                    .background(
-                        isSelected
-                            ? RoundedRectangle(cornerRadius: 8)
+                    .background {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 8)
                                 .fill(TealColors.accent.opacity(0.12))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
                                         .stroke(TealColors.accent.opacity(0.20), lineWidth: 1)
                                 )
-                            : nil
-                    )
+                        }
+                    }
                     // Tap area explícita restrita ao retângulo visível —
                     // evita o vazamento de hit test pro mascote abaixo que
                     // estava fazendo "Ao Vivo" virar "começar a gravar".
