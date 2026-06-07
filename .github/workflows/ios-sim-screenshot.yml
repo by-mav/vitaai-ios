@@ -9,6 +9,8 @@ name: iOS Simulator Screenshot
 # Dispatch this workflow to "open the simulator and see the app" from anywhere.
 
 on:
+  push:
+    branches: ['ci/sim-shot']
   workflow_dispatch:
     inputs:
       sim_name:
@@ -97,7 +99,7 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl launch "$UDID" com.bymav.vitaai || true
-          sleep "${{ inputs.settle_seconds }}"
+          SECS="${{ inputs.settle_seconds }}"; sleep "${SECS:-12}"
           xcrun simctl io "$UDID" screenshot artifacts/screenshot.png
           ls -la artifacts
           xcrun simctl terminate "$UDID" com.bymav.vitaai || true
