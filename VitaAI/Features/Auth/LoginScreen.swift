@@ -19,6 +19,10 @@ struct LoginScreen: View {
 
     private enum LoadingProvider { case google, apple, none }
 
+    // Off-white canon hero 2026 — pure white cansa retina + visual cheap;
+    // off-white #F4F6F9 é o neutro premium (Mercury/Linear/visionOS pattern).
+    static let heroOffWhite = Color(red: 0.957, green: 0.965, blue: 0.976)
+
     // Asymmetric snap: easier to commit to revealed (0.4 going up) but ALSO
     // easier to dismiss back (0.55 going down). Velocity also pulls toward the
     // intended end so a flick reverts even with small distance.
@@ -93,38 +97,48 @@ struct LoginScreen: View {
                     : nil
                 )
 
-            // Intro text — espelha pattern do Pixio (Rafael 2026-04-28)
+            // Intro text — Hero canon 2026 (off-white + ambient shadow).
             if p < 0.3 {
-                Text("O futuro dos seus estudos\ncome\u{00E7}a aqui.")
-                    .font(.system(size: 34, weight: .light, design: .serif))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-                    .position(x: w / 2, y: h * 0.32)
-                    .opacity(1.0 - p / 0.25)
+                VStack(spacing: 4) {
+                    Text("O futuro dos seus")
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundStyle(LoginScreen.heroOffWhite)
+                    Text("estudos começa aqui.")
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [VitaColors.accentLight, VitaColors.accent, VitaColors.accentDark],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                }
+                .multilineTextAlignment(.center)
+                .tracking(-0.5)
+                .shadow(color: .black.opacity(0.55), radius: 16, x: 0, y: 6)
+                .position(x: w / 2, y: h * 0.50)
+                .opacity(1.0 - p / 0.25)
             }
 
-            // Swipe hint — sits right above Vita's head, double chevron with
-            // staggered upward bounce so it reads as motion guidance.
+            // Swipe hint — chevron+texto DENTRO do orbe mascote (Pixio canon).
             if p < 0.2 {
                 VStack(spacing: 6) {
                     Image(systemName: "chevron.up")
                         .font(.system(size: 18, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.55))
+                        .foregroundStyle(Color.white.opacity(0.65))
                         .offset(y: hintBounce)
                     Image(systemName: "chevron.up")
                         .font(.system(size: 18, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(Color.white.opacity(0.95))
                         .offset(y: hintBounce * 0.5)
                     Text("ARRASTE PARA CIMA")
                         .font(.system(size: 12, weight: .semibold))
                         .tracking(3.0)
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(Color.white.opacity(0.90))
                         .padding(.top, 4)
                 }
-                .shadow(color: .black.opacity(0.5), radius: 12, x: 0, y: 4)
-                // Anchor right above Vita's visible head — top of mascot minus a small gap.
-                .position(x: w / 2, y: max(h * 0.55, mascotY - mascotSize / 2 - 70))
+                .shadow(color: .black.opacity(0.55), radius: 12, x: 0, y: 4)
+                .position(x: w / 2, y: mascotY - mascotSize / 2 + 90)
                 .opacity(1.0 - p / 0.18)
                 .onAppear {
                     withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
@@ -133,17 +147,29 @@ struct LoginScreen: View {
                 }
             }
 
-            // Reveal headline — espelha pattern do Pixio (Rafael 2026-04-28)
+            // Reveal headline — Hero canon 2026 (bold wordmark + brand gradient + glow).
             if p > 0.6 {
-                VStack(spacing: 8) {
-                    Text("Conhe\u{00E7}a Vita")
-                        .font(.system(size: 38, weight: .light, design: .serif))
-                        .foregroundStyle(.white.opacity(0.9))
+                let goldGlow = Color(red: 1.0, green: 0.75, blue: 0.37).opacity(0.22)
+                VStack(spacing: 10) {
+                    Text("Vita")
+                        .font(.system(size: 56, weight: .bold))
+                        .tracking(-1.5)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [VitaColors.accentLight, VitaColors.accent, VitaColors.accentDark],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .shadow(color: .black.opacity(0.55), radius: 16, x: 0, y: 6)
+                        .shadow(color: goldGlow, radius: 24, x: 0, y: 0)
 
                     Text("Seu agente de estudos pessoal")
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(LoginScreen.heroOffWhite.opacity(0.65))
                         .multilineTextAlignment(.center)
+                        .tracking(-0.1)
+                        .shadow(color: .black.opacity(0.55), radius: 16, x: 0, y: 6)
                 }
                 .position(x: w / 2, y: h * 0.60)
                 .opacity(min(1, (p - 0.6) / 0.25))

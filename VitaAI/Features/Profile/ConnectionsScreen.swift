@@ -33,7 +33,7 @@ struct ConnectionsScreen: View {
     // Direct WebView flows (no intermediate screen)
     @State private var showWebalunoWebView = false
     @State private var webalunoInstanceUrl: String = ""
-    @State private var showCanvasWebView = false
+    @State private var showCanvasTokenSheet = false
     @State private var canvasInstanceUrl: String = ""
 
     // WhatsApp linking flow
@@ -112,9 +112,11 @@ struct ConnectionsScreen: View {
                 portalInstanceUrl: webalunoInstanceUrl
             )
         }
-        // Canvas WebView — pushed inside NavigationStack (keeps shell)
-        .navigationDestination(isPresented: $showCanvasWebView) {
-            canvasWebViewFullScreen
+        // Canvas token sheet — AddTokenSheet (substitui WebView, pivot 2026-05-07)
+        .sheet(isPresented: $showCanvasTokenSheet) {
+            AddTokenSheet()
+                .environmentObject(container)
+                .presentationDetents([.large])
         }
         // WhatsApp linking sheet
         // WhatsApp linking sheet
@@ -587,7 +589,7 @@ struct ConnectionsScreen: View {
             showWebalunoWebView = true
         case "canvas":
             canvasInstanceUrl = instanceUrl ?? vm?.canvas.instanceUrl ?? "https://ulbra.instructure.com"
-            showCanvasWebView = true
+            showCanvasTokenSheet = true
         default:
             // Moodle / SIGAA / TOTVS / Sagres / Lyceum / Blackboard / Platos.
             // Unified shell — same PortalConnectScreen as Canvas/WebAluno but
@@ -818,7 +820,7 @@ struct ConnectionsScreen: View {
         VStack(spacing: 0) {
             // Nav bar
             HStack(spacing: 4) {
-                Button(action: { showCanvasWebView = false }) {
+                Button(action: { showCanvasTokenSheet = false }) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 17, weight: .semibold))
@@ -881,7 +883,7 @@ struct ConnectionsScreen: View {
                     portalType: "canvas",
                     portalURL: canvasInstanceUrl.replacingOccurrences(of: "https://", with: ""),
                     onSessionCaptured: { cookie in
-                        showCanvasWebView = false
+                        showCanvasTokenSheet = false
                         connectCanvas(cookies: cookie)
                     }
                 )
