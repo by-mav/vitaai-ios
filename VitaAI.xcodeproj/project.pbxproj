@@ -318,6 +318,7 @@
 		B103DCF8985F30681E2DD806 /* StartFocusSessionRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 807C05B4B5F7D12816CE30CB /* StartFocusSessionRequest.swift */; };
 		B111E06581118C3664F542C9 /* ConnectionsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B4661452712B846B5F555B7 /* ConnectionsScreen.swift */; };
 		B250373F7BDD27D5154310C7 /* VitaXpToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F941EEE1160DE104E36CA06 /* VitaXpToast.swift */; };
+		B3C1C750998BBFFDA2465EB6 /* PixioCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F1FCB277F4B5AE0E3748A4 /* PixioCompat.swift */; };
 		B4A0012A2CFF5100CE370485 /* CreateCheckoutSession200Response.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505DF51B5393856BAA326D17 /* CreateCheckoutSession200Response.swift */; };
 		B505B41DE4A819A819EAB4F8 /* DashboardResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDF8108D737C29A91D7BAA9 /* DashboardResponse.swift */; };
 		B686750D047AF3E85B1FBCAA /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A45516BBF7E16BFB9410B27 /* AppRouter.swift */; };
@@ -580,6 +581,7 @@
 		56845E72F3F2F9B9857BA4F8 /* PaywallScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallScreen.swift; sourceTree = "<group>"; };
 		57701B977FC6C905F52BB267 /* QBankFiltersDifficultiesInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankFiltersDifficultiesInner.swift; sourceTree = "<group>"; };
 		57C136181A281A16258743A6 /* QBankFiltersGroupsInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankFiltersGroupsInner.swift; sourceTree = "<group>"; };
+		57F1FCB277F4B5AE0E3748A4 /* PixioCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixioCompat.swift; sourceTree = "<group>"; };
 		587035BC7D829951519C0696 /* FaculdadeDisciplinasScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaculdadeDisciplinasScreen.swift; sourceTree = "<group>"; };
 		58B636EDE3D2FC8F4C739405 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		592B63FA996C5A6E62A174DE /* VitaSubTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaSubTabBar.swift; sourceTree = "<group>"; };
@@ -1113,6 +1115,7 @@
 		2AA5519C112F115D656D197E /* Theme */ = {
 			isa = PBXGroup;
 			children = (
+				57F1FCB277F4B5AE0E3748A4 /* PixioCompat.swift */,
 				16B4E6171DD72A7B7AC4F27C /* SubjectColors.swift */,
 				FB3CAA9D7ADA613A3FDC5EBD /* VitaColors.swift */,
 				328AC2CF13E1210CFE78179F /* VitaShellKit.swift */,
@@ -2132,6 +2135,7 @@
 				F53094AF37BB3E9E9FE76CEA /* PdfViewerViewModel.swift in Sources */,
 				95D55FC456FBBA9A6AC12AC3 /* PdfWorkspace.swift in Sources */,
 				0B64DA50F82489CAD7428A5F /* PhoneVerifySheet.swift in Sources */,
+				B3C1C750998BBFFDA2465EB6 /* PixioCompat.swift in Sources */,
 				BCAD8532DDAE7A626FCB6341 /* PlannerScreen.swift in Sources */,
 				97696D66B15AF9A50675CF64 /* PlannerViewModel.swift in Sources */,
 				E67209EEF1E9AE724E3BF80E /* PortalIcon.swift in Sources */,

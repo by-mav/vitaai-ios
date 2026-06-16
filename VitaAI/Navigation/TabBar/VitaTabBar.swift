@@ -14,16 +14,6 @@ enum TabItem: String, CaseIterable {
         case .progresso: return "chart.bar"
         }
     }
-
-    var testID: String {
-        switch self {
-        case .home: return "tab_home"
-        case .estudos: return "tab_estudos"
-        case .faculdade: return "tab_faculdade"
-        case .progresso: return "tab_progresso"
-        }
-    }
-
     var selectedIcon: String {
         switch self {
         case .home: return "house.fill"
@@ -32,273 +22,207 @@ enum TabItem: String, CaseIterable {
         case .progresso: return "chart.bar.fill"
         }
     }
-}
-
-// MARK: - Notched Shape
-// The arc center matches the Vita button center (above the bar top edge).
-// The arc follows the button curvature with a small gap.
-
-struct NotchedBarShape: Shape {
-    /// Y offset of button center above bar top edge (positive = above)
-    let buttonCenterAboveTop: CGFloat
-    /// Arc radius (button radius + gap)
-    let arcRadius: CGFloat
-    let cornerRadius: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let midX = rect.midX
-        let top = rect.minY
-        // Button center is above the bar's top edge
-        let centerY = top - buttonCenterAboveTop
-
-        // Find where the arc intersects the bar's top edge (y = top)
-        // Circle: (x - midX)^2 + (y - centerY)^2 = arcRadius^2
-        // At y = top: (x - midX)^2 = arcRadius^2 - (top - centerY)^2
-        //                           = arcRadius^2 - buttonCenterAboveTop^2
-        let dx = sqrt(max(arcRadius * arcRadius - buttonCenterAboveTop * buttonCenterAboveTop, 0))
-        let leftEdgeX = midX - dx
-        let rightEdgeX = midX + dx
-
-        // Angle at these intersection points
-        // atan2(top - centerY, leftEdgeX - midX) = atan2(buttonCenterAboveTop, -dx)
-        let startAngle = Angle(radians: atan2(Double(top - centerY), Double(leftEdgeX - midX)))
-        let endAngle = Angle(radians: atan2(Double(top - centerY), Double(rightEdgeX - midX)))
-
-        // Ramp for smooth transition from flat edge into arc
-        let ramp: CGFloat = 12
-
-        var path = Path()
-
-        // Top-left corner
-        path.move(to: CGPoint(x: rect.minX + cornerRadius, y: top))
-
-        // Flat top edge → ramp start
-        path.addLine(to: CGPoint(x: leftEdgeX - ramp, y: top))
-
-        // Smooth curve into the arc (small quad ramp)
-        path.addQuadCurve(
-            to: CGPoint(x: leftEdgeX, y: top),
-            control: CGPoint(x: leftEdgeX - ramp * 0.2, y: top)
-        )
-
-        // Circular arc — concave notch (screen-counterclockwise = clockwise:true in CG)
-        path.addArc(
-            center: CGPoint(x: midX, y: centerY),
-            radius: arcRadius,
-            startAngle: startAngle,
-            endAngle: endAngle,
-            clockwise: true
-        )
-
-        // Smooth curve out of the arc
-        path.addQuadCurve(
-            to: CGPoint(x: rightEdgeX + ramp, y: top),
-            control: CGPoint(x: rightEdgeX + ramp * 0.2, y: top)
-        )
-
-        // Flat top edge right
-        path.addLine(to: CGPoint(x: rect.maxX - cornerRadius, y: top))
-
-        // Corners
-        path.addArc(center: CGPoint(x: rect.maxX - cornerRadius, y: top + cornerRadius),
-                     radius: cornerRadius, startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cornerRadius))
-        path.addArc(center: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY - cornerRadius),
-                     radius: cornerRadius, startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.minX + cornerRadius, y: rect.maxY))
-        path.addArc(center: CGPoint(x: rect.minX + cornerRadius, y: rect.maxY - cornerRadius),
-                     radius: cornerRadius, startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
-        path.addLine(to: CGPoint(x: rect.minX, y: top + cornerRadius))
-        path.addArc(center: CGPoint(x: rect.minX + cornerRadius, y: top + cornerRadius),
-                     radius: cornerRadius, startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
-
-        path.closeSubpath()
-        return path
+    var shortLabel: String {
+        switch self {
+        case .home: return "Home"
+        case .estudos: return "Estudos"
+        case .faculdade: return "Jornada"
+        case .progresso: return "Progresso"
+        }
+    }
+    var testID: String {
+        switch self {
+        case .home: return "tab_home"
+        case .estudos: return "tab_estudos"
+        case .faculdade: return "tab_faculdade"
+        case .progresso: return "tab_progresso"
+        }
     }
 }
 
-// MARK: - Gold Glassmorphism Tab Bar
-
+// MARK: - VitaTabBar — bottom nav colada VERBATIM do Pixio (berco/bump + grabber),
+// re-skin dourado via PixioCompat. Centro = mascote Vita (abre chat). Grabber =
+// abre a gaveta "+" (VitaAddSheet). SOT: agent-brain/decisions/2026-06-16_vita-pixio-ui-port.md
 struct VitaTabBar: View {
     @Binding var selectedTab: TabItem
     var onCenterTap: () -> Void
     var onTabReselect: ((TabItem) -> Void)? = nil
+    var onAddSelect: ((VitaAddSheet.Kind) -> Void)? = nil
 
-    // Rafael (2026-04-24): mascote gold acorda quando tu toca. Idle = olho
-    // fechado (sleeping). Tap → olho aberto (awake) por 1s → volta a dormir.
     @State private var vitaAwake: Bool = false
+    @State private var showAdd: Bool = false
+    @Environment(\.colorScheme) private var scheme
 
-    // Liquid-glass selector bubble — anima entre tabs com physics spring
-    // (Rafael 2026-04-25). matchedGeometryEffect garante interpolação suave
-    // de posição+tamanho entre o tab antigo e o novo selecionado.
-    @Namespace private var selectorNS
-
-    private let barHeight: CGFloat = 54
-    private let vitaSize: CGFloat = 58
-    private let gap: CGFloat = 5 // gap between button edge and arc
-
-    // How far above bar top the button center sits
-    private var buttonCenterAboveTop: CGFloat {
-        vitaSize * 0.35 - barHeight / 2 + vitaSize / 2
-        // = 20.3 - 27 + 29 = 22.3
+    private var navContactShadow: (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) {
+        PixioShadow.contact(dark: scheme == .dark)
     }
-    private var arcRadius: CGFloat { vitaSize / 2 + gap }
-
-    private var barShape: NotchedBarShape {
-        NotchedBarShape(
-            buttonCenterAboveTop: buttonCenterAboveTop,
-            arcRadius: arcRadius,
-            cornerRadius: 24
-        )
+    private var navAmbientShadow: (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) {
+        PixioShadow.ambient(dark: scheme == .dark)
     }
+
+    private let bumpHeight: CGFloat = 21
+    private let bumpWidth: CGFloat = 88
 
     var body: some View {
-        ZStack {
-            // Liquid Glass + cor marrom BYMAV. Stack:
-            //   1. .glassEffect() refração nativa (iOS 26+) — distorce o
-            //      conteúdo do app passando por baixo
-            //   2. Gradient marrom translúcido (~55-62% opacity, não 75/82
-            //      como antes) — preserva identidade visual mas deixa o
-            //      vidro respirar e mostrar refração
-            //   3. Radial gold highlight + border + shadow (identidade)
-            // Fallback iOS 17-25: ultraThinMaterial + gradient marrom.
-            Group {
-                if #available(iOS 26.0, *) {
-                    Color.clear.glassEffect(.regular, in: barShape)
-                } else {
-                    barShape.fill(.ultraThinMaterial)
+        VStack(spacing: 0) {
+            VitaBarGrabber(active: showAdd) { showAdd = true }
+                .frame(height: bumpHeight)
+                .padding(.top, 5)
+
+            GeometryReader { geo in
+                let padding = geo.size.width / 24
+                let colWidth = (geo.size.width - 2 * padding) / 5
+                HStack(spacing: 0) {
+                    tabButton(.home,      width: colWidth)
+                    tabButton(.estudos,   width: colWidth)
+                    vitaCenterButton(width: colWidth)
+                    tabButton(.faculdade, width: colWidth)
+                    tabButton(.progresso, width: colWidth)
                 }
+                .padding(.horizontal, padding)
             }
-            .overlay(
-                barShape.fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.133, green: 0.090, blue: 0.071).opacity(0.55),
-                            Color(red: 0.071, green: 0.047, blue: 0.043).opacity(0.62)
-                        ],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
-            )
-            .overlay(
-                barShape.fill(
-                    RadialGradient(
-                        colors: [
-                            Color(red: 1.0, green: 0.910, blue: 0.733).opacity(0.10),
-                            Color.clear
-                        ],
-                        center: UnitPoint(x: 0.5, y: 0.0),
-                        startRadius: 0, endRadius: 120
-                    )
-                )
-            )
-            .overlay(
-                barShape.stroke(
-                    Color(red: 1.0, green: 0.941, blue: 0.839).opacity(0.14),
-                    lineWidth: 1
-                )
-            )
-            .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
-            .frame(height: barHeight)
-
-            // Tab icons
-            HStack(spacing: 0) {
-                tabButton(.home)
-                tabButton(.estudos)
-
-                Color.clear.frame(width: arcRadius * 2 + 16)
-
-                tabButton(.faculdade)
-                tabButton(.progresso)
-            }
-            .padding(.horizontal, 16)
-            .frame(height: barHeight)
-
-            // Vita button — gold mascot, olho fechado (sleeping) por padrão.
-            // Tap abre o olho (awake) e dispara onCenterTap; fecha de novo em
-            // 1.2s pra reforçar o feedback visual.
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) { vitaAwake = true }
-                onCenterTap()
-                Task {
-                    try? await Task.sleep(nanoseconds: 1_200_000_000)
-                    await MainActor.run {
-                        withAnimation(.easeInOut(duration: 0.35)) { vitaAwake = false }
-                    }
-                }
-            }) {
-                Image(vitaAwake ? "vita-btn-active" : "vita-btn-idle")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: vitaSize, height: vitaSize)
-                    .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
-                    .scaleEffect(vitaAwake ? 1.04 : 1.0)
-            }
-            .offset(y: -(vitaSize * 0.35))
-            .accessibilityIdentifier("tab_vita_chat")
-            .accessibilityLabel("Abrir Vita Chat")
+            .frame(height: 56)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 4) // Rafael 2026-04-25: bar 16px mais perto da borda
+        .background(
+            VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
+                .fill(PixioColor.cardLight)
+                .overlay(
+                    VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
+                        .stroke(PixioColor.borderLight.opacity(0.7), lineWidth: 0.5)
+                )
+                .overlay(
+                    VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
+                        .stroke(LinearGradient(colors: [Color.white.opacity(scheme == .dark ? 0.18 : 0.0), Color.white.opacity(0.0)], startPoint: .top, endPoint: .center), lineWidth: 0.75)
+                )
+                .shadow(color: navContactShadow.color, radius: navContactShadow.radius, x: 0, y: -navContactShadow.y)
+                .shadow(color: navAmbientShadow.color, radius: navAmbientShadow.radius, x: 0, y: -navAmbientShadow.y)
+                .ignoresSafeArea(edges: .bottom)
+        )
+        .sheet(isPresented: $showAdd) {
+            VitaAddSheet(onSelect: { kind in
+                showAdd = false
+                onAddSelect?(kind)
+            })
+            .padding(.horizontal, 12)
+            .padding(.top, 16)
+            .presentationDetents([.height(360)])
+            .presentationBackground(.clear)
+            .presentationDragIndicator(.visible)
+        }
     }
 
-    private func tabButton(_ item: TabItem) -> some View {
+    private func tabButton(_ item: TabItem, width: CGFloat) -> some View {
         let isSelected = selectedTab == item
         return Button(action: {
             if isSelected {
                 onTabReselect?(item)
             } else {
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.74)) {
-                    selectedTab = item
-                }
-                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                withAnimation(.easeInOut(duration: 0.15)) { selectedTab = item }
+                PixioHaptics.soft()
             }
         }) {
-            ZStack {
-                // Liquid-glass bubble — só renderiza no tab selecionado, mas o
-                // matchedGeometryEffect anima a transição entre tabs como
-                // se a bolha pulasse de um pro outro com physics spring.
-                if isSelected {
-                    Capsule()
-                        .fill(.ultraThinMaterial)
-                        .overlay(
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 1.0, green: 0.824, blue: 0.549).opacity(0.18),
-                                            Color(red: 1.0, green: 0.690, blue: 0.353).opacity(0.10)
-                                        ],
-                                        startPoint: .top, endPoint: .bottom
-                                    )
-                                )
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.30),
-                                    lineWidth: 0.5
-                                )
-                        )
-                        .shadow(color: Color(red: 1.0, green: 0.784, blue: 0.392).opacity(0.18), radius: 8, y: 2)
-                        .matchedGeometryEffect(id: "tab_selector_bubble", in: selectorNS)
-                }
-
+            VStack(spacing: 2) {
                 Image(systemName: isSelected ? item.selectedIcon : item.icon)
-                    .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(
-                        isSelected
-                            ? Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.95)
-                            : Color(red: 1.0, green: 0.957, blue: 0.886).opacity(0.40)
-                    )
-                    .scaleEffect(isSelected ? 1.05 : 1.0)
+                    .font(PixioTypo.sans(size: 20, weight: isSelected ? .medium : .light))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(height: 22)
+                Text(item.shortLabel)
+                    .font(PixioTypo.sans(size: 10, weight: isSelected ? .medium : .regular))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .frame(height: 38)
-            .padding(.horizontal, 6)
+            .foregroundStyle(isSelected ? PixioColor.textLight : PixioColor.textLightMuted)
+            .frame(width: width)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(item.testID)
         .accessibilityLabel(item.rawValue)
+    }
+
+    private func vitaCenterButton(width: CGFloat) -> some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.2)) { vitaAwake = true }
+            onCenterTap()
+            Task {
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.35)) { vitaAwake = false }
+                }
+            }
+        }) {
+            Image(vitaAwake ? "vita-btn-active" : "vita-btn-idle")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 42, height: 42)
+                .scaleEffect(vitaAwake ? 1.08 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: vitaAwake)
+                .frame(width: width)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("tab_vita_chat")
+        .accessibilityLabel("Abrir Vita Chat")
+    }
+}
+
+// MARK: - VitaNavBarBumpShape — colado verbatim do PixioNavBarBumpShape
+struct VitaNavBarBumpShape: Shape {
+    var bumpWidth: CGFloat
+    var bumpHeight: CGFloat
+    func path(in rect: CGRect) -> Path {
+        let midX = rect.midX
+        let flatTop = rect.minY + bumpHeight
+        let peakY = rect.minY
+        let half = bumpWidth / 2
+        let lStart = midX - half
+        let rEnd = midX + half
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: flatTop))
+        p.addLine(to: CGPoint(x: lStart, y: flatTop))
+        p.addCurve(to: CGPoint(x: midX, y: peakY),
+                   control1: CGPoint(x: lStart + half * 0.5, y: flatTop),
+                   control2: CGPoint(x: midX - half * 0.5, y: peakY))
+        p.addCurve(to: CGPoint(x: rEnd, y: flatTop),
+                   control1: CGPoint(x: midX + half * 0.5, y: peakY),
+                   control2: CGPoint(x: rEnd - half * 0.5, y: flatTop))
+        p.addLine(to: CGPoint(x: rect.maxX, y: flatTop))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+// MARK: - VitaBarGrabber — colado verbatim do PixioBarGrabber (tap abre a gaveta)
+private struct VitaBarGrabber: View {
+    var active: Bool = false
+    var onTap: () -> Void
+    @State private var glow = false
+    var body: some View {
+        let theme = PixioColor.brand
+        let tint = active ? theme : PixioColor.textLightFaint
+        return VStack(spacing: PixioSpacing.xxs) {
+            Capsule().fill(tint).frame(width: 16, height: 3)
+            Grid(horizontalSpacing: PixioSpacing.xxs, verticalSpacing: PixioSpacing.xxs) {
+                ForEach(0..<3, id: \.self) { _ in
+                    GridRow {
+                        ForEach(0..<3, id: \.self) { _ in
+                            Circle().fill(tint).frame(width: 3, height: 3)
+                        }
+                    }
+                }
+            }
+        }
+        .shadow(color: active ? theme.opacity(glow ? 0.85 : 0.28) : .clear, radius: active ? (glow ? 7 : 3) : 0)
+        .animation(.easeInOut(duration: 0.3), value: active)
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture { PixioHaptics.tap(); onTap() }
+        .accessibilityLabel("Adicionar")
+        .accessibilityIdentifier("quick_add_drawer_button")
+        .accessibilityAddTraits(.isButton)
     }
 }
