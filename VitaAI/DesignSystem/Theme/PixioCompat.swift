@@ -142,3 +142,55 @@ extension View {
         self.pixioGlass(.regular, in: shape)
     }
 }
+
+// ---- Shim do estado de tema/mascote do Pixio (Vita = dourado, mascote vita-btn) ----
+enum PixioThemeColor: Equatable {
+    case teal, gold, burgundy, royal, violet
+    case custom(hue: Double)
+    var color: Color { VitaColors.accent }
+    var colorLight: Color { VitaColors.accentLight }
+    var colorDark: Color { VitaColors.accentDark }
+    static func tintedMascot(asset: String, for theme: PixioThemeColor) -> UIImage? {
+        UIImage(named: "vita-btn-active")
+    }
+}
+final class PixioCoState {
+    static let shared = PixioCoState()
+    var activeThemeColor: PixioThemeColor { .gold }
+}
+
+// ---- Extras p/ os sub-componentes de chat (tile premium, premium light/dark, assets do mascote) ----
+extension PixioColor {
+    static let premiumLight = VitaColors.accentLight
+    static let premiumDark  = VitaColors.accentDark
+}
+extension PixioThemeColor {
+    var mascotIdleAsset: String   { "vita-btn-idle" }
+    var mascotActiveAsset: String { "vita-btn-active" }
+}
+struct PixioPremiumTile<Content: View>: View {
+    let size: CGFloat
+    let corner: CGFloat
+    @ViewBuilder var content: () -> Content
+    init(size: CGFloat, corner: CGFloat, @ViewBuilder content: @escaping () -> Content) {
+        self.size = size; self.corner = corner; self.content = content
+    }
+    var body: some View {
+        content()
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: corner, style: .continuous).fill(.ultraThinMaterial))
+            .overlay(RoundedRectangle(cornerRadius: corner, style: .continuous).strokeBorder(PixioColor.borderLight.opacity(0.5), lineWidth: 0.5))
+    }
+}
+
+// ---- Membros extras p/ sub-componentes do chat ----
+extension PixioTypo {
+    static var callout: Font       { sans(size: 14, weight: .medium) }
+    static var bodySecondary: Font { sans(size: 13, weight: .regular) }
+}
+extension PixioHaptics {
+    static func confirm() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+}
+extension PixioColor {
+    static let premiumGradient = LinearGradient(colors: [VitaColors.accent, VitaColors.accentDark], startPoint: .topLeading, endPoint: .bottomTrailing)
+}

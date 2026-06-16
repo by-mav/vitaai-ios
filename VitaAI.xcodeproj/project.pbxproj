@@ -291,6 +291,7 @@
 		9BC48FA1999B9AD2374F966C /* SyncingStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 421D25ED7A8BC5451EA6DB98 /* SyncingStep.swift */; };
 		9C7A89ED7ADF297428AC1786 /* VitaHeartbeatLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D892129982956D50CCE11959 /* VitaHeartbeatLoader.swift */; };
 		9D5438D9348B0240C414C837 /* GlassChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7CED112CB5D3505B980684B /* GlassChip.swift */; };
+		9EF0E833A1DA4AA3A8F0D82B /* PixioLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99A5DE9674D3E49DEE79911 /* PixioLoader.swift */; };
 		A01AFD8E7995AD999C2E44A5 /* QBankHomeContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D431F9DA5C56FB16C57122FE /* QBankHomeContent.swift */; };
 		A04B5152B730A4F842809843 /* VitaDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D816167F3CB6613AC61137 /* VitaDomain.swift */; };
 		A0A8B500BA2934F4C94DB235 /* TrabalhoEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6F3E04E70C2FFA771693FE /* TrabalhoEditorView.swift */; };
@@ -298,6 +299,7 @@
 		A35836BA3CF896D989F761FF /* NotificationsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2CEACE238BB315B6B8609E /* NotificationsStep.swift */; };
 		A43DAF430E852C6A5900BEB5 /* TokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389BFCF2463F09D0B4DBBD16 /* TokenRefresher.swift */; };
 		A4BFE9461B76DB354A6536CA /* RedeemReferralCode200Response.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A12EA87A5CC983C2711B06 /* RedeemReferralCode200Response.swift */; };
+		A6161AAAF2B0EA0C96DFD659 /* PixioVoiceRecordingBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2759283499F91467F6866DC2 /* PixioVoiceRecordingBar.swift */; };
 		A63BA82F96785DD38FE2EFD5 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 4B4B1876310F69478EE49BD0 /* PostHog */; };
 		A6663CFEF3202C1548440144 /* DashboardXp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BAB7AFA757139E38FAB0C32 /* DashboardXp.swift */; };
 		A8FDB522F11FC791CD275E72 /* View+SwipeBack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843A2E9941511F28FB5D2340 /* View+SwipeBack.swift */; };
@@ -321,6 +323,7 @@
 		B3C1C750998BBFFDA2465EB6 /* PixioCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F1FCB277F4B5AE0E3748A4 /* PixioCompat.swift */; };
 		B4A0012A2CFF5100CE370485 /* CreateCheckoutSession200Response.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505DF51B5393856BAA326D17 /* CreateCheckoutSession200Response.swift */; };
 		B505B41DE4A819A819EAB4F8 /* DashboardResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDF8108D737C29A91D7BAA9 /* DashboardResponse.swift */; };
+		B54B167017265D015EF990F2 /* PixioSheetDismissButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1464FED2294458F4A3BC369D /* PixioSheetDismissButton.swift */; };
 		B686750D047AF3E85B1FBCAA /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A45516BBF7E16BFB9410B27 /* AppRouter.swift */; };
 		B7545C352B063EC286B9E005 /* VitaPaywallScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384C2C8ACFCA9B5A9F79BB8F /* VitaPaywallScreen.swift */; };
 		B92CD0666FE9C607265FBBAC /* PdfOutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47DF4AA36189B46AFFC315AD /* PdfOutlineView.swift */; };
@@ -453,6 +456,7 @@
 		1130013BF0504A0F42C04360 /* VitaAmbientBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaAmbientBackground.swift; sourceTree = "<group>"; };
 		1130D9D84A3608728A01845E /* PdfStudyStatsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfStudyStatsSheet.swift; sourceTree = "<group>"; };
 		13E0DDDF5D64EFF6ABD99CAB /* VitaNotifPopout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaNotifPopout.swift; sourceTree = "<group>"; };
+		1464FED2294458F4A3BC369D /* PixioSheetDismissButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixioSheetDismissButton.swift; sourceTree = "<group>"; };
 		14D816167F3CB6613AC61137 /* VitaDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaDomain.swift; sourceTree = "<group>"; };
 		158B571AED8E5DD5541607CA /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
 		15E0C6EC1605F0F66DD545CD /* StudyOverviewQBank.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyOverviewQBank.swift; sourceTree = "<group>"; };
@@ -487,6 +491,7 @@
 		25968E04D49DFE85E27FB578 /* CustomizeReferralCodeRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizeReferralCodeRequest.swift; sourceTree = "<group>"; };
 		26281236D96347B084C212F0 /* MyReferralResponseQualifiedFriendsInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyReferralResponseQualifiedFriendsInner.swift; sourceTree = "<group>"; };
 		270B16079B86077F2A7DF37A /* QBankModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankModels.swift; sourceTree = "<group>"; };
+		2759283499F91467F6866DC2 /* PixioVoiceRecordingBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixioVoiceRecordingBar.swift; sourceTree = "<group>"; };
 		27D1ECBC3C06CF77DC0B99BA /* VitaVoiceInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaVoiceInput.swift; sourceTree = "<group>"; };
 		28FC50F9C33BD1F7737141D5 /* MindMapModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapModels.swift; sourceTree = "<group>"; };
 		29D88B194FA41210BD6E1BCD /* EstudosViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EstudosViewModel.swift; sourceTree = "<group>"; };
@@ -835,6 +840,7 @@
 		F8148AB4E3DEEA822C47120B /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		F82957B1639CA1A0E7417849 /* QBankFilters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankFilters.swift; sourceTree = "<group>"; };
 		F9908A582A7C0FF45AB9F61F /* JourneyType+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JourneyType+Helpers.swift"; sourceTree = "<group>"; };
+		F99A5DE9674D3E49DEE79911 /* PixioLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixioLoader.swift; sourceTree = "<group>"; };
 		F9C164E4D40E5AABFA8BF1FD /* EndFocusSession200Response.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndFocusSession200Response.swift; sourceTree = "<group>"; };
 		FB3CAA9D7ADA613A3FDC5EBD /* VitaColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaColors.swift; sourceTree = "<group>"; };
 		FBF4166A04EA469EA65D7241 /* PreviewDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewDTOs.swift; sourceTree = "<group>"; };
@@ -1256,6 +1262,16 @@
 			path = Onboarding;
 			sourceTree = "<group>";
 		};
+		6258955C90FBA348838F0604 /* PixioPort */ = {
+			isa = PBXGroup;
+			children = (
+				F99A5DE9674D3E49DEE79911 /* PixioLoader.swift */,
+				1464FED2294458F4A3BC369D /* PixioSheetDismissButton.swift */,
+				2759283499F91467F6866DC2 /* PixioVoiceRecordingBar.swift */,
+			);
+			path = PixioPort;
+			sourceTree = "<group>";
+		};
 		6C5C24AE9B1FD7AB7DB6D5F5 /* TabBar */ = {
 			isa = PBXGroup;
 			children = (
@@ -1644,6 +1660,7 @@
 				5C6F2360713D5BE4667F0C8D /* VitaPlusSheet.swift */,
 				72CE7EA9BA0EA4B90790643F /* VoiceModeScreen.swift */,
 				DB91BBC40C1F6D63A5607E71 /* VoiceModeViewModel.swift */,
+				6258955C90FBA348838F0604 /* PixioPort */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -2136,6 +2153,9 @@
 				95D55FC456FBBA9A6AC12AC3 /* PdfWorkspace.swift in Sources */,
 				0B64DA50F82489CAD7428A5F /* PhoneVerifySheet.swift in Sources */,
 				B3C1C750998BBFFDA2465EB6 /* PixioCompat.swift in Sources */,
+				9EF0E833A1DA4AA3A8F0D82B /* PixioLoader.swift in Sources */,
+				B54B167017265D015EF990F2 /* PixioSheetDismissButton.swift in Sources */,
+				A6161AAAF2B0EA0C96DFD659 /* PixioVoiceRecordingBar.swift in Sources */,
 				BCAD8532DDAE7A626FCB6341 /* PlannerScreen.swift in Sources */,
 				97696D66B15AF9A50675CF64 /* PlannerViewModel.swift in Sources */,
 				E67209EEF1E9AE724E3BF80E /* PortalIcon.swift in Sources */,
