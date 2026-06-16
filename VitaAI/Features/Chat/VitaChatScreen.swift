@@ -428,20 +428,30 @@ private struct MessageRow: View {
             if message.content != "[Imagem]" || !message.hasImage {
                 Text(message.content)
                     .font(.system(size: 13))
-                    .foregroundColor(Color(red: 0.05, green: 0.03, blue: 0.01).opacity(0.95))
+                    .foregroundColor(PixioColor.textLight)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(VitaColors.accent.opacity(0.85))
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .background(
+            RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous).fill(PixioColor.mascot.opacity(0.30)))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous)
+                .strokeBorder(LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.08), .clear], startPoint: .top, endPoint: .bottom), lineWidth: 0.6)
+        )
+        .shadow(color: PixioColor.mascot.opacity(0.18), radius: 12, x: 0, y: 4)
+        .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
     }
 
     private var assistantAvatar: some View {
         Image("vita-btn-active")
             .resizable()
             .scaledToFit()
-            .frame(width: 24, height: 24)
+            .frame(width: 26, height: 26)
             .clipShape(Circle())
             .alignmentGuide(.bottom) { d in d[.bottom] }
     }
@@ -470,7 +480,10 @@ private struct MessageRow: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(cornerRadius: 18)
+        .background(RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous).fill(.ultraThinMaterial))
+        .clipShape(RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.18), .white.opacity(0.02)], startPoint: .top, endPoint: .bottom), lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.10), radius: 8, x: 0, y: 2)
         .onAppear {
             if isStreaming { startCursorBlink() }
         }
