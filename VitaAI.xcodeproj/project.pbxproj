@@ -48,7 +48,6 @@
 		1503B7BB5D7623276C09EED9 /* DocumentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A39A50DBBBBFF4725FAB863 /* DocumentModels.swift */; };
 		150EAC70F68E9DC56354A5ED /* BillingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3C9143F545BC2D2CD800CD /* BillingModels.swift */; };
 		152C448FBAF7D17BB14C6F9E /* DisciplineDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5CBDEBE92E57751092C2AD1 /* DisciplineDetailScreen.swift */; };
-		159B160BB22FF35B9FC1FD54 /* Pods_VitaAI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DDF16DBAED1FDA3224A77936 /* Pods_VitaAI.framework */; };
 		162C02F9A35AE862A245FE75 /* GLTFKit2 in Frameworks */ = {isa = PBXBuildFile; productRef = 1C90EB3168CB992A0F979BBD /* GLTFKit2 */; };
 		167D03BD50E506BA4B0A040C /* QBankPreviewRequestYears.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BE8A04CE5A9545CCBA2991E /* QBankPreviewRequestYears.swift */; };
 		16E1CB245D82C2AB78B0EA07 /* SimuladoBuilderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A4D1B1EABD5E9C82A48259 /* SimuladoBuilderViewModel.swift */; };
@@ -172,6 +171,7 @@
 		5875A1ED322A4E1DD16DF26A /* AppConfigService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25893941B2ECD8229327FEFA /* AppConfigService.swift */; };
 		587A29D5D6C0A2B652419302 /* QBankFiltersDifficultiesInner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57701B977FC6C905F52BB267 /* QBankFiltersDifficultiesInner.swift */; };
 		591DE0A1FEC5FEC82837F393 /* OnboardingE2ETest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AED48F07C761C2FF910AC85 /* OnboardingE2ETest.swift */; };
+		5A570CEB27DA49228E72EF60 /* VitaShellKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 328AC2CF13E1210CFE78179F /* VitaShellKit.swift */; };
 		5AA0A78B5422B450E30AC02F /* QBankFiltersGroupsInner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57C136181A281A16258743A6 /* QBankFiltersGroupsInner.swift */; };
 		5B827EC5C87B6411384CF532 /* DashboardHeroCardPillsInner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EBCC90E2A0A1B4640DDA686 /* DashboardHeroCardPillsInner.swift */; };
 		5B9E350157ADEE010E4B3716 /* MyReferralResponseQualifiedFriendsInner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26281236D96347B084C212F0 /* MyReferralResponseQualifiedFriendsInner.swift */; };
@@ -507,6 +507,7 @@
 		30670596AEFAD8034EF048D9 /* AtlasSceneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtlasSceneScreen.swift; sourceTree = "<group>"; };
 		318005B6285DC5F01E5C3374 /* ActivityFeedViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityFeedViewModel.swift; sourceTree = "<group>"; };
 		3277C8F9B81F4549160015AA /* StudyOverviewTranscricoes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyOverviewTranscricoes.swift; sourceTree = "<group>"; };
+		328AC2CF13E1210CFE78179F /* VitaShellKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaShellKit.swift; sourceTree = "<group>"; };
 		330A738D52A76441153C62B0 /* TranscricaoAudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoAudioPlayer.swift; sourceTree = "<group>"; };
 		34E2B4483BF38F2C168810A1 /* ExportDataScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportDataScreen.swift; sourceTree = "<group>"; };
 		353A7FFE89EFB93AC800FEF8 /* NotchShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchShape.swift; sourceTree = "<group>"; };
@@ -514,7 +515,6 @@
 		35FDE5D7A49D29E52AD38943 /* DashboardScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardScreen.swift; sourceTree = "<group>"; };
 		36A4EE48F1B311DD3BD56385 /* QBankFiltersInstitutionsInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankFiltersInstitutionsInner.swift; sourceTree = "<group>"; };
 		36D8C7E696BD9BB6CC3DF252 /* VitaTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaTabBar.swift; sourceTree = "<group>"; };
-		375574B2CFE34F64D45BCB53 /* Pods-VitaAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-VitaAI.release.xcconfig"; path = "Target Support Files/Pods-VitaAI/Pods-VitaAI.release.xcconfig"; sourceTree = "<group>"; };
 		37569ED0C0303F076543301E /* VitaInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaInput.swift; sourceTree = "<group>"; };
 		383D9D5CC85FC455117A844A /* StudyOverviewSimulados.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyOverviewSimulados.swift; sourceTree = "<group>"; };
 		384C2C8ACFCA9B5A9F79BB8F /* VitaPaywallScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaPaywallScreen.swift; sourceTree = "<group>"; };
@@ -677,7 +677,6 @@
 		9877E4BC0BCC5C79562154CD /* DashboardSubject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSubject.swift; sourceTree = "<group>"; };
 		987EF0B6643EBFB1180808A0 /* VitaButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaButton.swift; sourceTree = "<group>"; };
 		9998B44B0BDB981193E5EAF3 /* PdfViewerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfViewerScreen.swift; sourceTree = "<group>"; };
-		99DC47F3DCC71D6EDD16A005 /* Pods-VitaAI.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-VitaAI.debug.xcconfig"; path = "Target Support Files/Pods-VitaAI/Pods-VitaAI.debug.xcconfig"; sourceTree = "<group>"; };
 		9A39A50DBBBBFF4725FAB863 /* DocumentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentModels.swift; sourceTree = "<group>"; };
 		9B27D9B4C7F44B7779A43CE3 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
 		9B583FE6C84F4FFF2A9BFB75 /* GlassTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTextField.swift; sourceTree = "<group>"; };
@@ -790,7 +789,6 @@
 		DBDF8108D737C29A91D7BAA9 /* DashboardResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardResponse.swift; sourceTree = "<group>"; };
 		DC81D5F2654A52C372EB9A0D /* PageThumbnailSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageThumbnailSidebar.swift; sourceTree = "<group>"; };
 		DD2B632112623B0BEBA34DA0 /* SimuladoBuilderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimuladoBuilderScreen.swift; sourceTree = "<group>"; };
-		DDF16DBAED1FDA3224A77936 /* Pods_VitaAI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_VitaAI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		DDFDAA413F2758CCA0283E9C /* SwipeBackGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeBackGesture.swift; sourceTree = "<group>"; };
 		DE1237FCB7636C982DFF2C41 /* ProgressRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRingView.swift; sourceTree = "<group>"; };
 		DF29D66014585DBCBD22EAE0 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
@@ -849,7 +847,6 @@
 				65B3D9025C1304C171AA8537 /* SentrySwiftUI in Frameworks */,
 				A63BA82F96785DD38FE2EFD5 /* PostHog in Frameworks */,
 				162C02F9A35AE862A245FE75 /* GLTFKit2 in Frameworks */,
-				159B160BB22FF35B9FC1FD54 /* Pods_VitaAI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1042,14 +1039,6 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
-		10032E34A22A3A16AF36D082 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				DDF16DBAED1FDA3224A77936 /* Pods_VitaAI.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		17B4A4AA03830926DDD5DC08 /* Activity */ = {
 			isa = PBXGroup;
 			children = (
@@ -1124,6 +1113,7 @@
 			children = (
 				16B4E6171DD72A7B7AC4F27C /* SubjectColors.swift */,
 				FB3CAA9D7ADA613A3FDC5EBD /* VitaColors.swift */,
+				328AC2CF13E1210CFE78179F /* VitaShellKit.swift */,
 				6A174ED81362A29DFEC35DCD /* VitaTypography.swift */,
 			);
 			path = Theme;
@@ -1139,16 +1129,6 @@
 				7418A42151FCD355836ADB78 /* WeekAgendaSection.swift */,
 			);
 			path = Components;
-			sourceTree = "<group>";
-		};
-		2DF11AB82A2D18DC57C1660B /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				99DC47F3DCC71D6EDD16A005 /* Pods-VitaAI.debug.xcconfig */,
-				375574B2CFE34F64D45BCB53 /* Pods-VitaAI.release.xcconfig */,
-			);
-			name = Pods;
-			path = Pods;
 			sourceTree = "<group>";
 		};
 		35C480A675C4186BD9B0DA7F /* DesignSystem */ = {
@@ -1799,8 +1779,6 @@
 				3BE0254CCE43999AFC726DCD /* VitaAI */,
 				067354EBEA40CBE7A43750FE /* VitaAIUITests */,
 				DCD696659AC5F5DDCA830456 /* Products */,
-				2DF11AB82A2D18DC57C1660B /* Pods */,
-				10032E34A22A3A16AF36D082 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1839,6 +1817,8 @@
 				3F7FD2A6B35DB3CF75D10AF9 /* PBXTargetDependency */,
 			);
 			name = VitaAIUITests;
+			packageProductDependencies = (
+			);
 			productName = VitaAIUITests;
 			productReference = 71A803CD05ACDB97E5A85BD7 /* VitaAIUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -1847,12 +1827,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A6A02A75AB11A56D3892D836 /* Build configuration list for PBXNativeTarget "VitaAI" */;
 			buildPhases = (
-				C9302DFF0B0F7951F5A717B8 /* [CP] Check Pods Manifest.lock */,
 				9DC411835BE7FBAD1D60620B /* Sources */,
 				DCF7F65E07A04D7E489F14CA /* Resources */,
 				8D316E3925B10FBADC3AE28A /* Frameworks */,
-				4BADCF115D6621779DC1609B /* [CP] Embed Pods Frameworks */,
-				711A73FE84D7B558E61FCBD8 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -1928,65 +1905,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		4BADCF115D6621779DC1609B /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		711A73FE84D7B558E61FCBD8 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Copy Pods Resources";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		C9302DFF0B0F7951F5A717B8 /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-VitaAI-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		790C9D6C62C811C580545C8D /* Sources */ = {
@@ -2381,6 +2299,7 @@
 				B7545C352B063EC286B9E005 /* VitaPaywallScreen.swift in Sources */,
 				E1BCAF42788E3970F2BF5B5C /* VitaPlusSheet.swift in Sources */,
 				565FCC65F6614F51FEEF10B1 /* VitaScreenSkeleton.swift in Sources */,
+				5A570CEB27DA49228E72EF60 /* VitaShellKit.swift in Sources */,
 				B985632F939BA9B9F5168C3E /* VitaShimmer.swift in Sources */,
 				0012CF26026608C508A9C1BC /* VitaSpeakingMascot.swift in Sources */,
 				2DE96EAC5177EC1C69E8CC7B /* VitaStreakBadge.swift in Sources */,
@@ -2427,7 +2346,6 @@
 /* Begin XCBuildConfiguration section */
 		17F644E06A464C6E71D372DB /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 99DC47F3DCC71D6EDD16A005 /* Pods-VitaAI.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
@@ -2472,7 +2390,6 @@
 		};
 		4DEDB9BDAC62FE99364DEFEE /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 375574B2CFE34F64D45BCB53 /* Pods-VitaAI.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
