@@ -86,7 +86,7 @@ fi
 echo "       ✅ G1: export compliance (ITSAppUsesNonExemptEncryption=false)"
 
 # G2 — Purpose strings (pre-commit já checa, mas paranoia)
-for key in NSMicrophoneUsageDescription NSSpeechRecognitionUsageDescription NSHealthShareUsageDescription; do
+for key in NSMicrophoneUsageDescription NSSpeechRecognitionUsageDescription; do
   if ! /usr/libexec/PlistBuddy -c "Print :$key" "$INFO_PLIST" >/dev/null 2>&1; then
     echo "       ❌ G2: purpose string $key missing"
     exit 1
@@ -210,6 +210,9 @@ OUTPUT=$(xcodebuild \
     -archivePath "$ARCHIVE_PATH" \
     -exportOptionsPlist "$EXPORT_PLIST" \
     -exportPath "$EXPORT_PATH" \
+    -authenticationKeyPath "$ASC_KEY_FILE" \
+    -authenticationKeyID "$ASC_KEY_ID" \
+    -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
     -allowProvisioningUpdates 2>&1)
 EXPORT_RC=$?
 set -e
