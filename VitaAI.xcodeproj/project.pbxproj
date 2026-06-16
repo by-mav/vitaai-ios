@@ -32,6 +32,7 @@
 		0958291AA324DB2ECD2FBF9B /* EditorScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AD3662F13C50533D09CB569 /* EditorScreen.swift */; };
 		09C0DE8C28B9AE9F7590BE2F /* ProvasViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74ACDDDAA41E5C2328A2F045 /* ProvasViewModel.swift */; };
 		0ADAF1E9FCFE415426FFA468 /* ForecastBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F5D38E34409AF1928A15F19 /* ForecastBarView.swift */; };
+		0B125FE5D3F111F338A30373 /* VitaAddSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCBC55AF1D1897468C8BA3C4 /* VitaAddSheet.swift */; };
 		0B179989404773B3C9215E93 /* ProfileResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 828BE7BA69CA5C58D8817F44 /* ProfileResponse.swift */; };
 		0B365CDE13A4800E325112F4 /* EstudosViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D88B194FA41210BD6E1BCD /* EstudosViewModel.swift */; };
 		0B64DA50F82489CAD7428A5F /* PhoneVerifySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD6822D39D8417619B16510 /* PhoneVerifySheet.swift */; };
@@ -764,6 +765,7 @@
 		CB44569D3F0C702159D0877E /* AchievementsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsViewModel.swift; sourceTree = "<group>"; };
 		CC2CEACE238BB315B6B8609E /* NotificationsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsStep.swift; sourceTree = "<group>"; };
 		CC38A1510CD8212461642D56 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
+		CCBC55AF1D1897468C8BA3C4 /* VitaAddSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaAddSheet.swift; sourceTree = "<group>"; };
 		CD10C9568121CE822C1C45E0 /* VitaEmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaEmptyState.swift; sourceTree = "<group>"; };
 		CFB516FEEE3F8C5A3FB28626 /* ConfiguracoesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfiguracoesScreen.swift; sourceTree = "<group>"; };
 		D08D6E184B50BFEE6FF44E77 /* TranscricaoDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoDetailSheet.swift; sourceTree = "<group>"; };
@@ -1662,6 +1664,7 @@
 				E405E8F265D5EC67BC3497E8 /* Route+Breadcrumb.swift */,
 				AD675F659893240D25A7F451 /* Router.swift */,
 				DDFDAA413F2758CCA0283E9C /* SwipeBackGesture.swift */,
+				CCBC55AF1D1897468C8BA3C4 /* VitaAddSheet.swift */,
 				6C5C24AE9B1FD7AB7DB6D5F5 /* TabBar */,
 			);
 			path = Navigation;
@@ -2271,6 +2274,7 @@
 				784057B2F96315E66887C158 /* VitaAPI+PdfMasks.swift in Sources */,
 				5FE8C746A47F31BDC8806A42 /* VitaAPI+QuickActions.swift in Sources */,
 				2149E1761AFC39A3D2A71936 /* VitaAPI.swift in Sources */,
+				0B125FE5D3F111F338A30373 /* VitaAddSheet.swift in Sources */,
 				DEBC36D19EA98D5B4B2B297A /* VitaAmbientBackground.swift in Sources */,
 				4CAF4526D5C2CA1458AE2F90 /* VitaBadgeGrid.swift in Sources */,
 				CDC626FD70D21814D55D60EC /* VitaBreadcrumb.swift in Sources */,
