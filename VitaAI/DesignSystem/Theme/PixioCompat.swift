@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Observation
 
 // PixioCompat — camada de compatibilidade que expoe a API de design do Pixio
 // (PixioColor / PixioSpacing / PixioTypo / PixioHaptics / PixioShadow) com os
@@ -154,9 +155,10 @@ enum PixioThemeColor: Equatable {
         UIImage(named: "vita-btn-active")
     }
 }
+@Observable
 final class PixioCoState {
     static let shared = PixioCoState()
-    var activeThemeColor: PixioThemeColor { .gold }
+    var activeThemeColor: PixioThemeColor = .gold
 }
 
 // ---- Extras p/ os sub-componentes de chat (tile premium, premium light/dark, assets do mascote) ----
@@ -194,3 +196,8 @@ extension PixioHaptics {
 extension PixioColor {
     static let premiumGradient = LinearGradient(colors: [VitaColors.accent, VitaColors.accentDark], startPoint: .topLeading, endPoint: .bottomTrailing)
 }
+
+
+// ---- Stub: Vita nao usa artifacts (Pixio chat referencia o tipo) ----
+struct ChatArtifact: Identifiable, Equatable { let id = UUID() }
+extension ChatMessage { var artifact: ChatArtifact? { nil } }
