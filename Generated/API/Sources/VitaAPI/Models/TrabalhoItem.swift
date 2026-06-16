@@ -23,10 +23,10 @@ public struct TrabalhoItem: Sendable, Codable, Hashable {
         case graded = "graded"
     }
     public var id: String
-    /** Verbatim title from portal/extractor (e.g. \"AD1 — Curso PNAISARI\"). Never synthesized. */
+    /** Verbatim title from Canvas or document extraction (e.g. \"AD1 — Curso PNAISARI\"). Never synthesized. */
     public var title: String
     public var subjectName: String
-    /** Category classification. Extractor writes this from LLM `kind` field. See src/lib/portal/extraction-prompts.ts. */
+    /** Category classification. Canvas/document extraction writes this from the LLM `kind` field. */
     public var type: ModelType
     public var status: Status
     /** True when student turned it in. Canvas syncs this automatically. */

@@ -3,7 +3,7 @@ import SwiftUI
 /// Goodnotes-style document picker scoped to the user's Vita library.
 /// Replaces the iOS Files picker (which was wrong UX — it pointed at iCloud
 /// Drive / device-local files, not at the user's actual Vita PDFs synced
-/// from Canvas / Mannesoft / uploads).
+/// from Canvas / uploads).
 ///
 /// Layout: search bar on top, list grouped by subject (matéria), tap a row
 /// to open it as a new PDF tab. Trailing toolbar button "Files" opens the

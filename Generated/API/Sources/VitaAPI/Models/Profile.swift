@@ -24,7 +24,7 @@ public struct Profile: Sendable, Codable, Hashable {
     /** 2-letter state code (e.g. \"RS\") from the linked universities row. */
     public var universityState: String?
     public var universityId: String?
-    /** Portal type the university uses (canvas, mannesoft, moodle, sigaa, totvs...). Resolved from universities.portalType. */
+    /** Portal type the university uses. Canonical live path is canvas; moodle is reserved for future OAuth/API partner integrations. */
     public var universityLms: String?
     public var subjects: [JSONValue]?
     public var stats: JSONValue?

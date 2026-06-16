@@ -16,7 +16,7 @@ public struct PortalConnection: Sendable, Codable, Hashable {
     public var status: String?
     /** Last time data was actually synced (ingest/scrape) */
     public var lastSyncAt: Date?
-    /** Last successful keep-alive ping (session still valid) */
+    /** Last successful connector freshness ping. */
     public var lastPingAt: Date?
     public var counts: PortalConnectionCounts?
 

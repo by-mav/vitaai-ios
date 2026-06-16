@@ -6,7 +6,7 @@ import Foundation
 // `documents` table (see /Users/mav/vitaai-web/src/db/schema.ts).
 // Endpoint: GET /api/documents → returns array of these.
 // Documents come from two sources:
-//   - "canvas" / "mannesoft" — synced automatically from connected portal
+//   - "canvas" — synced automatically from connected Canvas
 //   - "upload" — manually uploaded by the user
 
 struct VitaDocument: Codable, Identifiable {
@@ -21,13 +21,13 @@ struct VitaDocument: Codable, Identifiable {
     var currentPage: Int = 0
     var readProgress: Double = 0
     var isFavorite: Bool = false
-    var source: String?           // 'upload' | 'canvas' | 'mannesoft'
+    var source: String?           // upload | canvas | pdf-extraction
     var canvasFileId: String?
     var studioSourceId: String?
     var folderId: String?         // Apr 2026: material_folders.id (nullable = "Outros virtual")
     var createdAt: String?
     var updatedAt: String?
-    /// Data REAL em que o material foi subido no portal (Canvas/WebAluno).
+    /// Data REAL em que o material foi subido no Canvas.
     /// Distinta de `createdAt` que é o timestamp do nosso ingest.
     /// Quando ausente (docs antigos), UI faz fallback pra createdAt.
     var portalCreatedAt: String?

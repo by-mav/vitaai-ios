@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **semester** | **Int** | Obrigatório se inFaculdade&#x3D;yes. 1-8&#x3D;FACULDADE, 9-12&#x3D;INTERNATO | [optional] 
 **university** | **String** | Display name da universidade | [optional] 
 **universityId** | **String** | FK universities.id (preferido) | [optional] 
-**universityLms** | **String** | Portal LMS: canvas|mannesoft|moodle|sigaa|totvs | [optional] 
+**universityLms** | **String** | Portal LMS: canvas today; moodle reserved for future OAuth/API partner integrations. | [optional] 
 **selectedSubjects** | [OnboardingV2RequestSelectedSubjectsInner] |  | [optional] 
 **studyGoal** | **String** | Objetivo de estudo (Aprovar 1ª, Top 10%, etc) | [optional] 
 **targetSpecialty** | **String** | Slug de medical_specialties (apenas goal&#x3D;RESIDENCIA) | [optional] 

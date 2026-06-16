@@ -8,7 +8,6 @@ import Foundation
 //   - Root tabs (they're represented by TabItem, not a pushed route)
 //   - Auth flows (login, onboarding) — rendered outside the shell
 //   - Modal-like screens (settings, paywall, portalConnect, vitaChat)
-//   - Legacy aliases (redirect to portalConnect internally)
 //
 // Dynamic routes with a name parameter (e.g. disciplineDetail) use the
 // passed-in name instead of a generic label, so the breadcrumb reads
@@ -84,8 +83,7 @@ extension Route {
         // True modals/overlays (sheets, não push)
         case .vitaChat, .portalConnect, .toolManager:
             return nil
-        // Legacy aliases (all redirect to portalConnect)
-        case .canvasConnect, .webalunoConnect, .googleCalendarConnect, .googleDriveConnect:
+        case .canvasConnect:
             return nil
         }
     }

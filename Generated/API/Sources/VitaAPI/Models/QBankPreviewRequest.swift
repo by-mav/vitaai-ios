@@ -28,6 +28,8 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
     public var lens: Lens?
     /** Slugs do agrupamento atual (disciplines/pbl_systems/exam_great_areas conforme lens). */
     public var groupSlugs: [String]?
+    /** Slugs do subnível: clusters de sintoma PBL OU topic IDs (string) Tradicional. Added 2026-04-29. */
+    public var subgroupSlugs: [String]?
     public var institutionIds: [Int]?
     public var years: QBankPreviewRequestYears?
     public var difficulties: [Difficulties]?
@@ -44,9 +46,10 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
     /** Default false. Se false, exclui Q geradas por IA (isSynthetic=true). */
     public var includeSynthetic: Bool?
 
-    public init(lens: Lens? = nil, groupSlugs: [String]? = nil, institutionIds: [Int]? = nil, years: QBankPreviewRequestYears? = nil, difficulties: [Difficulties]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, hideReviewed: Bool? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil) {
+    public init(lens: Lens? = nil, groupSlugs: [String]? = nil, subgroupSlugs: [String]? = nil, institutionIds: [Int]? = nil, years: QBankPreviewRequestYears? = nil, difficulties: [Difficulties]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, hideReviewed: Bool? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil) {
         self.lens = lens
         self.groupSlugs = groupSlugs
+        self.subgroupSlugs = subgroupSlugs
         self.institutionIds = institutionIds
         self.years = years
         self.difficulties = difficulties
@@ -61,6 +64,7 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case lens
         case groupSlugs
+        case subgroupSlugs
         case institutionIds
         case years
         case difficulties
@@ -78,6 +82,7 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(lens, forKey: .lens)
         try container.encodeIfPresent(groupSlugs, forKey: .groupSlugs)
+        try container.encodeIfPresent(subgroupSlugs, forKey: .subgroupSlugs)
         try container.encodeIfPresent(institutionIds, forKey: .institutionIds)
         try container.encodeIfPresent(years, forKey: .years)
         try container.encodeIfPresent(difficulties, forKey: .difficulties)

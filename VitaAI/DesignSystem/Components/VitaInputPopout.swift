@@ -94,7 +94,7 @@ struct VitaInputPopout: View {
                     subjects: container.dataManager.enrolledDisciplines,
                     onSelect: { subject in
                         guard let tile = pendingTile else { return }
-                        let label = subject.displayName ?? subject.canonicalName ?? subject.name
+                        let label = subject.displayName ?? subject.name
                         let enriched = tile.prompt
                             .replacingOccurrences(of: "{subject}", with: label)
                             .replacingOccurrences(of: "{topic}", with: label)
@@ -323,7 +323,7 @@ private struct SubjectSelectorList: View {
                                             .foregroundStyle(VitaColors.accent)
                                     )
                             }
-                            Text(subject.displayName ?? subject.canonicalName ?? subject.name)
+                            Text(subject.displayName ?? subject.name)
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(VitaColors.textPrimary)
                             Spacer()

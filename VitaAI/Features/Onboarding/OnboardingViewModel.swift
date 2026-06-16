@@ -132,13 +132,13 @@ final class OnboardingViewModel {
         activeSyncId = syncId
     }
 
-    /// Fetch subjects from API after sync (courses from Canvas or grades from WebAluno)
+    /// Fetch subjects from API after Canvas sync.
     func fetchSubjectsFromAPI() async {
         guard let api else { return }
 
         // 2026-04-23: removido `api.getCourses()` (rota Canvas legacy retornava
         // 404 em 9.7s, atrasava onboarding inteiro). Onboarding sempre usa
-        // portal grades agora (funciona pra Canvas E Mannesoft pós-ingest).
+        // canonical academic data from Canvas and document extraction.
 
         // Portal grades (subjects come from grade entries)
         do {
@@ -301,5 +301,5 @@ enum AcademicPhase: String, Hashable, CaseIterable {
 struct SyncedSubject: Identifiable {
     var id: String { name }
     let name: String
-    let source: String  // "canvas" | "webaluno"
+    let source: String  // canvas | manual | pdf-extraction
 }

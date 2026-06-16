@@ -1,4 +1,4 @@
-import Foundation
+﻿import Foundation
 
 actor VitaAPI {
     let client: HTTPClient // internal so feature extensions in separate files can access (Apr 2026)
@@ -7,10 +7,10 @@ actor VitaAPI {
         self.client = client
     }
 
-    // ┌─────────────────────────────────────────────────┐
-    // │  WORKING ENDPOINTS — backend route.ts exists    │
-    // │  Validated by: scripts/lint-api-endpoints.sh    │
-    // └─────────────────────────────────────────────────┘
+    // â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+    // â”‚  WORKING ENDPOINTS â€” backend route.ts exists    â”‚
+    // â”‚  Validated by: scripts/lint-api-endpoints.sh    â”‚
+    // â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
     // MARK: - Dashboard
 
@@ -24,14 +24,14 @@ actor VitaAPI {
         try await client.get("profile")
     }
 
-    /// PATCH /api/profile — atualiza campos do perfil. Server resolve denorm de
+    /// PATCH /api/profile â€” atualiza campos do perfil. Server resolve denorm de
     /// university/state/lms a partir de universityId. Spec: openapi.yaml linha 6716.
     func updateProfile(_ body: UpdateProfileRequest) async throws -> ProfileResponse {
         try await client.patch("profile", body: body)
     }
 
-    /// GET /api/user/export — LGPD art. 18 V (portabilidade). Retorna JSON com
-    /// TUDO que o usuário produziu (perfil, academic, study, qbank, etc).
+    /// GET /api/user/export â€” LGPD art. 18 V (portabilidade). Retorna JSON com
+    /// TUDO que o usuÃ¡rio produziu (perfil, academic, study, qbank, etc).
     /// Spec: openapi.yaml linha 7334. SLA legal: 30 dias.
     func exportUserData() async throws -> Data {
         try await client.downloadRaw("user/export")
@@ -70,14 +70,14 @@ actor VitaAPI {
         try await client.get("user/privacy-preferences")
     }
 
-    /// PATCH /api/user/privacy-preferences (parcial — só campos enviados)
+    /// PATCH /api/user/privacy-preferences (parcial â€” sÃ³ campos enviados)
     func updatePrivacyPreferences(_ body: UpdatePrivacyPreferencesRequest) async throws -> PrivacyPreferences {
         try await client.patch("user/privacy-preferences", body: body)
     }
 
     // MARK: - Focus Session (Pomodoro)
 
-    /// POST /api/study/focus/session — inicia sessão
+    /// POST /api/study/focus/session â€” inicia sessÃ£o
     func startFocusSession(plannedDurationMinutes: Int, subjectId: String? = nil) async throws -> StartFocusSession200Response {
         try await client.post(
             "study/focus/session",
@@ -85,7 +85,7 @@ actor VitaAPI {
         )
     }
 
-    /// POST /api/study/focus/session/{id}/end — finaliza, calcula XP
+    /// POST /api/study/focus/session/{id}/end â€” finaliza, calcula XP
     func endFocusSession(
         id: String,
         completed: Bool,
@@ -97,7 +97,7 @@ actor VitaAPI {
         )
     }
 
-    /// GET /api/study/focus/sessions?limit=20 — histórico
+    /// GET /api/study/focus/sessions?limit=20 â€” histÃ³rico
     func getFocusSessions(limit: Int = 20) async throws -> [FocusSession] {
         try await client.get("study/focus/sessions", queryItems: [
             URLQueryItem(name: "limit", value: String(limit)),
@@ -106,12 +106,12 @@ actor VitaAPI {
 
     // MARK: - Referrals (Rafael 2026-04-26)
 
-    /// GET /api/referrals/me — meu código + stats. Lazy init na primeira chamada.
+    /// GET /api/referrals/me â€” meu cÃ³digo + stats. Lazy init na primeira chamada.
     func getMyReferral() async throws -> MyReferralResponse {
         try await client.get("referrals/me")
     }
 
-    /// POST /api/referrals/redeem — vincula user logado a código.
+    /// POST /api/referrals/redeem â€” vincula user logado a cÃ³digo.
     func redeemReferralCode(code: String, source: RedeemReferralCodeRequest.Source = .universalLink) async throws -> RedeemReferralCode200Response {
         try await client.post(
             "referrals/redeem",
@@ -119,7 +119,7 @@ actor VitaAPI {
         )
     }
 
-    /// POST /api/referrals/customize — trocar código (1x apenas).
+    /// POST /api/referrals/customize â€” trocar cÃ³digo (1x apenas).
     func customizeReferralCode(code: String) async throws -> CustomizeReferralCode200Response {
         try await client.post(
             "referrals/customize",
@@ -197,8 +197,8 @@ actor VitaAPI {
     }
 
     /// Cria 1 flashcard solto. Cliente pode passar `deckTitle` pra criar/usar
-    /// um deck com aquele título (server resolve por nome quando deckId nil).
-    /// Usado pelo Atlas 3D (botão "Estudar 3 cards" no MeshDetailSheet).
+    /// um deck com aquele tÃ­tulo (server resolve por nome quando deckId nil).
+    /// Usado pelo Atlas 3D (botÃ£o "Estudar 3 cards" no MeshDetailSheet).
     @discardableResult
     func createFlashcard(
         front: String,
@@ -255,7 +255,7 @@ actor VitaAPI {
         )
     }
 
-    /// GET /api/study/flashcards/preview — due/learning/new + projectedSessionTime
+    /// GET /api/study/flashcards/preview â€” due/learning/new + projectedSessionTime
     /// pro Flashcard Builder. Spec: openapi.yaml linha 5132. Added 2026-04-29.
     func previewFlashcards(lens: String? = nil, groupSlug: String? = nil, mode: String = "due") async throws -> FlashcardsPreviewResp {
         var items: [URLQueryItem] = [URLQueryItem(name: "mode", value: mode)]
@@ -264,7 +264,7 @@ actor VitaAPI {
         return try await client.get("study/flashcards/preview", queryItems: items)
     }
 
-    /// POST /api/study/flashcards/session — cria fila SRS (FSRS scheduling) pro
+    /// POST /api/study/flashcards/session â€” cria fila SRS (FSRS scheduling) pro
     /// Flashcard Builder. Retorna sessionId (uuid client-side) + cardIds ordenados.
     /// Spec: openapi.yaml linha 5169. Added 2026-04-29.
     func createFlashcardSession(body: FlashcardSessionBody) async throws -> FlashcardSessionResp {
@@ -309,7 +309,7 @@ actor VitaAPI {
         try await client.get("study/overview")
     }
 
-    // MARK: - Transcrição
+    // MARK: - TranscriÃ§Ã£o
 
     func getTranscricoes() async throws -> [TranscricaoEntry] {
         try await client.get("study/transcricao")
@@ -327,7 +327,7 @@ actor VitaAPI {
         try await client.patch("studio/sources/\(id)", body: RenameStudioSourceBody(title: title))
     }
 
-    /// PATCH /api/studio/sources/:id — update folder/favorite/disciplineSlug.
+    /// PATCH /api/studio/sources/:id â€” update folder/favorite/disciplineSlug.
     /// `clearDiscipline`/`clearFolder = true` envia null no JSON pra remover.
     func updateStudioSource(
         id: String,
@@ -410,7 +410,7 @@ actor VitaAPI {
     }
 
     /// Onda 1 vita-study-mcp: busca um output pelo ID (free-form ou source-based).
-    /// Usado quando coach SSE retorna toolArtifact com outputId — iOS abre tela nativa.
+    /// Usado quando coach SSE retorna toolArtifact com outputId â€” iOS abre tela nativa.
     func getStudioOutputById(_ id: String) async throws -> StudioOutput {
         try await client.get("studio/outputs/\(id)")
     }
@@ -475,8 +475,8 @@ actor VitaAPI {
 
     /// BFF aggregator per-screen pra Simulado Home.
     /// 1 RTT em vez de listSimulados + getSimuladoDiagnostics separado.
-    /// Padrão 2026 (memory: feedback_aggregator_per_screen_2026.md).
-    /// COMMENTED: SimuladoScreenResponse type missing — outro agente reativa.
+    /// PadrÃ£o 2026 (memory: feedback_aggregator_per_screen_2026.md).
+    /// COMMENTED: SimuladoScreenResponse type missing â€” outro agente reativa.
     // func getSimuladoScreen() async throws -> SimuladoScreenResponse {
     //     try await client.get("simulados/screen")
     // }
@@ -517,7 +517,7 @@ actor VitaAPI {
         ])
     }
 
-    /// POST /api/simulados/preview — count + estimatedMinutes pro Simulado Builder.
+    /// POST /api/simulados/preview â€” count + estimatedMinutes pro Simulado Builder.
     /// Espelha previewQBankPool mas com questionCount + timed + timeLimitMinutes
     /// pra tela de Simulado calcular tempo correto. Spec: openapi.yaml linha 6639.
     /// Added 2026-04-29.
@@ -528,7 +528,7 @@ actor VitaAPI {
     // MARK: - QBank
 
     /// Fetches QBank progress. When `disciplineSlugs` is non-empty, the response is
-    /// scoped to the enrolled subset (Hero "X/Y questões das suas matérias") instead of
+    /// scoped to the enrolled subset (Hero "X/Y questÃµes das suas matÃ©rias") instead of
     /// the global catalog.
     func getQBankProgress(disciplineSlugs: [String] = []) async throws -> QBankProgressResponse {
         if disciplineSlugs.isEmpty {
@@ -549,7 +549,7 @@ actor VitaAPI {
         return try await client.get("qbank/filters", queryItems: items)
     }
 
-    /// POST /api/qbank/preview — count dinâmico ANTES de criar sessão.
+    /// POST /api/qbank/preview â€” count dinÃ¢mico ANTES de criar sessÃ£o.
     /// Usado pelo builder das telas Estudos com debounce 300ms client-side.
     func previewQBankPool(body: QBankPreviewBody) async throws -> QBankPreviewResp {
         try await client.post("qbank/preview", body: body)
@@ -620,56 +620,20 @@ actor VitaAPI {
         return try await client.get("qbank/questions", queryItems: items)
     }
 
-    // MARK: - Portal (extract + sync)
-
-    func fetchPortalBridgeScript() async throws -> String {
-        try await client.downloadText("portal/bridge")
-    }
-
-    func extractPortalPages(pages: [PortalExtractRequestPagesInner], instanceUrl: String, university: String, sessionCookie: String? = nil) async throws -> PortalExtract200Response {
-        let encodedPages = pages.map { page -> [String: String] in
-            let encodedHtml = page.html.flatMap { html in
-                Data(html.utf8).base64EncodedString()
-            }
-            var dict: [String: String] = ["type": page.type ?? "unknown"]
-            if let html = encodedHtml { dict["html"] = html }
-            if let linkText = page.linkText { dict["linkText"] = linkText }
-            return dict
-        }
-        var body: [String: Any] = [
-            "pages": encodedPages,
-            "instanceUrl": instanceUrl,
-            "university": university,
-        ]
-        if let sessionCookie { body["sessionCookie"] = sessionCookie }
-        let jsonData = try JSONSerialization.data(withJSONObject: body)
-        let result: PortalExtract200Response = try await client.postRaw("portal/extract", body: jsonData, timeoutInterval: 120)
-        return result
-    }
-
-    func getSyncProgress(syncId: String) async throws -> SyncProgressResponse {
-        try await client.get("portal/sync-progress", queryItems: [.init(name: "syncId", value: syncId)])
-    }
+    // MARK: - Canvas connector sync
 
     func getPortalStatus() async throws -> PortalStatusResponse {
         try await client.get("portal/status")
     }
 
-    /// User-triggered portal re-sync (pull-to-refresh, "Sincronizar agora").
-    /// Backend behavior:
-    ///   - Canvas: server-side re-scrape + ingest, inline (~5–10s).
-    ///   - Mannesoft: dispatches APNs silent push to this device for client-driven
-    ///     extract (~1–2 min wall clock for full bridge run). lastPingAt bumps
-    ///     immediately so the ConnectorCard exits "Sync travado" on next refresh.
-    /// Empty body re-syncs all active connections; pass connectionIds to scope it.
+    /// User-triggered Canvas re-sync (pull-to-refresh, "Sincronizar agora").
+    /// Backend re-reads Canvas through the stored PAT, ingests the canonical
+    /// academic model, and advances lastSyncAt/lastPingAt on success. Empty
+    /// body re-syncs all active Canvas connections; pass connectionIds to scope it.
     @discardableResult
     func triggerPortalSyncNow(connectionIds: [String]? = nil) async throws -> EmptyResponse {
         struct Body: Encodable { let connectionIds: [String]? }
         return try await client.post("portal/sync-now", body: Body(connectionIds: connectionIds))
-    }
-
-    func disconnectPortal() async throws {
-        try await client.delete("portal/disconnect?portalType=mannesoft")
     }
 
     // MARK: - Push Notifications
@@ -688,13 +652,13 @@ actor VitaAPI {
         let _: EmptyResponse = try await client.post("onboarding", body: body)
     }
 
-    /// Onda 5b — onboarding v2 (Rafael 2026-04-27).
+    /// Onda 5b â€” onboarding v2 (Rafael 2026-04-27).
     /// Backend deriva journeyType + journeyConfig + contentOrganizationMode.
     func postOnboardingV2(_ body: OnboardingV2Request) async throws -> OnboardingV2Response {
         try await client.post("onboarding/v2", body: body)
     }
 
-    /// Onda 5b Slice 4 — lista canonica CNRM/MEC de especialidades medicas.
+    /// Onda 5b Slice 4 â€” lista canonica CNRM/MEC de especialidades medicas.
     /// 22 acesso direto + 41 com pre-requisito. Cacheable (1h SWR 24h backend-side).
     func getMedicalSpecialties() async throws -> MedicalSpecialtiesResponse {
         try await client.get("medical-specialties")
@@ -766,13 +730,13 @@ actor VitaAPI {
         )
     }
 
-    // ┌──────────────────────────────────────────────────────────────────┐
-    // │  NO BACKEND YET — endpoints below have NO route.ts on server   │
-    // │  Features calling these get 404 → catch → empty/error state    │
-    // │  DO NOT add new functions here. Build the backend route first.  │
-    // └──────────────────────────────────────────────────────────────────┘
+    // â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+    // â”‚  NO BACKEND YET â€” endpoints below have NO route.ts on server   â”‚
+    // â”‚  Features calling these get 404 â†’ catch â†’ empty/error state    â”‚
+    // â”‚  DO NOT add new functions here. Build the backend route first.  â”‚
+    // â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
-    // MARK: - Canvas (NO BACKEND: canvas/courses, canvas/files, canvas/assignments, canvas/connect, canvas/sync)
+    // MARK: - Canvas PAT connector
 
     func getCanvasStatus() async throws -> CanvasStatusResponse {
         try await client.get("portal/status")
@@ -783,7 +747,7 @@ actor VitaAPI {
     // em portal_connections.sessionCookie (encrypted) com portalType='canvas_api'.
     // Spec: agent-brain/decisions/2026-05-07_vita-pivot-llm-extract-to-api-token-and-manual.md
 
-    /// POST /api/connectors/canvas/token — valida + persiste Personal Access Token.
+    /// POST /api/connectors/canvas/token â€” valida + persiste Personal Access Token.
     func connectCanvas(accessToken: String, instanceUrl: String) async throws -> CanvasConnectResponse {
         struct Body: Encodable {
             let token: String
@@ -810,7 +774,7 @@ actor VitaAPI {
         }
     }
 
-    /// POST /api/connectors/moodle/token — valida + persiste Moodle Web Service Token.
+    /// POST /api/connectors/moodle/token â€” valida + persiste Moodle Web Service Token.
     func connectMoodle(accessToken: String, instanceUrl: String) async throws -> CanvasConnectResponse {
         struct Body: Encodable {
             let token: String
@@ -830,7 +794,7 @@ actor VitaAPI {
         }
     }
 
-    /// POST /api/connectors/canvas/sync — puxa cursos+assignments via API oficial.
+    /// POST /api/connectors/canvas/sync â€” puxa cursos+assignments via API oficial.
     func syncCanvas(connectionId: String) async throws -> CanvasSyncResponse {
         struct Body: Encodable { let connectionId: String }
         struct Response: Decodable {
@@ -855,9 +819,29 @@ actor VitaAPI {
         )
     }
 
-    /// Compat com chamadas legacy sem connectionId. NO-OP — preserva ABI.
+    /// Compat with callers that sync the active Canvas connection without
+    /// already knowing its id.
     func syncCanvas() async throws -> CanvasSyncResponse {
-        return CanvasSyncResponse()
+        struct Body: Encodable {}
+        struct Response: Decodable {
+            let ok: Bool
+            let subjectsCreated: Int
+            let subjectsUpdated: Int
+            let evaluationsCreated: Int
+            let evaluationsUpdated: Int
+            let files: Int?
+            let calendarEvents: Int?
+        }
+        let res: Response = try await client.post("connectors/canvas/sync", body: Body())
+        return CanvasSyncResponse(
+            courses: res.subjectsCreated + res.subjectsUpdated,
+            files: res.files ?? 0,
+            assignments: res.evaluationsCreated + res.evaluationsUpdated,
+            calendarEvents: res.calendarEvents ?? 0,
+            pdfExtracted: 0,
+            studyEvents: 0,
+            errors: res.ok ? [] : ["sync_failed"]
+        )
     }
 
     func disconnectCanvas() async throws {
@@ -993,32 +977,6 @@ actor VitaAPI {
         try await client.uploadMultipart("crowd/upload", images: images)
     }
 
-    // MARK: - Portal connect
-
-    /// POST /api/portal/connect — registers a portal session with the backend.
-    func startVitaCrawl(cookies: String, instanceUrl: String) async throws -> VitaCrawlResponse {
-        let body = try JSONSerialization.data(withJSONObject: [
-            "sessionCookie": cookies,
-            "instanceUrl": instanceUrl,
-        ])
-        return try await client.postRaw("portal/connect", body: body)
-    }
-
-    /// POST /api/portal/ingest — sends Canvas data fetched on-device to backend for LLM processing.
-    /// Uses postRaw to bypass .convertToSnakeCase encoder (payload keys must stay camelCase).
-    func ingestCanvasData(_ payload: CanvasIngestPayload) async throws -> CanvasIngestResponse {
-        let body = try payload.toJSONData()
-        NSLog("[VitaAPI] ingestCanvasData: %d bytes", body.count)
-        return try await client.postRaw("portal/ingest", body: body, timeoutInterval: 120)
-    }
-
-    /// POST /api/portal/filter-files — LLM classifies which files are planos de ensino.
-    /// Called BEFORE downloading PDFs to avoid downloading irrelevant files.
-    func filterFiles(_ files: [[String: Any]]) async throws -> FilterFilesResponse {
-        let body = try JSONSerialization.data(withJSONObject: ["files": files])
-        return try await client.postRaw("portal/filter-files", body: body, timeoutInterval: 30)
-    }
-
     func getExams(upcoming: Bool = false) async throws -> ExamsResponse {
         var items: [URLQueryItem] = []
         if upcoming { items.append(.init(name: "upcoming", value: "true")) }
@@ -1105,7 +1063,7 @@ actor VitaAPI {
         let _: EmptyResponse = try await client.post("push/preferences", body: prefs)
     }
 
-    // MARK: - Account Deletion (LGPD / App Store §5.1.1(v))
+    // MARK: - Account Deletion (LGPD / App Store Â§5.1.1(v))
 
     func deleteUserData() async throws -> DeleteUserDataResponse {
         try await client.request(
@@ -1126,25 +1084,25 @@ struct OnboardingPostRequest: Encodable {
     var subjectDifficulties: [String: String]?
 }
 
-// MARK: - Onboarding v2 (Onda 5b — Rafael 2026-04-27)
+// MARK: - Onboarding v2 (Onda 5b â€” Rafael 2026-04-27)
 // SOT do payload: vitaai-web/src/lib/validators.ts onboardingV2Schema.
 
 struct OnboardingV2Request: Encodable {
     /// FACULDADE | ENAMED | RESIDENCIA | REVALIDA
     let goal: String
-    /// yes | graduated | skip — obrigatorio se goal != REVALIDA
+    /// yes | graduated | skip â€” obrigatorio se goal != REVALIDA
     var inFaculdade: String?
-    /// 1..12 — obrigatorio se inFaculdade=yes
+    /// 1..12 â€” obrigatorio se inFaculdade=yes
     var semester: Int?
     var university: String?
     var universityId: String?
     var universityLms: String?
     var selectedSubjects: [String]?
     var studyGoal: String?
-    /// slug de medical_specialties — so se goal=RESIDENCIA
+    /// slug de medical_specialties â€” so se goal=RESIDENCIA
     var targetSpecialty: String?
     var targetInstitutions: [String]?
-    /// PRIMEIRA | SEGUNDA — so se goal=REVALIDA
+    /// PRIMEIRA | SEGUNDA â€” so se goal=REVALIDA
     var currentStage: String?
     var focusAreas: [String]?
 }

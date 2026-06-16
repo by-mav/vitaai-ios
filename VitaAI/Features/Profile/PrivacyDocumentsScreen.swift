@@ -130,7 +130,7 @@ struct PrivacyDocumentsScreen: View {
     }
 
     fileprivate static let collections: [Collection] = [
-        .init(icon: "doc.fill", title: "Documentos do portal", what: "PDFs, slides, planos de ensino baixados de Canvas/Mannesoft/etc", retention: "Enquanto o portal estiver conectado"),
+        .init(icon: "doc.fill", title: "Documentos do portal", what: "PDFs, slides e planos de ensino baixados do Canvas ou enviados pelo usuário", retention: "Enquanto o portal estiver conectado"),
         .init(icon: "waveform", title: "Áudio de aula", what: "Gravações que você sobe pra transcrição", retention: "30 dias após a transcrição"),
         .init(icon: "photo.fill", title: "Fotos de prova", what: "Fotos de provas físicas que você sobe pra extração", retention: "90 dias após o upload"),
         .init(icon: "graduationcap.fill", title: "Dados acadêmicos", what: "Notas, frequência, horário, calendário, disciplinas", retention: "Enquanto a conta existir"),

@@ -19,7 +19,7 @@ struct AboutScreen: View {
     private let changelogFeatures = [
         "Dashboard com resumo de estudos",
         "Chat com VitaAI (IA assistente)",
-        "Integrações Canvas LMS e WebAluno",
+        "Integração Canvas LMS",
         "Flashcards com revisão espaçada",
         "Cadernos e anotações",
         "Agenda de provas e atividades",

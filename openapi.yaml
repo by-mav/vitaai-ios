@@ -33,7 +33,7 @@ tags:
   - name: auth
     description: Authentication (better-auth + mobile flows)
   - name: portal
-    description: Unified academic portal connectors (Canvas, WebAluno)
+    description: "Academic connectors. Canonical live path: Canvas PAT/API; Moodle/OAuth may be added later."
   - name: study
     description: Study tools - flashcards, mindmaps, sessions, exams, transcription
   - name: qbank
@@ -152,7 +152,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Last successful keep-alive ping (session still valid)
+          description: Last successful connector freshness ping.
         counts:
           type: object
           properties:
@@ -217,10 +217,6 @@ components:
           type: array
           items:
             type: object
-        sessionCookies:
-          type: string
-          description: Canvas session cookies from iOS WKWebView for server-side keep-alive
-          nullable: true
         pdfContents:
           type: array
           items:
@@ -344,136 +340,6 @@ components:
           type: string
       required: [canvasFileId, displayName, contentType, sizeBytes, base64]
 
-    WebAlunoIngestPayload:
-      type: object
-      properties:
-        instanceUrl:
-          type: string
-        grades:
-          type: array
-          items:
-            $ref: '#/components/schemas/WebAlunoGrade'
-        curriculum:
-          type: array
-          items:
-            $ref: '#/components/schemas/WebAlunoCurriculum'
-        schedule:
-          type: array
-          items:
-            $ref: '#/components/schemas/WebAlunoSchedule'
-        evaluations:
-          type: array
-          items:
-            $ref: '#/components/schemas/ScraperEvaluation'
-        frequency:
-          type: array
-          items:
-            $ref: '#/components/schemas/WebAlunoFrequency'
-      required: [instanceUrl]
-
-    WebAlunoGrade:
-      type: object
-      properties:
-        subjectName:
-          type: string
-        subjectCode:
-          type: string
-          nullable: true
-        grade1:
-          type: string
-          nullable: true
-        grade2:
-          type: string
-          nullable: true
-        grade3:
-          type: string
-          nullable: true
-        finalGrade:
-          type: string
-          nullable: true
-        status:
-          type: string
-          nullable: true
-        attendance:
-          type: string
-          nullable: true
-      required: [subjectName]
-
-    WebAlunoCurriculum:
-      type: object
-      properties:
-        subjectName:
-          type: string
-        semester:
-          type: string
-          nullable: true
-        workload:
-          type: string
-          nullable: true
-        finalGrade:
-          type: string
-          nullable: true
-        status:
-          type: string
-          nullable: true
-      required: [subjectName]
-
-    WebAlunoSchedule:
-      type: object
-      properties:
-        subjectName:
-          type: string
-        dayOfWeek:
-          type: integer
-        startTime:
-          type: string
-        endTime:
-          type: string
-        room:
-          type: string
-          nullable: true
-        professor:
-          type: string
-          nullable: true
-      required: [subjectName, dayOfWeek, startTime, endTime]
-
-    WebAlunoFrequency:
-      type: object
-      properties:
-        subjectName:
-          type: string
-        workload:
-          type: string
-          nullable: true
-        absences:
-          type: string
-          nullable: true
-        attendance:
-          type: string
-          nullable: true
-      required: [subjectName]
-
-    ScraperEvaluation:
-      type: object
-      properties:
-        subjectName:
-          type: string
-        title:
-          type: string
-        type:
-          type: string
-          nullable: true
-        date:
-          type: string
-          nullable: true
-        weight:
-          type: number
-          nullable: true
-        score:
-          type: number
-          nullable: true
-      required: [subjectName, title]
-
     CanvasIngestResponse:
       type: object
       properties:
@@ -506,29 +372,6 @@ components:
                 type: string
             courseMapping:
               type: object
-
-    WebAlunoIngestResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-        grades:
-          type: integer
-        curriculum:
-          type: integer
-        schedule:
-          type: integer
-        frequency:
-          type: integer
-        academic:
-          type: object
-          properties:
-            subjectsWritten:
-              type: integer
-            evalsWritten:
-              type: integer
-            schedWritten:
-              type: integer
 
     PortalGrade:
       type: object
@@ -805,13 +648,13 @@ components:
       type: object
       properties:
         id: { type: string }
-        title: { type: string, description: Verbatim title from portal/extractor (e.g. "AD1 — Curso PNAISARI"). Never synthesized. }
+        title: { type: string, description: Verbatim title from Canvas or document extraction (e.g. "AD1 — Curso PNAISARI"). Never synthesized. }
         subjectName: { type: string }
         type:
           type: string
           enum: [exam, assignment, quiz, seminar, participation]
           example: assignment
-          description: Category classification. Extractor writes this from LLM `kind` field. See src/lib/portal/extraction-prompts.ts.
+          description: Category classification. Canvas/document extraction writes this from the LLM `kind` field.
         status:
           type: string
           enum: [pending, submitted, graded]
@@ -1069,6 +912,145 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    TranscricaoSettings:
+      type: object
+      properties:
+        audioLanguage:
+          type: string
+          minLength: 2
+          maxLength: 10
+          default: auto
+        pinnedLanguages:
+          type: array
+          items: { type: string }
+          default: [pt]
+        transcriptionMode:
+          type: string
+          enum: [cloud, local]
+          default: cloud
+        defaultDiscipline:
+          type: string
+          default: auto-schedule
+        diarizationEnabled:
+          type: boolean
+          default: true
+        customVocabulary:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 60
+          default: []
+        autoSummary:
+          type: boolean
+          default: true
+        autoFlashcards:
+          type: boolean
+          default: true
+        professorSignals:
+          type: boolean
+          default: true
+        summaryLanguage:
+          type: string
+          enum: [same, pt, en]
+          default: same
+        autoDeleteAudioAfterTranscription:
+          type: boolean
+          default: false
+        autoDeleteAfterDays:
+          type: integer
+          nullable: true
+          minimum: 1
+          default: null
+        maskPII:
+          type: boolean
+          default: false
+        excludeFromCoachContext:
+          type: boolean
+          default: false
+        karaokeMode:
+          type: boolean
+          default: true
+        defaultPlaybackSpeed:
+          type: number
+          enum: [0.5, 1, 1.25, 1.5, 2]
+          default: 1
+        transcriptFontSize:
+          type: string
+          enum: [small, medium, large]
+          default: medium
+      required:
+        - audioLanguage
+        - pinnedLanguages
+        - transcriptionMode
+        - defaultDiscipline
+        - diarizationEnabled
+        - customVocabulary
+        - autoSummary
+        - autoFlashcards
+        - professorSignals
+        - summaryLanguage
+        - autoDeleteAudioAfterTranscription
+        - autoDeleteAfterDays
+        - maskPII
+        - excludeFromCoachContext
+        - karaokeMode
+        - defaultPlaybackSpeed
+        - transcriptFontSize
+
+    TranscricaoSettingsPatch:
+      type: object
+      properties:
+        audioLanguage:
+          type: string
+          minLength: 2
+          maxLength: 10
+        pinnedLanguages:
+          type: array
+          items: { type: string }
+        transcriptionMode:
+          type: string
+          enum: [cloud, local]
+        defaultDiscipline:
+          type: string
+        diarizationEnabled:
+          type: boolean
+        customVocabulary:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 60
+        autoSummary:
+          type: boolean
+        autoFlashcards:
+          type: boolean
+        professorSignals:
+          type: boolean
+        summaryLanguage:
+          type: string
+          enum: [same, pt, en]
+        autoDeleteAudioAfterTranscription:
+          type: boolean
+        autoDeleteAfterDays:
+          type: integer
+          nullable: true
+          minimum: 1
+        maskPII:
+          type: boolean
+        excludeFromCoachContext:
+          type: boolean
+        karaokeMode:
+          type: boolean
+        defaultPlaybackSpeed:
+          type: number
+          enum: [0.5, 1, 1.25, 1.5, 2]
+        transcriptFontSize:
+          type: string
+          enum: [small, medium, large]
 
     VoiceSession:
       type: object
@@ -2142,7 +2124,7 @@ components:
         universityLms:
           type: string
           nullable: true
-          description: Portal type the university uses (canvas, mannesoft, moodle, sigaa, totvs...). Resolved from universities.portalType.
+          description: Portal type the university uses. Canonical live path is canvas; moodle is reserved for future OAuth/API partner integrations.
         subjects:
           type: array
           items:
@@ -2229,7 +2211,7 @@ components:
         universityLms:
           type: string
           nullable: true
-          description: 'Portal LMS: canvas|mannesoft|moodle|sigaa|totvs'
+          description: 'Portal LMS: canvas today; moodle reserved for future OAuth/API partner integrations.'
         selectedSubjects:
           type: array
           items:
@@ -2435,7 +2417,7 @@ components:
           format: date-time
           nullable: true
           description: |
-            Data REAL de upload do material no portal (Canvas/WebAluno),
+            Data REAL de upload do material no Canvas,
             distinta de `createdAt` que é o timestamp do nosso sync.
             Quando ausente (docs antigos sincronizados antes do feature),
             UI faz fallback para `createdAt`.
@@ -2493,7 +2475,7 @@ components:
           type: string
           format: date-time
         source:
-          description: 'Portal slug (canvas, mannesoft, sigaa, ...) ou null para notif interna Vita. Usado pelo client pra renderizar icone do portal. Added 2026-04-27.'
+          description: 'Connector slug (canvas, moodle, etc.) ou null para notif interna Vita. Usado pelo client pra renderizar icone da origem. Added 2026-04-27.'
           type: string
           nullable: true
         subjectId:
@@ -2995,7 +2977,7 @@ components:
     AcademicSubject:
       description: >
         Student's current enrollment — the SOT for "what the student is studying".
-        Populated by portal connectors (Canvas/Mannesoft) or manual entry. The
+        Populated by Canvas/API connectors or manual entry. The
         disciplineSlug field links to MedSimple catalog (vita.disciplines.slug)
         so QBank can filter questions by the student's actual subjects without
         a client-side taxonomy duplicate.
@@ -3140,6 +3122,44 @@ components:
         finalGrade:
           type: number
           nullable: true
+          description: |
+            DEPRECATED in favor of `evaluations[]` (kind=final). Kept for back-compat.
+            Hardcoded grade1/grade2/grade3/finalGrade only fits ULBRA AP1/AP2/AP3/Média
+            pattern. For 350+ portals with varying schemes (P1/P2, N1/N2/Recup, etc.),
+            iOS/Android should render `evaluations[]` dynamically.
+        evaluations:
+          type: array
+          description: |
+            Per-subject canonical evaluations from `academic_evaluations`. Render
+            dynamically — title, kind and sequence vary per portal/faculty
+            (AP1/AS/Recuperação on ULBRA, P1/P2/Exame elsewhere). Sorted by
+            (kind precedence: partial < final < makeup, then sequence).
+          items:
+            type: object
+            required: [title]
+            properties:
+              title:
+                type: string
+                description: Original portal label (AP1, AS, Recuperação, P1, Final, etc.)
+              kind:
+                type: string
+                nullable: true
+                description: partial | final | makeup | assignment | seminar | quiz
+              sequence:
+                type: integer
+                nullable: true
+                description: Sequence within kind (1, 2, 3 for AP1/AP2/AP3)
+              score:
+                type: number
+                nullable: true
+              weight:
+                type: number
+                nullable: true
+                description: Weight in final grade calculation (0-100 or absolute)
+              maxScore:
+                type: number
+                nullable: true
+                description: Maximum possible score (default 10 in BR)
         attendance:
           type: number
           nullable: true
@@ -3397,7 +3417,7 @@ components:
         universityName: { type: string }
         portalType:
           type: string
-          enum: [canvas, moodle, sigaa, mannesoft]
+          enum: [canvas, moodle]
         instanceUrl: { type: string, format: uri }
         confidence: { type: number, description: "0.0-1.0 from Haiku" }
         rationale: { type: string, nullable: true }
@@ -3646,8 +3666,8 @@ paths:
     get:
       tags: [internal]
       operationId: cronPortalSync
-      summary: Periodic portal sync worker (keep-alive + full re-sync, logs to sync_logs)
-      description: "Protected by CRON_SECRET bearer token. Not for client use. Writes audit trail to vita.sync_logs. Cloudflare-protected Mannesoft connections (mannesoftprime.com) short-circuit at the top of the loop: only lastPingAt is bumped. No testPortalSession, no full-resync. Real re-sync is the silent-sync cron + client WebView path."
+      summary: Periodic Canvas PAT sync worker
+      description: "Protected by CRON_SECRET bearer token. Not for client use. Processes active Canvas PAT connections, writes audit trail to vita.sync_logs, refreshes Canvas data through the API, and advances lastSyncAt/lastPingAt on success."
       security:
         - bearerAuth: []
       responses:
@@ -3674,7 +3694,7 @@ paths:
       summary: Re-run the portal_grades → academic_subjects promoter for every active connection
       description: |
         Protected by CRON_SECRET bearer. Useful when the promoter logic changed
-        (e.g. approved history wasn't being surfaced) or when Mannesoft is
+        (e.g. approved history wasn't being surfaced) or when a connector is
         Cloudflare-blocked but the raw rows in portal_grades are still valid —
         triggers normalizePortalData(userId) per active connection owner.
         Does NOT fetch anything from the portal; purely in-DB reconciliation.
@@ -3700,41 +3720,6 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/cron/portal-silent-sync:
-    get:
-      tags: [internal]
-      operationId: cronPortalSilentSync
-      summary: Portal-agnostic silent push dispatcher — wakes iOS/Android in background
-      description: |
-        Scans active portal_connections whose lastSyncAt is older than the silent-sync TTL
-        defined in portal-registry.ts for that portalType, and sends a silent APNs (iOS) or
-        data-only FCM (Android) push so the app can refresh the portal session in the
-        background (~30s window). Adding a new portal is one line in the registry.
-        Protected by CRON_SECRET bearer. Run hourly via monstro crontab.
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Dispatch results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  checked:
-                    type: integer
-                  pushed:
-                    type: integer
-                  skippedFresh:
-                    type: integer
-                  skippedNoPolicy:
-                    type: integer
-                  results:
-                    type: array
-                    items:
-                      type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
 
   /api/cron/close-stale-read-sessions:
     get:
@@ -3761,50 +3746,6 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/cron/portal-silent-sync/device:
-    post:
-      tags: [internal]
-      operationId: cronPortalSilentSyncDevice
-      summary: Device-triggered portal keep-alive (Android silent push handler)
-      description: |
-        Called by the Android app after FCM wakes it with a silent data message (type=portal_sync).
-        Authenticates via X-Extension-Token, then triggers server-side keep-alive / session refresh
-        for the user's portal connections. Body fields are all optional — if omitted, refreshes ALL
-        active connections for the authenticated user.
-      security:
-        - extensionToken: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                connectionId:
-                  type: string
-                  nullable: true
-                portalType:
-                  type: string
-                  nullable: true
-                instanceUrl:
-                  type: string
-                  nullable: true
-      responses:
-        '200':
-          description: Keep-alive results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  refreshed:
-                    type: integer
-                  alive:
-                    type: integer
-                  expired:
-                    type: integer
-        '401':
-          $ref: '#/components/responses/Unauthorized'
 
   /api/portal/force-sync:
     post:
@@ -3902,58 +3843,6 @@ paths:
   # ════════════════════════════════════════
   # PORTAL
   # ════════════════════════════════════════
-  /api/portal/filter-files:
-    post:
-      description: |
-        Classifica PDFs do portal (Canvas/Mannesoft) usando LLM via brain('classify')
-        -> LiteLLM :8788 -> Qwen local. Retorna apenas IDs de planos de ensino/ementas
-        pra iOS baixar (economiza bandwidth: download seletivo em vez de todos PDFs).
-        Migrado pra brain canonico em 2026-04-27 (Onda 2 epic agents-hub#3).
-      tags: [portal]
-      operationId: portalFilterFiles
-      summary: LLM-based file filter — classify which files are planos de ensino (Langfuse-traced as process:portal-filter-files)
-      security:
-        - cookieAuth: []
-        - extensionToken: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                files:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                      displayName:
-                        type: string
-                      contentType:
-                        type: string
-                      size:
-                        type: integer
-                    required: [id, displayName]
-              required: [files]
-      responses:
-        '200':
-          description: Filtered file IDs
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  relevantFileIds:
-                    type: array
-                    items:
-                      type: string
-                  fallback:
-                    type: boolean
-                    description: True if regex fallback was used (LLM unavailable)
-        '401':
-          $ref: '#/components/responses/Unauthorized'
 
   /api/pdf/masks/attempt:
     post:
@@ -4103,17 +3992,14 @@ paths:
     post:
       tags: [portal]
       operationId: triggerPortalSyncNow
-      summary: User-triggered re-sync of active portal connections
+      summary: User-triggered re-sync of active Canvas connections
       description: |
         Used by iOS pull-to-refresh on the Connections screen and any future
-        "Sincronizar agora" button. Behavior per portalType:
-          - canvas: server-side re-scrape + ingest, inline (~5–10s wall clock).
-            lastSyncAt advances on success.
-          - mannesoft: dispatches APNs silent push to the user's device for
-            client-driven extract (Cloudflare cf_clearance lives in the iOS
-            WKWebView store; SaaS-scale residential proxy is unviable).
-            lastPingAt bumps immediately so the ConnectorCard exits "Sync
-            travado" on the next status fetch.
+        "Sincronizar agora" button. The canonical connector path is Canvas
+        Personal Access Token only: the backend re-reads Canvas through the
+        stored PAT, ingests the normalized academic data, and advances
+        lastSyncAt/lastPingAt on success. There is no browser bridge,
+        silent extraction, or non-Canvas dispatch in this endpoint.
       requestBody:
         required: false
         content:
@@ -4125,10 +4011,10 @@ paths:
                   type: array
                   items:
                     type: string
-                  description: Optional. If empty/absent, re-syncs all active connections for the user.
+                  description: Optional. If empty/absent, re-syncs all active Canvas connections for the user.
       responses:
         '200':
-          description: Re-sync dispatched
+          description: Canvas sync completed
           content:
             application/json:
               schema:
@@ -4148,21 +4034,117 @@ paths:
                               type: boolean
                             error:
                               type: string
-                      mannesoft:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            dispatched:
-                              type: boolean
-                            error:
-                              type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
-          description: No active connections to sync
+          description: No active Canvas connections to sync
         '500':
           $ref: '#/components/responses/ServerError'
+
+  /api/connectors/canvas/token:
+    post:
+      tags: [portal]
+      operationId: connectCanvasToken
+      summary: Connect Canvas using a Personal Access Token
+      description: |
+        Canonical Canvas mobile flow. The user provides a Canvas Personal Access
+        Token and base URL. The backend validates the token against the Canvas
+        REST API and stores the encrypted token on the authenticated user's
+        portal connection.
+      security:
+        - cookieAuth: []
+        - extensionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, baseUrl]
+              properties:
+                token:
+                  type: string
+                  format: password
+                baseUrl:
+                  type: string
+                  example: https://ulbra.instructure.com
+      responses:
+        '200':
+          description: Canvas token validated and stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connectionId, canvasUser, instanceUrl]
+                properties:
+                  connectionId:
+                    type: string
+                  instanceUrl:
+                    type: string
+                  canvasUser:
+                    type: object
+                    required: [id, name]
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      email:
+                        type: string
+                        nullable: true
+        '400':
+          description: Missing token/baseUrl or invalid Canvas URL
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/connectors/canvas/sync:
+    post:
+      tags: [portal]
+      operationId: syncCanvasToken
+      summary: Sync Canvas through the stored Personal Access Token
+      security:
+        - cookieAuth: []
+        - extensionToken: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                connectionId:
+                  type: string
+      responses:
+        '200':
+          description: Canvas sync completed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, subjectsCreated, subjectsUpdated, evaluationsCreated, evaluationsUpdated]
+                properties:
+                  ok:
+                    type: boolean
+                  subjectsCreated:
+                    type: integer
+                  subjectsUpdated:
+                    type: integer
+                  evaluationsCreated:
+                    type: integer
+                  evaluationsUpdated:
+                    type: integer
+                  files:
+                    type: integer
+                  calendarEvents:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Canvas connection not found
+        '409':
+          description: Stored Canvas credential is missing or not token-based
+        '502':
+          description: Portal ingest failed
 
   /api/portal/status:
     get:
@@ -4184,58 +4166,6 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /api/portal/connect:
-    post:
-      tags: [portal]
-      operationId: portalConnect
-      summary: Connect to academic portal (Cloudflare-protected skips server fetch, relies on client bridge)
-      security:
-        - cookieAuth: []
-        - extensionToken: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                sessionCookie:
-                  type: string
-                instanceUrl:
-                  type: string
-                syncId:
-                  type: string
-                  nullable: true
-                portalName:
-                  type: string
-                  nullable: true
-              required: [sessionCookie, instanceUrl]
-      responses:
-        '200':
-          description: Connection initiated
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  syncId:
-                    type: string
-                  portalType:
-                    type: string
-                  grades:
-                    type: integer
-                  schedule:
-                    type: integer
-                  pagesDiscovered:
-                    type: integer
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
 
   /api/portal/calibration/preview:
     get:
@@ -4361,12 +4291,12 @@ paths:
   /api/portal/ingest:
     post:
       description: |
-        Portal ingest — judge dispara so em geracao de fingerprint (Camada 1) desde 2026-04-27.
-        Accepts polymorphic payload: Canvas format (with courses, assignments, files, calendarEvents)
-        or WebAluno format (with grades, curriculum, schedule, frequency).
+        Canvas ingest. Accepts only the backend-generated Canvas PAT/API payload
+        with courses, assignments, files, calendarEvents, and optional extracted
+        plan-document contents. Browser scraper payloads are rejected.
       tags: [portal]
       operationId: portalIngest
-      summary: Ingest data from Canvas or WebAluno portal (canonical EN statuses from 2026-04-17)
+      summary: Ingest Canvas API data into the canonical academic model
       # 2026-04-09: internal phantom table cleanup (no API surface changes)
   # 2026-04-09: cron-to-ingest auth fix (internal, no API surface changes)
   # 2026-04-09: portal extraction uses vLLM direct, chat includes portal data (no API surface changes)
@@ -4392,18 +4322,14 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/CanvasIngestPayload'
-                - $ref: '#/components/schemas/WebAlunoIngestPayload'
+              $ref: '#/components/schemas/CanvasIngestPayload'
       responses:
         '200':
-          description: Ingest successful. Response shape depends on payload type.
+          description: Canvas ingest successful.
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: '#/components/schemas/CanvasIngestResponse'
-                  - $ref: '#/components/schemas/WebAlunoIngestResponse'
+                $ref: '#/components/schemas/CanvasIngestResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -4447,74 +4373,6 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /api/portal/keep-alive:
-    post:
-      tags: [portal]
-      operationId: portalKeepAlive
-      summary: Ping active portal sessions to prevent expiration
-      # 2026-04-09: internal phantom table cleanup (no API surface changes)
-  # 2026-04-09: cron-to-ingest auth fix (internal, no API surface changes)
-  # 2026-04-09: portal extraction uses vLLM direct, chat includes portal data (no API surface changes)
-  # 2026-04-18: flash_cards.disciplineId now text UUID (schema drift fix matching live DB); no API surface change
-  # 2026-04-20: Haiku plano-de-ensino extract via CLAUDE_CODE_OAUTH_TOKEN (no more x-api-key); no API surface change
-  # 2026-04-27: portal notifications refactor — sendNotification unified dispatch + portal source/metadata in Notification schema (additive, no breaking change)
-  # 2026-04-20: subject UPDATE via Drizzle native (raw SQL was silently failing on escape of long syllabus strings); no API surface change
-  # 2026-04-20: cron-drives-Haiku — PDFs recém-baixados pro R2 disparam Haiku server-side (plano extract sem iOS inline)
-  # 2026-04-20: cron-haiku-backfill — varredura retroativa de planos já em R2 sem extraction (sem precisar download novo)
-  # 2026-04-20: multi-format support — downloader fetches docx/xlsx/pptx to R2, backfill uses mammoth/xlsx parsers
-  # 2026-04-20: Canvas module items scraping — files inside modules now discovered
-      description: |
-        Sends a lightweight request to active portal connections to keep PHP sessions alive.
-        If a session has expired (login page returned), marks the connection as 'expired'.
-        Optionally triggers data extraction if the last sync was over 1 hour ago.
-      security:
-        - cookieAuth: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                connectionId:
-                  type: string
-                  description: Optional - ping only this connection. If omitted, pings all active connections.
-      responses:
-        '200':
-          description: Keep-alive results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  total:
-                    type: integer
-                  alive:
-                    type: integer
-                  expired:
-                    type: integer
-                  errors:
-                    type: integer
-                  results:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        connectionId:
-                          type: string
-                        instanceUrl:
-                          type: string
-                        status:
-                          type: string
-                          enum: [alive, expired, error]
-                        syncTriggered:
-                          type: boolean
-                        error:
-                          type: string
-                          nullable: true
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
 
   /api/sentry-ping:
     get:
@@ -4535,184 +4393,10 @@ paths:
                   exceptionId: { type: string }
 
   # 2026-04-22: adds universal page filter (no GFM table AND no academic keyword) + healthy-fingerprint fallback before LLM re-teach
-  /api/portal/extract:
-    post:
-      tags: [portal]
-      operationId: portalExtract
-      summary: Extract data from HTML pages via per-page parallel vLLM calls (Qwen local). Parser-first when a portal_fingerprint exists for (portalType, instanceUrl); falls back to vLLM cold path otherwise. Fires grade_alert APNs push when a grade changes vs previous sync.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                pages:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      type:
-                        type: string
-                      html:
-                        type: string
-                      linkText:
-                        type: string
-                instanceUrl:
-                  type: string
-                university:
-                  type: string
-                  nullable: true
-                syncId:
-                  type: string
-                  nullable: true
-                portalName:
-                  type: string
-                  nullable: true
-              required: [pages, instanceUrl]
-      responses:
-        '200':
-          description: Extraction result (returns immediately, processes in background)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  syncId:
-                    type: string
-                    description: Poll via /api/portal/sync-progress?syncId=X for progress
-                  grades:
-                    type: integer
-                    description: Initially 0, updated via sync-progress polling
-                  schedule:
-                    type: integer
-                    description: Initially 0, updated via sync-progress polling
-                  pagesExtracted:
-                    type: integer
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
+  # 2026-04-30: internal — simplifiedKey matching for cross-encoding, baseline notification skip
 
-  /api/portal/proxy:
-    get:
-      tags: [portal]
-      operationId: portalProxyGet
-      summary: Proxy GET request to portal URL
-      security: []
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Proxied HTML content
-          content:
-            text/html:
-              schema:
-                type: string
-        '500':
-          $ref: '#/components/responses/ServerError'
-    post:
-      tags: [portal]
-      operationId: portalProxyPost
-      summary: Proxy POST request to portal URL
-      security: []
-      parameters:
-        - name: url
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Proxied HTML content
-          content:
-            text/html:
-              schema:
-                type: string
-        '500':
-          $ref: '#/components/responses/ServerError'
 
-  /api/portal/server-scrape:
-    post:
-      tags: [portal]
-      operationId: portalServerScrape
-      summary: Server-side scrape of portal with credentials
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-                password:
-                  type: string
-                instanceUrl:
-                  type: string
-                  nullable: true
-                university:
-                  type: string
-                  nullable: true
-                portalId:
-                  type: string
-                  nullable: true
-              required: [email, password]
-      responses:
-        '200':
-          description: Scrape initiated
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  syncId:
-                    type: string
-                  grades:
-                    type: integer
-                  schedule:
-                    type: integer
-                  pagesDiscovered:
-                    type: integer
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
 
-  /api/portal/sync-progress:
-    get:
-      tags: [portal]
-      operationId: portalSyncProgress
-      summary: Get sync progress by syncId
-      parameters:
-        - name: syncId
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Sync progress
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SyncProgress'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
 
   /api/portal/data:
     get:
@@ -4754,65 +4438,7 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /api/portal/bridge:
-    get:
-      tags: [portal]
-      operationId: portalBridge
-      summary: Serve bridge.js script for portal page extraction (injected by iOS/Android WebView)
-      responses:
-        '200':
-          description: Bridge JavaScript file
-          content:
-            application/javascript:
-              schema:
-                type: string
 
-  /api/portal/session:
-    post:
-      tags: [portal]
-      operationId: portalSession
-      summary: Connect portal via proxy-captured session (fetch HTML, LLM extract, save)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                sessionCookie:
-                  type: string
-                  description: "'proxy-captured' or raw PHPSESSID value"
-                instanceUrl:
-                  type: string
-                syncId:
-                  type: string
-                portalName:
-                  type: string
-              required: [sessionCookie, instanceUrl]
-      responses:
-        '200':
-          description: Extraction result
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  syncId:
-                    type: string
-                  portalType:
-                    type: string
-                  grades:
-                    type: integer
-                  schedule:
-                    type: integer
-                  pagesDiscovered:
-                    type: integer
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
 
   # ════════════════════════════════════════
   # STUDY
@@ -4998,7 +4624,7 @@ paths:
   /api/study/plan:
     get:
       tags: [study]
-      operationId: getStudyPlan
+      operationId: getStudyPlanHierarchy
       summary: Estudar tab — hierarchy por lens (banca/tradicional/pbl)
       description: >
         Hierarchy de greatAreas/disciplines/pblSystems com question counts
@@ -9817,19 +9443,54 @@ paths:
           description: Profile not found
 
   /api/whatsapp/webhook:
+    get:
+      tags: [notifications]
+      operationId: whatsappWebhookVerify
+      summary: Meta Cloud API webhook verification (GET challenge)
+      description: |
+        Meta Cloud API initial verification. Meta calls
+        `GET /api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=X&hub.challenge=Y`
+        when configuring webhook URL. We respond with `Y` if `X` matches
+        env `META_WEBHOOK_VERIFY_TOKEN`. Otherwise 403.
+
+        Decisão 2026-04-30: provider canônico = Meta Cloud API. GOWA mantido
+        como fallback dev via flag `WHATSAPP_PROVIDER=cloud|gowa`.
+      security: []
+      parameters:
+        - name: hub.mode
+          in: query
+          schema: { type: string, enum: [subscribe] }
+        - name: hub.verify_token
+          in: query
+          schema: { type: string }
+        - name: hub.challenge
+          in: query
+          schema: { type: string }
+      responses:
+        200:
+          description: Challenge echoed back (verification successful)
+          content: { text/plain: { schema: { type: string } } }
+        403:
+          description: Verification failed (token mismatch or wrong mode)
     post:
       tags: [notifications]
       operationId: whatsappInboundWebhook
-      summary: Inbound webhook from GOWA ZAP API
+      summary: Inbound webhook (Meta Cloud API + GOWA legacy)
       description: |
-        Receives inbound message events from the GOWA oficial
-        (`ghcr.io/aldinokemal/go-whatsapp-web-multidevice`). Requires HMAC
-        SHA256 signature in `X-Hub-Signature-256` computed with
-        `WHATSAPP_WEBHOOK_SECRET`. Dedupes by `payload.id` (GOWA retries up
-        to 5x on non-2xx) via `whatsapp_inbound_messages` table, resolves
-        `from` → userId through `notification_preferences.whatsappPhone`
-        (requires `whatsappVerified=true`), and runs the Vita coach turn via
-        `runVitaChatTurn` — reply goes back through the same WhatsApp channel.
+        Dual provider webhook. Auto-detects format pelo body shape:
+        - **Cloud API** (default): `{ entry: [{ changes: [{ value: { messages: [...] } }] }] }`
+        - **GOWA** (legacy fallback): `{ event: message, payload: { ... } }`
+
+        Cada provider tem secret próprio:
+        - Cloud: `META_APP_SECRET` (HMAC SHA256, header `X-Hub-Signature-256`)
+        - GOWA: `WHATSAPP_WEBHOOK_SECRET` (HMAC SHA256, mesmo header)
+
+        Pra cada msg inbound: dedupe via `messageId` em `whatsapp_inbound_messages`,
+        resolve user via `notification_preferences.whatsappPhone` (whatsappVerified=true),
+        roda agent loop `runVitaChatTurn` (LiteLLM + MCPs vita-brain/user/catalog),
+        responde via `sendWhatsAppMessage` (provider abstraction).
+
+        Decisão: agent-brain/decisions/2026-04-30_whatsapp-cloud-api-llm-agent.md
       security: []
       parameters:
         - name: X-Hub-Signature-256
@@ -10533,7 +10194,7 @@ paths:
       operationId: getGradesCurrent
       summary: Consolidated-per-subject view (current + completed + summary)
       description: Legacy shape still consumed by installed iOS clients. Prefer /api/dashboard.subjects in new code.
-      # 2026-04-21: CR (summary.averageGrade) now weighted by workload over completed[] (not a mean of current). finalGrade on completed[] now sourced from academic_subjects.currentGrade (persisted from Mannesoft history). No schema change.
+      # 2026-04-21: CR (summary.averageGrade) now weighted by workload over completed[] (not a mean of current). finalGrade on completed[] now sourced from academic_subjects.currentGrade. No schema change.
       security:
         - cookieAuth: []
         - extensionToken: []
@@ -10828,10 +10489,9 @@ paths:
       operationId: getUniversityPortals
       summary: Portals offered by a specific university (filtered list for ConnectionsScreen)
       description: |
-        Returns the portals the user's university offers (Canvas + Mannesoft for ULBRA,
-        Moodle for FAESA, etc) with instanceUrl pre-filled. iOS ConnectionsScreen uses
-        this to filter the connector list — Rafael 2026-04-27: each university has its
-        own portal URL; showing 8 generic connectors when only 2 work breaks UX.
+        Returns API/OAuth-capable academic connectors for the university with
+        instanceUrl pre-filled when available. iOS ConnectionsScreen uses this
+        to avoid showing generic legacy connectors that cannot sync reliably.
       parameters:
         - name: id
           in: path
@@ -11696,35 +11356,3 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
-
-  /api/onboarding/screen:
-    get:
-      summary: BFF aggregator per-screen pra Onboarding
-      tags: [onboarding]
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { type: object } } } }
-        '401': { description: Unauthorized }
-
-  /api/insights/screen:
-    get:
-      summary: BFF aggregator per-screen pra Insights
-      tags: [insights]
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { type: object } } } }
-        '401': { description: Unauthorized }
-
-  /api/provas/screen:
-    get:
-      summary: BFF aggregator per-screen pra Provas
-      tags: [provas]
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { type: object } } } }
-        '401': { description: Unauthorized }
-
-  /api/planner/screen:
-    get:
-      summary: BFF aggregator per-screen pra Planner
-      tags: [planner]
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { type: object } } } }
-        '401': { description: Unauthorized }

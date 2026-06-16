@@ -83,8 +83,6 @@
 "Conectar Canvas LMS" = "Conectar Canvas LMS";
 "Conectar Google Calendar" = "Conectar Google Calendar";
 "Conectar Google Drive" = "Conectar Google Drive";
-"Conectar WebAluno" = "Conectar WebAluno";
-"Conecte seu WebAluno para ver suas disciplinas, notas e agenda." = "Conecte seu WebAluno para ver suas disciplinas, notas e agenda.";
 "Conecte seu portal academico para importar suas materias automaticamente." = "Conecte seu portal acadêmico para importar suas matérias automaticamente.";
 "Conectores" = "Conectores";
 "Configuracoes" = "Configurações";
@@ -121,7 +119,6 @@
 "Em breve" = "Em breve";
 "Email enviado!" = "Email enviado!";
 "Encerrar Sessão" = "Encerrar Sessão";
-"Entrar no WebAluno" = "Entrar no WebAluno";
 "Enviar" = "Enviar";
 "Enviar material" = "Enviar material";
 "Erro ao carregar" = "Erro ao carregar";
@@ -329,8 +326,6 @@
 "Você será desconectado do VitaAI." = "Você será desconectado do VitaAI.";
 "Voltar" = "Voltar";
 "Voltar para Simulados" = "Voltar para Simulados";
-"WebAluno" = "WebAluno";
-"WebAluno nao conectado" = "WebAluno não conectado";
 "cards" = "cards";
 "questões respondidas" = "questões respondidas";
 "top 5" = "top 5";

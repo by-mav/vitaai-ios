@@ -5,11 +5,6 @@ import UserNotifications
 // Steps (Onda 5b): Sleep -> StatusFaculdade -> Goal -> [RevalidaStage|Welcome] -> Connect -> Syncing -> Subjects -> Notifications -> Trial -> Done
 // Fork por journeyType (FACULDADE/INTERNATO/ENAMED/RESIDENCIA/REVALIDA). SOT: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md
 
-private struct PortalSheetItem: Identifiable {
-    let id: String
-    var portalType: String { id }
-}
-
 struct VitaOnboarding: View {
     @Environment(\.appContainer) private var container
     // Persist current step so if the app restarts mid-onboarding the user
@@ -21,8 +16,6 @@ struct VitaOnboarding: View {
     @State private var speechText = ""
     @State private var showContent = false
     @State private var isTyping = false
-    @State private var connectSheet: PortalSheetItem?
-    @State private var inlineConnectPortal: String?
     @State private var sleepOpacity: Double = 1.0
     @State private var wakeFlash: Double = 0
     @State private var mascotScale: CGFloat = 1.0
@@ -112,8 +105,8 @@ struct VitaOnboarding: View {
                     .transition(.opacity)
                 }
 
-                // Mascot (tap to wake on sleep step, hidden during inline portal connect,
-                // shrinks while user is actively searching a university so the dropdown
+                // Mascot (tap to wake on sleep step; shrinks while user is actively
+                // searching a university so the dropdown
                 // has room to show multiple results without the keyboard clipping it).
                 let shrinkForSearch = step == .welcome
                     && !(viewModel?.universityQuery.isEmpty ?? true)
@@ -127,30 +120,28 @@ struct VitaOnboarding: View {
                     if shrinkForCompactStep { return 72 }
                     return 100
                 }()
-                if !(step == .connect && inlineConnectPortal != nil) {
-                    VitaMascot(
-                        state: mascotState,
-                        size: mascotSize,
-                        isBlushing: mascotBlushing
-                    )
-                        .scaleEffect(mascotScale)
-                        .padding(.top, step == .sleep ? 60 : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 4 : 16)))
-                        .padding(.bottom, step == .sleep ? 0 : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 2 : 8)))
-                        .overlay(alignment: .top) {
-                            if step == .sleep && mascotState == .sleeping {
-                                SleepingZs()
-                                    .offset(x: 34, y: 6)
-                                    .allowsHitTesting(false)
-                            }
+                VitaMascot(
+                    state: mascotState,
+                    size: mascotSize,
+                    isBlushing: mascotBlushing
+                )
+                    .scaleEffect(mascotScale)
+                    .padding(.top, step == .sleep ? 60 : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 4 : 16)))
+                    .padding(.bottom, step == .sleep ? 0 : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 2 : 8)))
+                    .overlay(alignment: .top) {
+                        if step == .sleep && mascotState == .sleeping {
+                            SleepingZs()
+                                .offset(x: 34, y: 6)
+                                .allowsHitTesting(false)
                         }
-                        .onTapGesture {
-                            if step == .sleep {
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                wakeUp()
-                            }
+                    }
+                    .onTapGesture {
+                        if step == .sleep {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            wakeUp()
                         }
-                        .animation(.easeInOut(duration: 0.25), value: shrinkForSearch)
-                }
+                    }
+                    .animation(.easeInOut(duration: 0.25), value: shrinkForSearch)
 
                 // Speech bubble + content
                 if step == .sleep {
@@ -286,29 +277,11 @@ struct VitaOnboarding: View {
             }
 
         case .connect:
-            if let activePortal = inlineConnectPortal {
-                OnboardingPortalFlow(
-                    portalType: activePortal,
-                    university: viewModel?.selectedUniversity,
-                    api: container.api,
-                    userEmail: container.authManager.userEmail,
-                    onBack: { withAnimation { inlineConnectPortal = nil } },
-                    onConnected: {
-                        withAnimation { inlineConnectPortal = nil }
-                    }
-                )
-            } else {
-                ConnectStep(
-                    university: viewModel?.selectedUniversity,
-                    allPortalTypes: viewModel?.allPortalTypes ?? [],
-                    api: container.api
-                ) { portalType in
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    withAnimation(.spring(response: 0.3)) {
-                        inlineConnectPortal = portalType
-                    }
-                }
-            }
+            ConnectStep(
+                university: viewModel?.selectedUniversity,
+                allPortalTypes: viewModel?.allPortalTypes ?? [],
+                api: container.api
+            )
 
         case .extras:
             ExtrasStep(
@@ -464,7 +437,6 @@ struct VitaOnboarding: View {
         if let prev = OnboardingStep(rawValue: prevRaw) {
             withAnimation(.spring(response: 0.4)) {
                 step = prev
-                inlineConnectPortal = nil
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 withAnimation { showContent = true }
@@ -673,16 +645,6 @@ struct VitaOnboarding: View {
                 }
             }
         }
-    }
-
-    @ViewBuilder
-    private func connectSheetView(for portalType: String) -> some View {
-        OnboardingConnectSheet(
-            portalType: portalType,
-            university: viewModel?.selectedUniversity,
-            api: container.api,
-            onDismiss: { connectSheet = nil }
-        )
     }
 
     private func saveOnboarding() async {

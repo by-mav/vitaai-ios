@@ -12,8 +12,6 @@ public struct PortalDiscoveryRun: Sendable, Codable, Hashable {
     public enum PortalType: String, Sendable, Codable, CaseIterable {
         case canvas = "canvas"
         case moodle = "moodle"
-        case sigaa = "sigaa"
-        case mannesoft = "mannesoft"
     }
     public enum Status: String, Sendable, Codable, CaseIterable {
         case pending = "pending"

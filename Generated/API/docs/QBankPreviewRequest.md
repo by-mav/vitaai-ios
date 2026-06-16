@@ -5,6 +5,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **lens** | **String** |  | [optional] 
 **groupSlugs** | **[String]** | Slugs do agrupamento atual (disciplines/pbl_systems/exam_great_areas conforme lens). | [optional] 
+**subgroupSlugs** | **[String]** | Slugs do subnível: clusters de sintoma PBL OU topic IDs (string) Tradicional. Added 2026-04-29. | [optional] 
 **institutionIds** | **[Int]** |  | [optional] 
 **years** | [**QBankPreviewRequestYears**](QBankPreviewRequestYears.md) |  | [optional] 
 **difficulties** | **[String]** |  | [optional] 

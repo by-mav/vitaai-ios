@@ -59,9 +59,6 @@ struct DashboardScreen: View {
             }
         }
         .onAppear {
-            // Silent sync on every dashboard appear (returns from portal connect, tab switch, etc.)
-            SilentPortalSync.shared.syncIfNeeded(api: container.api)
-
             // Reuse the singleton VM from AppContainer so cached hero/subjects
             // survive tab switches. loadDashboard() is SWR: renders cache
             // instantly if <60s old, refreshes silently in background.
@@ -76,8 +73,6 @@ struct DashboardScreen: View {
                 }
                 await appData.loadIfNeeded()
             }
-            // Silent background sync — keeps Mannesoft/Canvas data fresh
-            SilentPortalSync.shared.syncIfNeeded(api: container.api)
         }
         .trackScreen("Dashboard")
         // XP toasts now shown inline in VitaTopBar

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - MateriasAgendaWidget
 //
-// Shared pager widget: Matérias ↔ Agenda tabs with swipe gesture.
+// Shared pager widget: Agenda ↔ Disciplinas tabs with swipe gesture.
 // Used by both DashboardScreen and FaculdadeHomeScreen.
 // ANY change here reflects in BOTH places — that's the point.
 //
@@ -32,13 +32,13 @@ struct MateriasAgendaWidget: View {
             // Content — swap with gesture
             Group {
                 if activeTab == 0 {
-                    materiasContent()
+                    agendaContent()
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading),
                             removal: .move(edge: .trailing)
                         ))
                 } else {
-                    agendaContent()
+                    materiasContent()
                         .transition(.asymmetric(
                             insertion: .move(edge: .trailing),
                             removal: .move(edge: .leading)
@@ -62,8 +62,8 @@ struct MateriasAgendaWidget: View {
 
     private var tabBar: some View {
         HStack(spacing: 6) {
-            tabPill(title: "Matérias", icon: "graduationcap", index: 0)
-            tabPill(title: "Agenda", icon: "calendar", index: 1)
+            tabPill(title: "Agenda", icon: "calendar", index: 0)
+            tabPill(title: "Disciplinas", icon: "graduationcap", index: 1)
         }
     }
 
@@ -106,28 +106,9 @@ struct MateriasAgendaWidget: View {
                     .padding(.vertical, 12)
                     .padding(.horizontal, 16)
             } else {
-                // Dynamic column headers — derived from union of all subjects'
-                // evaluations. Supports any portal/faculty (AP1/AS/Recuperação/P1/etc.)
-                // without hardcoded ULBRA-only schema.
-                let columns = canonicalColumns(for: subjects)
-                HStack(spacing: 0) {
-                    Color.clear.frame(width: 7)
-                    Text("DISCIPLINA")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    ForEach(columns, id: \.self) { col in
-                        Text(col).frame(width: 34, alignment: .center)
-                    }
-                    Text("FREQ").frame(width: 40, alignment: .center)
-                }
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(textWarm.opacity(0.60))
-                .kerning(0.3)
-                .padding(.horizontal, 8)
-
-                // Rows
                 VStack(spacing: 0) {
                     ForEach(subjects) { subject in
-                        materiaRow(subject, columns: columns)
+                        materiaRow(subject)
                         if subject.id != subjects.last?.id {
                             Rectangle()
                                 .fill(textWarm.opacity(0.06))
@@ -156,123 +137,86 @@ struct MateriasAgendaWidget: View {
     // MARK: - Row
 
     @ViewBuilder
-    private func materiaRow(_ subject: GradeSubject, columns: [String]) -> some View {
+    private func materiaRow(_ subject: GradeSubject) -> some View {
         let color = SubjectColors.colorFor(subject: subject.subjectName)
+        let relatedEvaluations = evaluations.filter { eval in
+            let evalSubject = eval.subjectName ?? ""
+            return evalSubject.caseInsensitiveCompare(subject.subjectName) == .orderedSame
+        }
+        let pendingCount = relatedEvaluations.filter { eval in
+            let status = eval.status.lowercased()
+            return status != "completed" && status != "graded" && status != "submitted"
+        }.count
+        let nextLabel = nextEvaluationLabel(for: relatedEvaluations)
 
         Button {
             onNavigateToDiscipline?(subject.id, subject.subjectName)
         } label: {
-            HStack(spacing: 0) {
+            HStack(spacing: 10) {
                 Rectangle()
                     .fill(color)
-                    .frame(width: 3, height: 24)
+                    .frame(width: 3, height: 42)
                     .clipShape(RoundedRectangle(cornerRadius: 1.5))
-                    .padding(.trailing, 4)
-                Text(shortSubjectName(subject.subjectName))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(textWarm.opacity(0.85))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                ForEach(columns, id: \.self) { col in
-                    gradeCell(scoreFor(subject: subject, column: col))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(subject.subjectName)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(textWarm.opacity(0.90))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    HStack(spacing: 6) {
+                        if pendingCount > 0 {
+                            infoPill("\(pendingCount) tarefa\(pendingCount == 1 ? "" : "s")")
+                        }
+                        if let nextLabel {
+                            infoPill(nextLabel)
+                        }
+                    }
                 }
-                freqCell(subject.attendance)
+
+                Spacer(minLength: 6)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(goldPrimary.opacity(0.55))
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 7)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - Dynamic columns
-
-    /// Resolve the score this subject has for a given column label by matching
-    /// against `evaluations[]` first (preferred — what the LLM extracted from
-    /// the portal verbatim), falling back to the legacy grade1/2/3/finalGrade
-    /// for subjects whose backend hasn't populated `evaluations` yet.
-    private func scoreFor(subject: GradeSubject, column: String) -> Double? {
-        if let match = subject.evaluations.first(where: { $0.title.caseInsensitiveCompare(column) == .orderedSame }) {
-            return match.score
-        }
-        // Legacy fallback (back-compat).
-        switch column.uppercased() {
-        case "AP1", "P1", "N1": return subject.grade1
-        case "AP2", "P2", "N2": return subject.grade2
-        case "AP3", "P3", "N3": return subject.grade3
-        case "AF", "MÉDIA", "MEDIA", "FINAL": return subject.finalGrade
-        case "AS": return subject.grade3 // ULBRA legacy mapping
-        default: return nil
-        }
+    @ViewBuilder
+    private func infoPill(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9.5, weight: .medium))
+            .foregroundStyle(textWarm.opacity(0.55))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                Capsule()
+                    .fill(goldPrimary.opacity(0.07))
+            )
     }
 
-    /// Compute the column list for the materia table by aggregating evaluation
-    /// titles across subjects, then sorting (partial → final → makeup → other).
-    /// Caps at 5 columns to fit on the home screen.
-    private func canonicalColumns(for subjects: [GradeSubject]) -> [String] {
-        struct Col: Hashable {
-            let title: String
-            let kind: String
-            let sequence: Int
-        }
-        var seen: [String: Col] = [:]
-        for s in subjects {
-            for e in s.evaluations {
-                let key = e.title.uppercased()
-                if seen[key] == nil {
-                    seen[key] = Col(title: e.title, kind: e.kind ?? "other", sequence: e.sequence ?? 99)
-                }
+    private func nextEvaluationLabel(for evaluations: [AgendaEvaluation]) -> String? {
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fallback = ISO8601DateFormatter()
+        fallback.formatOptions = [.withInternetDateTime]
+        let now = Date()
+        let upcoming = evaluations
+            .compactMap { eval -> Date? in
+                guard let raw = eval.date else { return nil }
+                return fmt.date(from: raw) ?? fallback.date(from: raw)
             }
-        }
-        if seen.isEmpty {
-            // Backend hasn't shipped evaluations[] yet — fall back to legacy ULBRA columns.
-            return ["AP1", "AP2", "AF", "AS"]
-        }
-        let kindOrder: [String: Int] = ["partial": 0, "final": 1, "makeup": 2]
-        let cols = Array(seen.values).sorted { a, b in
-            let ka = kindOrder[a.kind] ?? 9
-            let kb = kindOrder[b.kind] ?? 9
-            if ka != kb { return ka < kb }
-            return a.sequence < b.sequence
-        }
-        return Array(cols.prefix(5)).map { $0.title.uppercased() }
-    }
-
-    // MARK: - Cells
-
-    @ViewBuilder
-    private func gradeCell(_ grade: Double?) -> some View {
-        Text(grade.map { String(format: "%.1f", $0) } ?? "–")
-            .font(.system(size: 11, weight: .bold, design: .rounded))
-            .monospacedDigit()
-            .foregroundStyle(grade != nil ? textWarm.opacity(0.85) : textWarm.opacity(0.18))
-            .frame(width: 34, alignment: .center)
-    }
-
-    @ViewBuilder
-    private func freqCell(_ freq: Double?) -> some View {
-        Text(freq.map { String(format: "%.0f%%", $0) } ?? "–")
-            .font(.system(size: 11, weight: .bold, design: .rounded))
-            .monospacedDigit()
-            .foregroundStyle(freq.map { freqColor($0) } ?? textWarm.opacity(0.18))
-            .frame(width: 40, alignment: .center)
-    }
-
-    // MARK: - Helpers
-
-    private func freqColor(_ freq: Double) -> Color {
-        if freq >= 85 { return VitaColors.dataGreen }
-        if freq >= 75 { return VitaColors.dataAmber }
-        return VitaColors.dataRed
-    }
-
-    private func shortSubjectName(_ subject: String) -> String {
-        subject
-            .replacingOccurrences(of: "(?i)\\bMÉDICA\\b", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "(?i)\\bMÉDICO\\b", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "\\b(III|II|I)\\b", with: "", options: .regularExpression)
-            .replacingOccurrences(of: ",.*$", with: "", options: .regularExpression)
-            .components(separatedBy: .whitespaces).filter { !$0.isEmpty }.joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
+            .filter { $0 >= now }
+            .sorted()
+            .first
+        guard let next = upcoming else { return nil }
+        let days = Calendar.current.dateComponents([.day], from: now, to: next).day ?? 0
+        if days <= 0 { return "hoje" }
+        if days == 1 { return "amanhã" }
+        return "\(days)d"
     }
 }

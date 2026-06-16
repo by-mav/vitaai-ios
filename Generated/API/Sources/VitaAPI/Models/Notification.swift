@@ -20,7 +20,7 @@ public struct Notification: Sendable, Codable, Hashable {
     public var route: String?
     public var priority: String?
     public var createdAt: Date?
-    /** Portal slug (canvas, mannesoft, sigaa, ...) ou null para notif interna Vita. Usado pelo client pra renderizar icone do portal. Added 2026-04-27. */
+    /** Connector slug (canvas, moodle, etc.) ou null para notif interna Vita. Usado pelo client pra renderizar icone da origem. Added 2026-04-27. */
     public var source: String?
     /** Disciplina linkada (academic_subjects.id) — pra deep link na UI. Added 2026-04-27. */
     public var subjectId: String?

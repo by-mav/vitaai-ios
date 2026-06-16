@@ -4,9 +4,9 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **id** | **String** |  | 
-**title** | **String** | Verbatim title from portal/extractor (e.g. \&quot;AD1 — Curso PNAISARI\&quot;). Never synthesized. | 
+**title** | **String** | Verbatim title from Canvas or document extraction (e.g. \&quot;AD1 — Curso PNAISARI\&quot;). Never synthesized. | 
 **subjectName** | **String** |  | 
-**type** | **String** | Category classification. Extractor writes this from LLM &#x60;kind&#x60; field. See src/lib/portal/extraction-prompts.ts. | 
+**type** | **String** | Category classification. Canvas/document extraction writes this from the LLM &#x60;kind&#x60; field. | 
 **status** | **String** |  | 
 **submitted** | **Bool** | True when student turned it in. Canvas syncs this automatically. | 
 **submittedAt** | **Date** |  | [optional] 

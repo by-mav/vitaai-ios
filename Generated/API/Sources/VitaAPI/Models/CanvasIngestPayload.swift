@@ -16,11 +16,9 @@ public struct CanvasIngestPayload: Sendable, Codable, Hashable {
     public var files: [CanvasFile]
     public var calendarEvents: [CanvasCalendarEvent]
     public var errors: [JSONValue]
-    /** Canvas session cookies from iOS WKWebView for server-side keep-alive */
-    public var sessionCookies: String?
     public var pdfContents: [CanvasPdfContent]?
 
-    public init(instanceUrl: String, user: JSONValue? = nil, courses: [CanvasCourse], assignments: [CanvasAssignment], files: [CanvasFile], calendarEvents: [CanvasCalendarEvent], errors: [JSONValue], sessionCookies: String? = nil, pdfContents: [CanvasPdfContent]? = nil) {
+    public init(instanceUrl: String, user: JSONValue? = nil, courses: [CanvasCourse], assignments: [CanvasAssignment], files: [CanvasFile], calendarEvents: [CanvasCalendarEvent], errors: [JSONValue], pdfContents: [CanvasPdfContent]? = nil) {
         self.instanceUrl = instanceUrl
         self.user = user
         self.courses = courses
@@ -28,7 +26,6 @@ public struct CanvasIngestPayload: Sendable, Codable, Hashable {
         self.files = files
         self.calendarEvents = calendarEvents
         self.errors = errors
-        self.sessionCookies = sessionCookies
         self.pdfContents = pdfContents
     }
 
@@ -40,7 +37,6 @@ public struct CanvasIngestPayload: Sendable, Codable, Hashable {
         case files
         case calendarEvents
         case errors
-        case sessionCookies
         case pdfContents
     }
 
@@ -55,7 +51,6 @@ public struct CanvasIngestPayload: Sendable, Codable, Hashable {
         try container.encode(files, forKey: .files)
         try container.encode(calendarEvents, forKey: .calendarEvents)
         try container.encode(errors, forKey: .errors)
-        try container.encodeIfPresent(sessionCookies, forKey: .sessionCookies)
         try container.encodeIfPresent(pdfContents, forKey: .pdfContents)
     }
 }

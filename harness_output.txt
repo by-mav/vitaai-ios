@@ -1,0 +1,26 @@
+Esse é o **storm harness** — um harness determinístico que modela e mede o problema de **request storm** no bootstrap do Pixio (não VitaAI, apesar do path).
+
+## O que ele faz
+
+Simula o cold-start "travado no splash" do `AppDataManager` onde múltiplos gatilhos concorrentes (`loadIfNeeded`, `refreshWorkspace`, `silentRefresh`) + gatilhos sustentados (re-render, scenePhase, SSE a cada ~300ms) disparam `/api/dashboard/bootstrap` repetidamente durante 12 segundos.
+
+## Dois modos comparados
+
+| Modo | Comportamento |
+|------|-------------|
+| **`current` (ATUAL)** | Cancel-and-restart — cada novo gatilho cancela a task em voo e dispara outra. O servidor já recebeu a request anterior → amplificação (fan-out de theme-color/profile por request). |
+| **`fixed` (FIX)** | **Single-flight** (gatilho concorrente do mesmo epoch aguarda o ciclo em voo, sem cancel+restart) + **circuit breaker** com backoff exponencial (cap 30s) que suprime gatilhos automáticos na janela de falha. Após 4 falhas consecutivas → `loadFailed = true` → sai do splash mostrando tela de erro honesta (regra Nubank). |
+
+## Cenários
+
+- **A** — Backend lento (6s) mas responde OK → mede quantos requests redundantes o cancel-and-restart gera vs single-flight
+- **B** — Backend lento (6s) e falhando (5xx) → caso "travado no splash infinito"; o fix com circuit breaker corta o loop e mostra erro
+
+## Métricas reportadas
+
+- `bootstrap_requests` — quantas requests **atingiram o servidor** (custo real)
+- `coalesced` — gatilhos que reaproveitaram a task em voo (fix)
+- `suppressed` — gatilhos cortados pelo circuit breaker (fix)
+- `loadFailed` / `initialLoadComplete` — se saiu do splash e como
+
+Quer que eu rode o harness pra ver os números, ou está analisando pra aplicar o fix no `AppDataManager`?

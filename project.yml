@@ -56,8 +56,6 @@ targets:
         SENTRY_DSN: https://ebcb3ccce0cf4bfd8de976f3eab55046@glitchtip.vita-ai.cloud/1
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
-        NSHealthShareUsageDescription: "VitaAI usa dados de sono e exercicio para correlacionar com seu desempenho academico."
-        NSHealthUpdateUsageDescription: "VitaAI pode registrar sessoes de estudo como atividade mindfulness na Saude, so com sua permissao."
         NSMicrophoneUsageDescription: "VitaAI precisa do microfone para gravar suas aulas e gerar transcricoes automaticas."
         NSSpeechRecognitionUsageDescription: "VitaAI usa reconhecimento de fala para transcrever suas aulas em tempo real."
         UIBackgroundModes:

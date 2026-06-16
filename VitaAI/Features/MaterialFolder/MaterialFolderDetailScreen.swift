@@ -121,7 +121,7 @@ struct MaterialFolderDetailScreen: View {
                     .foregroundStyle(textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                // Prioriza data REAL do portal (Canvas/WebAluno). Fallback pro
+                // Prioriza data REAL do Canvas. Fallback pro
                 // nosso ingest pra docs antigos sem portalCreatedAt.
                 if let date = doc.displayDate, let formatted = formatRelative(date) {
                     Text(formatted)

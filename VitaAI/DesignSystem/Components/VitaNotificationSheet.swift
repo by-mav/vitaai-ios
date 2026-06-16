@@ -16,7 +16,7 @@ struct VitaNotification: Identifiable, Decodable {
 
     // Portal source — added 2026-04-27. NULL = notif interna Vita.
     // Populated when notification originates from a connected portal
-    // (canvas, mannesoft, sigaa, etc). Used by PortalIcon to render
+    // (canvas, moodle, etc). Used by PortalIcon to render
     // dynamic icon — no hardcoded portal-specific logic in client.
     var source: String? = nil
     var subjectId: String? = nil

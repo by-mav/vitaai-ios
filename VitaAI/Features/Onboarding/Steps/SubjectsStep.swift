@@ -31,7 +31,7 @@ struct SubjectsStep: View {
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.85))
                                 .lineLimit(2)
-                            Text(subject.source == "canvas" ? "Canvas" : "WebAluno")
+                            Text(subject.source == "canvas" ? "Canvas" : "Portal")
                                 .font(.system(size: 9))
                                 .foregroundStyle(.white.opacity(0.2))
                         }

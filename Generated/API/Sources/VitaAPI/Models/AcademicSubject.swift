@@ -7,7 +7,7 @@
 
 import Foundation
 
-/** Student&#39;s current enrollment — the SOT for \&quot;what the student is studying\&quot;. Populated by portal connectors (Canvas/Mannesoft) or manual entry. The disciplineSlug field links to MedSimple catalog (vita.disciplines.slug) so QBank can filter questions by the student&#39;s actual subjects without a client-side taxonomy duplicate.  */
+/** Student&#39;s current enrollment — the SOT for \&quot;what the student is studying\&quot;. Populated by Canvas/API connectors or manual entry. The disciplineSlug field links to MedSimple catalog (vita.disciplines.slug) so QBank can filter questions by the student&#39;s actual subjects without a client-side taxonomy duplicate.  */
 public struct AcademicSubject: Sendable, Codable, Hashable {
 
     public var id: String

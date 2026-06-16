@@ -1,14 +1,10 @@
 import Foundation
 
-// MIGRATION: Partial migration to OpenAPI generated types.
-// SyncProgressResponse -> SyncProgress (generated) with extension for computed isDone/isError
-// FilterFilesResponse -> PortalFilterFiles200Response (generated)
-// Canvas API client types (CanvasAPIUser, etc.) are for direct Canvas REST, not in OpenAPI spec.
-// CanvasStatusResponse, CanvasConnectRequest/Response, CoursesResponse, etc. kept manual --
-// generated Portal* types have different field shapes.
+// Canvas API client types used by the PAT/API connector path.
+// SyncProgressResponse maps to the generated SyncProgress model and adds
+// small client-side convenience flags below.
 
 typealias SyncProgressResponse = SyncProgress
-typealias FilterFilesResponse = PortalFilterFiles200Response
 
 extension SyncProgress {
     var isDone: Bool { (phase == "done") || (percent ?? 0) >= 100 }
@@ -126,15 +122,7 @@ struct Assignment: Codable, Identifiable {
     var courseId: String = ""
 }
 
-// MARK: - Vita Crawl (universal portal extraction via Vita LLM)
-
-struct VitaCrawlResponse: Codable {
-    var syncId: String?
-    var status: String?
-    var error: String?
-}
-
-// MARK: - Sync Progress Items (granular progress from Vita crawl)
+// MARK: - Sync Progress Items
 
 struct SyncProgressItem: Codable, Identifiable {
     var id: String { "\(type)-\(name)" }
@@ -281,7 +269,6 @@ struct CanvasIngestPayload {
     let calendarEvents: [[String: Any]]
     let errors: [[String: Any]]
     let pdfContents: [[String: Any]]
-    let sessionCookies: String?
 
     func toJSONData() throws -> Data {
         var dict: [String: Any] = [
@@ -294,7 +281,6 @@ struct CanvasIngestPayload {
             "pdfContents": pdfContents,
         ]
         if let user { dict["user"] = user }
-        if let sessionCookies { dict["sessionCookies"] = sessionCookies }
         return try JSONSerialization.data(withJSONObject: dict)
     }
 }

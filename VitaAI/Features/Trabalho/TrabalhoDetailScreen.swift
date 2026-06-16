@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - TrabalhoDetailScreen
 // Portal-agnostic assignment detail screen.
-// Data comes from academic_evaluations (any portal: Canvas, Mannesoft, etc.)
+// Data comes from canonical academic_evaluations, mainly Canvas and plan extraction.
 // Route: trabalhoDetail(id:) — inside shell (topnav + bottomnav + fundo estrelado)
 
 struct TrabalhoDetailScreen: View {

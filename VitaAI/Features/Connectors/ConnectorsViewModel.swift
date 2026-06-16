@@ -11,13 +11,11 @@ import Observation
 final class ConnectorsViewModel {
     // Per-connector state — academic
     var canvas = ConnectorState(id: "canvas", name: "Canvas LMS")
-    var mannesoft = ConnectorState(id: "mannesoft", name: "Portal Academico")
 
     // Per-connector state — productivity
     var calendar = ConnectorState(id: "google_calendar", name: "Google Calendar")
     var drive = ConnectorState(id: "google_drive", name: "Google Drive")
     var spotify = ConnectorState(id: "spotify", name: "Spotify")
-    var appleHealth = ConnectorState(id: "apple_health", name: "Apple Health")
     var whatsapp = ConnectorState(id: "whatsapp", name: "WhatsApp")
 
     // University data
@@ -68,27 +66,25 @@ final class ConnectorsViewModel {
     // MARK: - All integration connectors
 
     var allIntegrations: [ConnectorState] {
-        [calendar, drive, spotify, appleHealth, whatsapp]
+        [calendar, drive, spotify, whatsapp]
     }
 
     // MARK: - Computed
 
     var connectedCount: Int {
-        ([canvas, mannesoft] + allIntegrations).filter { $0.status == .connected }.count
+        ([canvas] + allIntegrations).filter { $0.status == .connected }.count
     }
 
     var totalPortals: Int {
-        2 + allIntegrations.count
+        1 + allIntegrations.count
     }
 
     func state(for portalId: String) -> ConnectorState {
         switch portalId {
         case "canvas": canvas
-        case "webaluno", "mannesoft": mannesoft
         case "google_calendar": calendar
         case "google_drive": drive
         case "spotify": spotify
-        case "apple_health": appleHealth
         case "whatsapp": whatsapp
         default: ConnectorState(id: portalId, name: portalId)
         }
@@ -109,18 +105,16 @@ final class ConnectorsViewModel {
     /// "Sync travado · puxe pra atualizar" forever even when the user swiped
     /// down 10 times. Backend had no user-auth trigger endpoint either.
     ///
-    /// Now: hit POST /api/portal/sync-now first (Canvas inline re-scrape +
-    /// Mannesoft silent push for client-driven extract), then reload status.
-    /// lastPingAt bumps immediately on the server so the second loadAll() call
-    /// already shows fresh state for the visual "ping vivo" indicator. Real
-    /// lastSyncAt for Mannesoft updates ~1–2 min later when the iPhone bridge
-    /// ingest lands; iOS shows that on the next pull or background refresh.
+    /// Now: hit POST /api/portal/sync-now first (Canvas PAT/API re-scrape),
+    /// then reload status.
+    /// lastPingAt and lastSyncAt advance on the server after the Canvas PAT/API
+    /// ingest succeeds, so the second loadAll() call already shows fresh state.
     func refreshAndSync() async {
         do {
             try await api.triggerPortalSyncNow()
         } catch {
-            // Silent failure is OK: cron + silent-sync hourly still cover the
-            // user. Fall through to the same loadAll() the old gesture did so
+            // Silent failure is OK: cron still covers the user. Fall through
+            // to loadAll() so the card repaints with current backend state.
             // the card at minimum re-paints with current backend state.
             NSLog("[Connectors] sync-now trigger failed: \(error.localizedDescription)")
         }
@@ -160,14 +154,13 @@ final class ConnectorsViewModel {
         }
     }
 
-    // MARK: - Portal Connections (Canvas + Mannesoft via single endpoint)
+    // MARK: - Portal Connections (Canvas PAT/API)
 
     func loadPortalConnections() async {
         do {
             let data = try await api.getCanvasStatus()
             guard let connections = data.connections, !connections.isEmpty else {
                 canvas.status = .disconnected
-                mannesoft.status = .disconnected
                 return
             }
 
@@ -204,37 +197,14 @@ final class ConnectorsViewModel {
                     canvas.lastSyncAbsolute = syncAbsolute
                     canvas.isStale = stale
                     canvas.instanceUrl = conn.instanceUrl
+                    canvas.connectionId = conn.id
                     canvas.stats = [
                         (conn.counts?.subjects ?? 0, "matérias"),
                         (conn.counts?.evaluations ?? 0, "atividades"),
                         (conn.counts?.documents ?? 0, "arquivos"),
                     ]
-                case "mannesoft":
-                    mannesoft.status = status
-                    mannesoft.lastSync = syncRelative ?? pingRelative
-                    mannesoft.lastPing = pingDifferent ? pingRelative : nil
-                    mannesoft.lastSyncAbsolute = syncAbsolute
-                    mannesoft.isStale = stale
-                    mannesoft.instanceUrl = conn.instanceUrl
-                    mannesoft.stats = [
-                        (conn.counts?.subjects ?? 0, "matérias"),
-                        (conn.counts?.evaluations ?? 0, "notas"),
-                        (conn.counts?.schedule ?? 0, "aulas"),
-                    ]
                 default:
                     break
-                }
-            }
-
-            if canvas.status == .expired, let url = canvas.instanceUrl, !url.isEmpty {
-                NSLog("[Connectors] Canvas expired — triggering silent reauth")
-                // Keep showing "expired" while trying — don't mask with "loading"
-                Task {
-                    let success = await CanvasSilentReauth.shared.forceReauth(instanceUrl: url, api: api)
-                    if success {
-                        await loadPortalConnections()
-                    }
-                    // If failed, status stays .expired (already set)
                 }
             }
         } catch {
@@ -251,7 +221,7 @@ final class ConnectorsViewModel {
         async let wa = loadWhatsAppStatus()
         _ = await (cal, drv, wa)
 
-        // Spotify, Apple Health: load from unified /api/integrations
+        // Spotify: load from unified /api/integrations
         // Backend shape (canonical 2026-04-26): { providers: [{ name, status, ... }] }
         do {
             let data = try await api.getIntegrations()
@@ -261,9 +231,6 @@ final class ConnectorsViewModel {
                     spotify.status = connectionStatus(from: item.status)
                     spotify.lastSync = item.lastSyncAt.flatMap { formatRelativeTime($0) }
                     if let email = item.providerAccountEmail { spotify.subtitle = email }
-                case "apple_health":
-                    appleHealth.status = connectionStatus(from: item.status)
-                    appleHealth.lastSync = item.lastSyncAt.flatMap { formatRelativeTime($0) }
                 default: break
                 }
             }
@@ -354,9 +321,6 @@ final class ConnectorsViewModel {
             case "canvas":
                 try await api.disconnectCanvas()
                 canvas = ConnectorState(id: "canvas", name: "Canvas LMS")
-            case "webaluno", "mannesoft":
-                try await api.disconnectPortal()
-                mannesoft = ConnectorState(id: "mannesoft", name: "Portal Academico")
             case "google_calendar":
                 try await api.disconnectIntegration("google_calendar")
                 calendar = ConnectorState(id: "google_calendar", name: "Google Calendar")
@@ -366,8 +330,6 @@ final class ConnectorsViewModel {
             case "spotify":
                 try await api.disconnectIntegration("spotify")
                 spotify = ConnectorState(id: "spotify", name: "Spotify")
-            case "apple_health":
-                appleHealth = ConnectorState(id: "apple_health", name: "Apple Health")
             case "whatsapp":
                 try await api.unlinkWhatsApp()
                 whatsapp = ConnectorState(id: "whatsapp", name: "WhatsApp")
@@ -383,36 +345,6 @@ final class ConnectorsViewModel {
     }
 
     // MARK: - Connect
-
-    func connectAppleHealth() async {
-        let hk = HealthKitManager.shared
-        guard hk.isAvailable else {
-            toastMessage = "Apple Health não disponível neste dispositivo"
-            toastType = .error
-            return
-        }
-        let granted = await hk.requestAuthorization()
-        if granted {
-            appleHealth.status = .connected
-            async let sleepTask = hk.fetchSleepData()
-            async let stepsTask = hk.fetchSteps()
-            async let exerciseTask = hk.fetchExerciseMinutes()
-            let (sleep, steps, exerciseMin) = await (sleepTask, stepsTask, exerciseTask)
-            let totalSleepHours = sleep.reduce(0.0) { $0 + $1.hours }
-            let totalSteps = steps.reduce(0) { $0 + $1.count }
-            appleHealth.stats = [
-                (Int(totalSleepHours), "h sono (7d)"),
-                (totalSteps, "passos (7d)"),
-                (Int(exerciseMin), "min exercicio"),
-            ]
-            appleHealth.lastSync = "agora"
-            toastMessage = "Apple Health conectado!"
-            toastType = .success
-        } else {
-            toastMessage = "Permissao negada"
-            toastType = .error
-        }
-    }
 
     /// Apresenta SFSafariViewController in-app pro OAuth do provider (Spotify,
     /// Google Calendar, Google Drive). Cookies persistem no view: user loga
@@ -448,52 +380,30 @@ final class ConnectorsViewModel {
         presenter.present(safari, animated: true)
     }
 
-    // MARK: - Connect Mannesoft portal with session
-
-    func connectMannesoft(cookie: String) async {
-        do {
-            toastMessage = "Conectando portal..."
-            toastType = .success
-            mannesoft.status = .connected
-            let portalUrl = universityPortals.first(where: { $0.portalType == "webaluno" || $0.portalType == "mannesoft" })?.instanceUrl ?? ""
-            let _ = try await api.startVitaCrawl(
-                cookies: "PHPSESSID=\(cookie)",
-                instanceUrl: portalUrl
-            )
-            toastMessage = "Portal conectado! Extraindo dados..."
-            toastType = .success
-            // Trigger SilentSync immediately — server-side can't fetch Mannesoft
-            // (no Cloudflare cf_clearance), so extraction must happen client-side
-            // via WKWebView + bridge.js
-            SilentPortalSync.shared.syncIfNeeded(api: api)
-            await loadPortalConnections()
-        } catch {
-            print("[Connectors] Portal connect error: \(error)")
-            toastMessage = "Erro ao conectar: \(error.localizedDescription)"
-            toastType = .error
-        }
-    }
-
     // MARK: - Sync
 
     func syncCanvas() async {
-        guard let instanceUrl = canvas.instanceUrl else {
+        guard canvas.connectionId != nil || canvas.instanceUrl != nil else {
             toastMessage = "Para re-sincronizar, reconecte ao Canvas"
             toastType = .success
             return
         }
 
         canvas.status = .loading
-        toastMessage = "Reconectando ao Canvas..."
+        toastMessage = "Sincronizando Canvas..."
         toastType = .success
 
-        let success = await CanvasSilentReauth.shared.forceReauth(instanceUrl: instanceUrl, api: api)
-        if success {
-            toastMessage = "Canvas reconectado!"
+        do {
+            if let connectionId = canvas.connectionId {
+                _ = try await api.syncCanvas(connectionId: connectionId)
+            } else {
+                _ = try await api.syncCanvas()
+            }
+            toastMessage = "Canvas atualizado"
             toastType = .success
             await loadPortalConnections()
-        } else {
-            toastMessage = "Sessao Google expirou — reconecte manualmente"
+        } catch {
+            toastMessage = "Token Canvas expirou — cole um PAT válido"
             toastType = .error
             canvas.status = .expired
         }
@@ -610,4 +520,5 @@ struct ConnectorState {
     var stats: [(value: Int, label: String)] = []
     var subtitle: String?
     var instanceUrl: String?
+    var connectionId: String?
 }

@@ -16,7 +16,7 @@ Name | Type | Description | Notes
 **university** | **String** | Short display name of the user&#39;s university (e.g. \&quot;ULBRA Porto Alegre\&quot;). Resolved via LEFT JOIN universities on user_profiles.universityId. | [optional] 
 **universityState** | **String** | 2-letter state code (e.g. \&quot;RS\&quot;) from the linked universities row. | [optional] 
 **universityId** | **String** |  | [optional] 
-**universityLms** | **String** | Portal type the university uses (canvas, mannesoft, moodle, sigaa, totvs...). Resolved from universities.portalType. | [optional] 
+**universityLms** | **String** | Portal type the university uses. Canonical live path is canvas; moodle is reserved for future OAuth/API partner integrations. | [optional] 
 **subjects** | **[JSONValue]** |  | [optional] 
 **stats** | **JSONValue** |  | [optional] 
 **onboardingCompleted** | **Bool** |  | [optional] 

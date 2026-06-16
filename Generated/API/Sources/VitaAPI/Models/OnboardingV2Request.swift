@@ -35,7 +35,7 @@ public struct OnboardingV2Request: Sendable, Codable, Hashable {
     public var university: String?
     /** FK universities.id (preferido) */
     public var universityId: String?
-    /** Portal LMS: canvas|mannesoft|moodle|sigaa|totvs */
+    /** Portal LMS: canvas today; moodle reserved for future OAuth/API partner integrations. */
     public var universityLms: String?
     public var selectedSubjects: [OnboardingV2RequestSelectedSubjectsInner]?
     /** Objetivo de estudo (Aprovar 1ª, Top 10%, etc) */

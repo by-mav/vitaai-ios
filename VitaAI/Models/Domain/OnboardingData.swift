@@ -33,9 +33,9 @@ struct University: Identifiable, Decodable {
     let portals: [UniversityPortal]?
 
     var allDetectedPortals: [UniversityPortal] { portals ?? [] }
-    var academicPortals: [UniversityPortal] { allDetectedPortals.filter { $0.portalType == "canvas" || $0.portalType == "webaluno" } }
+    var academicPortals: [UniversityPortal] { allDetectedPortals.filter { $0.portalType == "canvas" } }
     var primaryPortal: UniversityPortal? { allDetectedPortals.first }
-    var lmsPortals: [UniversityPortal] { allDetectedPortals.filter { $0.portalType != "canvas" && $0.portalType != "webaluno" } }
+    var lmsPortals: [UniversityPortal] { allDetectedPortals.filter { $0.portalType != "canvas" } }
 
     var displayName: String { shortName.isEmpty ? name : shortName }
     var letter: String { String(shortName.prefix(1)).uppercased() }
@@ -44,7 +44,6 @@ struct University: Identifiable, Decodable {
     static func displayName(for portalType: String) -> String {
         switch portalType {
         case "canvas": return "Canvas LMS"
-        case "webaluno": return "WebAluno"
         case "google_calendar": return "Google Calendar"
         case "google_drive": return "Google Drive"
         default: return portalType.capitalized
@@ -53,7 +52,6 @@ struct University: Identifiable, Decodable {
     static func letter(for portalType: String) -> String {
         switch portalType {
         case "canvas": return "C"
-        case "webaluno": return "W"
         case "google_calendar": return "G"
         case "google_drive": return "D"
         default: return String(portalType.prefix(1)).uppercased()
@@ -62,7 +60,6 @@ struct University: Identifiable, Decodable {
     static func color(for portalType: String) -> Color {
         switch portalType {
         case "canvas": return Color(red: 0.89, green: 0.12, blue: 0.15)
-        case "webaluno": return Color(red: 0.20, green: 0.60, blue: 0.86)
         default: return Color(red: 0.78, green: 0.66, blue: 0.32)
         }
     }
@@ -83,5 +80,5 @@ struct UniversityPortal: Identifiable, Decodable {
     let instanceUrl: String?
 
     var displayName: String { portalName }
-    var isPrimary: Bool { portalType == "canvas" || portalType == "webaluno" }
+    var isPrimary: Bool { portalType == "canvas" }
 }

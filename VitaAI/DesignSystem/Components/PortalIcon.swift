@@ -17,7 +17,7 @@ import SwiftUI
 /// SaaS-friendly: 300+ connectors don't need client code changes — just add
 /// the row in `vita.portal_types` (icon URL or mascot asset) and it shows up.
 struct PortalIcon: View {
-    let source: String?              // 'canvas', 'mannesoft', 'sigaa', ... or nil for vita-internal
+    let source: String?              // canvas, moodle, etc. or nil for vita-internal
     var iconUrl: String? = nil       // remote logo (preferred when present)
     var brandColor: String? = nil    // hex like '#1CB0F6' — colors the placeholder
     var size: CGFloat = 32

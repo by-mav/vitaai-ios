@@ -1,23 +1,13 @@
-import SwiftUI
+﻿import SwiftUI
 import Sentry
 
-// Stub type for portal page capture (used by SilentPortalSync)
-struct CapturedPortalPage {
-    let type: String
-    let html: String
-    let linkText: String?
-}
-
 // MARK: - ConnectionsScreen
-// University-aware connector list — mirrors the onboarding ConnectStep UX.
+// University-aware connector list â€” mirrors the onboarding ConnectStep UX.
 // Shows the student's university portals (from API), Google integrations, and
 // an expandable "Outros portais" section for portal types not detected.
 
 struct ConnectionsScreen: View {
-    /// Single callback for navigating to any portal's connect screen.
-    /// `defaultUrl` is the portal instance URL from the university catalog —
-    /// required so Moodle/SIGAA/TOTVS/etc. land on PortalConnectScreen with a
-    /// real WebView URL instead of an empty stretched-out frame.
+    /// Optional callback for future token/OAuth connectors not handled inline.
     var onPortalConnect: ((String, String?) -> Void)?
     var onBack: (() -> Void)?
 
@@ -30,9 +20,6 @@ struct ConnectionsScreen: View {
     @State private var activeSheet: String?
     @State private var showAllPortals = false
 
-    // Direct WebView flows (no intermediate screen)
-    @State private var showWebalunoWebView = false
-    @State private var webalunoInstanceUrl: String = ""
     @State private var showCanvasTokenSheet = false
     @State private var canvasInstanceUrl: String = ""
 
@@ -43,16 +30,6 @@ struct ConnectionsScreen: View {
     @State private var waStep: Int = 0
     @State private var waError: String?
     @State private var waSending = false
-
-    // Sync overlay state
-    @State private var syncing = false
-    @State private var syncConnectorName: String = ""
-    @State private var syncPhase: String = "login"
-    @State private var syncMessage: String?
-    @State private var syncProgress: Double = 0 // 0-100, used for webaluno+mannesoft overlay
-    @State private var canvasSyncPhase: CanvasSyncOrchestrator.Phase = .starting
-    @State private var canvasSyncProgress: Double = 0
-    @State private var isCanvasSync = false
 
     // Design tokens
     private let goldSubtle = VitaColors.accentLight
@@ -95,24 +72,7 @@ struct ConnectionsScreen: View {
                 sheetContent(for: sheetId)
             }
         }
-        // WebAluno login — full-page navigationDestination (inside shell)
-        .navigationDestination(isPresented: $showWebalunoWebView) {
-            WebAlunoWebViewScreen(
-                onBack: { showWebalunoWebView = false },
-                onSessionCaptured: { cookie in
-                    // Don't dismiss yet — bridge.js needs the WebView to extract data
-                    connectWebaluno(cookie: cookie)
-                },
-                onPagesExtracted: { pages in
-                    NSLog("[Connections] Bridge extracted %d pages, sending to backend", pages.count)
-                    showWebalunoWebView = false
-                    sendExtractedPages(pages)
-                },
-                userEmail: container.authManager.userEmail,
-                portalInstanceUrl: webalunoInstanceUrl
-            )
-        }
-        // Canvas token sheet — AddTokenSheet (substitui WebView, pivot 2026-05-07)
+        // Canvas token sheet â€” AddTokenSheet (substitui WebView, pivot 2026-05-07)
         .sheet(isPresented: $showCanvasTokenSheet) {
             AddTokenSheet()
                 .environmentObject(container)
@@ -123,31 +83,6 @@ struct ConnectionsScreen: View {
         .sheet(isPresented: $showWhatsAppSheet) {
             VitaSheet(title: "Vincular WhatsApp") {
                 whatsAppLinkSheet
-            }
-        }
-        // Sync overlay (shared for both Canvas and WebAluno)
-        .overlay {
-            if syncing {
-                ZStack {
-                    VitaColors.surface.opacity(0.95)
-                        .ignoresSafeArea()
-                    if isCanvasSync {
-                        ConnectorSyncView(
-                            connectorName: "Canvas",
-                            steps: SyncStep.canvasSteps(phase: canvasSyncPhase),
-                            message: syncMessage,
-                            progress: canvasSyncProgress < 100 ? canvasSyncProgress : nil
-                        )
-                    } else {
-                        ConnectorSyncView(
-                            connectorName: syncConnectorName,
-                            steps: SyncStep.webalunoSteps(phase: syncPhase),
-                            message: syncMessage,
-                            progress: syncProgress > 0 && syncProgress < 100 ? syncProgress : nil
-                        )
-                    }
-                }
-                .transition(.opacity)
             }
         }
         .vitaToastHost(toastState)
@@ -199,13 +134,6 @@ struct ConnectionsScreen: View {
                         state: vm.spotify, vm: vm,
                         iconAsset: "mascot-spotify"
                     )
-                    integrationCard(
-                        letter: "♥", name: "Apple Health",
-                        color: Color(red: 0.96, green: 0.26, blue: 0.36),
-                        connectorId: "apple_health",
-                        state: vm.appleHealth, vm: vm,
-                        iconAsset: "mascot-apple-health"
-                    )
                     ConnectorCard(
                         letter: "W",
                         name: "WhatsApp",
@@ -254,14 +182,6 @@ struct ConnectionsScreen: View {
         let fallbackPortals: [UniversityPortal] = {
             guard vm.universityPortals.isEmpty else { return [] }
             var result: [UniversityPortal] = []
-            if vm.mannesoft.status != .disconnected {
-                result.append(UniversityPortal(
-                    id: "fallback-mannesoft",
-                    portalType: "mannesoft",
-                    portalName: "Portal Academico",
-                    instanceUrl: vm.mannesoft.instanceUrl
-                ))
-            }
             if vm.canvas.status != .disconnected {
                 result.append(UniversityPortal(
                     id: "fallback-canvas",
@@ -320,15 +240,15 @@ struct ConnectionsScreen: View {
                     )
                 }
             } else if !hasUniversity {
-                // No university — show hint
+                // No university â€” show hint
                 noUniversityHint
             }
 
             // "Outros portais" toggle
-            // "Outros portais" só faz sentido quando NÃO temos faculdade detectada
-            // (user sem onboarding completo). Quando uni está conhecida, mostrar
-            // apenas os portais que ELA usa — clicar Moodle/SIGAA sem URL leva
-            // pra tela "URL não configurada" e quebra UX. Rafael 2026-04-27:
+            // "Outros portais" sÃ³ faz sentido quando NÃƒO temos faculdade detectada
+            // (user sem onboarding completo). Quando uni estÃ¡ conhecida, mostrar
+            // apenas os portais que ELA usa â€” clicar Moodle/SIGAA sem URL leva
+            // pra tela "URL nÃ£o configurada" e quebra UX. Rafael 2026-04-27:
             // "porque nao colocaram o link de todos conectores para cada
             //  instituicao ... entao nem deveria mostrar esses conectores quando
             //  o usuario nao eh da faculdade que tem eles".
@@ -369,8 +289,8 @@ struct ConnectionsScreen: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
-            // Quando user TEM faculdade mas portal dela não está mapeado, o
-            // helper hint "meu portal não aparece" abre um caminho de feedback
+            // Quando user TEM faculdade mas portal dela nÃ£o estÃ¡ mapeado, o
+            // helper hint "meu portal nÃ£o aparece" abre um caminho de feedback
             // sem expor a lista cheia de connectors quebrados.
             if hasUniversity && detectedPortals.isEmpty {
                 missingPortalHint
@@ -380,19 +300,19 @@ struct ConnectionsScreen: View {
     }
 
     // MARK: - Missing Portal Hint
-    // Mostrado quando user tem uni configurada mas o catálogo
-    // university_portals não tem nenhum portal mapeado pra ela. Em vez de
-    // listar 8 conectores genéricos sem URL (UX quebrada), pede contato.
+    // Mostrado quando user tem uni configurada mas o catÃ¡logo
+    // university_portals nÃ£o tem nenhum portal mapeado pra ela. Em vez de
+    // listar 8 conectores genÃ©ricos sem URL (UX quebrada), pede contato.
     private var missingPortalHint: some View {
         VStack(spacing: 8) {
             Image(systemName: "questionmark.circle")
                 .font(.system(size: 22))
                 .foregroundColor(goldSubtle.opacity(0.40))
-            Text("Portal da sua faculdade ainda não mapeado")
+            Text("Portal da sua faculdade ainda nÃ£o mapeado")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.white.opacity(0.6))
                 .multilineTextAlignment(.center)
-            Text("Estamos adicionando 351+ faculdades. Avise no chat da Vita qual é o portal da sua e adicionamos rápido.")
+            Text("Estamos adicionando 351+ faculdades. Avise no chat da Vita qual Ã© o portal da sua e adicionamos rÃ¡pido.")
                 .font(.system(size: 11))
                 .foregroundColor(goldSubtle.opacity(0.35))
                 .multilineTextAlignment(.center)
@@ -582,321 +502,12 @@ struct ConnectionsScreen: View {
 
     private func handleConnect(portalType: String, instanceUrl: String?) {
         switch portalType {
-        case "webaluno", "mannesoft":
-            webalunoInstanceUrl = instanceUrl ?? vm?.mannesoft.instanceUrl ?? ""
-            NSLog("[Connections] handleConnect webaluno — instanceUrl param: %@, vm.mannesoft.instanceUrl: %@, resolved: %@",
-                  instanceUrl ?? "nil", vm?.mannesoft.instanceUrl ?? "nil", webalunoInstanceUrl)
-            showWebalunoWebView = true
         case "canvas":
             canvasInstanceUrl = instanceUrl ?? vm?.canvas.instanceUrl ?? "https://ulbra.instructure.com"
             showCanvasTokenSheet = true
         default:
-            // Moodle / SIGAA / TOTVS / Sagres / Lyceum / Blackboard / Platos.
-            // Unified shell — same PortalConnectScreen as Canvas/WebAluno but
-            // with the URL piped through so the inline WebView loads the right
-            // login page (Rafael 2026-04-27 fix).
             onPortalConnect?(portalType, instanceUrl)
         }
-    }
-
-    private func sendExtractedPages(_ pages: [CapturedPortalPage]) {
-        guard let vm else { return }
-        // Bridge has captured the HTML. Backend POST /extract returns in ~400ms
-        // with a syncId; the actual Haiku extraction runs in background (~1-2min).
-        // We MUST poll /portal/sync-progress?syncId=X until isDone, otherwise the
-        // overlay closes with grades=0/schedule=0 (still-running state) and the
-        // user has no idea anything is happening. Fix: 2s poll loop up to 180s.
-        isCanvasSync = false
-        syncConnectorName = "Portal Acadêmico"
-        syncPhase = "extracting"
-        syncMessage = "Vita analisando \(pages.count) páginas…"
-        syncProgress = 10
-        withAnimation { syncing = true }
-        Task { await runExtraction(pages: pages, vm: vm) }
-    }
-
-    @MainActor
-    private func runExtraction(pages: [CapturedPortalPage], vm: ConnectorsViewModel) async {
-        let apiPages = pages.map { page in
-            PortalExtractRequestPagesInner(type: page.type, html: page.html, linkText: page.linkText)
-        }
-        guard !apiPages.isEmpty else {
-            withAnimation { syncing = false }
-            return
-        }
-        let portalUrl = vm.universityPortals.first(where: { $0.portalType == "webaluno" || $0.portalType == "mannesoft" })?.instanceUrl ?? webalunoInstanceUrl
-        let result: PortalExtract200Response
-        do {
-            result = try await container.api.extractPortalPages(
-                pages: apiPages,
-                instanceUrl: portalUrl,
-                university: ""
-            )
-        } catch {
-            NSLog("[Connections] Extract failed: %@", error.localizedDescription)
-            withAnimation { syncing = false }
-            toastState.show("Falha ao extrair dados do portal. Tenta reconectar.", type: .error)
-            return
-        }
-        NSLog("[Connections] POST /extract returned, syncId=%@", result.syncId ?? "nil")
-        guard let syncId = result.syncId, !syncId.isEmpty else {
-            finishSync(grades: result.grades ?? 0, schedule: result.schedule ?? 0, vm: vm)
-            return
-        }
-        await pollUntilDone(syncId: syncId, pagesCount: pages.count, vm: vm)
-    }
-
-    /// Polls /api/portal/sync-progress until the backend reports done/error.
-    /// Timer-driven fallback percent keeps the progress bar moving even when the
-    /// in-memory sync store returns 404 (happens after vita-web container
-    /// restart). Hard cap at 180s.
-    @MainActor
-    private func pollUntilDone(syncId: String, pagesCount: Int, vm: ConnectorsViewModel) async {
-        let estimatedTotalSeconds = 120.0
-        // Honesty guard: if we never hear back from the sync store (404 or network
-        // error for 5 consecutive polls = 10s silent), we STOP claiming "Vita
-        // analisando" and surface a real error. The user never gets stuck
-        // watching a lying progress bar for 3 minutes.
-        var consecutiveMisses = 0
-        let missThreshold = 5
-        for tick in 0..<90 {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            let elapsed = Double(tick + 1) * 2.0
-            let timerPct = min(95.0, (elapsed / estimatedTotalSeconds) * 90.0 + 10.0)
-            var progress: SyncProgressResponse? = nil
-            do {
-                progress = try await container.api.getSyncProgress(syncId: syncId)
-            } catch {
-                NSLog("[Connections] poll err: %@", error.localizedDescription)
-            }
-            if let p = progress {
-                consecutiveMisses = 0
-                let label: String = {
-                    if let lbl = p.label, !lbl.isEmpty { return lbl }
-                    return "Vita trabalhando… (\(Int(elapsed))s)"
-                }()
-                syncMessage = label
-                syncPhase = phaseFromLabel(label)
-                syncProgress = p.percent ?? timerPct
-                if p.isDone {
-                    syncProgress = 100
-                    await vm.loadAll()
-                    let s = vm.state(for: "mannesoft")
-                    let subjects = s.stats.first(where: { $0.label == "disciplinas" })?.value ?? 0
-                    let evals = s.stats.first(where: { $0.label == "notas" })?.value ?? 0
-                    finishSync(grades: subjects, schedule: evals, vm: vm, label: "notas")
-                    return
-                }
-                if p.isError {
-                    withAnimation { syncing = false }
-                    toastState.show(label, type: .error)
-                    return
-                }
-            } else {
-                consecutiveMisses += 1
-                if consecutiveMisses >= missThreshold {
-                    NSLog("[Connections] %d consecutive poll misses — surfacing error", consecutiveMisses)
-                    withAnimation { syncing = false }
-                    toastState.show("Vita não conseguiu processar o portal. Tenta reconectar em alguns minutos.", type: .error)
-                    return
-                }
-                syncMessage = "Aguardando Vita responder… (\(Int(elapsed))s)"
-                syncProgress = timerPct
-            }
-        }
-        NSLog("[Connections] sync-progress timed out after 180s")
-        withAnimation { syncing = false }
-        toastState.show("Processamento demorou mais que o esperado. Verifique depois se as notas apareceram.", type: .error)
-    }
-
-    /// Close the overlay after extraction completes. Called both for the
-    /// synchronous path (no syncId in response) and at the end of the poll loop.
-    @MainActor
-    private func finishSync(grades: Int, schedule: Int, vm: ConnectorsViewModel, label: String = "aulas") {
-        syncPhase = "done"
-        let msg: String
-        if grades > 0 {
-            msg = "Pronto! \(grades) matérias · \(schedule) \(label)."
-        } else {
-            msg = "Pronto! Dados atualizados."
-        }
-        syncMessage = msg
-        Task {
-            await vm.loadAll()
-            // Linger so user reads the success state
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            withAnimation { syncing = false }
-            toastState.show(msg, type: .success)
-        }
-    }
-
-    /// Map the free-text progress label from backend into the webalunoSteps phase enum.
-    private func phaseFromLabel(_ label: String) -> String {
-        let l = label.lowercased()
-        if l.contains("disciplina") || l.contains("matéria") { return "disciplines" }
-        if l.contains("nota") || l.contains("grade") { return "grades" }
-        if l.contains("horário") || l.contains("aula") || l.contains("schedule") { return "schedule" }
-        if l.contains("extrai") || l.contains("extract") || l.contains("process") || l.contains("analis") {
-            return "extracting"
-        }
-        if l.contains("conclu") || l.contains("done") || l.contains("pronto") { return "done" }
-        return "extracting"
-    }
-
-    /// Registers the captured Mannesoft/WebAluno session with the backend.
-    ///
-    /// In the current client-bridge architecture this call is just the cookie
-    /// hand-off — the backend persists PHPSESSID + Cloudflare cookies and returns
-    /// immediately. Actual data extraction happens a moment later when
-    /// `onPagesExtracted` fires and `sendExtractedPages` POSTs to /api/portal/extract.
-    ///
-    /// We do NOT show a sync overlay here. The overlay is owned by
-    /// `sendExtractedPages` so it stays visible across the full Hub VITA
-    /// processing window (~1-2min) — not just the 500ms it takes to save cookies.
-    /// Previous legacy code looped getSyncProgress for up to 2min against
-    /// startVitaCrawl which is Mannesoft-incompatible (Cloudflare blocks
-    /// server-side validation) — it always fell through silently before the
-    /// bridge even finished, leaving the user in the WebView with zero feedback.
-    private func connectWebaluno(cookie: String) {
-        guard let vm else { return }
-        Task {
-            do {
-                let portalUrl = vm.universityPortals.first(where: { $0.portalType == "webaluno" || $0.portalType == "mannesoft" })?.instanceUrl ?? webalunoInstanceUrl
-                _ = try await container.api.startVitaCrawl(
-                    cookies: "PHPSESSID=\(cookie)",
-                    instanceUrl: portalUrl
-                )
-                NSLog("[Connections] Session registered with backend; waiting for bridge extraction")
-            } catch {
-                NSLog("[Connections] Connect failed (will still try bridge path): %@", error.localizedDescription)
-            }
-        }
-    }
-
-    private func connectCanvas(cookies: String) {
-        guard let vm else { return }
-        isCanvasSync = true
-        canvasSyncPhase = .starting
-        canvasSyncProgress = 0
-        syncMessage = CanvasSyncOrchestrator.Phase.starting.rawValue
-        withAnimation { syncing = true }
-        Task {
-            let orchestrator = CanvasSyncOrchestrator(
-                cookies: cookies,
-                instanceUrl: canvasInstanceUrl,
-                vitaAPI: container.api,
-                onProgress: { [self] progress in
-                    Task { @MainActor in
-                        self.canvasSyncPhase = progress.phase
-                        self.canvasSyncProgress = progress.percent
-                        if let detail = progress.detail {
-                            self.syncMessage = "\(progress.phase.rawValue) \(detail)"
-                        } else {
-                            self.syncMessage = progress.phase.rawValue
-                        }
-                    }
-                }
-            )
-            do {
-                let result = try await orchestrator.run()
-                withAnimation { syncing = false }
-                let summary = [
-                    result.courses.map { "\($0) disciplinas" },
-                    result.assignments.map { "\($0) atividades" },
-                    result.pdfExtracted.map { "\($0) PDFs processados" },
-                ].compactMap { $0 }.joined(separator: ", ")
-                toastState.show(summary.isEmpty ? "Extração completa!" : "Pronto! \(summary)", type: .success)
-                await vm.loadAll()
-            } catch {
-                withAnimation { syncing = false }
-                toastState.show("Erro: \(error.localizedDescription)", type: .error)
-            }
-        }
-    }
-
-    // MARK: - Canvas WebView Full Screen
-
-    private var canvasWebViewFullScreen: some View {
-        VStack(spacing: 0) {
-            // Nav bar
-            HStack(spacing: 4) {
-                Button(action: { showCanvasTokenSheet = false }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                        Text("Voltar")
-                            .font(VitaTypography.bodyLarge)
-                    }
-                    .foregroundColor(VitaColors.accent)
-                    .frame(minWidth: 44, minHeight: 44)
-                }
-                .buttonStyle(.plain)
-                Spacer()
-                Text("Canvas LMS")
-                    .font(VitaTypography.titleMedium)
-                    .fontWeight(.semibold)
-                    .foregroundColor(VitaColors.textPrimary)
-                Spacer()
-                Color.clear.frame(width: 70, height: 44)
-            }
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
-
-            // Instructions
-            VitaGlassCard {
-                HStack(spacing: 12) {
-                    Image(systemName: "globe")
-                        .font(.system(size: 20))
-                        .foregroundColor(VitaColors.accent)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Faça login no Canvas")
-                            .font(VitaTypography.titleSmall)
-                            .fontWeight(.semibold)
-                            .foregroundColor(VitaColors.textPrimary)
-                        Text("Vita importa disciplinas, notas e materiais")
-                            .font(VitaTypography.bodySmall)
-                            .foregroundColor(VitaColors.textSecondary)
-                    }
-                    Spacer()
-                }
-                .padding(16)
-            }
-            .padding(.horizontal, 20)
-
-            // URL bar + WebView
-            VStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 9))
-                        .foregroundColor(VitaColors.textTertiary)
-                    Text(canvasInstanceUrl.replacingOccurrences(of: "https://", with: ""))
-                        .font(.system(size: 10))
-                        .foregroundColor(VitaColors.textTertiary)
-                        .lineLimit(1)
-                    Spacer()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.03))
-
-                PortalWebView(
-                    portalType: "canvas",
-                    portalURL: canvasInstanceUrl.replacingOccurrences(of: "https://", with: ""),
-                    onSessionCaptured: { cookie in
-                        showCanvasTokenSheet = false
-                        connectCanvas(cookies: cookie)
-                    }
-                )
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
-            )
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-        }
-        .background(Color.clear)
     }
 
     // MARK: - Sheet Content
@@ -923,16 +534,6 @@ struct ConnectionsScreen: View {
                     Task {
                         switch connectorId {
                         case "canvas": await vm.syncCanvas()
-                        case "webaluno", "mannesoft":
-                            if SharedPortalWebView.shared.hasWebView {
-                                // Session alive — sync silently using same WebView
-                                SilentPortalSync.shared.resetThrottle()
-                                SilentPortalSync.shared.syncIfNeeded(api: container.api)
-                            } else {
-                                // No session — need login WebView
-                                webalunoInstanceUrl = vm.mannesoft.instanceUrl ?? ""
-                                showWebalunoWebView = true
-                            }
                         case "google_calendar": await vm.syncCalendar()
                         case "google_drive": await vm.syncDrive()
                         default: break
@@ -950,11 +551,9 @@ struct ConnectionsScreen: View {
     private func sheetMeta(for id: String) -> (icon: String, syncNote: String?) {
         switch id {
         case "canvas": ("building.columns", nil)
-        case "webaluno": ("graduationcap", "Sincroniza automaticamente a cada 15 min")
         case "google_calendar": ("calendar", nil)
         case "google_drive": ("externaldrive", nil)
         case "spotify": ("music.note", nil)
-        case "apple_health": ("heart.fill", nil)
         case "whatsapp": ("message.fill", nil)
         default: ("link", nil)
         }
@@ -968,7 +567,7 @@ struct ConnectionsScreen: View {
                 Text("Portais conectados")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(Color(red: 1.0, green: 0.988, blue: 0.973).opacity(0.88))
-                Text("Sincronize notas e horários automaticamente")
+                Text("Sincronize notas e horÃ¡rios automaticamente")
                     .font(.system(size: 10.5))
                     .foregroundColor(goldSubtle.opacity(0.35))
             }
@@ -996,10 +595,10 @@ struct ConnectionsScreen: View {
 
     private var comoFunciona: some View {
         VStack(alignment: .leading, spacing: 12) {
-            howItWorksRow("1", "Conecte seu portal acadêmico com suas credenciais")
-            howItWorksRow("2", "Disciplinas, notas e horários sao importados")
+            howItWorksRow("1", "Conecte seu portal acadÃªmico com suas credenciais")
+            howItWorksRow("2", "Disciplinas, notas e horÃ¡rios sao importados")
             howItWorksRow("3", "Dados sincronizam automaticamente a cada 15 minutos")
-            howItWorksRow("4", "Desconecte a qualquer momento — seus dados sao excluidos")
+            howItWorksRow("4", "Desconecte a qualquer momento â€” seus dados sao excluidos")
         }
     }
 

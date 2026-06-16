@@ -417,7 +417,7 @@ actor HTTPClient {
 
             switch http.statusCode {
             case 200...299:
-                if let urlStr = request.url?.absoluteString, urlStr.contains("portal") || urlStr.contains("webaluno") {
+                if let urlStr = request.url?.absoluteString, urlStr.contains("portal") || urlStr.contains("canvas") || urlStr.contains("connectors") {
                     let raw = String(data: data, encoding: .utf8) ?? "(non-utf8)"
                     NSLog("[HTTPClient] 200 %@ raw: %@", urlStr, String(raw.prefix(500)))
                 }

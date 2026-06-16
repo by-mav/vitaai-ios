@@ -33,18 +33,9 @@ class VitaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenter
         return true
     }
 
-    /// Silent (content-available) push handler — app is woken in the background
-    /// with a ~30s window to run work.
-    ///
-    /// Portal-agnostic contract (backend: /api/cron/portal-silent-sync):
-    ///   type: "portal_sync"
-    ///   strategy: "webview-bridge" | "oauth-replay"
-    ///   connectionId, portalType, instanceUrl
-    ///
-    /// Legacy type-specific pushes are still accepted for rollout compat:
-    ///   - `canvas_reauth` (→ oauth-replay)
-    ///   - `mannesoft_sync` (→ webview-bridge)
-    /// Will be removed once backend fully emits `portal_sync` only.
+    /// Silent portal crawler pushes were removed with the Canvas PAT/API pivot.
+    /// Data sync now runs server-side from stored tokens, not from background
+    /// WKWebView sessions.
     func application(
         _ application: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
@@ -52,67 +43,7 @@ class VitaAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenter
     ) {
         let type = userInfo["type"] as? String ?? ""
         NSLog("[PushBG] Silent push received: type=%@", type)
-
-        switch type {
-        case "portal_sync":
-            let strategy = userInfo["strategy"] as? String ?? "webview-bridge"
-            let instanceUrl = userInfo["instanceUrl"] as? String ?? ""
-            let portalType = userInfo["portalType"] as? String ?? "?"
-            NSLog("[PushBG] portal_sync portalType=%@ strategy=%@", portalType, strategy)
-            Task { @MainActor in
-                let api = VitaAPI(client: HTTPClient(tokenStore: TokenStore()))
-                switch strategy {
-                case "oauth-replay":
-                    guard !instanceUrl.isEmpty else {
-                        completionHandler(.noData)
-                        return
-                    }
-                    let ok = await CanvasSilentReauth.shared.forceReauth(
-                        instanceUrl: instanceUrl,
-                        api: api
-                    )
-                    NSLog("[PushBG] oauth-replay result: %@", ok ? "success" : "failed")
-                    completionHandler(ok ? .newData : .failed)
-                default: // "webview-bridge"
-                    SilentPortalSync.shared.resetThrottle()
-                    SilentPortalSync.shared.syncIfNeeded(api: api)
-                    try? await Task.sleep(for: .seconds(25))
-                    NSLog("[PushBG] webview-bridge window ending")
-                    completionHandler(.newData)
-                }
-            }
-
-        // Legacy type-specific silent pushes (pre-issue #59). Kept during rollout.
-        case "canvas_reauth":
-            guard let instanceUrl = userInfo["instanceUrl"] as? String, !instanceUrl.isEmpty else {
-                completionHandler(.noData)
-                return
-            }
-            Task { @MainActor in
-                let api = VitaAPI(client: HTTPClient(tokenStore: TokenStore()))
-                let success = await CanvasSilentReauth.shared.forceReauth(
-                    instanceUrl: instanceUrl,
-                    api: api
-                )
-                NSLog("[PushBG] Canvas reauth result: %@", success ? "success" : "failed")
-                completionHandler(success ? .newData : .failed)
-            }
-
-        case "mannesoft_sync":
-            NSLog("[PushBG] Mannesoft silent sync triggered by server")
-            Task { @MainActor in
-                let api = VitaAPI(client: HTTPClient(tokenStore: TokenStore()))
-                SilentPortalSync.shared.resetThrottle()
-                SilentPortalSync.shared.syncIfNeeded(api: api)
-                // Give sync up to 25s (iOS allows ~30s for silent push)
-                try? await Task.sleep(for: .seconds(25))
-                NSLog("[PushBG] Mannesoft sync window ending")
-                completionHandler(.newData)
-            }
-
-        default:
-            completionHandler(.noData)
-        }
+        completionHandler(.noData)
     }
 
     // Show push banners while app is in foreground
@@ -204,7 +135,6 @@ struct VitaAIApp: App {
                 // 1. RealtimeStream SSE — push em ms quando algo muda no backend
                 // 2. Polling 30s — fallback se SSE der down
                 // 3. silentRefresh imediato — cobre app vindo de bg apos longo tempo
-                SilentPortalSync.shared.syncIfNeeded(api: container.api)
                 container.realtimeStream.connect()
                 Task { await container.dataManager.silentRefresh() }
                 container.dataManager.startForegroundPolling()

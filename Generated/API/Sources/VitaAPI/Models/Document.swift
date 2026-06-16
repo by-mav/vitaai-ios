@@ -19,7 +19,7 @@ public struct Document: Sendable, Codable, Hashable {
     public var readProgress: Double?
     public var isFavorite: Bool?
     public var createdAt: Date?
-    /** Data REAL de upload do material no portal (Canvas/WebAluno), distinta de `createdAt` que é o timestamp do nosso sync. Quando ausente (docs antigos sincronizados antes do feature), UI faz fallback para `createdAt`.  */
+    /** Data REAL de upload do material no Canvas, distinta de `createdAt` que é o timestamp do nosso sync. Quando ausente (docs antigos sincronizados antes do feature), UI faz fallback para `createdAt`.  */
     public var portalCreatedAt: Date?
     /** Última modificação do material no portal de origem. */
     public var portalModifiedAt: Date?

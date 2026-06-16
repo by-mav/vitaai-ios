@@ -32,6 +32,11 @@ enum SentryConfig {
 
     /// Bootstraps Sentry SDK. Active in ALL build configurations.
     static func initialize() {
+        #if DEBUG && targetEnvironment(simulator)
+        logger.warning("Sentry disabled for DEBUG simulator boot to avoid SDK profiler/network deadlocks while local services are down.")
+        return
+        #endif
+
         guard !dsn.isEmpty else {
             #if DEBUG
             logger.error("SENTRY_DSN missing from Info.plist — observability disabled in debug. Fix project.yml.")

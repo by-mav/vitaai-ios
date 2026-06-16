@@ -539,7 +539,7 @@ struct MainTabView: View {
             )
         case .estudos:
             EstudosScreen(
-                onNavigateToCanvasConnect: { router.navigate(to: .portalConnect(type: "canvas")) },
+                onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) },
                 onNavigateToNotebooks: { router.navigate(to: .notebookList) },
                 onNavigateToMindMaps: { router.navigate(to: .mindMapList) },
                 onNavigateToFlashcardSession: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
@@ -700,23 +700,19 @@ struct MainTabView: View {
             SimuladoDiagnosticsScreen(
                 onBack: { router.goBack() }
             )
-        case .portalConnect(let type, let defaultUrl):
-            PortalConnectScreen(
-                portalType: type,
-                defaultInstanceUrl: defaultUrl ?? "",
-                onBack: { router.goBack() }
-            )
+        case .portalConnect(let type, _):
+            if type == "canvas" {
+                CanvasTokenEntry(onBack: { router.goBack() })
+            } else {
+                UnsupportedConnectorScreen(
+                    connectorName: University.displayName(for: type),
+                    onBack: { router.goBack() }
+                )
+            }
         // Canvas: pivot 2026-05-07 — token-based via AddTokenSheet (inline pra
         // nao depender de novo arquivo no Xcode project)
         case .canvasConnect:
             CanvasTokenEntry(onBack: { router.goBack() })
-        // Legacy routes (NÃO migradas — webaluno sem API token; google_* OAuth nativo)
-        case .webalunoConnect:
-            PortalConnectScreen(portalType: "webaluno", onBack: { router.goBack() })
-        case .googleCalendarConnect:
-            PortalConnectScreen(portalType: "google_calendar", onBack: { router.goBack() })
-        case .googleDriveConnect:
-            PortalConnectScreen(portalType: "google_drive", onBack: { router.goBack() })
         case .insights:
             InsightsScreen()
         case .trabalhos:
@@ -771,7 +767,7 @@ struct MainTabView: View {
                 onNavigateToPdfViewer: { url in
                     router.navigate(to: .pdfViewer(url: url.absoluteString))
                 },
-                onNavigateToCanvasConnect: { router.navigate(to: .portalConnect(type: "canvas")) }
+                onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) }
             )
         case .provas:
             ProvasScreen(onBack: { router.goBack() })
@@ -880,6 +876,7 @@ struct MainTabView: View {
 /// Inline aqui pra nao precisar adicionar arquivo novo ao .xcodeproj.
 private struct CanvasTokenEntry: View {
     let onBack: () -> Void
+    @Environment(\.appContainer) private var container
     @State private var showSheet = true
 
     var body: some View {
@@ -890,10 +887,47 @@ private struct CanvasTokenEntry: View {
         .navigationBarHidden(true)
         .sheet(isPresented: $showSheet) {
             AddTokenSheet()
+                .environmentObject(container)
                 .presentationDetents([.large])
         }
         .onChange(of: showSheet) { _, newValue in
             if !newValue { onBack() }
         }
+    }
+}
+
+private struct UnsupportedConnectorScreen: View {
+    let connectorName: String
+    let onBack: () -> Void
+
+    var body: some View {
+        ZStack {
+            VitaAmbientBackground { Color.clear }
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                Image(systemName: "link.badge.plus")
+                    .font(.system(size: 36, weight: .semibold))
+                    .foregroundStyle(VitaColors.accent)
+                Text("\(connectorName) ainda nao esta disponivel")
+                    .font(VitaTypography.titleMedium)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .multilineTextAlignment(.center)
+                Text("O Vita agora conecta portais academicos apenas por API/token oficial.")
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                VitaButton(
+                    text: "Voltar",
+                    action: onBack,
+                    variant: .secondary,
+                    size: .md
+                )
+                .padding(.top, 8)
+            }
+            .padding(24)
+        }
+        .navigationBarHidden(true)
     }
 }

@@ -1,6 +1,6 @@
-import SwiftUI
+﻿import SwiftUI
 
-// MARK: - Syncing Content (real progress from vita-crawl or Canvas/WebAluno)
+// MARK: - Syncing Content (real progress from Canvas PAT/API)
 
 struct SyncingStep: View {
     let api: VitaAPI
@@ -55,7 +55,7 @@ struct SyncingStep: View {
                                     if viewModel.syncCourses > 0 || viewModel.syncGrades > 0 {
                                         Text("\u{00B7}").font(.system(size: 11)).foregroundStyle(.white.opacity(0.2))
                                     }
-                                    Text("\(viewModel.syncSchedule) horários")
+                                    Text("\(viewModel.syncSchedule) horÃ¡rios")
                                         .font(.system(size: 11))
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
@@ -160,60 +160,15 @@ struct SyncingStep: View {
     }
 
     private func startSync() {
-        // If we have a syncId from Connect step (vita-crawl), poll that
-        if let syncId = viewModel.activeSyncId {
-            pollVitaCrawl(syncId: syncId)
-        } else {
-            // Fallback: try Canvas + WebAluno direct sync
-            runDirectSync()
-        }
+        runCanvasSync()
     }
 
-    // MARK: - Vita Crawl polling (preferred path)
+    // MARK: - Canvas PAT/API sync
 
-    private func pollVitaCrawl(syncId: String) {
-        Task {
-            await update(label: String(localized: "sync_scanning"), percent: 15)
-
-            for i in 0..<90 { // max 3 min
-                try? await Task.sleep(for: .seconds(2))
-
-                guard let progress = try? await api.getSyncProgress(syncId: syncId) else { continue }
-
-                await MainActor.run {
-                    withAnimation {
-                        percent = max(percent, progress.percent ?? 0)
-                        if let lbl = progress.label, !lbl.isEmpty { label = lbl }
-                        viewModel.syncGrades = max(viewModel.syncGrades, progress.grades ?? 0)
-                        viewModel.syncSchedule = max(viewModel.syncSchedule, progress.schedule ?? 0)
-                    }
-                }
-
-                if progress.isDone {
-                    await finishSync()
-                    return
-                }
-
-                if progress.isError {
-                    await update(label: (progress.label ?? "").isEmpty ? String(localized: "sync_error") : (progress.label ?? ""), percent: percent)
-                    hasError = true
-                    return
-                }
-            }
-
-            // Timeout — still finish, data may be partially available
-            await update(label: String(localized: "sync_timeout"), percent: 90)
-            await finishSync()
-        }
-    }
-
-    // MARK: - Direct Canvas + WebAluno sync (fallback)
-
-    private func runDirectSync() {
+    private func runCanvasSync() {
         Task {
             await update(label: String(localized: "sync_importing"), percent: 20)
 
-            // Canvas
             do {
                 let result = try await api.syncCanvas()
                 await MainActor.run {
@@ -221,32 +176,11 @@ struct SyncingStep: View {
                         viewModel.syncCourses = result.courses
                         viewModel.syncSchedule = result.calendarEvents
                         label = "\(result.courses) disciplinas encontradas"
-                        percent = 55
+                        percent = 85
                     }
                 }
             } catch {
                 print("[Sync] Canvas sync failed: \(error)")
-            }
-
-            await update(label: String(localized: "sync_fetching"), percent: 65)
-
-            // WebAluno
-            do {
-                let status = try await api.getPortalStatus()
-                let g = status.counts?.grades ?? 0
-                let s = status.counts?.schedule ?? 0
-                await MainActor.run {
-                    withAnimation {
-                        viewModel.syncGrades = max(viewModel.syncGrades, g)
-                        viewModel.syncSchedule = max(viewModel.syncSchedule, s)
-                        if g > 0 || s > 0 {
-                            label = "\(viewModel.syncGrades) notas, \(viewModel.syncSchedule) horários"
-                            percent = 85
-                        }
-                    }
-                }
-            } catch {
-                print("[Sync] WebAluno status fetch failed: \(error)")
             }
 
             await finishSync()
@@ -264,7 +198,7 @@ struct SyncingStep: View {
                 let parts: [String] = [
                     viewModel.syncCourses > 0 ? "\(viewModel.syncCourses) disciplinas" : nil,
                     viewModel.syncGrades > 0 ? "\(viewModel.syncGrades) notas" : nil,
-                    viewModel.syncSchedule > 0 ? "\(viewModel.syncSchedule) horários" : nil,
+                    viewModel.syncSchedule > 0 ? "\(viewModel.syncSchedule) horÃ¡rios" : nil,
                 ].compactMap { $0 }
 
                 label = parts.isEmpty ? String(localized: "sync_done") : parts.joined(separator: " \u{00B7} ")

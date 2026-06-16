@@ -1,0 +1,266 @@
+import Foundation
+
+// PortalTotals, PortalCounts: custom init(from:) for safe defaults.
+// ScreenResponse/ScreenBlock: generated uses different field names (sections vs blocks). Kept manual.
+
+struct PortalStatusResponse: Codable {
+    var connected: Bool = false
+    var connections: [PortalConnectionInfo]?
+    var totals: PortalTotals?
+}
+
+struct PortalConnectionInfo: Codable {
+    var id: String?
+    var instanceUrl: String?
+    var portalName: String?
+    var portalType: String?
+    var status: String?
+    var lastSyncAt: String?
+    var lastPingAt: String?
+    var counts: PortalCounts?
+}
+
+struct PortalTotals: Codable {
+    var grades: Int
+    var subjects: Int
+    var schedule: Int
+    var documents: Int
+    var semesters: Int
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        grades = (try? c.decode(Int.self, forKey: .grades)) ?? 0
+        subjects = (try? c.decode(Int.self, forKey: .subjects)) ?? 0
+        schedule = (try? c.decode(Int.self, forKey: .schedule)) ?? 0
+        documents = (try? c.decode(Int.self, forKey: .documents)) ?? 0
+        semesters = (try? c.decode(Int.self, forKey: .semesters)) ?? 0
+    }
+
+    init(grades: Int = 0, subjects: Int = 0, schedule: Int = 0, documents: Int = 0, semesters: Int = 0) {
+        self.grades = grades; self.subjects = subjects; self.schedule = schedule; self.documents = documents; self.semesters = semesters
+    }
+}
+
+struct PortalCounts: Codable {
+    var grades: Int
+    var subjects: Int
+    var schedule: Int
+    var semesters: Int
+    var completed: Int
+    var documents: Int
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        grades = (try? c.decode(Int.self, forKey: .grades)) ?? 0
+        subjects = (try? c.decode(Int.self, forKey: .subjects)) ?? 0
+        schedule = (try? c.decode(Int.self, forKey: .schedule)) ?? 0
+        semesters = (try? c.decode(Int.self, forKey: .semesters)) ?? 0
+        completed = (try? c.decode(Int.self, forKey: .completed)) ?? 0
+        documents = (try? c.decode(Int.self, forKey: .documents)) ?? 0
+    }
+
+    init(grades: Int = 0, subjects: Int = 0, schedule: Int = 0, semesters: Int = 0, completed: Int = 0, documents: Int = 0) {
+        self.grades = grades; self.subjects = subjects; self.schedule = schedule; self.semesters = semesters
+        self.completed = completed; self.documents = documents
+    }
+}
+
+// MARK: - Agenda (unified calendar)
+
+struct AgendaResponse: Codable {
+    var schedule: [AgendaClassBlock] = []
+    var evaluations: [AgendaEvaluation] = []
+    var summary: AgendaSummary = AgendaSummary()
+}
+
+struct AgendaClassBlock: Codable, Identifiable {
+    var id: String { "\(dayOfWeek)-\(subjectName)-\(startTime)" }
+    var subjectName: String = ""
+    var dayOfWeek: Int = 0
+    var startTime: String = ""
+    var endTime: String = ""
+    var room: String?
+    var professor: String?
+    var slots: Int = 1
+}
+
+struct AgendaEvaluation: Codable, Identifiable {
+    var id: String = ""
+    var title: String = ""
+    var type: String = ""
+    var date: String?
+    var status: String = ""
+    var score: Double?
+    var subjectName: String?
+}
+
+struct AgendaSummary: Codable {
+    var totalClasses: Int = 0
+    var subjects: Int = 0
+    var daysWithClasses: Int = 0
+    var upcomingEvaluations: Int = 0
+}
+
+// MARK: - Grades Current (consolidated per subject)
+
+struct GradesCurrentResponse: Codable {
+    var current: [GradeSubject] = []
+    var completed: [GradeSubject] = []
+    var summary: GradesSummary = GradesSummary()
+}
+
+/// Single evaluation entry from the portal — title is preserved as the portal
+/// shows it (AP1, AS, P1, Recuperação, Final, etc.). UI renders dynamically per
+/// portal/faculty (350+ supported) instead of hardcoding a 4-column ULBRA layout.
+struct Evaluation: Codable, Hashable {
+    var title: String
+    var kind: String?       // partial | final | makeup | assignment | seminar | quiz
+    var sequence: Int?      // 1, 2, 3 within kind
+    var score: Double?
+    var weight: Double?
+    var maxScore: Double?
+}
+
+struct GradeSubject: Codable, Identifiable {
+    var id: String { subjectId ?? subjectName }
+    var subjectId: String?
+    var subjectName: String = ""
+    var professor: String?
+    /// Canonical evaluation list — render dynamic columns from this. Populated
+    /// from `academic_evaluations` rows via /api/dashboard. Sorted partial→final→makeup.
+    var evaluations: [Evaluation] = []
+    /// DEPRECATED — back-compat for screens still reading flat fields.
+    var grade1: Double?
+    var grade2: Double?
+    var grade3: Double?
+    var finalGrade: Double?
+    var status: String = "cursando"
+    var attendance: Double?
+    var absences: Double?
+    var workload: Double?
+    var weight1: Double?
+    var weight2: Double?
+    var weight3: Double?
+
+    private enum CodingKeys: String, CodingKey {
+        case subjectId = "id"
+        case subjectName, professor, evaluations
+        case grade1, grade2, grade3, finalGrade, status, attendance, absences, workload
+        case weight1, weight2, weight3
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        subjectId = try? c.decode(String.self, forKey: .subjectId)
+        subjectName = (try? c.decode(String.self, forKey: .subjectName)) ?? ""
+        professor = try? c.decode(String.self, forKey: .professor)
+        evaluations = (try? c.decode([Evaluation].self, forKey: .evaluations)) ?? []
+        grade1 = Self.flexDouble(c, .grade1)
+        grade2 = Self.flexDouble(c, .grade2)
+        grade3 = Self.flexDouble(c, .grade3)
+        finalGrade = Self.flexDouble(c, .finalGrade)
+        status = (try? c.decode(String.self, forKey: .status)) ?? "cursando"
+        attendance = Self.flexDouble(c, .attendance)
+        absences = Self.flexDouble(c, .absences)
+        workload = Self.flexDouble(c, .workload)
+        weight1 = Self.flexDouble(c, .weight1)
+        weight2 = Self.flexDouble(c, .weight2)
+        weight3 = Self.flexDouble(c, .weight3)
+    }
+
+    private static func flexDouble(_ c: KeyedDecodingContainer<CodingKeys>, _ key: CodingKeys) -> Double? {
+        if let d = try? c.decode(Double.self, forKey: key) { return d }
+        if let i = try? c.decode(Int.self, forKey: key) { return Double(i) }
+        return nil
+    }
+}
+
+struct GradesSummary: Codable {
+    var subjectsCount: Int = 0
+    var averageAttendance: Double?
+    var totalAbsences: Int = 0
+    var averageGrade: Double?
+    var totalWorkload: Int = 0
+
+    init(subjectsCount: Int = 0, averageAttendance: Double? = nil, totalAbsences: Int = 0, averageGrade: Double? = nil, totalWorkload: Int = 0) {
+        self.subjectsCount = subjectsCount
+        self.averageAttendance = averageAttendance
+        self.totalAbsences = totalAbsences
+        self.averageGrade = averageGrade
+        self.totalWorkload = totalWorkload
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        subjectsCount = (try? c.decode(Int.self, forKey: .subjectsCount)) ?? 0
+        // averageAttendance can be Int or Double from API
+        if let d = try? c.decode(Double.self, forKey: .averageAttendance) {
+            averageAttendance = d
+        } else if let i = try? c.decode(Int.self, forKey: .averageAttendance) {
+            averageAttendance = Double(i)
+        } else {
+            averageAttendance = nil
+        }
+        totalAbsences = (try? c.decode(Int.self, forKey: .totalAbsences)) ?? 0
+        if let d = try? c.decode(Double.self, forKey: .averageGrade) {
+            averageGrade = d
+        } else if let i = try? c.decode(Int.self, forKey: .averageGrade) {
+            averageGrade = Double(i)
+        } else {
+            averageGrade = nil
+        }
+        totalWorkload = (try? c.decode(Int.self, forKey: .totalWorkload)) ?? 0
+    }
+}
+
+// MARK: - Subjects
+
+struct SubjectsResponse: Codable {
+    var subjects: [AcademicSubject]
+}
+
+struct AcademicSubject: Codable, Identifiable {
+    var id: String
+    var name: String
+    /// User-ownable display name — set via PATCH /api/subjects/{id} {displayName}.
+    /// Sync never touches this. If nil, UI falls back to the portal/API name.
+    var displayName: String?
+    var status: String?
+    var source: String?
+    var difficulty: String?
+    /// Canonical discipline slug from vita.disciplines (96-row catalog).
+    /// Nullable while the normalizer hasn't mapped this subject yet.
+    var disciplineSlug: String?
+    /// Canonical name from vita.disciplines, joined on disciplineSlug.
+    var canonicalName: String?
+    var professor: String?
+    var semester: String?
+    var workload: Int?
+    /// Catalog area (basica, clinica, cirurgica, etc.) joined from vita.disciplines.
+    var area: String?
+    /// Icon slug from vita.disciplines, used for row rendering.
+    var icon: String?
+    /// True when the LLM normalizer couldn't place this subject in the catalog.
+    var needsReview: Bool?
+    /// Total QBank questions available for this discipline slug, computed
+    /// server-side from qbank_topics. Replaces the need to cross-reference
+    /// /api/qbank/filters.disciplines[] (deprecated).
+    var questionCount: Int?
+
+    /// Preferred name for display — user edit wins over the portal/API name.
+    /// canonicalName is taxonomy metadata only; never replace the student's
+    /// actual Canvas course name with it.
+    var preferredName: String { displayName ?? name }
+}
+
+// MARK: - Server-Driven UI (manual — generated uses different field names)
+
+struct ScreenResponse: Codable {
+    var screenId: String?
+    var blocks: [ScreenBlock]?
+}
+
+struct ScreenBlock: Codable {
+    var type: String?
+    var data: [String: String]?
+}

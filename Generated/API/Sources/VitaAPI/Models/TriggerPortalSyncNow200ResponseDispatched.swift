@@ -10,16 +10,13 @@ import Foundation
 public struct TriggerPortalSyncNow200ResponseDispatched: Sendable, Codable, Hashable {
 
     public var canvas: [TriggerPortalSyncNow200ResponseDispatchedCanvasInner]?
-    public var mannesoft: [TriggerPortalSyncNow200ResponseDispatchedMannesoftInner]?
 
-    public init(canvas: [TriggerPortalSyncNow200ResponseDispatchedCanvasInner]? = nil, mannesoft: [TriggerPortalSyncNow200ResponseDispatchedMannesoftInner]? = nil) {
+    public init(canvas: [TriggerPortalSyncNow200ResponseDispatchedCanvasInner]? = nil) {
         self.canvas = canvas
-        self.mannesoft = mannesoft
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case canvas
-        case mannesoft
     }
 
     // Encodable protocol methods
@@ -27,7 +24,6 @@ public struct TriggerPortalSyncNow200ResponseDispatched: Sendable, Codable, Hash
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(canvas, forKey: .canvas)
-        try container.encodeIfPresent(mannesoft, forKey: .mannesoft)
     }
 }
 

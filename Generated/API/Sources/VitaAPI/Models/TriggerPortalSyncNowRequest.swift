@@ -9,7 +9,7 @@ import Foundation
 
 public struct TriggerPortalSyncNowRequest: Sendable, Codable, Hashable {
 
-    /** Optional. If empty/absent, re-syncs all active connections for the user. */
+    /** Optional. If empty/absent, re-syncs all active Canvas connections for the user. */
     public var connectionIds: [String]?
 
     public init(connectionIds: [String]? = nil) {

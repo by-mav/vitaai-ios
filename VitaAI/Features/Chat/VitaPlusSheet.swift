@@ -119,7 +119,7 @@ struct VitaPlusSheet: View {
                 subjects: container.dataManager.enrolledDisciplines,
                 onSelect: { subject in
                     guard let action = pendingAction else { return }
-                    let enrichedPrompt = action.prompt.replacingOccurrences(of: "{subject}", with: subject.displayName ?? subject.canonicalName ?? subject.name)
+                    let enrichedPrompt = action.prompt.replacingOccurrences(of: "{subject}", with: subject.displayName ?? subject.name)
                     Task {
                         await viewModel.sendQuickAction(prompt: enrichedPrompt, toolHint: action.toolHint)
                     }
@@ -388,7 +388,7 @@ private struct SubjectSelectorSheet: View {
                                         .foregroundColor(VitaColors.accent)
                                 )
                         }
-                        Text(subject.displayName ?? subject.canonicalName ?? subject.name)
+                        Text(subject.displayName ?? subject.name)
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(VitaColors.textPrimary)
                     }
