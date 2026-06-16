@@ -81,9 +81,9 @@ struct VitaTabBar: View {
                 }
                 .padding(.horizontal, padding)
             }
-            .frame(height: 56)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
+            .frame(height: 50)
+            .padding(.top, 6)
+            .padding(.bottom, 6)
         }
         .background(
             VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
@@ -156,7 +156,7 @@ struct VitaTabBar: View {
             Image(vitaAwake ? "vita-btn-active" : "vita-btn-idle")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 42, height: 42)
+                .frame(width: 54, height: 54)
                 .scaleEffect(vitaAwake ? 1.08 : 1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: vitaAwake)
                 .frame(width: width)
