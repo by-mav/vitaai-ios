@@ -103,3 +103,42 @@ enum PixioShadow {
         (color.opacity(intensity), 14, 0, 6)
     }
 }
+
+// ---- Extensao p/ port do chat (PixioRadius + scrim/mascot + .pixioGlass) ----
+
+extension PixioColor {
+    static let scrim       = Color.black.opacity(0.18)
+    static let mascot      = VitaColors.accent       // tema Vita = dourado
+    static let mascotLight = VitaColors.accentLight
+    static let mascotDark  = VitaColors.accentDark
+}
+
+enum PixioRadius {
+    static let card: CGFloat = 18
+    static let hero: CGFloat = 22
+    static let large: CGFloat = 24
+    static let button: CGFloat = 12
+    static let buttonPill: CGFloat = 999
+    static let pill: CGFloat = 999
+    static let iconCircle: CGFloat = 20
+    static let iconBadge: CGFloat = 14
+    static let chip: CGFloat = 8
+    static let tag: CGFloat = 6
+}
+
+enum PixioGlassStyle { case regular, thin, thick }
+
+extension View {
+    @ViewBuilder
+    func pixioGlass<S: Shape>(_ style: PixioGlassStyle = .regular, in shape: S) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: shape)
+        } else {
+            self.background(shape.fill(.ultraThinMaterial))
+        }
+    }
+    @ViewBuilder
+    func pixioGlassInteractive<S: Shape>(in shape: S) -> some View {
+        self.pixioGlass(.regular, in: shape)
+    }
+}
