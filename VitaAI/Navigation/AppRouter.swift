@@ -516,7 +516,9 @@ struct MainTabView: View {
         case .faculdade:
             JornadaScreen()
         case .progresso:
-            ProgressoScreen()
+            // Aba Progresso = Estatísticas/Conquistas (decisão Rafael 2026-06-17).
+            // A trilha gamificada virou a Home (ver case .home).
+            EstatisticasScreen()
         }
     }
 
