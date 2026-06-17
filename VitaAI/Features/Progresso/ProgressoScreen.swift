@@ -1,22 +1,27 @@
 import SwiftUI
 
-// MARK: - ProgressoScreen — Trilha de carreira médica (gold 3D, estilo Duolingo)
+// MARK: - ProgressoScreen — Mapa vivo da carreira médica (gold 3D, estilo Duolingo)
 //
-// 2026-06-16 (Rafael): a aba Progresso é uma TRILHA de carreira — 50 fases em 5
-// tiers (10 cada), cada tier uma etapa da carreira médica com sua cor dourada.
+// 2026-06-16 (Rafael): home/mapa vivo do Vita. Uma tela só = gamificação no
+// centro + estudo sempre a 1 toque.
 //
-//  - Cada fase = um NÍVEL (1…50), linkado direto no nível da conta (API):
-//      nível da conta  > fase  → concluída (dourada + ✓)
-//      nível da conta == fase  → atual (anel pulsante + bonequinho aqui)
-//      nível da conta  < fase  → bloqueada (cinza + cadeado)
-//  - O bonequinho (Image "vita-btn-active") sobe pro nó do nível atual
-//    (auto-scroll até ele no boot).
-//  - Tocar a fase atual abre o estudo que dá XP → sobe nível → desbloqueia a
-//    próxima → o boneco sobe. O level-up/badges (VitaLevelUpOverlay) já disparam.
-//  - Nível/XP/streak e achievements vêm do gamify real (ProgressoViewModel +
-//    GamificationEventManager). Toca no nível → Conquistas.
+//  - TRILHA = as 21 etapas reais da carreira (Termômetro → Vita-Caduceu),
+//    espelhando o sistema canônico do backend (gamification.ts: getLevelIcon,
+//    1 ícone a cada 5 níveis, 6 tiers Calouro→God). Estado vem do nível real:
+//      nível passou da etapa  → concluída (✓)
+//      nível dentro da etapa  → atual (anel + bonequinho Vita pulando)
+//      nível abaixo           → bloqueada (cinza + cadeado)
+//  - BAÚS nas viradas de tier (checkpoints). Cor muda por tier.
+//  - DOCK 3D fixo: Flashcards · Questões · Simulados · Transcrição (toca → vai
+//    pra ferramenta). É assim que se estuda — a trilha só mostra o progresso.
+//  - Bonequinho = o Vita (asset "vita-btn-active"), pulando no nível atual.
 //
-// Mantém `ProgressoScreen()` (sem params) → AppRouter e o pbxproj intocados.
+// Ícones das etapas: SF Symbols por enquanto (limpos/garantidos); os 21 webp
+// oficiais (/designs/levels/final/) entram quando confirmar o recorte deles.
+// Ciclo do prestige (Cursinho/Faculdade/Residência/Revalida) entra junto com a
+// extensão do GamificationStats — por ora mostro tier + nível (já corretos).
+//
+// Mantém `ProgressoScreen()` (sem params) → AppRouter/pbxproj intocados.
 
 struct ProgressoScreen: View {
     @Environment(\.appContainer) private var container
@@ -24,6 +29,7 @@ struct ProgressoScreen: View {
     @Environment(Router.self) private var router
 
     @State private var pulse = false
+    @State private var hop = false
     @State private var scrolledToCurrent = false
 
     private var vmProg: ProgressoViewModel { container.progressoViewModel }
@@ -35,49 +41,50 @@ struct ProgressoScreen: View {
     private var streak: Int { vmProg.userProgress?.currentStreak ?? dash.streakDays }
     private var flashcardsDue: Int { dash.flashcardsDueTotal }
 
+    private var currentStage: Stage {
+        Self.stages.first(where: { userLevel >= $0.minLevel && userLevel <= $0.maxLevel }) ?? Self.stages[0]
+    }
+    private var currentTier: Tier { Self.tiers[currentStage.tierIdx] }
+
     // MARK: - Body
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 0) {
-                    gamifyStrip
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 4)
+        VStack(spacing: 0) {
+            headerStrip
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            toolsDock
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
 
-                    ForEach(Self.tiers) { tier in
-                        tierHeader(tier)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 18)
-                            .padding(.bottom, 4)
-                            .id("tier-\(tier.index)")
-
-                        ForEach(phases(in: tier)) { phase in
-                            phaseRow(phase)
-                                .id(phase.level)
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(trailItems.enumerated()), id: \.element.id) { idx, item in
+                            trailRow(item, rowIndex: idx)
+                        }
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 56)
+                }
+                .task {
+                    await vmProg.loadIfNeeded()
+                    await dash.loadDashboard()
+                    ScreenLoadContext.finish(for: "Progresso")
+                    if let stats = try? await container.api.getGamificationStats() {
+                        gamify.updateFromStats(stats)
+                    }
+                    if !scrolledToCurrent {
+                        scrolledToCurrent = true
+                        try? await Task.sleep(for: .milliseconds(350))
+                        withAnimation(.easeInOut(duration: 0.6)) {
+                            proxy.scrollTo(currentStage.index, anchor: .center)
                         }
                     }
                 }
-                .padding(.bottom, 64)
-            }
-            .trackedScroll()
-            .onChange(of: userLevel) { _, lvl in
-                withAnimation(.easeInOut(duration: 0.6)) { proxy.scrollTo(lvl, anchor: .center) }
-            }
-            .task {
-                await vmProg.loadIfNeeded()
-                await dash.loadDashboard()
-                ScreenLoadContext.finish(for: "Progresso")
-                if let stats = try? await container.api.getGamificationStats() {
-                    gamify.updateFromStats(stats)
-                }
-                if !scrolledToCurrent {
-                    scrolledToCurrent = true
-                    try? await Task.sleep(for: .milliseconds(350))
-                    withAnimation(.easeInOut(duration: 0.6)) {
-                        proxy.scrollTo(min(userLevel, 50), anchor: .center)
-                    }
+                .onChange(of: userLevel) { _, _ in
+                    withAnimation(.easeInOut(duration: 0.6)) { proxy.scrollTo(currentStage.index, anchor: .center) }
                 }
             }
         }
@@ -90,374 +97,334 @@ struct ProgressoScreen: View {
         }
         .onAppear {
             if !pulse {
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
+            }
+            if !hop {
+                withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) { hop = true }
             }
         }
         .trackScreen("Progresso")
     }
 
-    // MARK: - Gamify strip (nível + XP + streak — dado real)
+    // MARK: - Header (tier + nível + XP + streak)
 
-    private var gamifyStrip: some View {
+    private var headerStrip: some View {
         HStack(spacing: 12) {
-            Button(action: { router.navigate(to: .achievements) }) {
-                levelBadge(userLevel)
+            ZStack {
+                Circle().fill(currentTier.dark).frame(width: 46, height: 46).offset(y: 3)
+                Circle().fill(faceGradient(currentTier, locked: false, radius: 23)).frame(width: 46, height: 46)
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
+                Image(systemName: currentStage.icon)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Color.white)
             }
-            .buttonStyle(TrailPressStyle())
+            .frame(width: 50, height: 50)
 
-            VStack(alignment: .leading, spacing: 6) {
-                xpBar(progress: xpProgress)
+            VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    Text(currentTier.name)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(VitaColors.textSecondary)
+                    Text(currentTier.name.uppercased())
+                        .font(.system(size: 11, weight: .bold)).kerning(1.0)
+                        .foregroundStyle(currentTier.bright)
                     Spacer()
                     Text("Nível \(userLevel)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(VitaColors.textTertiary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(VitaColors.textSecondary)
                 }
+                xpBar(progress: xpProgress)
             }
 
             streakChip(streak)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 11)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(VitaColors.glassBg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(VitaColors.glassBorder, lineWidth: 1)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(VitaColors.glassBorder, lineWidth: 1))
         )
-    }
-
-    private var currentTier: CareerTier {
-        Self.tiers.last(where: { userLevel >= $0.levelStart }) ?? Self.tiers[0]
-    }
-
-    private func levelBadge(_ level: Int) -> some View {
-        ZStack {
-            Circle().fill(currentTier.dark)
-                .frame(width: 44, height: 44)
-                .offset(y: 3)
-            Circle().fill(faceGradient(currentTier, locked: false, radius: 22))
-                .frame(width: 44, height: 44)
-                .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
-            Text("\(level)")
-                .font(.system(size: 17, weight: .heavy))
-                .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.04))
-        }
-        .frame(width: 48, height: 48)
     }
 
     private func xpBar(progress: Double) -> some View {
         let clamped = min(max(progress, 0), 1)
         return GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(VitaColors.surfaceBorder).frame(height: 9)
+                Capsule().fill(VitaColors.surfaceBorder).frame(height: 8)
                 Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [currentTier.dark, currentTier.bright],
-                            startPoint: .leading, endPoint: .trailing
-                        )
-                    )
-                    .frame(width: max(geo.size.width * clamped, clamped > 0 ? 9 : 0), height: 9)
+                    .fill(LinearGradient(colors: [currentTier.dark, currentTier.bright], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: max(geo.size.width * clamped, clamped > 0 ? 8 : 0), height: 8)
                     .shadow(color: currentTier.mid.opacity(0.4), radius: 4, y: 0)
             }
         }
-        .frame(height: 9)
+        .frame(height: 8)
     }
 
     private func streakChip(_ days: Int) -> some View {
         HStack(spacing: 5) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(VitaColors.dataAmber)
-            Text("\(days)")
-                .font(.system(size: 15, weight: .heavy))
-                .foregroundStyle(VitaColors.textPrimary)
+            Image(systemName: "flame.fill").font(.system(size: 14, weight: .semibold)).foregroundStyle(VitaColors.dataAmber)
+            Text("\(days)").font(.system(size: 15, weight: .heavy)).foregroundStyle(VitaColors.textPrimary)
         }
-        .padding(.horizontal, 11)
+        .padding(.horizontal, 11).padding(.vertical, 7)
+        .background(Capsule().fill(VitaColors.dataAmber.opacity(0.12)).overlay(Capsule().stroke(VitaColors.dataAmber.opacity(0.25), lineWidth: 1)))
+    }
+
+    // MARK: - Dock de ferramentas (3D, fixo)
+
+    private var toolsDock: some View {
+        HStack(spacing: 11) {
+            toolButton("Flashcards", icon: "rectangle.on.rectangle.angled",
+                       bright: Color(red: 0.78, green: 0.69, blue: 1.0), mid: VitaColors.toolFlashcards, dark: Color(red: 0.29, green: 0.23, blue: 0.63)) {
+                openStudy(.flashcardHome())
+            }
+            toolButton("Questões", icon: "checklist",
+                       bright: VitaColors.accentHover, mid: VitaColors.accent, dark: VitaColors.accentDark) {
+                openStudy(.qbank)
+            }
+            toolButton("Simulados", icon: "doc.text.magnifyingglass",
+                       bright: Color(red: 0.56, green: 0.77, blue: 0.98), mid: VitaColors.toolSimulados, dark: Color(red: 0.10, green: 0.37, blue: 0.65)) {
+                openStudy(.simuladoHome)
+            }
+            toolButton("Transcrição", icon: "waveform",
+                       bright: Color(red: 0.50, green: 0.88, blue: 0.83), mid: VitaColors.toolTranscricao, dark: Color(red: 0.08, green: 0.50, blue: 0.47)) {
+                openStudy(.transcricao)
+            }
+        }
+    }
+
+    private func toolButton(_ title: String, icon: String, bright: Color, mid: Color, dark: Color, action: @escaping () -> Void) -> some View {
+        VStack(spacing: 6) {
+            Button(action: action) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous).fill(dark)
+                        .frame(width: 62, height: 62).offset(y: 5)
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(RadialGradient(colors: [bright, mid], center: UnitPoint(x: 0.34, y: 0.28), startRadius: 2, endRadius: 60))
+                        .frame(width: 62, height: 62)
+                        .overlay(
+                            Ellipse().fill(Color.white.opacity(0.40)).frame(width: 24, height: 12)
+                                .offset(x: -10, y: -16).blur(radius: 1)
+                        )
+                        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color.white.opacity(0.16), lineWidth: 1))
+                    Image(systemName: icon).font(.system(size: 25, weight: .bold)).foregroundStyle(Color.white)
+                        .shadow(color: Color(red: 0.10, green: 0.08, blue: 0.04).opacity(0.4), radius: 1, y: 1)
+                }
+                .shadow(color: .black.opacity(0.40), radius: 10, y: 7)
+            }
+            .buttonStyle(TrailPressStyle())
+            Text(title).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(VitaColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Trilha
+
+    private func trailRow(_ item: TrailItem, rowIndex: Int) -> some View {
+        let dx = CGFloat(sin(Double(rowIndex) * 0.95)) * 58
+        return Group {
+            switch item {
+            case .stage(let s): stageNode(s)
+            case .chest(let t): chestNode(t)
+            }
+        }
+        .offset(x: dx)
         .padding(.vertical, 7)
-        .background(
-            Capsule()
-                .fill(VitaColors.dataAmber.opacity(0.12))
-                .overlay(Capsule().stroke(VitaColors.dataAmber.opacity(0.25), lineWidth: 1))
-        )
+        .id(item.id)
     }
 
-    // MARK: - Tier header (banner da etapa de carreira)
-
-    private func tierHeader(_ tier: CareerTier) -> some View {
-        let reached = userLevel >= tier.levelStart
-        return HStack(spacing: 12) {
-            ZStack {
-                Circle().fill(tier.dark).frame(width: 40, height: 40).offset(y: 2)
-                Circle().fill(faceGradient(tier, locked: !reached, radius: 20)).frame(width: 40, height: 40)
-                Image(systemName: reached ? tier.icon : "lock.fill")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(reached ? Color.white : VitaColors.textTertiary)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(tier.name.uppercased())
-                    .font(.system(size: 12, weight: .bold))
-                    .kerning(1.1)
-                    .foregroundStyle(reached ? tier.bright : VitaColors.textTertiary)
-                Text("\(tier.subtitle) · Níveis \(tier.levelStart)–\(tier.levelStart + 9)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(VitaColors.textTertiary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(reached ? tier.mid.opacity(0.10) : VitaColors.glassBg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(reached ? tier.mid.opacity(0.30) : VitaColors.glassBorder, lineWidth: 1)
-                )
-        )
-    }
-
-    // MARK: - Fase (nó da trilha)
-
-    private func phaseRow(_ phase: Phase) -> some View {
-        let state = phaseState(phase)
-        let dx = CGFloat(sin(Double(phase.level) * 0.9)) * 60
+    private func stageNode(_ stage: Stage) -> some View {
+        let state = stageState(stage)
+        let tier = Self.tiers[stage.tierIdx]
         return ZStack {
-            VStack(spacing: 8) {
-                if state == .completed { starRow(phase.tier, filled: true) }
-                else if state == .current { starRow(phase.tier, filled: false) }
-
-                Button(action: { tapPhase(phase, state: state) }) {
-                    coin(phase, state: state)
+            VStack(spacing: 6) {
+                Button(action: { tapStage(state) }) {
+                    coin(stage: stage, tier: tier, state: state)
                 }
                 .buttonStyle(TrailPressStyle())
-                .disabled(state == .locked)
+                .disabled(state != .current)
 
-                if state == .current {
-                    startPill(phase.tier)
-                } else {
-                    Text(state == .locked ? "Nível \(phase.level)" : phase.title)
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(state == .locked ? VitaColors.textTertiary : VitaColors.textSecondary)
-                        .lineLimit(1)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(VitaColors.glassBg)
-                                .overlay(Capsule().stroke(VitaColors.glassBorder, lineWidth: 1))
-                        )
-                }
+                Text(state == .locked ? "Nível \(stage.minLevel)" : stage.name)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(state == .locked ? VitaColors.textTertiary : VitaColors.textSecondary)
+                    .lineLimit(1)
             }
-            .offset(x: dx)
 
             if state == .current {
-                mascot
-                    .offset(x: dx + 64, y: -8)
+                mascot.offset(x: 56, y: -10 + (hop ? -6 : 0))
             }
         }
-        .padding(.vertical, 10)
     }
 
-    private func coin(_ phase: Phase, state: PhaseState) -> some View {
+    private func coin(stage: Stage, tier: Tier, state: StageState) -> some View {
         let locked = state == .locked
-        let size: CGFloat = state == .current ? 76 : 68
-        let isTierReward = phase.level % 10 == 0
-
+        let size: CGFloat = state == .current ? 58 : 50
         return ZStack {
             if state == .current {
-                Circle()
-                    .stroke(phase.tier.bright.opacity(0.55), lineWidth: 5)
-                    .frame(width: size + 16, height: size + 16)
+                Circle().stroke(tier.bright.opacity(0.55), lineWidth: 4)
+                    .frame(width: size + 14, height: size + 14)
                     .scaleEffect(pulse ? 1.05 : 0.97)
-                    .shadow(color: phase.tier.mid.opacity(0.5), radius: 12)
+                    .shadow(color: tier.mid.opacity(0.5), radius: 10)
             }
-
-            Circle().fill(thickness(phase.tier, locked: locked))
+            Circle().fill(locked ? Color(white: 0.12) : tier.dark)
+                .frame(width: size, height: size).offset(y: 6)
+                .shadow(color: .black.opacity(0.42), radius: 7, y: 7)
+            Circle().fill(faceGradient(tier, locked: locked, radius: size / 2))
                 .frame(width: size, height: size)
-                .offset(y: 7)
-                .shadow(color: .black.opacity(0.45), radius: 9, y: 8)
-
-            Circle().fill(faceGradient(phase.tier, locked: locked, radius: size / 2))
-                .frame(width: size, height: size)
-                .overlay(
-                    Ellipse()
-                        .fill(Color.white.opacity(locked ? 0.10 : 0.40))
-                        .frame(width: size * 0.42, height: size * 0.24)
-                        .offset(x: -size * 0.12, y: -size * 0.22)
-                        .blur(radius: 1)
-                )
+                .overlay(Ellipse().fill(Color.white.opacity(locked ? 0.08 : 0.38)).frame(width: size * 0.42, height: size * 0.22).offset(x: -size * 0.12, y: -size * 0.20).blur(radius: 1))
                 .overlay(Circle().stroke(Color.white.opacity(locked ? 0.06 : 0.18), lineWidth: 1))
-
-            Image(systemName: locked ? "lock.fill" : (isTierReward ? "trophy.fill" : phase.icon))
-                .font(.system(size: state == .current ? 30 : 26, weight: .bold))
+            Image(systemName: locked ? "lock.fill" : stage.icon)
+                .font(.system(size: state == .current ? 23 : 20, weight: .bold))
                 .foregroundStyle(locked ? VitaColors.textTertiary : Color.white)
-                .shadow(color: Color(red: 0.30, green: 0.20, blue: 0.05).opacity(locked ? 0 : 0.5), radius: 1, y: 1)
-
+                .shadow(color: Color(red: 0.20, green: 0.13, blue: 0.04).opacity(locked ? 0 : 0.45), radius: 1, y: 1)
             if state == .completed {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 22))
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 18))
                     .foregroundStyle(VitaColors.dataGreen)
-                    .background(Circle().fill(Color.white).frame(width: 17, height: 17))
+                    .background(Circle().fill(Color.white).frame(width: 14, height: 14))
                     .offset(x: size * 0.34, y: -size * 0.34)
             }
         }
-        .frame(width: size + 20, height: size + 20)
+        .frame(width: size + 18, height: size + 18)
+    }
+
+    private func chestNode(_ tierIdx: Int) -> some View {
+        let reached = userLevel > Self.tiers[min(tierIdx, Self.tiers.count - 1)].maxLevel
+        let tier = Self.tiers[min(tierIdx, Self.tiers.count - 1)]
+        return Button(action: { router.navigate(to: .achievements) }) {
+            VStack(spacing: 5) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12).fill(reached ? tier.dark : Color(white: 0.12))
+                        .frame(width: 56, height: 46).offset(y: 5)
+                        .shadow(color: .black.opacity(0.40), radius: 7, y: 6)
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(faceGradient(tier, locked: !reached, radius: 34))
+                        .frame(width: 56, height: 46)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(reached ? 0.18 : 0.06), lineWidth: 1))
+                    Image(systemName: "gift.fill").font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(reached ? Color.white : VitaColors.textTertiary)
+                }
+                Text("Baú").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(VitaColors.textTertiary)
+            }
+        }
+        .buttonStyle(TrailPressStyle())
     }
 
     private var mascot: some View {
         Image("vita-btn-active")
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: 52, height: 52)
-            .scaleEffect(pulse ? 1.04 : 0.98)
-            .shadow(color: VitaColors.accent.opacity(0.35), radius: 8, y: 4)
+            .resizable().aspectRatio(contentMode: .fit)
+            .frame(width: 48, height: 48)
+            .shadow(color: VitaColors.accent.opacity(0.4), radius: 8, y: 4)
     }
 
-    private func faceGradient(_ tier: CareerTier, locked: Bool, radius: CGFloat) -> RadialGradient {
+    private func faceGradient(_ tier: Tier, locked: Bool, radius: CGFloat) -> RadialGradient {
         let colors: [Color] = locked
             ? [Color(white: 0.32), Color(white: 0.22), Color(white: 0.14)]
             : [tier.bright, tier.mid, tier.dark]
-        return RadialGradient(
-            colors: colors,
-            center: UnitPoint(x: 0.34, y: 0.30),
-            startRadius: 2,
-            endRadius: radius * 1.05
-        )
+        return RadialGradient(colors: colors, center: UnitPoint(x: 0.34, y: 0.28), startRadius: 2, endRadius: radius * 1.05)
     }
 
-    private func thickness(_ tier: CareerTier, locked: Bool) -> Color {
-        locked ? Color(white: 0.12) : tier.dark
+    // MARK: - Estado + ações
+
+    private func stageState(_ stage: Stage) -> StageState {
+        if userLevel > stage.maxLevel { return .completed }
+        if userLevel >= stage.minLevel { return .current }
+        return .locked
     }
 
-    private func starRow(_ tier: CareerTier, filled: Bool) -> some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3, id: \.self) { _ in
-                Image(systemName: "star.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(filled ? tier.bright : VitaColors.textTertiary.opacity(0.5))
+    private func tapStage(_ state: StageState) {
+        guard state == .current else { return }
+        if flashcardsDue > 0 { openStudy(.flashcardHome()) } else { openStudy(.qbank) }
+    }
+
+    private func openStudy(_ route: Route) {
+        router.selectedTab = .estudos
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { router.navigate(to: route) }
+    }
+
+    // MARK: - Modelo (21 etapas / 6 tiers — espelha gamification.ts)
+
+    private enum StageState { case completed, current, locked }
+
+    private enum TrailItem: Identifiable {
+        case stage(Stage)
+        case chest(Int)
+        var id: String {
+            switch self {
+            case .stage(let s): return "stage-\(s.index)"
+            case .chest(let t): return "chest-\(t)"
             }
         }
     }
 
-    private func startPill(_ tier: CareerTier) -> some View {
-        Text("Comece")
-            .font(.system(size: 13, weight: .bold))
-            .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.04))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(tier.bright))
-            .shadow(color: tier.mid.opacity(0.4), radius: 6, y: 2)
-    }
-
-    // MARK: - State + ações
-
-    private func phaseState(_ phase: Phase) -> PhaseState {
-        if userLevel > phase.level { return .completed }
-        if userLevel == phase.level { return .current }
-        return .locked
-    }
-
-    private func tapPhase(_ phase: Phase, state: PhaseState) {
-        guard state != .locked else { return }
-        // A fase atual/concluída leva pro estudo que dá XP → sobe nível → libera a próxima.
-        if flashcardsDue > 0 {
-            openStudy(.flashcardHome())
-        } else {
-            openStudy(.qbank)
-        }
-    }
-
-    /// Abre uma sub-feature de Estudos trocando a tab pro bottom-nav refletir o
-    /// contexto (mesmo padrão dos deep links do AppRouter).
-    private func openStudy(_ route: Route) {
-        router.selectedTab = .estudos
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            router.navigate(to: route)
-        }
-    }
-
-    // MARK: - Modelo das 50 fases / 5 tiers
-
-    private enum PhaseState { case completed, current, locked }
-
-    private struct CareerTier: Identifiable {
-        let index: Int
+    private struct Stage: Identifiable {
+        let index: Int        // 1…21
         let name: String
-        let subtitle: String
-        let icon: String
-        let bright: Color
-        let mid: Color
-        let dark: Color
-        var levelStart: Int { index * 10 + 1 }
+        let icon: String      // SF Symbol (placeholder até os webp oficiais)
+        let minLevel: Int
+        let maxLevel: Int
+        let tierIdx: Int      // 0…5
         var id: Int { index }
     }
 
-    private struct Phase: Identifiable {
-        let level: Int      // 1…50 (global, == nível da conta)
-        let title: String
-        let icon: String
-        let tier: CareerTier
-        var id: Int { level }
+    private struct Tier {
+        let idx: Int
+        let name: String
+        let minLevel: Int
+        let maxLevel: Int
+        let bright: Color
+        let mid: Color
+        let dark: Color
     }
 
-    private static let tiers: [CareerTier] = [
-        CareerTier(index: 0, name: "Ciclo Básico", subtitle: "Fundamentos", icon: "atom",
-                   bright: Color(red: 0.91, green: 0.72, blue: 0.40),
-                   mid:    Color(red: 0.78, green: 0.57, blue: 0.29),
-                   dark:   Color(red: 0.45, green: 0.30, blue: 0.13)),
-        CareerTier(index: 1, name: "Ciclo Clínico", subtitle: "Diagnóstico", icon: "stethoscope",
-                   bright: VitaColors.accentHover,
-                   mid:    VitaColors.accent,
-                   dark:   VitaColors.accentDark),
-        CareerTier(index: 2, name: "Internato", subtitle: "Prática hospitalar", icon: "cross.case.fill",
-                   bright: Color(red: 1.00, green: 0.82, blue: 0.48),
-                   mid:    Color(red: 0.84, green: 0.64, blue: 0.24),
-                   dark:   Color(red: 0.52, green: 0.37, blue: 0.13)),
-        CareerTier(index: 3, name: "Residência", subtitle: "Especialização", icon: "graduationcap.fill",
-                   bright: Color(red: 1.00, green: 0.86, blue: 0.63),
-                   mid:    Color(red: 0.83, green: 0.66, blue: 0.31),
-                   dark:   Color(red: 0.47, green: 0.33, blue: 0.12)),
-        CareerTier(index: 4, name: "Especialista", subtitle: "Maestria", icon: "rosette",
-                   bright: Color(red: 1.00, green: 0.94, blue: 0.80),
-                   mid:    Color(red: 0.91, green: 0.81, blue: 0.53),
-                   dark:   Color(red: 0.62, green: 0.50, blue: 0.24)),
+    private static let tiers: [Tier] = [
+        Tier(idx: 0, name: "Calouro", minLevel: 1, maxLevel: 20,
+             bright: Color(red: 0.91, green: 0.72, blue: 0.40), mid: Color(red: 0.78, green: 0.57, blue: 0.29), dark: Color(red: 0.45, green: 0.30, blue: 0.13)),
+        Tier(idx: 1, name: "Acadêmico", minLevel: 21, maxLevel: 40,
+             bright: Color(red: 1.0, green: 0.78, blue: 0.47), mid: Color(red: 0.78, green: 0.63, blue: 0.31), dark: Color(red: 0.55, green: 0.39, blue: 0.20)),
+        Tier(idx: 2, name: "Residente", minLevel: 41, maxLevel: 60,
+             bright: Color(red: 1.0, green: 0.82, blue: 0.48), mid: Color(red: 0.84, green: 0.64, blue: 0.24), dark: Color(red: 0.52, green: 0.37, blue: 0.13)),
+        Tier(idx: 3, name: "Especialista", minLevel: 61, maxLevel: 80,
+             bright: Color(red: 1.0, green: 0.86, blue: 0.63), mid: Color(red: 0.83, green: 0.66, blue: 0.31), dark: Color(red: 0.47, green: 0.33, blue: 0.12)),
+        Tier(idx: 4, name: "Lenda", minLevel: 81, maxLevel: 99,
+             bright: Color(red: 1.0, green: 0.94, blue: 0.80), mid: Color(red: 0.91, green: 0.81, blue: 0.53), dark: Color(red: 0.62, green: 0.50, blue: 0.24)),
+        Tier(idx: 5, name: "GOD", minLevel: 100, maxLevel: 100,
+             bright: Color(red: 1.0, green: 1.0, blue: 0.94), mid: Color(red: 0.90, green: 0.86, blue: 0.62), dark: Color(red: 0.70, green: 0.62, blue: 0.36)),
     ]
 
-    private static let phaseTitles: [[String]] = [
-        ["Anatomia", "Histologia", "Embriologia", "Biologia Celular", "Bioquímica",
-         "Fisiologia", "Genética", "Imunologia", "Microbiologia", "Bioética"],
-        ["Patologia", "Farmacologia", "Semiologia", "Cardiologia", "Pneumologia",
-         "Gastroenterologia", "Neurologia", "Endocrinologia", "Nefrologia", "Hematologia"],
-        ["Clínica Médica", "Cirurgia", "Pediatria", "Gineco-Obstetrícia", "Emergência",
-         "Terapia Intensiva", "Saúde da Família", "Psiquiatria", "Ortopedia", "Dermatologia"],
-        ["Prova de Residência", "R1", "Plantões", "Visita Clínica", "Pesquisa Clínica",
-         "Especialização", "Artigos", "Congressos", "Mentoria", "Defesa"],
-        ["Título de Especialista", "Preceptoria", "Coordenação", "Docência", "Liderança",
-         "Inovação", "Pesquisa Sênior", "Referência", "Legado", "Mestre"],
+    private static let stages: [Stage] = [
+        Stage(index: 1,  name: "Termômetro",   icon: "thermometer.medium",     minLevel: 1,   maxLevel: 5,   tierIdx: 0),
+        Stage(index: 2,  name: "Seringa",      icon: "syringe.fill",           minLevel: 6,   maxLevel: 10,  tierIdx: 0),
+        Stage(index: 3,  name: "Bisturi",      icon: "cross.case.fill",        minLevel: 11,  maxLevel: 15,  tierIdx: 0),
+        Stage(index: 4,  name: "Estetoscópio", icon: "stethoscope",            minLevel: 16,  maxLevel: 20,  tierIdx: 0),
+        Stage(index: 5,  name: "Máscara",      icon: "facemask.fill",          minLevel: 21,  maxLevel: 25,  tierIdx: 1),
+        Stage(index: 6,  name: "Microscópio",  icon: "microbe.fill",           minLevel: 26,  maxLevel: 30,  tierIdx: 1),
+        Stage(index: 7,  name: "Martelo",      icon: "hammer.fill",            minLevel: 31,  maxLevel: 35,  tierIdx: 1),
+        Stage(index: 8,  name: "Desfibrilador",icon: "bolt.heart.fill",        minLevel: 36,  maxLevel: 40,  tierIdx: 1),
+        Stage(index: 9,  name: "DNA",          icon: "waveform.path.ecg",      minLevel: 41,  maxLevel: 45,  tierIdx: 2),
+        Stage(index: 10, name: "Comprimido",   icon: "pills.fill",             minLevel: 46,  maxLevel: 50,  tierIdx: 2),
+        Stage(index: 11, name: "Coração",      icon: "heart.fill",             minLevel: 51,  maxLevel: 55,  tierIdx: 2),
+        Stage(index: 12, name: "Jaleco",       icon: "cross.case.fill",        minLevel: 56,  maxLevel: 60,  tierIdx: 2),
+        Stage(index: 13, name: "Robô Da Vinci",icon: "gearshape.2.fill",       minLevel: 61,  maxLevel: 65,  tierIdx: 3),
+        Stage(index: 14, name: "Cérebro",      icon: "brain.head.profile",     minLevel: 66,  maxLevel: 70,  tierIdx: 3),
+        Stage(index: 15, name: "Crânio",       icon: "staroflife.fill",        minLevel: 71,  maxLevel: 75,  tierIdx: 3),
+        Stage(index: 16, name: "Escudo",       icon: "shield.fill",            minLevel: 76,  maxLevel: 80,  tierIdx: 3),
+        Stage(index: 17, name: "Diploma",      icon: "graduationcap.fill",     minLevel: 81,  maxLevel: 85,  tierIdx: 4),
+        Stage(index: 18, name: "Caduceu",      icon: "cross.fill",             minLevel: 86,  maxLevel: 90,  tierIdx: 4),
+        Stage(index: 19, name: "Coroa",        icon: "crown.fill",             minLevel: 91,  maxLevel: 95,  tierIdx: 4),
+        Stage(index: 20, name: "Vita",         icon: "rosette",                minLevel: 96,  maxLevel: 99,  tierIdx: 4),
+        Stage(index: 21, name: "GOD",          icon: "crown.fill",             minLevel: 100, maxLevel: 100, tierIdx: 5),
     ]
 
-    private func phases(in tier: CareerTier) -> [Phase] {
-        (0..<10).map { i in
-            Phase(
-                level: tier.levelStart + i,
-                title: Self.phaseTitles[tier.index][i],
-                icon: tier.icon,
-                tier: tier
-            )
+    private var trailItems: [TrailItem] {
+        var out: [TrailItem] = []
+        for s in Self.stages {
+            out.append(.stage(s))
+            if s.index % 4 == 0 && s.index < 21 {
+                out.append(.chest(s.index / 4))
+            }
         }
+        return out
     }
 }
 
-// MARK: - Press style (afunda a moeda no toque)
+// MARK: - Press style (afunda no toque)
 
 private struct TrailPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
