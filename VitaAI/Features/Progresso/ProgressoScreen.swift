@@ -138,9 +138,26 @@ struct ProgressoScreen: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(VitaColors.glassBg)
-                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(VitaColors.glassBorder, lineWidth: 1))
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(LinearGradient(colors: [currentTier.dark.opacity(0.62), Color(white: 0.10).opacity(0.55)],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay( // brilho do tier no canto superior (luz)
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(RadialGradient(colors: [currentTier.bright.opacity(0.22), .clear],
+                                             center: UnitPoint(x: 0.12, y: 0.0), startRadius: 2, endRadius: 170))
+                )
+                .overlay(alignment: .top) { // brilho especular no topo
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(LinearGradient(colors: [Color.white.opacity(0.12), .clear], startPoint: .top, endPoint: .center))
+                        .frame(height: 26).padding(.horizontal, 1).padding(.top, 1)
+                }
+                .overlay( // moldura dourada do tier (rim light)
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(LinearGradient(colors: [currentTier.bright.opacity(0.45), currentTier.dark.opacity(0.25)],
+                                                     startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.34), radius: 12, y: 6)
+                .shadow(color: currentTier.mid.opacity(0.22), radius: 18)
         )
     }
 
@@ -248,7 +265,8 @@ struct ProgressoScreen: View {
             }
 
             if state == .current {
-                mascot.offset(x: 56, y: -10 + (hop ? -6 : 0))
+                // Vita "em pé" EM CIMA do botão do nível atual (centralizado).
+                mascot.offset(x: 0, y: -50)
             }
         }
     }
@@ -309,6 +327,10 @@ struct ProgressoScreen: View {
             }
         }
         .frame(width: size + 22, height: size + 22)
+        // inclinação 3D: a trilha inteira vista num ângulo (não exatamente de
+        // cima) — dá camada/profundidade de "jogo". Rafael 2026-06-17.
+        .rotation3DEffect(.degrees(18), axis: (x: 1, y: 0, z: 0),
+                          anchor: .center, perspective: 0.55)
     }
 
     private func chestNode(_ tierIdx: Int) -> some View {
@@ -334,10 +356,11 @@ struct ProgressoScreen: View {
     }
 
     private var mascot: some View {
-        Image("vita-btn-active")
-            .resizable().aspectRatio(contentMode: .fit)
-            .frame(width: 48, height: 48)
-            .shadow(color: VitaColors.accent.opacity(0.4), radius: 8, y: 4)
+        // O Vita REAL — IDÊNTICO ao VitaChat (VitaChatScreen:258) e ao onboarding:
+        // OrbMascot, paleta gold, state .awake, grande (olhos + glow dourado, vivo).
+        // Na TRILHA tem comportamento próprio: bounceEnabled=false (NÃO fica pulando
+        // toda hora — só flutua/pisca/olha, calmo). TODO: saltar de nó em nó ao upar.
+        OrbMascot(palette: .vita, state: .awake, size: 76, bounceEnabled: false)
     }
 
     private func faceGradient(_ tier: Tier, locked: Bool, radius: CGFloat) -> RadialGradient {
