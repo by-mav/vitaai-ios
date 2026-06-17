@@ -18,24 +18,16 @@ enum AppConfig {
     static let onboardingKey = "vita_is_onboarded"
     static let legacyOnboardingKey = "vita_onboarding_done"
 
-    // Pre-beta (2026-04-24 em diante): TestFlight aponta pra DEV via Cloudflare Tunnel
-    // (dev.vita-ai.cloud → vita-web-dev container do monstro). Antes era Tailscale direto
-    // (monstro.tail7e98e6.ts.net:3110), mas Docker Desktop port-forwarding bugou em
-    // 2026-04-28 — porta 3110 não publicava no host Windows, Tailscale travava em request.
-    // Cloudflare Tunnel ignora host port-forward (fala com container interno via Docker
-    // network), então sempre funciona. SOT: incident `2026-04-28_docker-desktop-port-forwarding-stale.md`.
-    // Quando lançar beta público pra testers reais, trocar Release bloc pra vita-ai.cloud
-    // (prod VPS Hostinger).
-    #if DEBUG
-    private static let defaultAPIBaseURL = "https://dev.vita-ai.cloud/api"
-    private static let defaultAuthBaseURL = "https://dev.vita-ai.cloud"
-    private static let defaultWhisperLiveURL = "wss://dev.vita-ai.cloud/whisper/asr"
-    #else
-    // PRE-BETA: mesma coisa do DEBUG — trocar pra https://vita-ai.cloud ao lançar beta
-    private static let defaultAPIBaseURL = "https://dev.vita-ai.cloud/api"
-    private static let defaultAuthBaseURL = "https://dev.vita-ai.cloud"
-    private static let defaultWhisperLiveURL = "wss://dev.vita-ai.cloud/whisper/asr"
-    #endif
+    // 2026-06-17 (Rafael): o app aponta SEMPRE pra PROD (vita-ai.cloud via Cloudflare),
+    // DEBUG e Release. O stack DEV (dev.vita-ai.cloud / monstrinho :3110) foi aposentado
+    // pro app — o override antigo batia em http://100.120.41.13:3110 DIRETO (origin não
+    // confiável → 401 em toda rota protegida → kick loop). Prod e dev compartilham o mesmo
+    // banco de auth, então a sessão valida igual; o caminho pelo Cloudflare é o que funciona.
+    // Pra apontar pra dev pontualmente, usar override env VITA_API_BASE_URL / UserDefaults
+    // vita_api_base_url (mecanismo abaixo segue ativo).
+    private static let defaultAPIBaseURL = "https://vita-ai.cloud/api"
+    private static let defaultAuthBaseURL = "https://vita-ai.cloud"
+    private static let defaultWhisperLiveURL = "wss://vita-ai.cloud/whisper/asr"
 
     struct InjectedSession {
         let token: String
