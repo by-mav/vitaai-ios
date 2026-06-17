@@ -253,35 +253,62 @@ struct ProgressoScreen: View {
         }
     }
 
+    // Medalhão premium: render 3D oficial sob luz vinda de cima —
+    // elevação (sombra), moldura metálica do tier (rim light), brilho especular
+    // no topo, anel pulsante no nível atual. Bloqueado = cofre escuro + cadeado.
     private func coin(stage: Stage, tier: Tier, state: StageState) -> some View {
         let locked = state == .locked
-        let size: CGFloat = state == .current ? 58 : 50
+        let size: CGFloat = state == .current ? 78 : 62
+        let radius: CGFloat = size * 0.30
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return ZStack {
+            // anel pulsante (nível atual)
             if state == .current {
-                Circle().stroke(tier.bright.opacity(0.55), lineWidth: 4)
-                    .frame(width: size + 14, height: size + 14)
-                    .scaleEffect(pulse ? 1.05 : 0.97)
-                    .shadow(color: tier.mid.opacity(0.5), radius: 10)
+                RoundedRectangle(cornerRadius: radius + 6, style: .continuous)
+                    .stroke(tier.bright.opacity(0.6), lineWidth: 4)
+                    .frame(width: size + 18, height: size + 18)
+                    .scaleEffect(pulse ? 1.05 : 0.96)
+                    .shadow(color: tier.mid.opacity(0.55), radius: 13)
             }
-            Circle().fill(locked ? Color(white: 0.12) : tier.dark)
+            // base escura deslocada = elevação (peça flutua sob luz de cima)
+            shape.fill(locked ? Color(white: 0.09) : tier.dark)
                 .frame(width: size, height: size).offset(y: 6)
-                .shadow(color: .black.opacity(0.42), radius: 7, y: 7)
-            Circle().fill(faceGradient(tier, locked: locked, radius: size / 2))
+                .shadow(color: .black.opacity(0.46), radius: 9, y: 8)
+            // face do medalhão
+            Group {
+                if locked {
+                    shape.fill(RadialGradient(colors: [Color(white: 0.22), Color(white: 0.11)],
+                                              center: UnitPoint(x: 0.35, y: 0.30), startRadius: 2, endRadius: size))
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: size * 0.30, weight: .bold))
+                        .foregroundStyle(VitaColors.textTertiary)
+                } else {
+                    Image(stage.asset)
+                        .resizable().scaledToFill()
+                        .frame(width: size, height: size)
+                        .clipShape(shape)
+                }
+            }
+            .frame(width: size, height: size)
+            // brilho especular no topo (reflexo → peça sólida)
+            shape.fill(LinearGradient(colors: [Color.white.opacity(locked ? 0.05 : 0.34), .clear],
+                                      startPoint: .top, endPoint: .center))
                 .frame(width: size, height: size)
-                .overlay(Ellipse().fill(Color.white.opacity(locked ? 0.08 : 0.38)).frame(width: size * 0.42, height: size * 0.22).offset(x: -size * 0.12, y: -size * 0.20).blur(radius: 1))
-                .overlay(Circle().stroke(Color.white.opacity(locked ? 0.06 : 0.18), lineWidth: 1))
-            Image(systemName: locked ? "lock.fill" : stage.icon)
-                .font(.system(size: state == .current ? 23 : 20, weight: .bold))
-                .foregroundStyle(locked ? VitaColors.textTertiary : Color.white)
-                .shadow(color: Color(red: 0.20, green: 0.13, blue: 0.04).opacity(locked ? 0 : 0.45), radius: 1, y: 1)
+                .allowsHitTesting(false)
+            // moldura metálica (rim light do tier)
+            shape.strokeBorder(LinearGradient(colors: [tier.bright, tier.dark],
+                                              startPoint: .top, endPoint: .bottom),
+                               lineWidth: 2)
+                .frame(width: size, height: size)
+            // selo de concluído
             if state == .completed {
-                Image(systemName: "checkmark.circle.fill").font(.system(size: 18))
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 20))
                     .foregroundStyle(VitaColors.dataGreen)
-                    .background(Circle().fill(Color.white).frame(width: 14, height: 14))
-                    .offset(x: size * 0.34, y: -size * 0.34)
+                    .background(Circle().fill(Color.white).frame(width: 15, height: 15))
+                    .offset(x: size * 0.36, y: -size * 0.36)
             }
         }
-        .frame(width: size + 18, height: size + 18)
+        .frame(width: size + 22, height: size + 22)
     }
 
     private func chestNode(_ tierIdx: Int) -> some View {
@@ -356,7 +383,8 @@ struct ProgressoScreen: View {
     private struct Stage: Identifiable {
         let index: Int        // 1…21
         let name: String
-        let icon: String      // SF Symbol (placeholder até os webp oficiais)
+        let icon: String      // SF Symbol (fallback / header)
+        let asset: String     // ícone oficial 3D (Assets.xcassets/Levels)
         let minLevel: Int
         let maxLevel: Int
         let tierIdx: Int      // 0…5
@@ -389,27 +417,27 @@ struct ProgressoScreen: View {
     ]
 
     private static let stages: [Stage] = [
-        Stage(index: 1,  name: "Termômetro",   icon: "thermometer.medium",     minLevel: 1,   maxLevel: 5,   tierIdx: 0),
-        Stage(index: 2,  name: "Seringa",      icon: "syringe.fill",           minLevel: 6,   maxLevel: 10,  tierIdx: 0),
-        Stage(index: 3,  name: "Bisturi",      icon: "cross.case.fill",        minLevel: 11,  maxLevel: 15,  tierIdx: 0),
-        Stage(index: 4,  name: "Estetoscópio", icon: "stethoscope",            minLevel: 16,  maxLevel: 20,  tierIdx: 0),
-        Stage(index: 5,  name: "Máscara",      icon: "facemask.fill",          minLevel: 21,  maxLevel: 25,  tierIdx: 1),
-        Stage(index: 6,  name: "Microscópio",  icon: "microbe.fill",           minLevel: 26,  maxLevel: 30,  tierIdx: 1),
-        Stage(index: 7,  name: "Martelo",      icon: "hammer.fill",            minLevel: 31,  maxLevel: 35,  tierIdx: 1),
-        Stage(index: 8,  name: "Desfibrilador",icon: "bolt.heart.fill",        minLevel: 36,  maxLevel: 40,  tierIdx: 1),
-        Stage(index: 9,  name: "DNA",          icon: "waveform.path.ecg",      minLevel: 41,  maxLevel: 45,  tierIdx: 2),
-        Stage(index: 10, name: "Comprimido",   icon: "pills.fill",             minLevel: 46,  maxLevel: 50,  tierIdx: 2),
-        Stage(index: 11, name: "Coração",      icon: "heart.fill",             minLevel: 51,  maxLevel: 55,  tierIdx: 2),
-        Stage(index: 12, name: "Jaleco",       icon: "cross.case.fill",        minLevel: 56,  maxLevel: 60,  tierIdx: 2),
-        Stage(index: 13, name: "Robô Da Vinci",icon: "gearshape.2.fill",       minLevel: 61,  maxLevel: 65,  tierIdx: 3),
-        Stage(index: 14, name: "Cérebro",      icon: "brain.head.profile",     minLevel: 66,  maxLevel: 70,  tierIdx: 3),
-        Stage(index: 15, name: "Crânio",       icon: "staroflife.fill",        minLevel: 71,  maxLevel: 75,  tierIdx: 3),
-        Stage(index: 16, name: "Escudo",       icon: "shield.fill",            minLevel: 76,  maxLevel: 80,  tierIdx: 3),
-        Stage(index: 17, name: "Diploma",      icon: "graduationcap.fill",     minLevel: 81,  maxLevel: 85,  tierIdx: 4),
-        Stage(index: 18, name: "Caduceu",      icon: "cross.fill",             minLevel: 86,  maxLevel: 90,  tierIdx: 4),
-        Stage(index: 19, name: "Coroa",        icon: "crown.fill",             minLevel: 91,  maxLevel: 95,  tierIdx: 4),
-        Stage(index: 20, name: "Vita",         icon: "rosette",                minLevel: 96,  maxLevel: 99,  tierIdx: 4),
-        Stage(index: 21, name: "GOD",          icon: "crown.fill",             minLevel: 100, maxLevel: 100, tierIdx: 5),
+        Stage(index: 1,  name: "Termômetro",   icon: "thermometer.medium", asset: "level-01-thermometer",   minLevel: 1,   maxLevel: 5,   tierIdx: 0),
+        Stage(index: 2,  name: "Seringa",      icon: "syringe.fill",       asset: "level-02-syringe",       minLevel: 6,   maxLevel: 10,  tierIdx: 0),
+        Stage(index: 3,  name: "Bisturi",      icon: "cross.case.fill",    asset: "level-03-scalpel",       minLevel: 11,  maxLevel: 15,  tierIdx: 0),
+        Stage(index: 4,  name: "Estetoscópio", icon: "stethoscope",        asset: "level-04-stethoscope",   minLevel: 16,  maxLevel: 20,  tierIdx: 0),
+        Stage(index: 5,  name: "Máscara",      icon: "facemask.fill",      asset: "level-05-mask",          minLevel: 21,  maxLevel: 25,  tierIdx: 1),
+        Stage(index: 6,  name: "Microscópio",  icon: "microbe.fill",       asset: "level-06-microscope",    minLevel: 26,  maxLevel: 30,  tierIdx: 1),
+        Stage(index: 7,  name: "Martelo",      icon: "hammer.fill",        asset: "level-07-reflex-hammer", minLevel: 31,  maxLevel: 35,  tierIdx: 1),
+        Stage(index: 8,  name: "Desfibrilador",icon: "bolt.heart.fill",    asset: "level-08-defibrillator", minLevel: 36,  maxLevel: 40,  tierIdx: 1),
+        Stage(index: 9,  name: "DNA",          icon: "waveform.path.ecg",  asset: "level-09-dna",           minLevel: 41,  maxLevel: 45,  tierIdx: 2),
+        Stage(index: 10, name: "Comprimido",   icon: "pills.fill",         asset: "level-10-pill",          minLevel: 46,  maxLevel: 50,  tierIdx: 2),
+        Stage(index: 11, name: "Coração",      icon: "heart.fill",         asset: "level-11-heart",         minLevel: 51,  maxLevel: 55,  tierIdx: 2),
+        Stage(index: 12, name: "Jaleco",       icon: "cross.case.fill",    asset: "level-12-labcoat",       minLevel: 56,  maxLevel: 60,  tierIdx: 2),
+        Stage(index: 13, name: "Robô Da Vinci",icon: "gearshape.2.fill",   asset: "level-13-davinci-robot", minLevel: 61,  maxLevel: 65,  tierIdx: 3),
+        Stage(index: 14, name: "Cérebro",      icon: "brain.head.profile", asset: "level-14-brain",         minLevel: 66,  maxLevel: 70,  tierIdx: 3),
+        Stage(index: 15, name: "Crânio",       icon: "staroflife.fill",    asset: "level-15-skull",         minLevel: 71,  maxLevel: 75,  tierIdx: 3),
+        Stage(index: 16, name: "Escudo",       icon: "shield.fill",        asset: "level-16-shield",        minLevel: 76,  maxLevel: 80,  tierIdx: 3),
+        Stage(index: 17, name: "Diploma",      icon: "graduationcap.fill", asset: "level-17-diploma",       minLevel: 81,  maxLevel: 85,  tierIdx: 4),
+        Stage(index: 18, name: "Caduceu",      icon: "cross.fill",         asset: "level-18-caduceus-staff",minLevel: 86,  maxLevel: 90,  tierIdx: 4),
+        Stage(index: 19, name: "Coroa",        icon: "crown.fill",         asset: "level-19-crown",         minLevel: 91,  maxLevel: 95,  tierIdx: 4),
+        Stage(index: 20, name: "Vita",         icon: "rosette",            asset: "level-20-vita-caduceu",  minLevel: 96,  maxLevel: 99,  tierIdx: 4),
+        Stage(index: 21, name: "GOD",          icon: "crown.fill",         asset: "level-21-vita-caduceu",  minLevel: 100, maxLevel: 100, tierIdx: 5),
     ]
 
     private var trailItems: [TrailItem] {
