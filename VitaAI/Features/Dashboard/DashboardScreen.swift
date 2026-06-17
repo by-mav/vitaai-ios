@@ -1,27 +1,17 @@
 import SwiftUI
 
-// MARK: - DashboardScreen — Trilha de progresso (gold 3D)
-//
-// Reescrito 2026-06-16 (Rafael): a home virou uma TRILHA gamificada estilo
-// Duolingo, no Vita Gold Glassmorphism — nós em "moeda" 3D dourada, com
-// sombreamento, brilho de topo e profundidade (nada chapado).
-//
-//  - O header liga no gamify REAL: GamificationEventManager.currentLevel /
-//    currentXpProgress + streakDays (já aquecidos no boot pelo AppRouter).
-//  - Cada nó abre uma feature real que JÁ loga atividade e dá XP
-//    (Flashcards / QBank / Simulado / Atlas 3D / Transcrição) → o overlay de
-//    level-up (VitaLevelUpOverlay) e os badges disparam sozinhos quando sobe.
-//  - O baú (topo) abre Conquistas; o nó final abre o Ranking.
-//
-// Mantém a MESMA assinatura pública (closures) → AppRouter e o pbxproj ficam
-// intocados. Os helpers de UI vivem neste arquivo (projeto sem grupos sync).
+// MARK: - DashboardScreen
+// COPIED from mockup dashboard-mobile-v2.html — pixel perfect
+// Layout: Hero carousel (always shown, min 1 Revisão card) → Tools Grid 2x2 → Disciplines → Atlas+Agenda
 
 struct DashboardScreen: View {
     @Environment(\.appContainer) private var container
     @Environment(\.appData) private var appData
-    @Environment(Router.self) private var router
+    // ViewModel lives in AppContainer (singleton) so cache persists across
+    // tab navigations. Reassigned in .onAppear from container.dashboardViewModel.
+    @State private var viewModel: DashboardViewModel?
+    // XP toasts now shown inline in VitaTopBar
 
-    // Compat: mesma API de antes — AppRouter continua passando estes closures.
     var onNavigateToFlashcards: (() -> Void)?
     var onNavigateToSimulados: (() -> Void)?
     var onNavigateToPdfs: (() -> Void)?
@@ -32,393 +22,420 @@ struct DashboardScreen: View {
     var onNavigateToTrabalhos: (() -> Void)?
     var onSubtitleLoaded: ((String) -> Void)?
 
-    @State private var pulse = false
-
-    private var vm: DashboardViewModel { container.dashboardViewModel }
-    private var gamify: GamificationEventManager { container.gamificationEvents }
-
-    // MARK: - Body
+    @State private var heroIndex: Int = 0
+    @State private var heroCardCount: Int = 1
+    @State private var heroTimer: Timer?
 
     var body: some View {
+        Group {
+            if let viewModel {
+                if let error = viewModel.error {
+                    // Error state
+                    VStack(spacing: 16) {
+                        Spacer()
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 32))
+                            .foregroundStyle(VitaColors.textTertiary)
+                        Text(error)
+                            .font(VitaTypography.bodyMedium)
+                            .foregroundStyle(VitaColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                        Button("Tentar novamente") {
+                            Task { await viewModel.loadDashboard() }
+                        }
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.accent)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 32)
+                } else {
+                    dashboardContent(viewModel: viewModel)
+                }
+            } else {
+                // Boot inicial — skeleton tematizado em vez de loader.
+                // Padrão Vita gold standard: nunca mostrar "Carregando" ao usuário.
+                // Decision: agent-brain/decisions/2026-04-27_no-loading-ever-gold-standard.md
+                DashboardSkeleton()
+            }
+        }
+        .onAppear {
+            // Reuse the singleton VM from AppContainer so cached hero/subjects
+            // survive tab switches. loadDashboard() is SWR: renders cache
+            // instantly if <60s old, refreshes silently in background.
+            if viewModel == nil {
+                viewModel = container.dashboardViewModel
+            }
+            Task {
+                await viewModel!.loadDashboard()
+                ScreenLoadContext.finish(for: "Dashboard")
+                if let sub = viewModel?.subtitle, !sub.isEmpty {
+                    onSubtitleLoaded?(sub)
+                }
+                await appData.loadIfNeeded()
+            }
+        }
+        .trackScreen("Dashboard")
+        // XP toasts now shown inline in VitaTopBar
+    }
+
+    @ViewBuilder
+    private func dashboardContent(viewModel: DashboardViewModel) -> some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                gamifyStrip
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
 
-                unitBanner
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
+                // ═══ HERO SECTION — skeleton → carousel (always, min 1 Revisão card) ═══
+                heroSection(viewModel: viewModel)
+                    .padding(.top, 2)
 
-                trailView
-                    .padding(.top, 20)
-                    .padding(.bottom, 56)
+                // ═══ TOOLS GRID 2x2 ═══
+                // Label "Ferramentas de Estudo" removido (Rafael 2026-04-25): grid
+                // já é auto-explicativo, sem texto consome menos espaço e fica
+                // simétrico com Matérias/Agenda abaixo (mesmo top-pad 12, h-pad 16).
+                toolsGrid()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+
+                // ═══ MATÉRIAS ↔ AGENDA (swipe) ═══
+                MateriasAgendaWidget(
+                    subjects: appData.gradesResponse?.current ?? [],
+                    schedule: appData.classSchedule,
+                    evaluations: appData.academicEvaluations,
+                    onNavigateToDiscipline: onNavigateToDisciplineDetail
+                )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+
+                // Sem clearance: conteúdo rola até a borda do screen,
+                // passa por trás da TabBar Liquid Glass (Rafael 2026-04-25).
             }
         }
         .trackedScroll()
         .refreshable {
-            async let a: Void = vm.loadDashboard()
-            async let b: Void = appData.forceRefresh()
-            _ = await (a, b)
-            if let stats = try? await container.api.getGamificationStats() {
-                gamify.updateFromStats(stats)
-            }
+            // Pull-to-refresh must also reload AppDataManager (grades, schedule,
+            // enrolled subjects). loadDashboard() alone does NOT touch gradesResponse,
+            // so the Matérias widget would keep stale cached scores. See shell.md
+            // Camada 1: "pull-to-refresh = forceRefresh()".
+            async let vm: Void = viewModel.loadDashboard()
+            async let data: Void = appData.forceRefresh()
+            _ = await (vm, data)
         }
-        .onAppear {
-            if !pulse {
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-                    pulse = true
-                }
-            }
-            Task {
-                await vm.loadDashboard()
-                ScreenLoadContext.finish(for: "Dashboard")
-                if !vm.subtitle.isEmpty { onSubtitleLoaded?(vm.subtitle) }
-                await appData.loadIfNeeded()
-                if let stats = try? await container.api.getGamificationStats() {
-                    gamify.updateFromStats(stats)
-                }
-            }
-        }
-        .trackScreen("Dashboard")
     }
 
-    // MARK: - Gamify strip (nível + XP + streak — tudo dado real)
+    // MARK: - Hero Section
 
-    private var gamifyStrip: some View {
-        HStack(spacing: 12) {
-            levelBadge(gamify.currentLevel)
-
-            VStack(alignment: .leading, spacing: 6) {
-                xpBar(progress: gamify.currentXpProgress)
-                HStack {
-                    Text("Nível \(gamify.currentLevel)")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(VitaColors.textSecondary)
-                    Spacer()
-                    Text("Nível \(gamify.currentLevel + 1)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-            }
-
-            streakChip(vm.streakDays)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(VitaColors.glassBg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(VitaColors.glassBorder, lineWidth: 1)
-                )
-        )
-    }
-
-    private func levelBadge(_ level: Int) -> some View {
-        ZStack {
-            Circle().fill(VitaColors.accentDark)
-                .frame(width: 44, height: 44)
-                .offset(y: 3)
-            Circle().fill(coinFace(bright: true, radius: 22))
-                .frame(width: 44, height: 44)
-                .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
-            Text("\(level)")
-                .font(.system(size: 17, weight: .heavy))
-                .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.04))
-        }
-        .frame(width: 48, height: 48)
-    }
-
-    private func xpBar(progress: Double) -> some View {
-        let clamped = min(max(progress, 0), 1)
-        return GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(VitaColors.surfaceBorder).frame(height: 9)
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [VitaColors.accentDark, VitaColors.accentHover],
-                            startPoint: .leading, endPoint: .trailing
-                        )
+    @ViewBuilder
+    private func heroSection(viewModel: DashboardViewModel) -> some View {
+        if viewModel.isLoading {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: VitaColors.textWarm.opacity(0.03), location: 0),
+                            .init(color: VitaColors.textWarm.opacity(0.08), location: 0.5),
+                            .init(color: VitaColors.textWarm.opacity(0.03), location: 1),
+                        ],
+                        startPoint: .leading, endPoint: .trailing
                     )
-                    .frame(width: max(geo.size.width * clamped, clamped > 0 ? 9 : 0), height: 9)
-                    .shadow(color: VitaColors.accent.opacity(0.4), radius: 4, y: 0)
-            }
+                )
+                .frame(height: 165)
+                .padding(.horizontal, 16)
+                .shimmer()
+        } else {
+            heroCarousel(viewModel: viewModel)
         }
-        .frame(height: 9)
     }
 
-    private func streakChip(_ days: Int) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(VitaColors.dataAmber)
-            Text("\(days)")
-                .font(.system(size: 15, weight: .heavy))
-                .foregroundStyle(VitaColors.textPrimary)
+    // MARK: - Hero Carousel (server-driven cards)
+
+    @ViewBuilder
+    // Widget-like carousel: always show at least 3 cards, looping existing
+    // ones if the server returned fewer. Keeps the rotation feeling alive
+    // even on slow days (e.g., only 1 revision card).
+    private func paddedHeroCards(_ raw: [DashboardHeroCard]) -> [DashboardHeroCard] {
+        guard !raw.isEmpty else { return [] }
+        var out = raw
+        while out.count < 3 {
+            out.append(raw[out.count % raw.count])
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 7)
-        .background(
-            Capsule()
-                .fill(VitaColors.dataAmber.opacity(0.12))
-                .overlay(Capsule().stroke(VitaColors.dataAmber.opacity(0.25), lineWidth: 1))
-        )
+        return out
     }
 
-    // MARK: - Unit banner (header da jornada — glass dourado)
+    @ViewBuilder
+    private func heroCarousel(viewModel: DashboardViewModel) -> some View {
+        let cards = paddedHeroCards(viewModel.heroCards)
+        let cardCount = max(cards.count, 1)
 
-    private var unitBanner: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("SUA JORNADA DE HOJE")
-                    .font(.system(size: 10, weight: .bold))
-                    .kerning(1.2)
-                    .foregroundStyle(VitaColors.accentLight.opacity(0.90))
-                Text(unitTitle)
-                    .font(.system(size: 19, weight: .bold))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+        TabView(selection: $heroIndex) {
+            if cards.isEmpty {
+                // Fallback: single revision card if server returned nothing
+                serverHeroCard(
+                    label: "HOJE",
+                    labelColor: VitaColors.accentHover,
+                    title: "Revisão",
+                    pills: [("rectangle.on.rectangle", "\(viewModel.flashcardsDueTotal) cards")],
+                    cta: "Revisar flashcards",
+                    bgImage: "flashcard-bg-new",
+                    action: { onNavigateToFlashcards?() }
+                ).tag(0)
+            } else {
+                ForEach(Array(cards.enumerated()), id: \.offset) { idx, card in
+                    heroCardView(card: card, bgIndex: idx)
+                        .tag(idx)
+                }
             }
-            Spacer(minLength: 8)
-            Image(systemName: "list.bullet.rectangle.portrait.fill")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(VitaColors.accentLight)
-                .frame(width: 46, height: 46)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: 165)
+        .overlay(alignment: .top) {
+            HStack(spacing: 5) {
+                ForEach(0..<cardCount, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(i == heroIndex ? 0.85 : 0.25))
+                        .frame(width: i == heroIndex ? 18 : 6, height: 6)
+                        .animation(.easeInOut(duration: 0.25), value: heroIndex)
+                }
+            }
+            .padding(.top, 10)
+        }
+        .padding(.horizontal, 16)
+        .onAppear {
+            heroCardCount = cardCount
+            heroTimer?.invalidate()
+            // Em "fogo" (danger tone no card 0), trava no card urgente — sem rotação,
+            // ansiedade real merece atenção. Senão rotaciona 6s/card. Apple TV usa
+            // padrão similar com episódios novos de séries que tu segue.
+            let pauseRotation = viewModel.heroCards.first?.labelTone == .danger
+            guard !pauseRotation, cardCount > 1 else { return }
+            heroTimer = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { _ in
+                Task { @MainActor in
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        heroIndex = (heroIndex + 1) % heroCardCount
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            heroTimer?.invalidate()
+            heroTimer = nil
+        }
+    }
+
+    // MARK: - Server-driven hero card dispatcher
+
+    @ViewBuilder
+    private func heroCardView(card: DashboardHeroCard, bgIndex: Int) -> some View {
+        // Fully server-driven: label, tone, cta, background all come from backend.
+        // Client only maps semantic tone -> design system color.
+        let pills = card.pills.map { ($0.icon ?? "circle", $0.text ?? "") }
+
+        Button(action: { handleHeroAction(for: card) }) {
+            serverHeroCard(
+                label: card.label,
+                labelColor: toneColor(card.labelTone),
+                title: card.title.uppercased(),
+                subtitle: card.subtitle,
+                pills: pills,
+                cta: card.cta.text,
+                bgImage: resolveHeroAsset(card.backgroundImage.asset),
+                action: nil
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Falls back to a known-good local asset when the backend specifies an asset
+    /// name that does not exist in the app bundle (e.g. "hero-exam", "hero-revision"
+    /// emitted before the media pipeline existed). Keeps the card visible with a
+    /// generic background instead of leaving a broken empty Image + log warnings.
+    private func resolveHeroAsset(_ name: String) -> String {
+        if UIImage(named: name) != nil { return name }
+        return "fundo-dashboard"
+    }
+
+    /// Maps backend semantic tone to design system color. Single source of truth for hero label color.
+    private func toneColor(_ tone: DashboardHeroCard.LabelTone) -> Color {
+        switch tone {
+        case .danger:  return Color(red: 0.937, green: 0.267, blue: 0.267) // red
+        case .warning: return Color(red: 0.980, green: 0.553, blue: 0.235) // orange
+        case .info:    return Color(red: 0.957, green: 0.773, blue: 0.275) // yellow
+        case .accent:  return VitaColors.accentHover
+        case .neutral: return VitaColors.textWarm
+        }
+    }
+
+    private func handleHeroAction(for card: DashboardHeroCard) {
+        guard let target = card.action.target else { return }
+        switch target {
+        case "flashcards":
+            onNavigateToFlashcards?()
+        case "trabalhos", "trabalho", "assignments":
+            onNavigateToTrabalhos?()
+        case "discipline", "disciplineDetail":
+            guard let id = card.action.id, !id.isEmpty else { return }
+            // For exam/assignment cards, subtitle holds the subject name (when it's an
+            // assignment) OR the exam title (when it's an exam with title = "Prova de X").
+            // Fall back to title if subtitle is unhelpful.
+            let candidate = card.type == .exam ? card.subtitle : card.title
+            let name = candidate.isEmpty ? card.title : candidate
+            onNavigateToDisciplineDetail?(id, name)
+        default:
+            break
+        }
+    }
+
+    // MARK: - Generic Server Hero Card
+
+    @ViewBuilder
+    private func serverHeroCard(
+        label: String,
+        labelColor: Color = VitaColors.accentHover,
+        title: String,
+        subtitle: String? = nil,
+        pills: [(String, String)],
+        cta: String,
+        bgImage: String,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        let isAlert = labelColor != VitaColors.accentHover
+
+        VStack(alignment: .leading, spacing: 8) {
+            Spacer()
+
+            Text(label)
+                .font(.system(size: 9, weight: .bold))
+                .kerning(1.2)
+                .foregroundStyle(labelColor.opacity(isAlert ? 0.95 : 0.85))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
                 .background(
-                    Circle()
-                        .fill(VitaColors.accent.opacity(0.14))
-                        .overlay(Circle().stroke(VitaColors.accent.opacity(0.25), lineWidth: 1))
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(labelColor.opacity(isAlert ? 0.14 : 0.10))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(labelColor.opacity(isAlert ? 0.28 : 0.18), lineWidth: 1))
+                )
+
+            Text(title)
+                .font(.system(size: 20, weight: .bold))
+                .tracking(-0.04 * 20)
+                .lineLimit(2)
+                .foregroundStyle(Color.white)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.78))
+                    .lineLimit(1)
+            }
+
+            HStack(spacing: 6) {
+                ForEach(Array(pills.prefix(3).enumerated()), id: \.offset) { _, pill in
+                    heroPill(icon: pill.0, text: pill.1)
+                }
+            }
+
+            Text(cta)
+                .font(.system(size: 12, weight: .semibold))
+                .tracking(0.24)
+                .foregroundStyle(Color(red: 1, green: 0.902, blue: 0.706).opacity(0.92))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.06))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.accentHover.opacity(0.18), lineWidth: 1))
                 )
         }
-        .padding(16)
+        .padding(18)
+        .frame(height: 165)
         .glassCard(cornerRadius: 20)
     }
 
-    private var unitTitle: String {
-        let name = vm.subjects.first?.name ?? ""
-        return name.isEmpty ? "Plano de estudos de hoje" : name
-    }
-
-    // MARK: - Trilha
-
-    private var trailView: some View {
-        let nodes = makeNodes()
-        return VStack(spacing: 6) {
-            chestNode
-                .padding(.bottom, 8)
-            ForEach(Array(nodes.enumerated()), id: \.element.id) { idx, node in
-                trailRow(node: node, index: idx)
-            }
+    @ViewBuilder
+    private func heroPill(icon: String, text: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundStyle(VitaColors.accentHover.opacity(0.70))
+            Text(text)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.55))
         }
-    }
-
-    private func trailRow(node: TrailNode, index: Int) -> some View {
-        let dx = CGFloat(sin(Double(index) * 0.9)) * 62
-        return VStack(spacing: 9) {
-            switch node.state {
-            case .completed: starRow(filled: true)
-            case .current:   starRow(filled: false)
-            case .available: EmptyView()
-            }
-
-            nodeButton(node)
-
-            if node.state == .current {
-                startPill
-            } else {
-                Text(node.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(VitaColors.glassBg)
-                            .overlay(Capsule().stroke(VitaColors.glassBorder, lineWidth: 1))
-                    )
-            }
-        }
-        .offset(x: dx)
-        .padding(.vertical, 10)
-    }
-
-    private func nodeButton(_ node: TrailNode) -> some View {
-        Button(action: node.action) {
-            coin(node)
-        }
-        .buttonStyle(TrailPressStyle())
-    }
-
-    private func coin(_ node: TrailNode) -> some View {
-        let bright = node.state != .available
-        let size: CGFloat = node.state == .current ? 76 : 68
-
-        return ZStack {
-            if node.state == .current {
-                Circle()
-                    .stroke(VitaColors.accentHover.opacity(0.55), lineWidth: 5)
-                    .frame(width: size + 16, height: size + 16)
-                    .scaleEffect(pulse ? 1.05 : 0.97)
-                    .shadow(color: VitaColors.accent.opacity(0.5), radius: 12)
-            }
-
-            // Espessura da "moeda" 3D + sombra no chão
-            Circle().fill(VitaColors.accentDark)
-                .frame(width: size, height: size)
-                .offset(y: 7)
-                .shadow(color: .black.opacity(0.45), radius: 9, y: 8)
-
-            // Face com degradê radial (brilho topo-esquerda → ouro → base escura)
-            Circle().fill(coinFace(bright: bright, radius: size / 2))
-                .frame(width: size, height: size)
-                .overlay(
-                    Ellipse()
-                        .fill(Color.white.opacity(0.40))
-                        .frame(width: size * 0.42, height: size * 0.24)
-                        .offset(x: -size * 0.12, y: -size * 0.22)
-                        .blur(radius: 1)
-                )
-                .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
-
-            Image(systemName: node.icon)
-                .font(.system(size: node.state == .current ? 30 : 27, weight: .bold))
-                .foregroundStyle(Color.white)
-                .shadow(color: Color(red: 0.30, green: 0.20, blue: 0.05).opacity(0.5), radius: 1, y: 1)
-
-            if node.state == .completed {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(VitaColors.dataGreen)
-                    .background(Circle().fill(Color.white).frame(width: 17, height: 17))
-                    .offset(x: size * 0.34, y: -size * 0.34)
-            }
-        }
-        .frame(width: size + 20, height: size + 20)
-    }
-
-    private func coinFace(bright: Bool, radius: CGFloat) -> RadialGradient {
-        RadialGradient(
-            colors: bright
-                ? [VitaColors.accentHover, VitaColors.accent, VitaColors.accentDark]
-                : [VitaColors.accent, VitaColors.accentDark],
-            center: UnitPoint(x: 0.34, y: 0.30),
-            startRadius: 2,
-            endRadius: radius * 1.05
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.04))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.06), lineWidth: 1))
         )
     }
 
-    private func starRow(filled: Bool) -> some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3, id: \.self) { _ in
-                Image(systemName: "star.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(filled ? VitaColors.accentHover : VitaColors.textTertiary.opacity(0.5))
+    private func formatDays(_ n: Int) -> String {
+        if n == 0 { return "hoje" }
+        if n == 1 { return "amanhã" }
+        return "em \(n) dias"
+    }
+
+
+    // Legacy: kept for reference but unused now
+    @ViewBuilder
+    private func toolsGrid() -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                toolImage("tool-questoes", identifier: "tool_questoes", bg: Color(red: 0.18, green: 0.10, blue: 0.02)) { onNavigateToMaterials?() }
+                toolImage("tool-flashcards", identifier: "tool_flashcards", bg: Color(red: 0.10, green: 0.05, blue: 0.18)) { onNavigateToFlashcards?() }
+            }
+            HStack(spacing: 8) {
+                toolImage("tool-simulados", identifier: "tool_simulados", bg: Color(red: 0.02, green: 0.10, blue: 0.22)) { onNavigateToSimulados?() }
+                toolImage("tool-transcricao", identifier: "tool_transcricao", bg: Color(red: 0.02, green: 0.14, blue: 0.14)) { onNavigateToTranscricao?() }
             }
         }
     }
 
-    private var startPill: some View {
-        Text("Comece")
-            .font(.system(size: 13, weight: .bold))
-            .foregroundStyle(Color(red: 0.20, green: 0.13, blue: 0.04))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(VitaColors.accentHover))
-            .shadow(color: VitaColors.accent.opacity(0.4), radius: 6, y: 2)
-    }
-
-    private var chestNode: some View {
-        Button(action: { router.navigate(to: .achievements) }) {
-            VStack(spacing: 9) {
-                ZStack {
+    // Mockup tool card shadows:
+    //   0 20px 50px rgba(0,0,0,0.50), 0 6px 16px rgba(0,0,0,0.35)
+    //   0 0 0 0.5px rgba(255,200,120,0.16), 0 0 28px rgba(180,140,60,0.07)
+    @ViewBuilder
+    private func toolImage(_ name: String, identifier: String, bg: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(name)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(maxWidth: .infinity)
+                .frame(height: 130)
+                .background(bg)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .fill(VitaColors.accentDark)
-                        .frame(width: 66, height: 58)
-                        .offset(y: 6)
-                        .shadow(color: .black.opacity(0.40), radius: 8, y: 7)
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(coinFace(bright: true, radius: 40))
-                        .frame(width: 66, height: 58)
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.18), lineWidth: 1))
-                    Image(systemName: "gift.fill")
-                        .font(.system(size: 26, weight: .bold))
-                        .foregroundStyle(Color.white)
-                        .shadow(color: Color(red: 0.30, green: 0.20, blue: 0.05).opacity(0.5), radius: 1, y: 1)
-                }
-                Text("Próxima recompensa")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(VitaColors.textTertiary)
-            }
+                        .stroke(
+                            Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.16),
+                            lineWidth: 0.5
+                        )
+                )
+                .shadow(color: .black.opacity(0.40), radius: 12, x: 0, y: 5)
+                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
         }
-        .buttonStyle(TrailPressStyle())
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 
-    // MARK: - Node model
-
-    private enum TrailState { case completed, current, available }
-
-    private struct TrailNode: Identifiable {
-        let id = UUID()
-        let title: String
-        let icon: String
-        let state: TrailState
-        let action: () -> Void
+    private func tierDotColor(_ tier: String?) -> Color {
+        switch tier {
+        case "bronze":  return VitaColors.dataRed       // danger
+        case "silver":  return VitaColors.dataAmber      // attention
+        case "gold":    return VitaColors.dataGreen      // on track
+        case "diamond": return Color(red: 0.68, green: 0.85, blue: 1.0) // safe
+        default:        return VitaColors.textTertiary
+        }
     }
 
-    private func makeNodes() -> [TrailNode] {
-        let due = vm.flashcardsDueTotal
-        let revisaoDone = due == 0
-        return [
-            TrailNode(
-                title: revisaoDone ? "Revisão em dia" : "Revisar \(due) cards",
-                icon: "rectangle.on.rectangle.angled",
-                state: revisaoDone ? .completed : .current,
-                action: { onNavigateToFlashcards?() }
-            ),
-            TrailNode(
-                title: "Questões",
-                icon: "checklist",
-                state: revisaoDone ? .current : .available,
-                action: { onNavigateToMaterials?() }
-            ),
-            TrailNode(
-                title: "Simulado",
-                icon: "doc.text.magnifyingglass",
-                state: .available,
-                action: { onNavigateToSimulados?() }
-            ),
-            TrailNode(
-                title: "Caso clínico",
-                icon: "brain.head.profile",
-                state: .available,
-                action: { onNavigateToAtlas3D?() }
-            ),
-            TrailNode(
-                title: "Gravar aula",
-                icon: "waveform",
-                state: .available,
-                action: { onNavigateToTranscricao?() }
-            ),
-            TrailNode(
-                title: "Ranking",
-                icon: "trophy.fill",
-                state: .available,
-                action: { router.navigate(to: .leaderboard) }
-            ),
-        ]
+    private func agendaDotColor(_ daysUntil: Int) -> Color {
+        if daysUntil <= 3 { return Color(red: 0.937, green: 0.267, blue: 0.267).opacity(0.70) }
+        if daysUntil <= 7 { return Color(red: 0.961, green: 0.620, blue: 0.043).opacity(0.60) }
+        return VitaColors.accentHover.opacity(0.25)
     }
-}
 
-// MARK: - Press style (afunda a moeda no toque)
-
-private struct TrailPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+    private func agendaTextColor(_ daysUntil: Int) -> Color {
+        if daysUntil <= 3 { return Color(red: 1, green: 0.471, blue: 0.314).opacity(0.85) }
+        if daysUntil <= 7 { return Color(red: 0.961, green: 0.706, blue: 0.235).opacity(0.75) }
+        return VitaColors.textWarm.opacity(0.40)
     }
 }
