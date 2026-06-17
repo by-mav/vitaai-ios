@@ -490,53 +490,11 @@ struct MainTabView: View {
     private var activeTabView: some View {
         switch router.selectedTab {
         case .home:
-            DashboardScreen(
-                // Breadcrumb hierarchy: Flashcards/Simulados/QBank/Transcrição/Atlas
-                // belong under Estudos — switch tab so the crumb reads
-                // "Home > Estudos > Flashcards" instead of "Home > Flashcards".
-                onNavigateToFlashcards: {
-                    router.selectedTab = .estudos
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        router.navigate(to: .flashcardHome())
-                    }
-                },
-                onNavigateToSimulados: {
-                    router.selectedTab = .estudos
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        router.navigate(to: .simuladoHome)
-                    }
-                },
-                onNavigateToPdfs: { router.selectedTab = .estudos },
-                onNavigateToMaterials: {
-                    router.selectedTab = .estudos
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        router.navigate(to: .qbank)
-                    }
-                },
-                onNavigateToTranscricao: {
-                    // Empurra Transcrição direto no stack atual (Home).
-                    // Antes forçava selectedTab = .estudos → breadcrumb virava
-                    // "Estudos > Transcrição" e swipe back voltava pra Estudos
-                    // em vez de Home. Navigate basta — o NavigationStack é
-                    // compartilhado entre tabs.
-                    router.navigate(to: .transcricao)
-                },
-                onNavigateToAtlas3D: {
-                    router.selectedTab = .estudos
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        router.navigate(to: .atlas3D)
-                    }
-                },
-                onNavigateToDisciplineDetail: { id, name in router.navigateToDiscipline(id: id, name: name) },
-                // Trabalhos lives under Faculdade (provas/agenda/trabalhos group).
-                onNavigateToTrabalhos: {
-                    router.selectedTab = .faculdade
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        router.navigate(to: .trabalhos)
-                    }
-                },
-                onSubtitleLoaded: { subtitle in dashboardSubtitle = subtitle }
-            )
+            // Home = trilha viva estilo Duolingo (decisão Rafael 2026-06-17).
+            // A trilha gamificada é o daily driver da Home; a aba Progresso vira
+            // Estatísticas/Conquistas. DashboardScreen segue no codebase (não
+            // deletado) caso a gente queira fundir alguns cards depois.
+            ProgressoScreen()
         case .estudos:
             EstudosScreen(
                 onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) },
