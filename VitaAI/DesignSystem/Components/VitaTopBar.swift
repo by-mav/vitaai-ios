@@ -15,6 +15,7 @@ struct VitaTopBar: View {
     var userImageURL: URL?
     var subtitle: String = ""
     var level: Int = 0
+    var streak: Int = 0
     var xpProgress: Double = 0
     var xpToast: VitaXpToastState?
     var notificationCount: Int = 0
@@ -32,6 +33,8 @@ struct VitaTopBar: View {
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Perfil")
 
+            Spacer()
+            statusChips
             Spacer()
 
             // Direita: menu hambúrguer (sem barra de fundo).
@@ -58,6 +61,35 @@ struct VitaTopBar: View {
         .padding(.horizontal, 18)
         .padding(.top, 4)
         .padding(.bottom, 8)
+    }
+
+    // Nível + streak no centro da top nav (Rafael 2026-06-17).
+    private var statusChips: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 4) {
+                Image(systemName: "trophy.fill").font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.45))
+                Text("Nível \(level)").font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color(red: 1.0, green: 0.93, blue: 0.80))
+            }
+            .padding(.horizontal, 11).padding(.vertical, 6)
+            .background(
+                Capsule().fill(Color(red: 0.50, green: 0.39, blue: 0.20).opacity(0.32))
+                    .overlay(Capsule().stroke(Color(red: 1.0, green: 0.86, blue: 0.55).opacity(0.30), lineWidth: 1))
+            )
+
+            HStack(spacing: 4) {
+                Image(systemName: "flame.fill").font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(VitaColors.dataAmber)
+                Text("\(streak)").font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(VitaColors.textPrimary)
+            }
+            .padding(.horizontal, 11).padding(.vertical, 6)
+            .background(
+                Capsule().fill(VitaColors.dataAmber.opacity(0.14))
+                    .overlay(Capsule().stroke(VitaColors.dataAmber.opacity(0.28), lineWidth: 1))
+            )
+        }
     }
 
     @ViewBuilder

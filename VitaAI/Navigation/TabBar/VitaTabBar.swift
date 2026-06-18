@@ -85,6 +85,10 @@ struct VitaTabBar: View {
             .padding(.top, 6)
             .padding(.bottom, 6)
         }
+        // Rafael 2026-06-17: puxa o conteúdo pra baixo (centro do ícone vira o centro
+        // da barra) e encolhe a faixa vazia embaixo — em vez de reservar a safe area
+        // inteira (~34px) que deixava os ícones altos com vão escuro embaixo.
+        .padding(.bottom, 16)
         .background(
             VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
                 .fill(PixioColor.cardLight)
@@ -100,6 +104,7 @@ struct VitaTabBar: View {
                 .shadow(color: navAmbientShadow.color, radius: navAmbientShadow.radius, x: 0, y: -navAmbientShadow.y)
                 .ignoresSafeArea(edges: .bottom)
         )
+        .ignoresSafeArea(.container, edges: .bottom)
         .sheet(isPresented: $showAdd) {
             VitaAddSheet(onSelect: { kind in
                 showAdd = false

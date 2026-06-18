@@ -255,6 +255,7 @@ struct MainTabView: View {
                         userImageURL: authManager.userImage.flatMap(URL.init(string:)),
                         subtitle: dashboardSubtitle,
                         level: container.gamificationEvents.currentLevel,
+                        streak: container.dashboardViewModel.streakDays,
                         xpProgress: container.gamificationEvents.currentXpProgress,
                         xpToast: container.gamificationEvents.xpToast,
                         onAvatarTap: { router.selectedTab = .progresso },
