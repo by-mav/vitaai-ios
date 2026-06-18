@@ -123,6 +123,36 @@ struct ProgressoScreen: View {
             .allowsHitTesting(false)
     }
 
+    // MARK: - Decoração médica (F4) — motivos sutis nas margens dão "vida" ao
+    // mundo. Camada de FUNDO (atrás da estrada/nós), cor do capítulo, baixa
+    // opacidade + blur. Alternam de lado e rotacionam levemente. Nunca clicáveis.
+    private static let decorMotifs = [
+        "heart.fill", "waveform.path.ecg", "pills.fill", "cross.case.fill",
+        "microbe.fill", "brain.head.profile", "stethoscope", "bolt.heart.fill",
+        "staroflife.fill", "syringe.fill", "lungs.fill", "drop.fill",
+    ]
+    private var decorations: some View {
+        let h = CGFloat(trailItems.count) * Self.rowStride + 40
+        let n = Self.decorMotifs.count
+        return ZStack(alignment: .top) {
+            ForEach(0..<n, id: \.self) { i in
+                let left = i % 2 == 0
+                let y = (CGFloat(i) + 0.5) / CGFloat(n) * h
+                let tier = Self.tiers[min(Int(y / (h / CGFloat(Self.tiers.count))), Self.tiers.count - 1)]
+                Image(systemName: Self.decorMotifs[i])
+                    .font(.system(size: 44 + CGFloat(i % 3) * 16, weight: .regular))
+                    .foregroundStyle(tier.bright.opacity(0.16))
+                    .blur(radius: 1.0)
+                    .rotationEffect(.degrees(left ? -14 : 14))
+                    .frame(maxWidth: .infinity, alignment: left ? .leading : .trailing)
+                    .padding(left ? .leading : .trailing, 10)
+                    .offset(y: y - 36)
+            }
+        }
+        .frame(height: h, alignment: .top)
+        .allowsHitTesting(false)
+    }
+
     // MARK: - Portões de capítulo (F2) — a cada 20 níveis, placa 3D marca a virada
     // de seção ("Acadêmico", "Residente"…). A estrada passa por baixo (a peça
     // ocupa espaço sob luz de cima: espessura + especular + rim light + sombra).
@@ -177,6 +207,7 @@ struct ProgressoScreen: View {
                 ScrollView(showsIndicators: false) {
                     ZStack(alignment: .top) {
                         sectionBackdrop
+                        decorations
                         trailRoad
                         sectionGates
                         LazyVStack(spacing: 0) {
