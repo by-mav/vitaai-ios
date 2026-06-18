@@ -61,155 +61,106 @@ struct ProgressoScreen: View {
         return Gradient(stops: stops)
     }
 
-    // MARK: - Estrada sinuosa (atrás dos nós) — volume 3D com luz de cima.
-    //
-    // Camadas da estrada (fundo→frente), simulando espessura física:
-    //   1. Sombra de contato projetada (black ~0.5, deslocada +8pt = chão)
-    //   2. Face LATERAL/escura (stroke mais largo, cor escura, deslocada +5pt = espessura)
-    //   3. Superfície LIT (stroke colorido por seção — a parte de cima que pega luz)
-    //   4. Brilho de luz no topo (highlight branco semi-transparente — luz vinda de cima)
-    //   5. Linha central tracejada (indica direção do caminho)
-    private var trailRoad: some View {
+    // MARK: - Caminho de TERRA sobre a grama (ref Duolingo, Rafael 2026-06-18).
+    // Aterra os nós no mundo (não flutuam). Terra clara em cima + borda escura +
+    // sombra na grama + pegadas tracejadas. Sem cor de seção (a terra é neutra).
+    private var dirtPath: some View {
         let road = TrailRoad(count: trailItems.count, stride: Self.rowStride,
                              amp: Self.rowAmp, freq: Self.rowFreq)
-        // Cor POR SEÇÃO (stops travados nas fronteiras de 20 níveis) — cada
-        // capítulo tem sua cor sólida, com troca nítida no portão. (Antes era 1
-        // gradiente global que virava verde já no topo.)
-        let litGrad  = LinearGradient(gradient: Self.sectionStops { $0.mid },  startPoint: .top, endPoint: .bottom)
-        let darkGrad = LinearGradient(gradient: Self.sectionStops { $0.dark }, startPoint: .top, endPoint: .bottom)
         return ZStack {
-            // 1 — Sombra de contato (a estrada flutua levemente sobre o fundo)
-            road.stroke(Color.black.opacity(0.0),
-                        style: StrokeStyle(lineWidth: 30, lineCap: .round, lineJoin: .round))
-                .shadow(color: .black.opacity(0.50), radius: 12, y: 8)
-
-            // 2 — Face lateral (espessura: a borda de baixo que fica na sombra)
-            road.stroke(
-                darkGrad,
-                style: StrokeStyle(lineWidth: 30, lineCap: .round, lineJoin: .round)
-            )
-            .offset(y: 5)
-
-            // 3 — Superfície superior lit (a "mesa" da estrada, cor de seção)
-            road.stroke(
-                litGrad,
-                style: StrokeStyle(lineWidth: 24, lineCap: .round, lineJoin: .round)
-            )
-
-            // 4 — Brilho especular no topo (luz de cima — só a faixa superior)
-            road.stroke(
-                LinearGradient(
-                    colors: [Color.white.opacity(0.28), Color.white.opacity(0.06), .clear],
-                    startPoint: .top, endPoint: .center
-                ),
-                style: StrokeStyle(lineWidth: 24, lineCap: .round, lineJoin: .round)
-            )
-
-            // 5 — Linha central tracejada (crème/âmbar, indica a direção do caminho)
-            road.stroke(
-                Color(red: 0.98, green: 0.88, blue: 0.56).opacity(0.60),
-                style: StrokeStyle(lineWidth: 2.0, lineCap: .round, dash: [3, 13])
-            )
+            // sombra do caminho na grama
+            road.stroke(Color.black.opacity(0.14),
+                        style: StrokeStyle(lineWidth: 36, lineCap: .round, lineJoin: .round))
+                .offset(y: 3).blur(radius: 3)
+            // terra — borda escura (espessura)
+            road.stroke(Color(red: 0.52, green: 0.39, blue: 0.24),
+                        style: StrokeStyle(lineWidth: 34, lineCap: .round, lineJoin: .round))
+            // terra — topo claro (a superfície batida)
+            road.stroke(Color(red: 0.80, green: 0.66, blue: 0.45),
+                        style: StrokeStyle(lineWidth: 27, lineCap: .round, lineJoin: .round))
+            // pegadas / centro tracejado
+            road.stroke(Color.white.opacity(0.30),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [2, 16]))
         }
     }
 
-    // MARK: - Fundo por capítulo (F3) — tinge sutilmente o starfield por seção,
-    // pra cada "mundo" ter sua temperatura sem matar o fundo estrelado.
-    private var sectionBackdrop: some View {
-        LinearGradient(gradient: Self.sectionStops { $0.dark.opacity(0.30) },
+    // MARK: - Mundo de GRAMA (fundo) — ref Duolingo. Base verde + textura de folhas
+    // (Canvas) + tinta sutil da cor do capítulo (cada "mundo" muda de cor a cada 20
+    // níveis). Preenche a tela: sem céu, sem estrelado, sem glassmorphism.
+    private var grassField: some View {
+        let h = CGFloat(trailItems.count) * Self.rowStride + 200
+        return ZStack {
+            GrassField(height: h)
+            LinearGradient(gradient: Self.sectionStops { $0.mid.opacity(0.18) },
+                           startPoint: .top, endPoint: .bottom)
+                .blendMode(.overlay)
+        }
+        .frame(height: h)
+        .allowsHitTesting(false)
+    }
+
+    // Verde base do mundo — preenche a tela inteira atrás de tudo (mata o dark/
+    // estrelado do shell). A grama detalhada (folhas) scrolla por cima em grassField.
+    private static let grassBaseTop = Color(red: 0.52, green: 0.78, blue: 0.40)
+    private static let grassBaseBot = Color(red: 0.34, green: 0.62, blue: 0.28)
+    private var grassBase: some View {
+        LinearGradient(colors: [Self.grassBaseTop, Self.grassBaseBot],
                        startPoint: .top, endPoint: .bottom)
-            .frame(height: CGFloat(trailItems.count) * Self.rowStride + 40)
-            .blendMode(.plusLighter)
-            .allowsHitTesting(false)
     }
 
-    // MARK: - Decoração médica (F4) — motivos sutis nas margens dão "vida" ao
-    // mundo. Camada de FUNDO (atrás da estrada/nós), cor do capítulo, baixa
-    // opacidade + blur. Alternam de lado e rotacionam levemente. Nunca clicáveis.
-    private static let decorMotifs = [
-        "heart.fill", "waveform.path.ecg", "pills.fill", "cross.case.fill",
-        "microbe.fill", "brain.head.profile", "stethoscope", "bolt.heart.fill",
-        "staroflife.fill", "syringe.fill", "lungs.fill", "drop.fill",
-    ]
-    private var decorations: some View {
+    // MARK: - Card de seção (flat sólido, ref Duolingo 077) — no INÍCIO de cada
+    // seção, full-width, com "lábio" chunky embaixo. Marca a virada de capítulo.
+    private var sectionCards: some View {
         let h = CGFloat(trailItems.count) * Self.rowStride + 40
-        let n = Self.decorMotifs.count
         return ZStack(alignment: .top) {
-            ForEach(0..<n, id: \.self) { i in
-                let left = i % 2 == 0
-                let y = (CGFloat(i) + 0.5) / CGFloat(n) * h
-                let tier = Self.tiers[min(Int(y / (h / CGFloat(Self.tiers.count))), Self.tiers.count - 1)]
-                Image(systemName: Self.decorMotifs[i])
-                    .font(.system(size: 44 + CGFloat(i % 3) * 16, weight: .regular))
-                    .foregroundStyle(tier.bright.opacity(0.16))
-                    .blur(radius: 1.0)
-                    .rotationEffect(.degrees(left ? -14 : 14))
-                    .frame(maxWidth: .infinity, alignment: left ? .leading : .trailing)
-                    .padding(left ? .leading : .trailing, 10)
-                    .offset(y: y - 36)
+            ForEach(0..<Self.tiers.count, id: \.self) { k in
+                sectionCard(Self.tiers[k], number: k + 1)
+                    .offset(y: k == 0 ? 4 : CGFloat(k * 4) * Self.rowStride - 30)
             }
         }
         .frame(height: h, alignment: .top)
         .allowsHitTesting(false)
     }
 
-    // MARK: - Portões de capítulo (F2) — a cada 20 níveis, placa 3D marca a virada
-    // de seção ("Acadêmico", "Residente"…). A estrada passa por baixo (a peça
-    // ocupa espaço sob luz de cima: espessura + especular + rim light + sombra).
-    private var sectionGates: some View {
-        let h = CGFloat(trailItems.count) * Self.rowStride + 40
-        return ZStack(alignment: .top) {
-            ForEach(1..<Self.tiers.count, id: \.self) { k in
-                sectionGate(Self.tiers[k])
-                    .offset(y: CGFloat(k * 4) * Self.rowStride - 22)
+    private func sectionCard(_ tier: Tier, number: Int) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("SEÇÃO \(number)")
+                    .font(.system(size: 11, weight: .heavy)).kerning(1.5)
+                    .foregroundStyle(.white.opacity(0.82))
+                Text(tier.name)
+                    .font(.system(size: 18, weight: .heavy))
+                    .foregroundStyle(.white)
             }
+            Spacer()
+            Image(systemName: "list.bullet")
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(.white.opacity(0.9))
         }
-        .frame(height: h, alignment: .top)
-        .allowsHitTesting(false)
-    }
-
-    private func sectionGate(_ tier: Tier) -> some View {
-        let shape = Capsule(style: .continuous)
-        return HStack(spacing: 9) {
-            Image(systemName: "chevron.up").font(.system(size: 10, weight: .black)).foregroundStyle(tier.bright)
-            Text(tier.name.uppercased())
-                .font(.system(size: 13, weight: .heavy)).kerning(2.5)
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.5), radius: 1, y: 1)
-            Image(systemName: "chevron.up").font(.system(size: 10, weight: .black)).foregroundStyle(tier.bright)
-        }
-        .padding(.horizontal, 24).padding(.vertical, 10)
+        .padding(.horizontal, 18).padding(.vertical, 13)
         .background(
             ZStack {
-                shape.fill(tier.dark).offset(y: 4)                       // espessura (base na sombra)
-                shape.fill(
-                    LinearGradient(colors: [tier.bright.opacity(0.95), tier.mid, tier.dark],
-                                   startPoint: .top, endPoint: .bottom)
-                        .shadow(.inner(color: .black.opacity(0.22), radius: 3, x: 0, y: -2))
-                )
-                shape.fill(LinearGradient(colors: [.white.opacity(0.38), .clear],
-                                          startPoint: .top, endPoint: .center))
-                    .blendMode(.plusLighter)                              // especular no topo
-                shape.strokeBorder(
-                    LinearGradient(colors: [tier.bright.opacity(0.9), tier.dark.opacity(0.3)],
-                                   startPoint: .top, endPoint: .bottom), lineWidth: 1.2)  // rim light
+                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tier.dark).offset(y: 4)
+                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tier.mid)
             }
-            .shadow(color: .black.opacity(0.45), radius: 10, y: 7)       // sombra de contato
-            .shadow(color: tier.mid.opacity(0.40), radius: 16)           // glow da seção
+            .shadow(color: .black.opacity(0.20), radius: 6, y: 4)
         )
+        .padding(.horizontal, 34)
     }
 
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack {
+            grassBase.ignoresSafeArea()
+            VStack(spacing: 0) {
+            topTools
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     ZStack(alignment: .top) {
-                        sectionBackdrop
-                        decorations
-                        trailRoad
-                        sectionGates
+                        grassField
+                        dirtPath
+                        sectionCards
                         LazyVStack(spacing: 0) {
                             ForEach(Array(trailItems.enumerated()), id: \.element.id) { idx, item in
                                 trailRow(item, rowIndex: idx)
@@ -217,7 +168,7 @@ struct ProgressoScreen: View {
                         }
                     }
                     .frame(height: CGFloat(trailItems.count) * Self.rowStride + 40)
-                    .padding(.top, 8)
+                    .padding(.top, 78)
                     .padding(.bottom, 56)
                 }
                 .task {
@@ -239,12 +190,7 @@ struct ProgressoScreen: View {
                     withAnimation(.easeInOut(duration: 0.6)) { proxy.scrollTo(currentStage.index, anchor: .center) }
                 }
             }
-        }
-        .overlay(alignment: .leading) {
-            sideTools(left: true).padding(.leading, 6)
-        }
-        .overlay(alignment: .trailing) {
-            sideTools(left: false).padding(.trailing, 6)
+            }
         }
         .refreshable {
             await vmProg.load()
@@ -264,56 +210,41 @@ struct ProgressoScreen: View {
         .trackScreen("Progresso")
     }
 
-    // MARK: - Ferramentas nas laterais (2 de cada lado) — libera o centro pra trilha.
-    // Esq: Flashcards + Simulados · Dir: Questões + Transcrição. (Rafael 2026-06-17)
-    @ViewBuilder
-    private func sideTools(left: Bool) -> some View {
-        VStack(spacing: 14) {
-            if left {
-                toolButton("Flashcards", icon: "rectangle.on.rectangle.angled",
-                           bright: Color(red: 0.78, green: 0.69, blue: 1.0), mid: VitaColors.toolFlashcards, dark: Color(red: 0.29, green: 0.23, blue: 0.63)) {
-                    openStudy(.flashcardHome())
-                }
-                toolButton("Simulados", icon: "doc.text.magnifyingglass",
-                           bright: Color(red: 0.56, green: 0.77, blue: 0.98), mid: VitaColors.toolSimulados, dark: Color(red: 0.10, green: 0.37, blue: 0.65)) {
-                    openStudy(.simuladoHome)
-                }
-            } else {
-                toolButton("Questões", icon: "checklist",
-                           bright: VitaColors.accentHover, mid: VitaColors.accent, dark: VitaColors.accentDark) {
-                    openStudy(.qbank)
-                }
-                toolButton("Transcrição", icon: "waveform",
-                           bright: Color(red: 0.50, green: 0.88, blue: 0.83), mid: VitaColors.toolTranscricao, dark: Color(red: 0.08, green: 0.50, blue: 0.47)) {
-                    openStudy(.transcricao)
-                }
-            }
+    // MARK: - Ferramentas de estudo — FIXAS no topo (Rafael 2026-06-18). O centro
+    // fica livre só pro mundo (estilo Duolingo). 4 botões chunky flat em linha.
+    private var topTools: some View {
+        HStack(spacing: 10) {
+            topTool("Flashcards", icon: "rectangle.on.rectangle.angled",
+                    mid: VitaColors.toolFlashcards, dark: Color(red: 0.29, green: 0.23, blue: 0.63)) { openStudy(.flashcardHome()) }
+            topTool("Questões", icon: "checklist",
+                    mid: VitaColors.accent, dark: VitaColors.accentDark) { openStudy(.qbank) }
+            topTool("Simulados", icon: "doc.text.magnifyingglass",
+                    mid: VitaColors.toolSimulados, dark: Color(red: 0.10, green: 0.37, blue: 0.65)) { openStudy(.simuladoHome) }
+            topTool("Transcrição", icon: "waveform",
+                    mid: VitaColors.toolTranscricao, dark: Color(red: 0.08, green: 0.50, blue: 0.47)) { openStudy(.transcricao) }
         }
+        .padding(.horizontal, 14)
+        .padding(.top, 4).padding(.bottom, 10)
     }
 
-    private func toolButton(_ title: String, icon: String, bright: Color, mid: Color, dark: Color, action: @escaping () -> Void) -> some View {
-        VStack(spacing: 6) {
-            Button(action: action) {
+    private func topTool(_ title: String, icon: String, mid: Color, dark: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 17, style: .continuous).fill(dark)
-                        .frame(width: 62, height: 62).offset(y: 5)
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .fill(RadialGradient(colors: [bright, mid], center: UnitPoint(x: 0.34, y: 0.28), startRadius: 2, endRadius: 60))
-                        .frame(width: 62, height: 62)
-                        .overlay(
-                            Ellipse().fill(Color.white.opacity(0.40)).frame(width: 24, height: 12)
-                                .offset(x: -10, y: -16).blur(radius: 1)
-                        )
-                        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color.white.opacity(0.16), lineWidth: 1))
-                    Image(systemName: icon).font(.system(size: 25, weight: .bold)).foregroundStyle(Color.white)
-                        .shadow(color: Color(red: 0.10, green: 0.08, blue: 0.04).opacity(0.4), radius: 1, y: 1)
+                    RoundedRectangle(cornerRadius: 15, style: .continuous).fill(dark).offset(y: 4)
+                    RoundedRectangle(cornerRadius: 15, style: .continuous).fill(mid)
+                        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            .fill(LinearGradient(colors: [.white.opacity(0.22), .clear], startPoint: .top, endPoint: .center)))
+                    Image(systemName: icon).font(.system(size: 21, weight: .bold)).foregroundStyle(.white)
                 }
-                .shadow(color: .black.opacity(0.40), radius: 10, y: 7)
+                .frame(height: 50)
+                Text(title).font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color(red: 0.16, green: 0.24, blue: 0.10))
+                    .lineLimit(1).minimumScaleFactor(0.8)
             }
-            .buttonStyle(TrailPressStyle())
-            Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(VitaColors.textSecondary)
-                .lineLimit(1).fixedSize()
+            .frame(maxWidth: .infinity)
         }
+        .buttonStyle(TrailPressStyle())
     }
 
     // MARK: - Trilha
@@ -349,149 +280,58 @@ struct ProgressoScreen: View {
             }
 
             if state == .current {
-                // Vita "em pé" EM CIMA do botão do nível atual (centralizado).
-                mascot.offset(x: 0, y: -50)
+                // Vita AO LADO do nó atual (ref Duolingo 077), não em cima.
+                // Halo claro atrás pra ele "saltar" na grama (senão some no fundo).
+                mascot
+                    .background(Circle().fill(.white.opacity(0.5)).frame(width: 66, height: 66).blur(radius: 13))
+                    .offset(x: -60, y: 8)
             }
         }
     }
 
-    // Medalhão premium 3D — 7 camadas, UMA fonte de luz fixa de CIMA.
-    //
-    // Camadas (fundo→frente):
-    //   0. Anel pulsante (nível atual)
-    //   1. Sombra de contato (contact drop shadow — "chão" embaixo da peça)
-    //   2. Aro escuro (base deslocada — a borda inferior na sombra = espessura)
-    //   3. Corpo com gradiente LUZ → BASE (top claro → base escura = luz de cima)
-    //        — face da imagem 3D oficial para desbloqueado; cofre escuro para locked
-    //        — inner shadow sutil no lado escuro (bevel)
-    //   4. Destaque especular (arco branco translúcido perto do TOPO + blur)
-    //   5. Rim light (stroke só no arco SUPERIOR, bright→clear)
-    //   6. Conteúdo (ícone do cadeado ou render oficial) com micro drop-shadow
-    //   7. Selo de concluído (badge canto superior direito)
+    // Nó CHUNKY FLAT (ref Duolingo 077): círculo cor da seção + "lábio" mais escuro
+    // embaixo (profundidade de botão apertável) + sombra na grama + glifo branco.
+    // Sem glossy, sem metal, sem tilt — chapado e alegre como o Duolingo.
     private func coin(stage: Stage, tier: Tier, state: StageState) -> some View {
         let locked = state == .locked
-        let size: CGFloat = state == .current ? 78 : 62
-        let radius: CGFloat = size * 0.30
-        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-
-        // Cores do medalhão por estado (dessaturado = cofre; full = tier)
-        let bodyTop:  Color = locked ? Color(white: 0.26) : tier.bright.opacity(0.92)
-        let bodyMid:  Color = locked ? Color(white: 0.17) : tier.mid
-        let bodyBot:  Color = locked ? Color(white: 0.10) : tier.dark
-
-        // Sombra de contato (PixioShadow.contact tokens)
-        let contactShadow = PixioShadow.contact(dark: true)
-        // Sombra ambiente (glow suave da cor do tier)
-        let ambientGlow   = PixioShadow.glow(tier.mid, intensity: state == .current ? 0.45 : 0.22)
-
+        let size: CGFloat = state == .current ? 78 : 66
+        let face: Color = locked ? Color(white: 0.75) : tier.mid
+        let lip:  Color = locked ? Color(white: 0.57) : tier.dark
         return ZStack {
-            // — 0. Anel pulsante (só no nível atual) ———————————————————————
+            // anel pulsante (nível atual) — convite a tocar
             if state == .current {
-                RoundedRectangle(cornerRadius: radius + 7, style: .continuous)
-                    .stroke(tier.bright.opacity(0.55), lineWidth: 3.5)
+                Circle().stroke(tier.mid.opacity(0.40), lineWidth: 4)
                     .frame(width: size + 20, height: size + 20)
-                    .scaleEffect(pulse ? 1.06 : 0.95)
-                    .shadow(color: tier.mid.opacity(0.60), radius: 14)
-                    .blendMode(.plusLighter)
+                    .scaleEffect(pulse ? 1.08 : 0.95)
             }
-
-            // — 1. Sombra de contato: offset embaixo → parece flutuar sobre o chão
-            shape
-                .fill(Color.black.opacity(0))
-                .frame(width: size, height: size)
-                .offset(y: 7)
-                .shadow(color: contactShadow.color, radius: contactShadow.radius,
-                        x: contactShadow.x, y: contactShadow.y + 4)
-                .shadow(color: .black.opacity(0.22), radius: 18, y: 12)
-
-            // — 2. Aro escuro (espessura — borda inferior na sombra)
-            shape
-                .fill(bodyBot.opacity(0.95))
-                .frame(width: size, height: size)
-                .offset(y: 5)
-
-            // — 3. Corpo do medalhão: gradiente LUZ→BASE simulando luz de cima.
-            //   Para desbloqueado a imagem oficial fica por cima deste gradiente.
-            //   Inner shadow no lado sombra (bevel sutil).
-            ZStack {
-                // gradiente direcional (superfície pega luz vinda de cima)
-                shape.fill(
-                    LinearGradient(
-                        colors: [bodyTop, bodyMid, bodyBot],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                    .shadow(.inner(color: .black.opacity(locked ? 0.30 : 0.18),
-                                   radius: 4, x: -1, y: -2))
+            // sombra do botão na grama (aterra — não flutua)
+            Ellipse().fill(Color.black.opacity(0.18))
+                .frame(width: size * 0.82, height: size * 0.26)
+                .offset(y: size * 0.52).blur(radius: 2.5)
+            // lábio (base mais escura deslocada = profundidade do botão)
+            Circle().fill(lip).frame(width: size, height: size).offset(y: 7)
+            // face (cor chapada + leve clareada no topo, sem brilho exagerado)
+            Circle().fill(face).frame(width: size, height: size)
+                .overlay(
+                    Circle().fill(LinearGradient(colors: [.white.opacity(0.20), .clear],
+                                                 startPoint: .top, endPoint: .center))
                 )
-
-                // face: imagem oficial (desbloqueado) ou cofre escuro (locked)
-                if locked {
-                    // cofre: radial escuro com inner shadow leve
-                    shape.fill(
-                        RadialGradient(
-                            colors: [Color(white: 0.24), Color(white: 0.10)],
-                            center: UnitPoint(x: 0.38, y: 0.30),
-                            startRadius: 2, endRadius: size
-                        )
-                        .shadow(.inner(color: .black.opacity(0.45), radius: 5, x: -2, y: -3))
-                    )
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: size * 0.28, weight: .bold))
-                        .foregroundStyle(Color(white: 0.38))
-                        .shadow(color: .black.opacity(0.55), radius: 2, x: 0, y: 1)
-                } else {
-                    // render 3D oficial — clipa na shape do medalhão
-                    Image(stage.asset)
-                        .resizable().scaledToFill()
-                        .frame(width: size, height: size)
-                        .clipShape(shape)
-                }
-            }
-            .frame(width: size, height: size)
-            // glow suave da cor do tier (ambient occlusion colorida)
-            .shadow(color: ambientGlow.color, radius: ambientGlow.radius,
-                    x: ambientGlow.x, y: ambientGlow.y)
-
-            // — 4. Destaque especular: arco branco translúcido perto do TOPO
-            //   Ellipse pequena no terço superior, levemente desfocada → reflexo.
-            Ellipse()
-                .fill(Color.white.opacity(locked ? 0.08 : 0.42))
-                .frame(width: size * 0.55, height: size * 0.22)
-                .offset(x: 0, y: -(size * 0.26))
-                .blur(radius: 3.5)
-                .allowsHitTesting(false)
-                .blendMode(.plusLighter)
-                .frame(width: size, height: size)
-                .clipShape(shape)
-
-            // — 5. Rim light: stroke só no arco SUPERIOR (bright→clear top→mid)
-            shape
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [tier.bright.opacity(locked ? 0.28 : 0.80),
-                                 tier.mid.opacity(locked ? 0.10 : 0.35),
-                                 .clear],
-                        startPoint: .top, endPoint: .bottom
-                    ),
-                    lineWidth: 1.8
-                )
-                .frame(width: size, height: size)
-                .allowsHitTesting(false)
-
-            // — 7. Selo de concluído (badge no canto superior direito)
+            // glifo branco flat (ref Duolingo)
+            Image(systemName: locked ? "lock.fill" : stage.icon)
+                .font(.system(size: size * 0.40, weight: .bold))
+                .foregroundStyle(locked ? Color.white.opacity(0.85) : .white)
+                .shadow(color: lip.opacity(0.5), radius: 1, y: 1)
+            // selo de concluído (check branco em disco escuro)
             if state == .completed {
-                Image(systemName: "checkmark.circle.fill").font(.system(size: 20))
-                    .foregroundStyle(VitaColors.dataGreen)
-                    .background(Circle().fill(Color.white).frame(width: 15, height: 15))
-                    .shadow(color: .black.opacity(0.30), radius: 3, y: 1)
-                    .offset(x: size * 0.36, y: -size * 0.36)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(tier.dark)
+                    .padding(5)
+                    .background(Circle().fill(.white))
+                    .offset(x: size * 0.34, y: -size * 0.34)
             }
         }
-        .frame(width: size + 22, height: size + 22)
-        // inclinação 3D: a trilha inteira vista num ângulo (não exatamente de
-        // cima) — dá camada/profundidade de "jogo". Rafael 2026-06-17.
-        .rotation3DEffect(.degrees(18), axis: (x: 1, y: 0, z: 0),
-                          anchor: .center, perspective: 0.55)
+        .frame(width: size + 22, height: size + 24)
     }
 
     private var mascot: some View {
@@ -499,7 +339,7 @@ struct ProgressoScreen: View {
         // OrbMascot, paleta gold, state .awake, grande (olhos + glow dourado, vivo).
         // Na TRILHA tem comportamento próprio: bounceEnabled=false (NÃO fica pulando
         // toda hora — só flutua/pisca/olha, calmo). TODO: saltar de nó em nó ao upar.
-        OrbMascot(palette: .vita, state: .awake, size: 76, bounceEnabled: false)
+        OrbMascot(palette: .vita, state: .awake, size: 58, bounceEnabled: false)
     }
 
     // MARK: - Estado + ações
@@ -594,6 +434,109 @@ struct ProgressoScreen: View {
 
     private var trailItems: [TrailItem] {
         Self.stages.map { TrailItem.stage($0) }
+    }
+}
+
+// MARK: - Campo de grama (Canvas) — base verde + folhas determinísticas.
+// Hybrid (Rafael 2026-06-18): vetor agora; trocável por textura crafted depois.
+private struct GrassField: View {
+    let height: CGFloat
+    var body: some View {
+        Canvas { ctx, size in
+            func drawTree(at point: CGPoint, scale: CGFloat, side: CGFloat) {
+                let trunk = CGRect(x: point.x - 4 * scale, y: point.y - 4 * scale,
+                                   width: 8 * scale, height: 24 * scale)
+                let shadow = CGRect(x: point.x - 23 * scale, y: point.y + 15 * scale,
+                                    width: 46 * scale, height: 12 * scale)
+                let deepLeaf = Color(red: 0.12, green: 0.43, blue: 0.19)
+                let midLeaf = Color(red: 0.18, green: 0.58, blue: 0.25)
+                let lightLeaf = Color(red: 0.34, green: 0.72, blue: 0.34)
+
+                ctx.fill(Path(ellipseIn: shadow), with: .color(.black.opacity(0.16)))
+                ctx.fill(Path(roundedRect: trunk, cornerRadius: 3 * scale),
+                         with: .linearGradient(
+                            Gradient(colors: [Color(red: 0.54, green: 0.32, blue: 0.16),
+                                              Color(red: 0.34, green: 0.18, blue: 0.08)]),
+                            startPoint: CGPoint(x: trunk.midX, y: trunk.minY),
+                            endPoint: CGPoint(x: trunk.midX, y: trunk.maxY))
+                )
+
+                let crowns: [(CGFloat, CGFloat, CGFloat, Color)] = [
+                    (-12, -10, 19, deepLeaf),
+                    (  8, -13, 21, midLeaf),
+                    ( -1, -27, 23, midLeaf),
+                    ( 13, -29, 14, lightLeaf.opacity(0.92)),
+                    (-13, -29, 13, lightLeaf.opacity(0.76)),
+                ]
+                for crown in crowns {
+                    let rect = CGRect(
+                        x: point.x + (crown.0 * side - crown.2) * scale,
+                        y: point.y + (crown.1 - crown.2) * scale,
+                        width: crown.2 * 2 * scale,
+                        height: crown.2 * 2 * scale
+                    )
+                    ctx.fill(Path(ellipseIn: rect), with: .color(crown.3))
+                }
+            }
+
+            ctx.fill(
+                Path(CGRect(origin: .zero, size: size)),
+                with: .linearGradient(
+                    Gradient(colors: [Color(red: 0.52, green: 0.78, blue: 0.40),
+                                      Color(red: 0.34, green: 0.62, blue: 0.28)]),
+                    startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height))
+            )
+            let step: CGFloat = 26
+            let cols = Int(size.width / step) + 1
+            let rows = Int(size.height / step) + 1
+            let g1 = Color(red: 0.29, green: 0.55, blue: 0.23)
+            let g2 = Color(red: 0.45, green: 0.73, blue: 0.34)
+            let g3 = Color(red: 0.64, green: 0.86, blue: 0.46)
+
+            let treeRows = max(8, Int(size.height / 170))
+            for i in 0..<treeRows {
+                let side: CGFloat = i.isMultiple(of: 2) ? -1 : 1
+                let seed = CGFloat((i * 371) % 997) / 997
+                let x = side < 0
+                    ? 28 + seed * 38
+                    : size.width - 28 - seed * 42
+                let y = 104 + CGFloat(i) * 156 + CGFloat((i * 53) % 41)
+                guard y < size.height - 20 else { continue }
+                drawTree(at: CGPoint(x: x, y: y),
+                         scale: 0.72 + CGFloat((i * 29) % 31) / 100,
+                         side: side)
+            }
+
+            for r in 0..<rows {
+                for c in 0..<cols {
+                    let seed = Double((r * 928_371 + c * 1_299_721) % 9973) / 9973
+                    let s2 = Double((r * 113 + c * 977) % 997) / 997
+                    let cx = CGFloat(c) * step + CGFloat(seed) * step
+                    let cy = CGFloat(r) * step + CGFloat(s2) * step
+                    // tufo de grama: 3 folhas quase VERTICAIS (não diagonal = não vira chuva)
+                    for k in -1...1 {
+                        let bx = cx + CGFloat(k) * 3.4
+                        let bh = 10 + CGFloat(seed) * 7 - CGFloat(abs(k)) * 2.5
+                        let lean = CGFloat(k) * 2.2 + (CGFloat(s2) - 0.5) * 1.8
+                        var blade = Path()
+                        blade.move(to: CGPoint(x: bx, y: cy))
+                        blade.addQuadCurve(to: CGPoint(x: bx + lean, y: cy - bh),
+                                           control: CGPoint(x: bx + lean * 0.5, y: cy - bh * 0.6))
+                        let col = seed > 0.66 ? g3 : (seed > 0.33 ? g2 : g1)
+                        ctx.stroke(blade, with: .color(col.opacity(0.62)), lineWidth: 2.0)
+                    }
+                    // florzinha ocasional (vida no campo)
+                    if s2 > 0.92 {
+                        let fc: Color = seed > 0.5 ? Color(red: 1.0, green: 0.85, blue: 0.32)
+                                                   : Color(red: 1.0, green: 0.62, blue: 0.76)
+                        ctx.fill(Path(ellipseIn: CGRect(x: cx - 2.5, y: cy - 2.5, width: 5, height: 5)),
+                                 with: .color(fc.opacity(0.92)))
+                    }
+                }
+            }
+        }
+        .frame(height: height)
+        .drawingGroup()
     }
 }
 
