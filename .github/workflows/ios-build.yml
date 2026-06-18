@@ -1,0 +1,81 @@
+name: iOS Build
+
+# Tier 1 build gate: compiles the VitaAI workspace for the iOS Simulator on a
+# GitHub-hosted macOS runner. This is the "compila ou nao" safety net for edits
+# pushed from environments without Xcode (e.g. Claude Code on the web / Linux).
+#
+# Notes for this repo:
+# - Uses CocoaPods (GoogleMLKit/DigitalInkRecognition). Pods/ is gitignored, so
+#   `pod install` must run in CI. Build unit is VitaAI.xcworkspace.
+# - Simulator builds need no code signing (CODE_SIGNING_ALLOWED=NO).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (iOS Simulator)
+    runs-on: macos-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: |
+          LATEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$LATEST" ]; then sudo xcode-select -s "$LATEST/Contents/Developer"; fi
+          xcodebuild -version
+          echo "--- Available iPhone simulators ---"
+          xcrun simctl list devices available | grep -i iphone || true
+
+      - name: Cache Bundler gems
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('Gemfile') }}
+          restore-keys: ${{ runner.os }}-gems-
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-pods-${{ hashFiles('Podfile.lock') }}
+          restore-keys: ${{ runner.os }}-pods-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: ${{ runner.os }}-dd-${{ hashFiles('Podfile.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dd-${{ hashFiles('Podfile.lock') }}-
+            ${{ runner.os }}-dd-
+
+      - name: Install dependencies (Bundler + CocoaPods)
+        run: |
+          bundle config set --local path 'vendor/bundle'
+          bundle install --jobs 4
+          bundle exec pod install
+
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace VitaAI.xcworkspace \
+            -scheme VitaAI \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO

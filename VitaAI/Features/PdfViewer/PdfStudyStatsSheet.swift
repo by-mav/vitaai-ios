@@ -42,17 +42,14 @@ struct PdfStudyStatsSheet: View {
         }
         let totalMasksInDoc = countMasksInDocument()
         // Sort por error rate descendente, peso pelo número de tentativas
-        let hardest = perMask
-            .map { (id, v) in
-                HardMask(
-                    maskId: id,
-                    attempts: v.total,
-                    correct: v.correct,
-                    errorRate: v.total > 0 ? Double(v.total - v.correct) / Double(v.total) : 0
-                )
-            }
-            .sorted { ($0.errorRate * Double($0.attempts)) > ($1.errorRate * Double($1.attempts)) }
-            .prefix(5)
+        let masks: [HardMask] = perMask.map { (id, v) -> HardMask in
+            let rate: Double = v.total > 0 ? Double(v.total - v.correct) / Double(v.total) : 0
+            return HardMask(maskId: id, attempts: v.total, correct: v.correct, errorRate: rate)
+        }
+        let sorted: [HardMask] = masks.sorted { a, b in
+            (a.errorRate * Double(a.attempts)) > (b.errorRate * Double(b.attempts))
+        }
+        let hardest = sorted.prefix(5)
         return Stats(
             totalMasks: totalMasksInDoc,
             totalAttempts: total,

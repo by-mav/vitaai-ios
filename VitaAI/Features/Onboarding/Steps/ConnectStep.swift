@@ -125,167 +125,15 @@ struct ConnectStep: View {
 
     private func tokenEntry(portal: PortalChoice) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
-                Button {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedPortal = nil
-                        token = ""
-                        errorMessage = nil
-                    }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.4))
-                        .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(0.06))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-
-                Text(portal.rawValue)
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.9))
-                Spacer()
-            }
-
-            // Open portal button (app or Safari fallback)
-            Button {
-                openPortal(portal: portal)
-            } label: {
-                HStack(spacing: 10) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(University.color(for: portal.apiType).opacity(0.15))
-                            .frame(width: 48, height: 48)
-                        Image(systemName: "arrow.up.right.square.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(University.color(for: portal.apiType))
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Abrir \(portal.rawValue)")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.85))
-                        Text("Abre o app (se tiver) ou no Safari")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.white.opacity(0.4))
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.2))
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(University.color(for: portal.apiType).opacity(0.05))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(University.color(for: portal.apiType).opacity(0.15), lineWidth: 1))
-                )
-            }
-            .buttonStyle(.plain)
-
-            // Video tutorial placeholder
-            Button {
-                // TODO: abrir vídeo tutorial
-            } label: {
-                HStack(spacing: 10) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(VitaColors.accent.opacity(0.1))
-                            .frame(width: 48, height: 48)
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(VitaColors.accent)
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Como pegar seu token")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.85))
-                        Text("Veja o passo a passo em 30 segundos")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.white.opacity(0.4))
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.2))
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(VitaColors.accent.opacity(0.04))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VitaColors.accent.opacity(0.12), lineWidth: 1))
-                )
-            }
-            .buttonStyle(.plain)
-
-            // Step-by-step text instructions
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(portal.tutorialSteps.enumerated()), id: \.offset) { index, step in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("\(index + 1)")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(VitaColors.accent)
-                            .frame(width: 18, height: 18)
-                            .background(Circle().fill(VitaColors.accent.opacity(0.12)))
-                        Text(step)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
-                }
-            }
-
-            // Token input
-            VStack(alignment: .leading, spacing: 6) {
-                Text("TOKEN DE ACESSO")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.35))
-                    .tracking(0.8)
-                TextField(portal.tokenPlaceholder, text: $token)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.04))
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(
-                                errorMessage != nil ? Color.red.opacity(0.3) : Color.white.opacity(0.08),
-                                lineWidth: 1
-                            ))
-                    )
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-
+            tokenEntryHeader(portal: portal)
+            openPortalButton(portal: portal)
+            videoTutorialButton
+            tutorialSteps(portal: portal)
+            tokenInputField(portal: portal)
             if let error = errorMessage {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11))
-                    Text(error)
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .foregroundStyle(.red.opacity(0.8))
+                tokenErrorBanner(error)
             }
-
-            Button {
-                Task { await connectWithToken(portal: portal) }
-            } label: {
-                HStack(spacing: 8) {
-                    if isConnecting {
-                        ProgressView().tint(VitaColors.surface).scaleEffect(0.8)
-                    }
-                    Text(isConnecting ? "Conectando..." : "Conectar")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .foregroundStyle(VitaColors.surface)
-                .frame(maxWidth: .infinity)
-                .frame(height: 46)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(canConnect ? .white : .white.opacity(0.3))
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(!canConnect || isConnecting)
+            connectButton(portal: portal)
         }
         .padding(16)
         .background(
@@ -293,6 +141,183 @@ struct ConnectStep: View {
                 .fill(Color.white.opacity(0.03))
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.06), lineWidth: 1))
         )
+    }
+
+    @ViewBuilder
+    private func tokenEntryHeader(portal: PortalChoice) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                withAnimation(.spring(response: 0.3)) {
+                    selectedPortal = nil
+                    token = ""
+                    errorMessage = nil
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .frame(width: 28, height: 28)
+                    .background(Color.white.opacity(0.06))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            Text(portal.rawValue)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(.white.opacity(0.9))
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private func openPortalButton(portal: PortalChoice) -> some View {
+        Button {
+            openPortal(portal: portal)
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(University.color(for: portal.apiType).opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "arrow.up.right.square.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(University.color(for: portal.apiType))
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Abrir \(portal.rawValue)")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text("Abre o app (se tiver) ou no Safari")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.2))
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(University.color(for: portal.apiType).opacity(0.05))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(University.color(for: portal.apiType).opacity(0.15), lineWidth: 1))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var videoTutorialButton: some View {
+        Button {
+            // TODO: abrir vídeo tutorial
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(VitaColors.accent.opacity(0.1))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(VitaColors.accent)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Como pegar seu token")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text("Veja o passo a passo em 30 segundos")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.2))
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(VitaColors.accent.opacity(0.04))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(VitaColors.accent.opacity(0.12), lineWidth: 1))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func tutorialSteps(portal: PortalChoice) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(portal.tutorialSteps.enumerated()), id: \.offset) { index, step in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("\(index + 1)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(VitaColors.accent)
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(VitaColors.accent.opacity(0.12)))
+                    Text(step)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tokenInputField(portal: PortalChoice) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("TOKEN DE ACESSO")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.35))
+                .tracking(0.8)
+            TextField(portal.tokenPlaceholder, text: $token)
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.04))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(
+                            errorMessage != nil ? Color.red.opacity(0.3) : Color.white.opacity(0.08),
+                            lineWidth: 1
+                        ))
+                )
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+        }
+    }
+
+    @ViewBuilder
+    private func tokenErrorBanner(_ error: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 11))
+            Text(error)
+                .font(.system(size: 12, weight: .medium))
+        }
+        .foregroundStyle(.red.opacity(0.8))
+    }
+
+    @ViewBuilder
+    private func connectButton(portal: PortalChoice) -> some View {
+        Button {
+            Task { await connectWithToken(portal: portal) }
+        } label: {
+            HStack(spacing: 8) {
+                if isConnecting {
+                    ProgressView().tint(VitaColors.surface).scaleEffect(0.8)
+                }
+                Text(isConnecting ? "Conectando..." : "Conectar")
+                    .font(.system(size: 15, weight: .semibold))
+            }
+            .foregroundStyle(VitaColors.surface)
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(canConnect ? .white : .white.opacity(0.3))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!canConnect || isConnecting)
     }
 
     // MARK: - Connected

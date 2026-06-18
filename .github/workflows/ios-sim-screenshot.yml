@@ -1,0 +1,158 @@
+name: iOS Simulator Screenshot
+
+# Tier 1 on-demand simulator control from a GitHub-hosted macOS runner.
+# Replicates scripts/dev-sim.sh in CI: build -> boot sim -> install -> launch ->
+# screenshot -> shutdown. The screenshot is uploaded as an artifact AND
+# force-pushed to an orphan branch `ci/sim-screenshots` so it can be retrieved
+# via `git fetch` from networks where the GitHub REST API is blocked.
+#
+# Dispatch this workflow to "open the simulator and see the app" from anywhere.
+
+on:
+  push:
+    branches: ['ci/sim-shot']
+  workflow_dispatch:
+    inputs:
+      sim_name:
+        description: 'Simulator device name (blank = auto-pick newest available iPhone)'
+        required: false
+        default: ''
+      settle_seconds:
+        description: 'Seconds to wait after launch before taking the screenshot'
+        required: false
+        default: '8'
+
+concurrency:
+  group: ios-sim-screenshot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  screenshot:
+    name: Boot sim + launch + screenshot
+    runs-on: macos-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: |
+          LATEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$LATEST" ]; then sudo xcode-select -s "$LATEST/Contents/Developer"; fi
+          xcodebuild -version
+
+      - name: Cache Bundler gems
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('Gemfile') }}
+          restore-keys: ${{ runner.os }}-gems-
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: |
+            Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-pods-${{ hashFiles('Podfile.lock') }}
+          restore-keys: ${{ runner.os }}-pods-
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData
+          key: ${{ runner.os }}-dd-${{ hashFiles('Podfile.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-dd-${{ hashFiles('Podfile.lock') }}-
+            ${{ runner.os }}-dd-
+
+      - name: Install dependencies (Bundler + CocoaPods)
+        run: |
+          bundle config set --local path 'vendor/bundle'
+          bundle install --jobs 4
+          bundle exec pod install
+
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace VitaAI.xcworkspace \
+            -scheme VitaAI \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Locate built .app
+        id: app
+        run: |
+          APP_PATH="build/DerivedData/Build/Products/Debug-iphonesimulator/VitaAI.app"
+          [ -d "$APP_PATH" ] || { echo "::error::.app not found at $APP_PATH"; exit 1; }
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Pick simulator
+        id: sim
+        run: |
+          NAME="${{ inputs.sim_name }}"
+          UDID=""
+          if [ -n "$NAME" ]; then
+            UDID=$(xcrun simctl list devices available | grep "$NAME (" | head -1 | grep -oiE '[0-9A-F-]{36}' || true)
+          fi
+          if [ -z "$UDID" ]; then
+            # auto-pick newest available iPhone
+            UDID=$(xcrun simctl list devices available | grep -iE 'iPhone' | tail -1 | grep -oiE '[0-9A-F-]{36}' || true)
+          fi
+          if [ -z "$UDID" ]; then
+            echo "::error::no available iPhone simulator"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using simulator UDID: $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Boot, install, launch, screenshot, shutdown
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          APP="${{ steps.app.outputs.app_path }}"
+          mkdir -p artifacts
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.bymav.vitaai || true
+          SECS="${{ inputs.settle_seconds }}"; sleep "${SECS:-12}"
+          xcrun simctl io "$UDID" screenshot artifacts/screenshot.png
+          ls -la artifacts
+          xcrun simctl terminate "$UDID" com.bymav.vitaai || true
+          xcrun simctl shutdown "$UDID" || true
+
+      - name: Upload screenshot artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitaai-sim-screenshot
+          path: artifacts/screenshot.png
+          if-no-files-found: warn
+
+      - name: Publish screenshot to ci/sim-screenshots branch
+        if: always()
+        run: |
+          if [ ! -f artifacts/screenshot.png ]; then
+            echo "no screenshot to publish"; exit 0
+          fi
+          TS=$(date -u +%Y%m%d-%H%M%S)
+          cp artifacts/screenshot.png /tmp/latest.png
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan ci/sim-screenshots
+          git rm -rf . >/dev/null 2>&1 || true
+          mkdir -p screenshots
+          cp /tmp/latest.png screenshots/latest.png
+          cp /tmp/latest.png "screenshots/$TS.png"
+          git add -f screenshots/latest.png "screenshots/$TS.png"
+          git commit -m "ci: simulator screenshot $TS"
+          git push -f origin ci/sim-screenshots
