@@ -109,6 +109,7 @@ enum PixioShadow {
 
 extension PixioColor {
     static let scrim       = Color.black.opacity(0.18)
+    static let glassBorder = VitaColors.glassBorder
     static let mascot      = VitaColors.accent       // tema Vita = dourado
     static let mascotLight = VitaColors.accentLight
     static let mascotDark  = VitaColors.accentDark
@@ -127,14 +128,24 @@ enum PixioRadius {
     static let tag: CGFloat = 6
 }
 
-enum PixioGlassStyle { case regular, thin, thick }
+enum PixioGlassStyle {
+    case regular, thin, thick
+    /// Vidro "transparente tingido" — usado nas bolhas do usuário e no indicador
+    /// "Pensando". Carrega a cor do tint (ex.: dourado Vita com opacity).
+    case clearTinted(Color)
+}
 
 extension View {
     @ViewBuilder
     func pixioGlass<S: Shape>(_ style: PixioGlassStyle = .regular, in shape: S) -> some View {
-        if #available(iOS 26.0, *) {
-            self.glassEffect(.regular, in: shape)
-        } else {
+        switch style {
+        case .clearTinted(let tint):
+            // Vidro fosco + camada de cor (tint) por cima — bolha do usuário /
+            // "Pensando". Mantém legível em claro e escuro.
+            self
+                .background(shape.fill(.ultraThinMaterial))
+                .background(shape.fill(tint))
+        default:
             self.background(shape.fill(.ultraThinMaterial))
         }
     }

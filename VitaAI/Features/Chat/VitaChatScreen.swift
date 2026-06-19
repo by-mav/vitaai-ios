@@ -3,6 +3,12 @@ import PhotosUI
 import Sentry
 
 // MARK: - VitaChatScreen — Overlay between top bar and tab bar
+//
+// PORT 1:1 do PixioChatScreen (pixio-ios/Pixio/Features/Chat/PixioChatScreen.swift).
+// Mesma estrutura/forma/posição: header (≡ histórico + nova + fechar), bolhas com
+// cometa "Pensando", composer com glow cometa girante, drawer de conversas.
+// Cores resolvem nos tokens DOURADOS do Vita via PixioCompat. A API usada é a do
+// ChatViewModel do Vita (não a do Pixio). SOT: decisions/2026-06-16_vita-pixio-ui-port.md
 
 struct VitaChatScreen: View {
     @Environment(\.appContainer) private var container
@@ -16,16 +22,13 @@ struct VitaChatScreen: View {
     @State private var viewModel: ChatViewModel?
     @State private var showVoiceMode: Bool = false
     @State private var showPlusPopout: Bool = false
+    /// Arraste-pra-fechar do drawer de conversas (canon Pixio 2026-06-14).
+    @State private var historyDragOffset: CGFloat = 0
     @Namespace private var plusNS
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
-        ZStack {
-            // Pixio graphite aurora — fundo OPACO premium. Substitui o
-            // blur-sobre-blur que lavava header/composer (so aparecia o
-            // mascote). Da a cara graphite do Pixio. Rafael 2026-06-19.
-            PixioAuroraBackground()
-
+        Group {
             if let viewModel {
                 chatContent(viewModel: viewModel)
             } else {
@@ -34,8 +37,14 @@ struct VitaChatScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        // Borda D4 estática — gold MUITO sutil pra não competir com o glow
-        // animado do input "Pergunte ao Vita". Apenas 1 shadow pra elevar.
+        // FIX do bug "só aparece o mascote": o PixioAuroraBackground tem
+        // .ignoresSafeArea() em TODAS as camadas. Quando colocado num ZStack
+        // SOLTO, ele vazava pra tela inteira e empurrava o header/composer pra
+        // fora do frame com padding(.top,60)/(.bottom,80) do AppRouter — só
+        // sobrava o mascote central. Aplicando como .background() recortado
+        // pelo mesmo clipShape, o fundo fica DENTRO do frame do chat e o
+        // header/composer voltam a aparecer. Rafael 2026-06-19.
+        .background(PixioAuroraBackground())
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(
             RoundedRectangle(cornerRadius: 24)
@@ -51,7 +60,7 @@ struct VitaChatScreen: View {
             }
             viewModel?.newConversation()
             // Pre-load history em background ao abrir VitaChat — usuário não
-            // espera 2-3s quando clica no menu de histórico depois
+            // espera 2-3s quando clica no menu de histórico depois.
             if let vm = viewModel {
                 Task { await vm.loadHistory() }
             }
@@ -84,7 +93,7 @@ struct VitaChatScreen: View {
     private func chatContent(viewModel: ChatViewModel) -> some View {
         ZStack(alignment: .leading) {
             VStack(spacing: 0) {
-                // Header — history toggle + close button
+                // Header — history toggle + new conversation + close
                 ChatHeader(
                     onHistory: {
                         withAnimation(.easeInOut(duration: 0.25)) {
@@ -125,15 +134,48 @@ struct VitaChatScreen: View {
                     }
                 )
             }
-            .ignoresSafeArea(.keyboard)
 
-            // History sidebar overlay
+            // Scrim atrás do drawer — tocar fora (no chat) FECHA o menu de
+            // conversas (canon Pixio 2026-06-14).
             if viewModel.showHistory {
-                HistoryPanel(viewModel: viewModel)
-                    .transition(.move(edge: .leading))
+                PixioColor.scrim
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.25)) { viewModel.showHistory = false }
+                    }
+                    .transition(.opacity)
+                    .zIndex(50)
             }
 
-            // Backdrop blur para VitaInputPopout — idêntico ao backdrop do hamburguer (AppRouter:333)
+            // History sidebar overlay — arrastável pra ESQUERDA pra fechar
+            // (canon Pixio 2026-06-14).
+            if viewModel.showHistory {
+                HistoryPanel(viewModel: viewModel)
+                    .offset(x: historyDragOffset)
+                    .transition(.move(edge: .leading))
+                    .zIndex(60)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 15)
+                            .onChanged { v in
+                                if v.translation.width < 0,
+                                   abs(v.translation.width) > abs(v.translation.height) {
+                                    historyDragOffset = v.translation.width
+                                }
+                            }
+                            .onEnded { v in
+                                let horizontal = abs(v.translation.width) > abs(v.translation.height)
+                                if horizontal,
+                                   v.translation.width < -80 || v.predictedEndTranslation.width < -250 {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        viewModel.showHistory = false
+                                    }
+                                }
+                                withAnimation(.easeInOut(duration: 0.2)) { historyDragOffset = 0 }
+                            }
+                    )
+            }
+
+            // Backdrop blur para VitaInputPopout — idêntico ao backdrop do hamburguer.
             if showPlusPopout {
                 Rectangle()
                     .fill(.ultraThinMaterial)
@@ -172,9 +214,10 @@ private struct ChatHeader: View {
             // Hamburger — opens conversation history
             Button(action: onHistory) {
                 Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(VitaColors.textSecondary)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Histórico")
@@ -191,46 +234,23 @@ private struct ChatHeader: View {
 
             Spacer()
 
-            // Nova conversa — square.and.pencil glass D4 (Rafael 2026-04-26)
+            // Nova conversa — tile elevado premium (canon Pixio: pixioRaised in Circle).
             Button(action: onNewConversation) {
                 Image(systemName: "square.and.pencil")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(VitaColors.textPrimary)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .environment(\.colorScheme, .dark)
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(VitaColors.glassBorder, lineWidth: 1)
-                    )
+                    .frame(width: 36, height: 36)
+                    .pixioRaised(in: Circle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Nova conversa")
 
-            // Close — clean glass igual hamburger menu popout
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(VitaColors.textPrimary)
-                    .frame(width: 32, height: 32)
-                    .background(
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .environment(\.colorScheme, .dark)
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(VitaColors.glassBorder, lineWidth: 1)
-                    )
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Fechar")
+            // Fechar — dismiss canon (chevron.down): full-screen volta pra baixo.
+            PixioSheetDismissButton(action: onClose)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
     }
 }
 
@@ -239,11 +259,6 @@ private struct ChatHeader: View {
 private struct EmptyState: View {
     let viewModel: ChatViewModel
     var isInputFocused: FocusState<Bool>.Binding
-
-    private let suggestions = [
-        "O que estudar hoje?",
-        "Análise meu progresso",
-    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -260,29 +275,24 @@ private struct EmptyState: View {
                     .font(.system(size: 14))
                     .foregroundColor(VitaColors.textSecondary)
 
-                // Quick action chips
+                // Quick action chips — glassmorphism premium (canon Pixio).
                 HStack(spacing: 8) {
-                    ForEach(suggestions, id: \.self) { text in
+                    ForEach(Self.suggestions, id: \.self) { text in
                         Button {
                             viewModel.inputText = text
                             isInputFocused.wrappedValue = true
                             Task { await viewModel.send() }
                         } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 10))
-                                Text(text)
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                            .foregroundColor(VitaColors.accent.opacity(0.60))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .background(VitaColors.accent.opacity(0.04))
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(VitaColors.glassBorder, lineWidth: 1)
-                            )
+                            Text(text)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(VitaColors.textPrimary)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .pixioGlass(.regular, in: Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .strokeBorder(VitaColors.glassBorder, lineWidth: 0.6)
+                                )
                         }
                         .buttonStyle(.plain)
                     }
@@ -293,41 +303,74 @@ private struct EmptyState: View {
             Spacer()
         }
     }
+
+    private static let suggestions = [
+        "O que estudar hoje?",
+        "Análise meu progresso",
+    ]
 }
 
 // MARK: - Messages List
 
 private struct MessagesList: View {
     let viewModel: ChatViewModel
+    /// Namespace pro teleporte do avatar do mascote entre mensagens
+    /// (matchedGeometryEffect) — canon Pixio 2026-05-13.
+    @Namespace private var mascotNS
+    @State private var userScrolledUp: Bool = false
+
+    /// ID da última mensagem do bot. Avatar do mascote só aparece nessa.
+    private var lastAssistantMessageId: String? {
+        viewModel.messages.last(where: { $0.role != "user" })?.id
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 10) {
                     ForEach(viewModel.messages) { message in
-                        MessageRow(
-                            message: message,
-                            isStreaming: viewModel.isStreaming && message.id == viewModel.messages.last?.id,
-                            onRetry: message.isError ? {
-                                Task { await viewModel.retryLastMessage() }
-                            } : nil,
-                            onFeedback: { value in
-                                Task { await viewModel.sendFeedback(messageId: message.id, value: value) }
-                            }
-                        )
-                        .id(message.id)
+                        self.messageRow(for: message)
+                            .id(message.id)
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
             }
             .onChange(of: viewModel.messages.count) { _ in
+                userScrolledUp = false
                 scrollToBottom(proxy: proxy)
             }
             .onChange(of: viewModel.messages.last?.content) { _ in
+                guard !userScrolledUp else { return }
                 scrollToBottom(proxy: proxy)
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8).onChanged { value in
+                    if value.translation.height > 30 && viewModel.isStreaming {
+                        userScrolledUp = true
+                    }
+                }
+            )
         }
+    }
+
+    @ViewBuilder
+    private func messageRow(for message: ChatMessage) -> some View {
+        let isLast = message.id == viewModel.messages.last?.id
+        let isLastBotMsg = message.id == lastAssistantMessageId
+        let onRetry: (() -> Void)? = message.isError ? {
+            Task { await viewModel.retryLastMessage() }
+        } : nil
+        MessageRow(
+            message: message,
+            isStreaming: viewModel.isStreaming && isLast,
+            isLastBotMessage: isLastBotMsg,
+            avatarNamespace: mascotNS,
+            onRetry: onRetry,
+            onFeedback: { value in
+                Task { await viewModel.sendFeedback(messageId: message.id, value: value) }
+            }
+        )
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy) {
@@ -343,27 +386,19 @@ private struct MessagesList: View {
 private struct MessageRow: View {
     let message: ChatMessage
     let isStreaming: Bool
+    /// True somente na ÚLTIMA mensagem do bot — só ela mostra o avatar do
+    /// mascote (matchedGeometryEffect "teleporta" quando a próxima chega).
+    let isLastBotMessage: Bool
+    let avatarNamespace: Namespace.ID
     var onRetry: (() -> Void)?
     var onFeedback: ((Int) -> Void)?
     @State private var cursorVisible: Bool = true
-    /// Mostra actions (thumbs/copy/share/time) só on hover (iPad mouse) ou
-    /// after long-press no celular. Auto-hide após 4s sem interação pra
-    /// manter chat clean — Rafael 2026-04-26.
-    @State private var actionsVisible: Bool = false
-    @State private var hideActionsTask: Task<Void, Never>?
 
     private var isUser: Bool { message.role == "user" }
 
-    private func showActionsTemporarily() {
-        actionsVisible = true
-        hideActionsTask?.cancel()
-        hideActionsTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(4))
-            if !Task.isCancelled {
-                withAnimation(.easeOut(duration: 0.2)) { actionsVisible = false }
-            }
-        }
-    }
+    /// Estado "pensando" = resposta ainda vazia enquanto o stream começa.
+    /// Renderiza o cometa compacto (PixioThinkingIndicator) no lugar da bolha.
+    private var isThinking: Bool { message.content.isEmpty && isStreaming }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -371,42 +406,42 @@ private struct MessageRow: View {
                 Spacer(minLength: 52)
                 userBubble
             } else {
-                assistantAvatar
+                if isLastBotMessage {
+                    assistantAvatar
+                        .matchedGeometryEffect(id: "vita-mascot", in: avatarNamespace)
+                        .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .bottomLeading)))
+                } else {
+                    Color.clear
+                        .frame(width: 26, height: 26)
+                        .alignmentGuide(.bottom) { d in d[.bottom] }
+                }
                 VStack(alignment: .leading, spacing: 6) {
-                    assistantBubble
-                    if message.isError, let onRetry {
-                        Button(action: onRetry) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 10, weight: .semibold))
-                                Text("Tentar novamente")
-                                    .font(.system(size: 11))
+                    if isThinking {
+                        PixioThinkingIndicator()
+                    } else {
+                        assistantBubble
+                        if message.isError, let onRetry {
+                            Button(action: onRetry) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 10, weight: .semibold))
+                                    Text("Tentar novamente")
+                                        .font(.system(size: 11))
+                                }
+                                .foregroundColor(VitaColors.dataRed)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(VitaColors.dataRed.opacity(0.08))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
-                            .foregroundColor(VitaColors.dataRed)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(VitaColors.dataRed.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
+                        // Action buttons (👍/👎/copy/share/time) — SEMPRE visíveis
+                        // abaixo da resposta do bot (canon ChatGPT/Claude 2026).
+                        if !isStreaming && !message.content.isEmpty && !message.isError {
+                            MessageActions(message: message, onFeedback: onFeedback)
+                        }
                     }
-                    // Action buttons (copy, share, time) — só on hover/long-press
-                    // Mantém chat limpo, aparecem só quando o usuário vai usar
-                    if !isStreaming && !message.content.isEmpty && !message.isError {
-                        MessageActions(message: message, onFeedback: onFeedback)
-                            .opacity(actionsVisible ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.2), value: actionsVisible)
-                            .frame(height: actionsVisible ? nil : 0, alignment: .top)
-                            .clipped()
-                    }
-                }
-                .onHover { hovering in
-                    if hovering { showActionsTemporarily() }
-                    else { hideActionsTask?.cancel() }
-                }
-                .onLongPressGesture(minimumDuration: 0.2) {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showActionsTemporarily()
                 }
                 Spacer(minLength: 52)
             }
@@ -414,13 +449,15 @@ private struct MessageRow: View {
     }
 
     private var userBubble: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        let themeColor = PixioCoState.shared.activeThemeColor.color
+        let bubbleShape = RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous)
+        return VStack(alignment: .trailing, spacing: 8) {
             if let image = message.uiImage {
                 image
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: 200, maxHeight: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: PixioRadius.iconBadge))
             }
             if message.content != "[Imagem]" || !message.hasImage {
                 Text(message.content)
@@ -428,19 +465,19 @@ private struct MessageRow: View {
                     .foregroundColor(PixioColor.textLight)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous).fill(PixioColor.mascot.opacity(0.30)))
-        )
-        .clipShape(RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 11)
+        .pixioGlass(.clearTinted(themeColor.opacity(0.35)), in: bubbleShape)
         .overlay(
-            RoundedRectangle(cornerRadius: PixioRadius.hero, style: .continuous)
-                .strokeBorder(LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.08), .clear], startPoint: .top, endPoint: .bottom), lineWidth: 0.6)
+            bubbleShape.strokeBorder(
+                LinearGradient(
+                    colors: [.white.opacity(0.45), .white.opacity(0.08), .clear],
+                    startPoint: .top, endPoint: .bottom
+                ),
+                lineWidth: 0.6
+            )
         )
-        .shadow(color: PixioColor.mascot.opacity(0.18), radius: 12, x: 0, y: 4)
+        .shadow(color: themeColor.opacity(0.18), radius: 12, x: 0, y: 4)
         .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
     }
 
@@ -455,21 +492,13 @@ private struct MessageRow: View {
 
     private var assistantBubble: some View {
         Group {
-            if message.content.isEmpty && isStreaming {
-                HStack(spacing: 6) {
-                    Text("Pensando")
-                        .font(.system(size: 13))
-                        .foregroundColor(VitaColors.textSecondary)
-                    TypingDots()
-                }
-                .padding(.vertical, 4)
-            } else if isStreaming {
+            if isStreaming {
                 (Text(message.content)
                     .font(.system(size: 13))
                     .foregroundColor(VitaColors.textPrimary)
                 + Text(cursorVisible ? " |" : "  ")
                     .font(.system(size: 13))
-                    .foregroundColor(VitaColors.accent))
+                    .foregroundColor(VitaColors.textSecondary))
             } else {
                 VitaMarkdown(content: message.content)
             }
@@ -497,78 +526,142 @@ private struct MessageRow: View {
 }
 
 // MARK: - History Panel
+//
+// PORT do HistoryPanel do Pixio. Nav items no topo (Nova / Buscar / Projetos)
+// + lista de conversas agrupada por data. Vita NÃO tem backend de projetos
+// nem busca server-side: "Projetos" abre placeholder, "Buscar" filtra local.
 
 private struct HistoryPanel: View {
     let viewModel: ChatViewModel
 
+    @State private var showSearch: Bool = false
+    @State private var searchQuery: String = ""
+    /// Vita ainda não tem backend de Projetos — sheet placeholder. // TODO projetos backend
+    @State private var showProjectsPlaceholder: Bool = false
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Conversas")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(VitaColors.textPrimary)
-                Spacer()
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        viewModel.showHistory = false
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 0) {
+                Spacer().frame(height: 8)
+
+                // Nav items (ChatGPT pattern) — alinhados à esquerda
+                VStack(spacing: 2) {
+                    ChatSidebarNavItem(
+                        icon: "square.and.pencil",
+                        title: "Nova conversa",
+                        action: { viewModel.newConversation() }
+                    )
+                    ChatSidebarNavItem(
+                        icon: "magnifyingglass",
+                        title: "Buscar conversas",
+                        action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showSearch.toggle()
+                                if !showSearch { searchQuery = "" }
+                            }
+                        }
+                    )
+                    // TODO projetos backend — Vita ainda não tem modelo/endpoint
+                    // de projetos. UI portada do Pixio, abre placeholder.
+                    ChatSidebarNavItem(
+                        icon: "folder",
+                        title: "Projetos",
+                        action: { showProjectsPlaceholder = true }
+                    )
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8)
+
+                // Search input (slide-in)
+                if showSearch {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 13))
+                            .foregroundColor(VitaColors.textSecondary)
+                        TextField("Buscar título…", text: $searchQuery)
+                            .font(.system(size: 13))
+                            .foregroundColor(VitaColors.textPrimary)
+                            .textFieldStyle(.plain)
+                            .tint(VitaColors.accent)
+                        if !searchQuery.isEmpty {
+                            Button { searchQuery = "" } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(VitaColors.textTertiary)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(VitaColors.textTertiary)
-                        .frame(width: 28, height: 28)
-                        .background(VitaColors.textWarm.opacity(0.06))
-                        .clipShape(Circle())
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .pixioFieldSurface()
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
 
-            Divider()
-                .overlay(VitaColors.glassBorder)
+                Divider()
+                    .overlay(VitaColors.glassBorder)
 
-            if viewModel.conversations.isEmpty {
-                VStack(spacing: 8) {
-                    Spacer()
-                    Image(systemName: "bubble.left.and.bubble.right")
-                        .font(.system(size: 28))
-                        .foregroundColor(VitaColors.textTertiary)
-                    Text("Nenhuma conversa ainda")
-                        .font(.system(size: 12))
-                        .foregroundColor(VitaColors.textTertiary)
-                    Spacer()
-                }
-            } else {
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: 2) {
-                        ForEach(groupedConversations, id: \.key) { group in
-                            // Date section header
-                            Text(group.key)
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(VitaColors.textTertiary)
-                                .textCase(.uppercase)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 16)
-                                .padding(.top, 12)
-                                .padding(.bottom, 4)
+                if filteredConversations.isEmpty {
+                    VStack(spacing: 8) {
+                        Spacer()
+                        Image(systemName: viewModel.conversations.isEmpty
+                              ? "bubble.left.and.bubble.right"
+                              : "magnifyingglass")
+                            .font(.system(size: 28))
+                            .foregroundColor(VitaColors.textTertiary)
+                        Text(viewModel.conversations.isEmpty
+                             ? "Nenhuma conversa ainda"
+                             : "Nada encontrado")
+                            .font(.system(size: 12))
+                            .foregroundColor(VitaColors.textTertiary)
+                        Spacer()
+                    }
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(spacing: 1) {
+                            ForEach(groupedConversations, id: \.key) { group in
+                                Text(group.key)
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(VitaColors.textTertiary)
+                                    .textCase(.uppercase)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 12)
+                                    .padding(.bottom, 4)
 
-                            ForEach(group.items) { conv in
-                                HistoryRow(
-                                    conversation: conv,
-                                    isActive: conv.id == viewModel.currentConversationId
-                                ) {
-                                    Task { await viewModel.loadConversation(conv) }
+                                ForEach(group.items) { conv in
+                                    HistoryRow(
+                                        conversation: conv,
+                                        isActive: conv.id == viewModel.currentConversationId
+                                    ) {
+                                        Task { await viewModel.loadConversation(conv) }
+                                    }
                                 }
                             }
                         }
+                        .padding(.bottom, 12)
                     }
-                    .padding(.bottom, 12)
                 }
             }
+            // Close button overlay top-right (não consome altura no VStack)
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    viewModel.showHistory = false
+                }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(VitaColors.textSecondary)
+                    .frame(width: 28, height: 28)
+                    .background(VitaColors.textWarm.opacity(0.06))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
+            .padding(.trailing, 12)
         }
-        .frame(width: 280)
+        .frame(width: 296)
         .frame(maxHeight: .infinity)
         .background {
             Rectangle()
@@ -579,6 +672,9 @@ private struct HistoryPanel: View {
             Rectangle()
                 .fill(VitaColors.glassBorder)
                 .frame(width: 1)
+        }
+        .sheet(isPresented: $showProjectsPlaceholder) {
+            ProjectsPlaceholderSheet()
         }
     }
 
@@ -598,6 +694,18 @@ private struct HistoryPanel: View {
         return plain.date(from: string)
     }
 
+    /// Conversas após filtro de busca (título OU preview, case-insensitive).
+    private var filteredConversations: [ConversationEntry] {
+        let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return viewModel.conversations }
+        return viewModel.conversations.filter { conv in
+            let title = conv.title ?? ""
+            let preview = conv.messagePreview ?? ""
+            return title.localizedCaseInsensitiveContains(trimmed)
+                || preview.localizedCaseInsensitiveContains(trimmed)
+        }
+    }
+
     private var groupedConversations: [DateGroup] {
         let calendar = Calendar.current
         let now = Date()
@@ -605,7 +713,7 @@ private struct HistoryPanel: View {
         var groups: [String: [ConversationEntry]] = [:]
         var order: [String] = []
 
-        for conv in viewModel.conversations {
+        for conv in filteredConversations {
             let label: String
             if let date = parseDate(conv.updatedAt) {
                 if calendar.isDateInToday(date) {
@@ -629,6 +737,64 @@ private struct HistoryPanel: View {
         }
 
         return order.map { DateGroup(key: $0, items: groups[$0] ?? []) }
+    }
+}
+
+// MARK: - Sidebar nav item (PORT do ChatSidebarNavItem do Pixio)
+
+private struct ChatSidebarNavItem: View {
+    let icon: String
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(VitaColors.textSecondary)
+                    .frame(width: 24)
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(VitaColors.textPrimary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Projects placeholder (Vita não tem backend de projetos ainda)
+
+private struct ProjectsPlaceholderSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "folder")
+                .font(.system(size: 40))
+                .foregroundColor(VitaColors.textTertiary)
+            Text("Projetos")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(VitaColors.textPrimary)
+            Text("Em breve você vai poder organizar suas conversas em projetos.")
+                .font(.system(size: 13))
+                .foregroundColor(VitaColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            Spacer()
+            Button("Fechar") { dismiss() }
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(VitaColors.accent)
+                .padding(.bottom, 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PixioAuroraBackground())
+        .presentationDetents([.medium])
     }
 }
 
@@ -720,17 +886,10 @@ private struct MessageActions: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Copiar")
 
-            // Share
-            Button {
-                let av = UIActivityViewController(
-                    activityItems: [message.content],
-                    applicationActivities: nil
-                )
-                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let root = scene.windows.first?.rootViewController {
-                    root.present(av, animated: true)
-                }
-            } label: {
+            // Share — ShareLink nativo SwiftUI (resolve o topmost controller sozinho,
+            // diferente de UIActivityViewController.present que não mostra nada com
+            // o chat overlay aberto). Canon Pixio 2026-05-13.
+            ShareLink(item: message.content) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 11))
                     .foregroundColor(VitaColors.textTertiary)
@@ -750,27 +909,120 @@ private struct MessageActions: View {
     }
 }
 
-// MARK: - Typing Dots
+// MARK: - Thinking Indicator (luz "cometa" orbitando) — PORT do Pixio
+//
+// Cápsula COMPACTA (abraça o conteúdo) com uma luz limpa — um "cometa" —
+// orbitando a borda na cor do tema ativo (Vita = dourado) + respiro suave.
+// Dá vida ao tempo de espera sem poluir. Mesmo motivo orbital do mascote.
+private struct PixioThinkingIndicator: View {
+    @State private var sweep: Double = 0
+    @State private var breathe = false
 
-private struct TypingDots: View {
-    @State private var phase: Int = 0
+    private var themeColor: Color { PixioCoState.shared.activeThemeColor.color }
 
     var body: some View {
-        HStack(spacing: 5) {
-            ForEach(0..<3, id: \.self) { i in
-                Circle()
-                    .fill(VitaColors.accent.opacity(phase == i ? 0.7 : 0.2))
-                    .frame(width: 5, height: 5)
-                    .scaleEffect(phase == i ? 1.2 : 1.0)
-                    .animation(.easeInOut(duration: 0.3), value: phase)
+        let shape = Capsule(style: .continuous)
+        return Text("Pensando")
+            .font(.system(size: 13))
+            .foregroundColor(VitaColors.textSecondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 9)
+            .pixioGlass(.clearTinted(themeColor.opacity(0.18)), in: shape)
+            // anel base bem leve (sempre presente)
+            .overlay(shape.strokeBorder(PixioColor.glassBorder, lineWidth: 1))
+            // cometa nítido girando ao redor da borda
+            .overlay(shape.strokeBorder(cometGradient, lineWidth: 1.6))
+            // halo suave do cometa (brilho que vaza um tico pra fora)
+            .overlay(
+                shape.strokeBorder(cometGradient, lineWidth: 3)
+                    .blur(radius: 5)
+                    .opacity(0.6)
+            )
+            .scaleEffect(breathe ? 1.0 : 0.97)
+            .shadow(color: themeColor.opacity(0.22), radius: 9, y: 3)
+            .onAppear {
+                withAnimation(.linear(duration: 1.9).repeatForever(autoreverses: false)) {
+                    sweep = 360
+                }
+                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                    breathe = true
+                }
             }
-        }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(400))
-                withAnimation { phase = (phase + 1) % 3 }
+            .accessibilityLabel("Vita está pensando")
+            .accessibilityAddTraits(.updatesFrequently)
+    }
+
+    /// Cometa: a maior parte transparente, com um trecho brilhante (rastro +
+    /// cabeça na cor do tema) que, com `sweep` girando 0→360, orbita a borda.
+    private var cometGradient: AngularGradient {
+        AngularGradient(
+            gradient: Gradient(stops: [
+                .init(color: .clear,                   location: 0.00),
+                .init(color: .clear,                   location: 0.62),
+                .init(color: themeColor.opacity(0.55), location: 0.80),
+                .init(color: themeColor,               location: 0.88),
+                .init(color: themeColor.opacity(0.55), location: 0.94),
+                .init(color: .clear,                   location: 1.00),
+            ]),
+            center: .center,
+            angle: .degrees(sweep)
+        )
+    }
+}
+
+// MARK: - Comet glow (borda "cometa" girante reutilizável) — PORT do Pixio
+//
+// Mesmo efeito do PixioThinkingIndicator (comet AngularGradient orbitando a
+// borda + halo borrado), extraído pra reusar em volta do composer "Pergunte
+// ao Vita". Sem o "breathe" — só a luz que circula.
+private struct PixioCometGlow<S: InsettableShape>: ViewModifier {
+    let shape: S
+    let themeColor: Color
+    var lineWidth: CGFloat = 1.6
+    /// Segundos por volta — mais alto = mais devagar/calmo (premium).
+    var duration: Double = 1.9
+    /// 0…1 — brilho do cometa. Mais baixo = mais sutil, menos distrai.
+    var intensity: Double = 1.0
+    @State private var sweep: Double = 0
+
+    private var cometGradient: AngularGradient {
+        AngularGradient(
+            gradient: Gradient(stops: [
+                .init(color: .clear,                               location: 0.00),
+                .init(color: .clear,                               location: 0.58),
+                .init(color: themeColor.opacity(0.40 * intensity), location: 0.76),
+                .init(color: themeColor.opacity(0.85 * intensity), location: 0.88),
+                .init(color: themeColor.opacity(0.40 * intensity), location: 0.96),
+                .init(color: .clear,                               location: 1.00),
+            ]),
+            center: .center,
+            angle: .degrees(sweep)
+        )
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(shape.strokeBorder(cometGradient, lineWidth: lineWidth))
+            .overlay(
+                shape.strokeBorder(cometGradient, lineWidth: lineWidth + 1.4)
+                    .blur(radius: 6)
+                    .opacity(0.5 * intensity)
+            )
+            .onAppear {
+                withAnimation(.linear(duration: duration).repeatForever(autoreverses: false)) {
+                    sweep = 360
+                }
             }
-        }
+    }
+}
+
+private extension View {
+    func pixioCometGlow<S: InsettableShape>(_ shape: S, themeColor: Color,
+                                            lineWidth: CGFloat = 1.6,
+                                            duration: Double = 1.9,
+                                            intensity: Double = 1.0) -> some View {
+        modifier(PixioCometGlow(shape: shape, themeColor: themeColor,
+                                lineWidth: lineWidth, duration: duration, intensity: intensity))
     }
 }
 
@@ -808,18 +1060,17 @@ private struct ChatInput: View {
                 Button {
                     onPlusTap()
                 } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 22, weight: .medium))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundColor(VitaColors.accent)
+                    Image(systemName: "plus")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(VitaColors.textPrimary)
                         .frame(width: 34, height: 34)
+                        .pixioRaised(in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Vita+")
-                // matchedGeometry: popout cresce DESTE botão — só é source quando popout fechado
                 .matchedGeometryEffect(id: "plus_popout_origin", in: namespace, isSource: !isPlusPopoutOpen)
 
-                // Text input — tipografia mais legível (14pt) + placeholder em PT
+                // Text input — tipografia legível canon
                 TextField(
                     "Pergunte ao Vita...",
                     text: Binding(
@@ -849,7 +1100,6 @@ private struct ChatInput: View {
                 }
 
                 // Send — D4 gold quando ativo, glass neutro quando idle.
-                // Cor sólida + border gradient pra ter peso visual.
                 Button {
                     isInputFocused.wrappedValue = false
                     Task { await viewModel.send() }
@@ -885,9 +1135,9 @@ private struct ChatInput: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            // Input bar — fundo escuro pra contraste com glow + glow líquido
-            // animado em volta. Shadow gold radiante forte (24pt) faz a luz
-            // do glow "transbordar" pro background.
+            // Composer — fundo escuro pra contraste + glow "cometa" girando em
+            // volta (mesmo efeito do card "Pensando", mas DEVAGAR e SUTIL,
+            // premium, não distrai). Canon Pixio 2026-06-10.
             .background(
                 RoundedRectangle(cornerRadius: 22)
                     .fill(Color.black.opacity(0.35))
@@ -897,9 +1147,11 @@ private struct ChatInput: View {
                             .environment(\.colorScheme, .dark)
                     )
             )
-            .vitaIntelligenceGlow(cornerRadius: 22)
-            .shadow(color: VitaColors.accent.opacity(0.45), radius: 24, x: 0, y: 0)
-            .shadow(color: VitaColors.accent.opacity(0.25), radius: 8, x: 0, y: 2)
+            .pixioCometGlow(RoundedRectangle(cornerRadius: 22, style: .continuous),
+                            themeColor: PixioCoState.shared.activeThemeColor.color,
+                            lineWidth: 1.2, duration: 6.5, intensity: 0.6)
+            .shadow(color: VitaColors.accent.opacity(0.30), radius: 18, x: 0, y: 0)
+            .shadow(color: VitaColors.accent.opacity(0.18), radius: 8, x: 0, y: 2)
             .padding(.horizontal, 14)
             .padding(.bottom, 12)
             .padding(.top, 8)
@@ -988,121 +1240,5 @@ private struct CameraCaptureView: UIViewControllerRepresentable {
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { onCapture(nil) }
-    }
-}
-
-// MARK: - VitaIntelligenceGlow Modifier
-//
-// Apple Intelligence-style animated gold glow border. Multi-layer angular
-// gradient strokes with blur halo — borda viva, com luz e profundidade
-// 3D simulada. Período padrão 7s, respeita "Reduzir Movimento".
-//
-// Rafael 2026-04-26: aplicado no VitaChatScreen pra dar estética Siri/AI
-// moderna. Inline aqui (não em arquivo standalone) porque .xcodeproj
-// não auto-detecta novos arquivos.
-
-// VitaIntelligenceGlow — Liquid Light edition (Rafael feedback 2026-04-26)
-//
-// Versão anterior: linear infinite rotation = snap visual a cada 360° +
-// flickering. Aqui usamos TimelineView + 3 layers com periods primos (3.7s,
-// 5.3s, 8.1s) e fase via `sin()` — nunca alinha 100%, dá sensação de
-// fluido "vivo". Também adiciona breathing (escala/intensidade que pulsa).
-//
-// Aplicado no INPUT "Pergunte ao Vita" — borda do composer fica gold
-// líquido em loop suave, sem snap, sem flicker.
-
-private struct VitaIntelligenceGlow: ViewModifier {
-    let cornerRadius: CGFloat
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(
-                Group {
-                    if reduceMotion {
-                        // Borda estática quando motion reduzida
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .stroke(VitaColors.accent.opacity(0.55), lineWidth: 1.5)
-                    } else {
-                        TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { context in
-                            let t = context.date.timeIntervalSinceReferenceDate
-                            // Periods primos pra nunca sincronizar — efeito orgânico
-                            let r1 = Angle.degrees((t / 3.7) * 360)
-                            let r2 = Angle.degrees((t / 5.3) * 360 + 60)
-                            let r3 = Angle.degrees((t / 8.1) * 360 - 30)
-                            // Breathing: intensidade pulsa entre 0.85 e 1.15
-                            let breath = 1.0 + 0.15 * sin(t * 0.8)
-
-                            ZStack {
-                                // Layer 1 — crisp bright gradient (2.5pt) — borda principal
-                                RoundedRectangle(cornerRadius: cornerRadius)
-                                    .strokeBorder(
-                                        AngularGradient(
-                                            gradient: Gradient(stops: [
-                                                .init(color: VitaColors.accent.opacity(0.10), location: 0.00),
-                                                .init(color: VitaColors.accent.opacity(0.85 * breath), location: 0.15),
-                                                .init(color: Color(red: 1.00, green: 0.95, blue: 0.78).opacity(breath), location: 0.27),
-                                                .init(color: VitaColors.accent.opacity(min(1.0, 1.0 * breath)), location: 0.40),
-                                                .init(color: VitaColors.accent.opacity(0.55 * breath), location: 0.55),
-                                                .init(color: VitaColors.accent.opacity(0.10), location: 1.00),
-                                            ]),
-                                            center: .center,
-                                            startAngle: r1,
-                                            endAngle: r1 + .degrees(360)
-                                        ),
-                                        lineWidth: 2.5
-                                    )
-
-                                // Layer 2 — halo médio com blur (refração de luz)
-                                RoundedRectangle(cornerRadius: cornerRadius)
-                                    .strokeBorder(
-                                        AngularGradient(
-                                            gradient: Gradient(stops: [
-                                                .init(color: VitaColors.accent.opacity(0.00), location: 0.00),
-                                                .init(color: VitaColors.accent.opacity(0.65 * breath), location: 0.20),
-                                                .init(color: Color.white.opacity(0.55 * breath), location: 0.30),
-                                                .init(color: VitaColors.accent.opacity(0.80 * breath), location: 0.42),
-                                                .init(color: VitaColors.accent.opacity(0.00), location: 0.62),
-                                                .init(color: VitaColors.accent.opacity(0.00), location: 1.00),
-                                            ]),
-                                            center: .center,
-                                            startAngle: r2,
-                                            endAngle: r2 + .degrees(360)
-                                        ),
-                                        lineWidth: 5
-                                    )
-                                    .blur(radius: 7)
-
-                                // Layer 3 — aura distante (ambient glow)
-                                RoundedRectangle(cornerRadius: cornerRadius)
-                                    .strokeBorder(
-                                        AngularGradient(
-                                            gradient: Gradient(stops: [
-                                                .init(color: VitaColors.accent.opacity(0.00), location: 0.00),
-                                                .init(color: VitaColors.accent.opacity(0.50 * breath), location: 0.28),
-                                                .init(color: VitaColors.accent.opacity(0.00), location: 0.55),
-                                                .init(color: VitaColors.accent.opacity(0.00), location: 1.00),
-                                            ]),
-                                            center: .center,
-                                            startAngle: r3,
-                                            endAngle: r3 + .degrees(360)
-                                        ),
-                                        lineWidth: 11
-                                    )
-                                    .blur(radius: 14)
-                                    .opacity(0.85)
-                            }
-                        }
-                    }
-                }
-                .allowsHitTesting(false)
-            )
-    }
-}
-
-private extension View {
-    func vitaIntelligenceGlow(cornerRadius: CGFloat = 22) -> some View {
-        modifier(VitaIntelligenceGlow(cornerRadius: cornerRadius))
     }
 }
