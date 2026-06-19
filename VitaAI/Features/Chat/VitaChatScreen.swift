@@ -21,13 +21,10 @@ struct VitaChatScreen: View {
 
     var body: some View {
         ZStack {
-            // Glassmorphism — real blur of content behind
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .environment(\.colorScheme, .dark)
-
-            // Subtle gold tint over blur
-            VitaColors.accent.opacity(0.03)
+            // Pixio graphite aurora — fundo OPACO premium. Substitui o
+            // blur-sobre-blur que lavava header/composer (so aparecia o
+            // mascote). Da a cara graphite do Pixio. Rafael 2026-06-19.
+            PixioAuroraBackground()
 
             if let viewModel {
                 chatContent(viewModel: viewModel)
