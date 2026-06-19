@@ -28,23 +28,22 @@ struct VitaChatScreen: View {
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
-        Group {
-            if let viewModel {
-                chatContent(viewModel: viewModel)
-            } else {
-                DashboardSkeleton()
-                    .tint(VitaColors.accent)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ZStack {
+            // Aurora graphite EDGE-TO-EDGE (tem .ignoresSafeArea interno). Como
+            // IRMAO no ZStack (NAO .background): so o fundo ignora a safe area, o
+            // conteudo respeita. Senao o conteudo vazava pra fora e o header sumia
+            // atras do notch + o composer caia fora da base (bug "so o mascote").
+            PixioAuroraBackground()
+            Group {
+                if let viewModel {
+                    chatContent(viewModel: viewModel)
+                } else {
+                    DashboardSkeleton()
+                        .tint(VitaColors.accent)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
-        // FIX do bug "só aparece o mascote": o PixioAuroraBackground tem
-        // .ignoresSafeArea() em TODAS as camadas. Quando colocado num ZStack
-        // SOLTO, ele vazava pra tela inteira e empurrava o header/composer pra
-        // fora do frame com padding(.top,60)/(.bottom,80) do AppRouter — só
-        // sobrava o mascote central. Aplicando como .background() recortado
-        // pelo mesmo clipShape, o fundo fica DENTRO do frame do chat e o
-        // header/composer voltam a aparecer. Rafael 2026-06-19.
-        .background(PixioAuroraBackground())
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(
             RoundedRectangle(cornerRadius: 24)
