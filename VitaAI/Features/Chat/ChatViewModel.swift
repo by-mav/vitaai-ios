@@ -129,7 +129,9 @@ final class ChatViewModel {
                     if let apiError = error as? APIError {
                         switch apiError {
                         case .forbidden:
-                            self.messages[idx].content = "O Chat IA está disponível apenas para assinantes Pro. Assine para desbloquear!"
+                            self.messages[idx].content = "Não consegui abrir o Chat agora. Tenta de novo em instantes."
+                        case .consentRequired:
+                            self.messages[idx].content = "Não consegui ativar o Chat IA. Tenta de novo."
                         case .unauthorized:
                             self.messages[idx].content = "Sessão expirada. Faça login novamente."
                         default:

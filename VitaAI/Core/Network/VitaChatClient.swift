@@ -25,6 +25,28 @@ actor VitaChatClient {
         self.onUnauthorized = handler
     }
 
+    /// Concede o consentimento de IA (LGPD/Apple). O Chat e FREE — o consent
+    /// e uma aceitacao unica; sem ele o backend devolve 403 AI_CONSENT_REQUIRED.
+    private func grantConsent() async -> Bool {
+        guard let url = URL(string: AppConfig.apiBaseURL + "/user/ai-consent") else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = await self.tokenStore.token {
+            req.setValue("\(AppConfig.sessionCookieName)=\(token)", forHTTPHeaderField: "Cookie")
+            req.setValue(token, forHTTPHeaderField: "X-Extension-Token")
+        }
+        do {
+            let (_, resp) = try await self.session.data(for: req)
+            let ok = (resp as? HTTPURLResponse).map { (200...299).contains($0.statusCode) } ?? false
+            NSLog("[VitaChatClient] grantConsent -> %@", ok ? "OK" : "FAIL")
+            return ok
+        } catch {
+            NSLog("[VitaChatClient] grantConsent erro: %@", "\(error)")
+            return false
+        }
+    }
+
     func streamChat(
         message: String,
         conversationId: String?,
@@ -55,6 +77,7 @@ actor VitaChatClient {
                     let encodedBody = try JSONSerialization.data(withJSONObject: requestDict)
 
                     var didAttemptRefresh = false
+                    var didAttemptConsent = false
                     var lastError: Error = APIError.unknown
 
                     for attempt in 0..<Self.maxRetries {
@@ -107,8 +130,14 @@ actor VitaChatClient {
 
                         guard (200...299).contains(httpResponse.statusCode) else {
                             if httpResponse.statusCode == 403 {
-                                NSLog("[VitaChatClient] 403 Forbidden — user may lack Pro subscription")
-                                continuation.finish(throwing: APIError.forbidden)
+                                // Unico 403 da rota /ai/coach = gate de consentimento de IA
+                                // (AI_CONSENT_REQUIRED). NAO e assinatura — o chat e free.
+                                if !didAttemptConsent {
+                                    didAttemptConsent = true
+                                    if await self.grantConsent() { continue }
+                                }
+                                NSLog("[VitaChatClient] 403 — consentimento de IA pendente")
+                                continuation.finish(throwing: APIError.consentRequired)
                                 return
                             }
                             if (500...599).contains(httpResponse.statusCode) {
