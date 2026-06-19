@@ -23,7 +23,7 @@ struct QBankExplanationSheet: View {
                                     .frame(width: 22, height: 22)
                                     .background(VitaColors.dataGreen.opacity(0.15))
                                     .clipShape(Circle())
-                                Text(alt.text)
+                                Text(alt.text.qbankPlainText)
                                     .font(.system(size: 13))
                                     .foregroundStyle(VitaColors.textPrimary)
                                 Spacer()
@@ -75,15 +75,10 @@ struct QBankExplanationSheet: View {
                             Text("Comentário")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(VitaColors.textPrimary)
-                            if explanation.contains("<") {
-                                QBankHTMLText(html: explanation, textColor: "#AAAAAA", bgColor: "transparent")
-                                    .frame(minHeight: 80)
-                            } else {
-                                Text(explanation)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(VitaColors.textSecondary)
-                                    .lineSpacing(3)
-                            }
+                            Text(explanation.qbankPlainText)
+                                .font(.system(size: 13))
+                                .foregroundStyle(VitaColors.textSecondary)
+                                .lineSpacing(3)
                         }
                     }
 

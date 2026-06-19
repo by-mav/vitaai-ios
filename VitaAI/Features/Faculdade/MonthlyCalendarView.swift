@@ -3,13 +3,13 @@ import SwiftUI
 // MARK: - MonthlyCalendarView
 //
 // Calm-at-rest monthly calendar inspired by the Pixio subscription calendar mock.
-// Two data layers in one grid:
-//   - Aulas (recurring schedule) → thin colored bars at the bottom of each cell
-//   - Avaliações (one-off provas/trabalhos) → colored dots in the top-right
+// Three data layers in one grid:
+//   - Aulas (recurring schedule)
+//   - Provas
+//   - Trabalhos
 //
-// Both use the same per-subject color so the eye groups them naturally.
-// Filter pill (Tudo / Avaliações / Aulas) toggles layers without losing the cell structure.
-// Tap a day with content → animated popover with the full breakdown.
+// The selected layer uses colored discipline dots only. The chip row communicates
+// type; dots communicate discipline.
 
 struct MonthlyCalendarView: View {
     let schedule: [AgendaClassBlock]
@@ -17,7 +17,7 @@ struct MonthlyCalendarView: View {
 
     @State private var displayedMonth: Date = .now
     @State private var selectedDay: SelectedDay?
-    @State private var filter: CalendarFilter = .all
+    @State private var filter: CalendarFilter = .classes
     @State private var cachedCells: [MonthCell] = []
     @State private var viewMode: ViewMode = .month
     @State private var focusDate: Date = .now
@@ -55,13 +55,13 @@ struct MonthlyCalendarView: View {
 
     private let calendar: Calendar = {
         var c = Calendar(identifier: .gregorian)
-        c.firstWeekday = 2 // Monday
+        c.firstWeekday = 1 // Sunday, matching Pixio AgendaCard.
         c.locale = Locale(identifier: "pt_BR")
         c.timeZone = TimeZone.current
         return c
     }()
 
-    private let weekdayLabels = ["SEG", "TER", "QUA", "QUI", "SEX", "SAB", "DOM"]
+    private let weekdayLabels = ["D", "S", "T", "Q", "Q", "S", "S"]
 
     // Cached formatters — SwiftUI re-evaluates computed props on every render,
     // so creating DateFormatter inline is a real perf hit on a grid view.
@@ -210,7 +210,7 @@ struct MonthlyCalendarView: View {
     private func weekEvalLine(_ eval: AgendaEvaluation) -> some View {
         let subject = eval.subjectName ?? "—"
         let color = colorFor(subject: subject)
-        let prova = isProva(eval.type)
+        let prova = isProva(eval)
         return HStack(spacing: 6) {
             Group {
                 if prova {
@@ -316,7 +316,7 @@ struct MonthlyCalendarView: View {
     private func dayEvalCard(_ eval: AgendaEvaluation) -> some View {
         let subject = eval.subjectName ?? "—"
         let color = colorFor(subject: subject)
-        let prova = isProva(eval.type)
+        let prova = isProva(eval)
         return HStack(alignment: .top, spacing: 10) {
             Group {
                 if prova {
@@ -346,7 +346,7 @@ struct MonthlyCalendarView: View {
                     Text("·")
                         .font(.system(size: 10))
                         .foregroundStyle(textDim)
-                    Text(prettyType(eval.type))
+                    Text(prettyType(eval))
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(color.opacity(0.90))
                 }
@@ -433,24 +433,25 @@ struct MonthlyCalendarView: View {
     // MARK: - Filter
 
     enum CalendarFilter: String, CaseIterable, Identifiable {
-        case all = "Tudo"
-        case evaluations = "Avaliações"
         case classes = "Aulas"
+        case exams = "Provas"
+        case assignments = "Trabalhos"
+
         var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .classes: return "book.closed"
+            case .exams: return "checkmark.seal"
+            case .assignments: return "doc.text"
+            }
+        }
     }
 
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionLabel
-            calendarCard
-        }
-        .overlay {
-            if let day = selectedDay {
-                popoverLayer(day)
-            }
-        }
+        calendarContent
         .animation(.spring(response: 0.35, dampingFraction: 0.78), value: selectedDay?.id)
         .onAppear { rebuildCellsIfNeeded() }
         .onChange(of: displayedMonth) { _, _ in rebuildCellsIfNeeded() }
@@ -498,7 +499,7 @@ struct MonthlyCalendarView: View {
     private func evalRowDetail(_ eval: AgendaEvaluation) -> some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(isProva(eval.type) ? colorFor(subject: eval.subjectName ?? "—") : Color.clear)
+                .fill(isProva(eval) ? colorFor(subject: eval.subjectName ?? "—") : Color.clear)
                 .overlay(
                     Circle().stroke(colorFor(subject: eval.subjectName ?? "—"), lineWidth: 1.5)
                 )
@@ -521,7 +522,7 @@ struct MonthlyCalendarView: View {
                 }
             }
             Spacer()
-            Text(isProva(eval.type) ? "Prova" : "Trabalho")
+            Text(prettyType(eval))
                 .font(VitaTypography.labelSmall)
                 .foregroundStyle(VitaColors.textTertiary)
         }
@@ -578,64 +579,32 @@ struct MonthlyCalendarView: View {
         cachedCells = makeMonthCells()
     }
 
-    private var sectionLabel: some View {
-        Text("Calendário do mês")
-            .font(.system(size: 11, weight: .semibold))
-            .tracking(0.5)
-            .textCase(.uppercase)
-            .foregroundStyle(goldMuted.opacity(0.45))
-            .padding(.leading, 4)
-    }
-
-    private var calendarCard: some View {
-        VStack(spacing: 14) {
+    private var calendarContent: some View {
+        VStack(spacing: 16) {
+            filterPills
             header
-            if filter != .all {
-                filterPills
-            }
-            switch viewMode {
-            case .month:
-                weekdaysRow
-                daysGrid
-                calendarLegend
-                monthFooter
-            case .week:
-                weekModePlaceholder
-            case .day:
-                dayModePlaceholder
-            }
+            weekdaysRow
+                .padding(.horizontal, 8)
+            daysGrid
+                .padding(.horizontal, 8)
+            disciplineLegend
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(cardBg)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(glassBorder, lineWidth: 0.5)
-        )
-        .padding(.bottom, 4)
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text(headerTitle)
-                .font(.system(size: 17, weight: .bold))
+        HStack(spacing: 18) {
+            navButton(systemName: "chevron.left") { navigate(-1) }
+
+            Text(monthStepperLabel)
+                .font(PixioTypo.sans(size: 15, weight: .medium))
                 .foregroundStyle(textPrimary)
-                .kerning(-0.3)
                 .lineLimit(1)
 
-            Spacer(minLength: 4)
-
-            viewModeToggle
-
-            HStack(spacing: 4) {
-                navButton(systemName: "chevron.left") { navigate(-1) }
-                navButton(systemName: "chevron.right") { navigate(1) }
-            }
+            navButton(systemName: "chevron.right") { navigate(1) }
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var headerTitle: String {
@@ -644,6 +613,17 @@ struct MonthlyCalendarView: View {
         case .week:  return weekTitle
         case .day:   return dayTitle
         }
+    }
+
+    private var monthStepperLabel: String {
+        let raw = Self.monthTitleFormatter.string(from: displayedMonth)
+        let pretty = raw.prefix(1).uppercased() + raw.dropFirst()
+        let currentYear = calendar.component(.year, from: Date())
+        let shownYear = calendar.component(.year, from: displayedMonth)
+        if shownYear == currentYear {
+            return pretty.split(separator: ",").first.map(String.init) ?? pretty
+        }
+        return String(pretty.replacingOccurrences(of: ",", with: ""))
     }
 
     private var viewModeToggle: some View {
@@ -656,12 +636,12 @@ struct MonthlyCalendarView: View {
                 } label: {
                     Image(systemName: mode.iconName)
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(viewMode == mode ? goldPrimary : goldMuted.opacity(0.40))
+                        .foregroundStyle(viewMode == mode ? goldPrimary : textDim)
                         .frame(width: 26, height: 24)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(viewMode == mode
-                                      ? VitaColors.glassInnerLight.opacity(0.10)
+                                      ? goldPrimary.opacity(0.12)
                                       : Color.clear)
                         )
                 }
@@ -671,7 +651,7 @@ struct MonthlyCalendarView: View {
         .padding(2)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(VitaColors.glassInnerLight.opacity(0.04))
+                .fill(VitaColors.surfaceElevated.opacity(0.45))
         )
     }
 
@@ -703,32 +683,19 @@ struct MonthlyCalendarView: View {
     private func navButton(systemName: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(goldMuted.opacity(0.55))
-                .frame(width: 26, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(VitaColors.glassInnerLight.opacity(0.04))
-                )
+                .font(PixioTypo.sans(size: 13, weight: .semibold))
+                .foregroundStyle(textPrimary.opacity(0.72))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
     private func navigate(_ delta: Int) {
-        withAnimation(.easeOut(duration: 0.20)) {
-            switch viewMode {
-            case .month:
-                if let next = calendar.date(byAdding: .month, value: delta, to: displayedMonth) {
-                    displayedMonth = next
-                }
-            case .week:
-                if let next = calendar.date(byAdding: .weekOfYear, value: delta, to: focusDate) {
-                    focusDate = next
-                }
-            case .day:
-                if let next = calendar.date(byAdding: .day, value: delta, to: focusDate) {
-                    focusDate = next
-                }
+        PixioHaptics.tap()
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.85)) {
+            if let next = calendar.date(byAdding: .month, value: delta, to: displayedMonth) {
+                displayedMonth = next
             }
             selectedDay = nil
         }
@@ -740,44 +707,55 @@ struct MonthlyCalendarView: View {
         HStack(spacing: 6) {
             ForEach(CalendarFilter.allCases) { f in
                 Button {
-                    withAnimation(.easeOut(duration: 0.18)) { filter = f }
+                    PixioHaptics.tap()
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        filter = f
+                        selectedDay = nil
+                        footerSheet = nil
+                    }
                 } label: {
-                    Text(f.rawValue)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(filter == f ? textPrimary : textWarm.opacity(0.40))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(filter == f
-                                      ? VitaColors.glassInnerLight.opacity(0.12)
-                                      : Color.clear)
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(filter == f
-                                        ? goldPrimary.opacity(0.18)
-                                        : Color.clear,
-                                        lineWidth: 1)
-                        )
+                    calendarFilterChip(f)
                 }
                 .buttonStyle(.plain)
             }
-            Spacer()
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func calendarFilterChip(_ item: CalendarFilter) -> some View {
+        let selected = filter == item
+        return HStack(spacing: 6) {
+            Image(systemName: item.icon)
+                .font(PixioTypo.sans(size: 10, weight: .semibold))
+            Text(item.rawValue)
+                .font(PixioTypo.sans(size: 11, weight: .semibold))
+            Text("\(count(for: item))")
+                .font(PixioTypo.sans(size: 10, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(selected ? VitaColors.goldText.opacity(0.84) : textDim)
+        }
+        .foregroundStyle(selected ? VitaColors.accentLight : textWarm.opacity(0.48))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(selected ? VitaColors.accent.opacity(0.13) : VitaColors.surfaceElevated.opacity(0.48))
+        )
+        .overlay(
+            Capsule()
+                .stroke(selected ? VitaColors.accentLight.opacity(0.26) : VitaColors.surfaceBorder.opacity(0.40), lineWidth: 0.75)
+        )
     }
 
     // MARK: - Weekdays row
 
     private var weekdaysRow: some View {
         HStack(spacing: 4) {
-            ForEach(weekdayLabels, id: \.self) { label in
+            ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { _, label in
                 Text(label)
-                    .font(.system(size: 9, weight: .semibold))
-                    .tracking(0.5)
+                    .font(PixioTypo.sans(size: 11, weight: .semibold))
                     .foregroundStyle(textDim)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
             }
         }
     }
@@ -785,75 +763,268 @@ struct MonthlyCalendarView: View {
     // MARK: - Days grid
 
     private var daysGrid: some View {
-        LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7),
-            spacing: 4
-        ) {
-            ForEach(Array(cachedCells.enumerated()), id: \.offset) { _, cell in
-                dayCell(cell)
+        let cells = cachedCells.isEmpty ? makeMonthCells() : cachedCells
+        let rows = stride(from: 0, to: cells.count, by: 7).map { index in
+            Array(cells[index..<min(index + 7, cells.count)])
+        }
+        let rowCount = max(1, rows.count)
+        let spacing: CGFloat = 4
+
+        return GeometryReader { geo in
+            let cellSize = max(0, (geo.size.width - spacing * 6) / 7)
+            VStack(spacing: spacing) {
+                ForEach(rows.indices, id: \.self) { rowIndex in
+                    HStack(spacing: spacing) {
+                        ForEach(0..<rows[rowIndex].count, id: \.self) { colIndex in
+                            dayCell(rows[rowIndex][colIndex], size: cellSize)
+                        }
+                    }
+                }
+            }
+            .frame(width: geo.size.width, alignment: .top)
+        }
+        .frame(height: gridHeight(rows: rowCount))
+    }
+
+    @ViewBuilder
+    private func dayCell(_ cell: MonthCell, size: CGFloat) -> some View {
+        switch cell {
+        case .empty:
+            Color.clear
+                .frame(width: size, height: size)
+        case .day(let date, let dayNum):
+            let dayAulas = aulasFor(date: date)
+            let dayEvals = evaluationsFor(date: date, filter: filter)
+            let visibleSubjects = subjectsFor(
+                aulas: filter == .classes ? dayAulas : [],
+                evaluations: dayEvals
+            )
+            let isToday = calendar.isDateInToday(date)
+            let isSelected = selectedDay?.id == dateID(date)
+            let hasContent = !visibleSubjects.isEmpty
+
+            Button {
+                guard hasContent else { return }
+                PixioHaptics.tap()
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                    focusDate = date
+                    selectedDay = SelectedDay(
+                        id: dateID(date),
+                        date: date,
+                        aulas: filter == .classes ? dayAulas : [],
+                        evals: dayEvals
+                    )
+                }
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(chipFill(isSelected: isSelected, isToday: isToday))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .strokeBorder(chipEdge(isSelected: isSelected, isToday: isToday), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.12), radius: 3, x: 0, y: 1.5)
+
+                    VStack(spacing: 0) {
+                        if hasContent {
+                            calendarDisciplineDots(subjects: visibleSubjects)
+                                .padding(.top, 5)
+                        }
+                        Spacer(minLength: 0)
+
+                        Text("\(dayNum)")
+                            .font(PixioTypo.sans(size: 11, weight: isToday ? .bold : .medium))
+                            .foregroundStyle(textPrimary.opacity(isToday || isSelected ? 0.96 : 0.78))
+                            .monospacedDigit()
+                            .padding(.bottom, 3)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(width: size, height: size)
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasContent)
+            .vitaBubble(
+                isPresented: Binding(
+                    get: { selectedDay?.id == dateID(date) },
+                    set: { presented in
+                        if !presented { selectedDay = nil }
+                    }
+                ),
+                arrowEdge: .top
+            ) {
+                if let selectedDay {
+                    popoverCard(selectedDay)
+                        .frame(width: 300)
+                }
             }
         }
     }
 
+    private func gridHeight(rows: Int) -> CGFloat {
+        let screenW = UIScreen.main.bounds.width
+        let outerPad: CGFloat = 16 * 2
+        let cardPad: CGFloat = 14 * 2
+        let gridPad: CGFloat = 8 * 2
+        let spacing: CGFloat = 4
+        let available = screenW - outerPad - cardPad - gridPad - spacing * 6
+        let cellSize = max(0, available / 7)
+        return CGFloat(rows) * cellSize + CGFloat(max(0, rows - 1)) * spacing
+    }
+
+    private func chipFill(isSelected: Bool, isToday: Bool) -> Color {
+        if isSelected { return VitaColors.surfaceBorder.opacity(0.78) }
+        if isToday { return VitaColors.surfaceElevated.opacity(0.92) }
+        return VitaColors.surfaceElevated.opacity(0.68)
+    }
+
+    private func chipEdge(isSelected: Bool, isToday: Bool) -> Color {
+        if isSelected { return VitaColors.textPrimary.opacity(0.22) }
+        if isToday { return VitaColors.textPrimary.opacity(0.16) }
+        return VitaColors.textPrimary.opacity(0.10)
+    }
+
     @ViewBuilder
-    private func dayCell(_ cell: MonthCell) -> some View {
-        switch cell {
-        case .empty:
-            Color.clear
-                .frame(height: 58)
-        case .day(let date, let dayNum):
-            let aulasSubjects = aulaSubjectsFor(date: date)
-            let dayEvals = evalsFor(date: date)
-            let isToday = calendar.isDateInToday(date)
-            let hasContent = !aulasSubjects.isEmpty || !dayEvals.isEmpty
-            let visualAulas = filter == .evaluations ? [] : aulasSubjects
-            let visualEvals = filter == .classes ? [] : dayEvals
+    private func calendarDisciplineDots(subjects: [String]) -> some View {
+        let visible = Array(subjects.prefix(3))
+        let overflow = max(0, subjects.count - visible.count)
 
-            Button {
-                guard hasContent else { return }
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                    focusDate = date
-                    viewMode = .day
-                }
-            } label: {
-                ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: 9)
-                        .fill(cellBg)
+        HStack(spacing: 3) {
+            ForEach(visible, id: \.self) { subject in
+                Circle()
+                    .fill(colorFor(subject: subject))
+                    .frame(width: 7, height: 7)
+                    .shadow(color: colorFor(subject: subject).opacity(0.42), radius: 2)
+            }
+            if overflow > 0 {
+                Text("+\(overflow)")
+                    .font(PixioTypo.sans(size: 7, weight: .bold))
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 0.5)
+                    .background(Capsule().fill(VitaColors.surfaceBorder.opacity(0.60)))
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
 
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("\(dayNum)")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(isToday ? goldPrimary : textWarm.opacity(0.55))
-                            .padding(.leading, 6)
-                            .padding(.top, 5)
-                        Spacer(minLength: 0)
-                        if !visualAulas.isEmpty {
-                            aulaBars(subjects: visualAulas)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding(.bottom, 5)
+    private var disciplineLegend: some View {
+        let subjects = legendSubjects
+        return Group {
+            if subjects.isEmpty {
+                Text(emptyLegendText)
+                    .font(PixioTypo.sans(size: 10, weight: .medium))
+                    .foregroundStyle(textDim)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(subjects, id: \.self) { subject in
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(colorFor(subject: subject))
+                                    .frame(width: 7, height: 7)
+                                Text(compactSubjectName(subject))
+                                    .font(PixioTypo.sans(size: 10, weight: .semibold))
+                                    .foregroundStyle(textWarm.opacity(0.58))
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(VitaColors.surfaceElevated.opacity(0.38)))
+                            .overlay(
+                                Capsule()
+                                    .stroke(VitaColors.surfaceBorder.opacity(0.36), lineWidth: 0.6)
+                            )
                         }
                     }
-
-                    if isToday {
-                        Circle()
-                            .fill(goldPrimary)
-                            .frame(width: 3, height: 3)
-                            .padding(.leading, 10)
-                            .padding(.top, 22)
-                    }
-
-                    if !visualEvals.isEmpty {
-                        evalMarkers(evals: visualEvals)
-                            .padding(.trailing, 5)
-                            .padding(.top, 5)
-                            .frame(maxWidth: .infinity, alignment: .topTrailing)
-                    }
+                    .padding(.horizontal, 2)
                 }
-                .frame(height: 58)
             }
-            .buttonStyle(.plain)
-            .disabled(!hasContent)
         }
+    }
+
+    private func count(for item: CalendarFilter) -> Int {
+        switch item {
+        case .classes:
+            return schedule.count
+        case .exams:
+            return monthEvaluations(kind: .exam).count
+        case .assignments:
+            return monthEvaluations(kind: .assignment, includesOther: true).count
+        }
+    }
+
+    private var legendSubjects: [String] {
+        switch filter {
+        case .classes:
+            return uniqueSubjects(schedule.map(\.subjectName))
+        case .exams:
+            return uniqueSubjects(monthEvaluations(kind: .exam).map { $0.subjectName ?? "—" })
+        case .assignments:
+            return uniqueSubjects(
+                monthEvaluations(kind: .assignment, includesOther: true).map { $0.subjectName ?? "—" }
+            )
+        }
+    }
+
+    private var emptyLegendText: String {
+        switch filter {
+        case .classes: return "Sem aulas cadastradas para este período"
+        case .exams: return "Sem provas neste mês"
+        case .assignments: return "Sem trabalhos neste mês"
+        }
+    }
+
+    private func uniqueSubjects(_ raw: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for value in raw {
+            let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty, seen.insert(cleaned).inserted else { continue }
+            result.append(cleaned)
+        }
+        return result.sorted { compactSubjectName($0) < compactSubjectName($1) }
+    }
+
+    private func compactSubjectName(_ subject: String) -> String {
+        let cleaned = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let replacements = [
+            "MEDICINA DE FAMÍLIA E COMUNIDADE": "MFC",
+            "MEDICINA DE FAMILIA E COMUNIDADE": "MFC",
+            "GINECOLOGIA E OBSTETRÍCIA": "GO",
+            "GINECOLOGIA E OBSTETRICIA": "GO",
+        ]
+        let folded = cleaned
+            .uppercased()
+            .folding(options: .diacriticInsensitive, locale: Locale(identifier: "pt_BR"))
+        for (key, value) in replacements {
+            let normalizedKey = key.folding(options: .diacriticInsensitive, locale: Locale(identifier: "pt_BR"))
+            if folded == normalizedKey { return value }
+        }
+        if cleaned.count > 26 {
+            return String(cleaned.prefix(25)) + "…"
+        }
+        return cleaned.isEmpty ? "Sem disciplina" : cleaned
+    }
+
+    private func uniqueEvalMarkers(_ evals: [AgendaEvaluation]) -> [(subject: String, isProva: Bool)] {
+        var seen = Set<String>()
+        var unique: [(subject: String, isProva: Bool)] = []
+        for eval in evals {
+            let subject = eval.subjectName ?? "—"
+            let prova = isProva(eval)
+            let key = "\(subject)|\(prova ? "P" : "T")"
+            if seen.insert(key).inserted {
+                unique.append((subject, prova))
+            }
+        }
+        unique.sort { lhs, rhs in
+            if lhs.isProva != rhs.isProva { return lhs.isProva }
+            return lhs.subject < rhs.subject
+        }
+        return unique
     }
 
     private func aulaBars(subjects: [String]) -> some View {
@@ -877,11 +1048,10 @@ struct MonthlyCalendarView: View {
 
     private func subjectAvatar(_ subject: String) -> some View {
         let color = colorFor(subject: subject)
-        let initial = subjectInitial(subject)
-        return Text(initial)
-            .font(.system(size: 10, weight: .bold, design: .rounded))
-            .foregroundStyle(color.opacity(0.80))
-            .frame(minWidth: 12)
+        return Circle()
+            .fill(color)
+            .frame(width: 7, height: 7)
+            .shadow(color: color.opacity(0.42), radius: 2)
     }
 
     private func subjectInitial(_ subject: String) -> String {
@@ -907,7 +1077,7 @@ struct MonthlyCalendarView: View {
         var unique: [(subject: String, isProva: Bool)] = []
         for e in evals {
             let subject = e.subjectName ?? "—"
-            let isP = isProva(e.type)
+            let isP = isProva(e)
             let key = "\(subject)|\(isP ? "P" : "T")"
             if !seen.contains(key) {
                 seen.insert(key)
@@ -1002,10 +1172,10 @@ struct MonthlyCalendarView: View {
             guard let dStr = eval.date, let d = parseDate(dStr) else { return false }
             return calendar.isDate(d, equalTo: displayedMonth, toGranularity: .month)
         }
-        let provasCount = monthEvals.filter { isProva($0.type) }.count
+        let provasCount = monthEvals.filter { isProva($0) }.count
         let weeklyAulas = schedule.count
 
-        let provas = monthEvals.filter { isProva($0.type) }
+        let provas = monthEvals.filter { isProva($0) }
 
         return HStack(spacing: 10) {
             footerStatButton(
@@ -1135,16 +1305,7 @@ struct MonthlyCalendarView: View {
             }
             popoverFooter(day)
         }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 18)
-                .fill(VitaColors.surfaceCard)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(goldPrimary.opacity(0.18), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.50), radius: 28, y: 14)
+        .padding(.vertical, 4)
     }
 
     private func popoverHeader(_ day: SelectedDay) -> some View {
@@ -1190,7 +1351,7 @@ struct MonthlyCalendarView: View {
     private func evalRow(_ eval: AgendaEvaluation) -> some View {
         let subject = eval.subjectName ?? "—"
         let color = colorFor(subject: subject)
-        let prova = isProva(eval.type)
+        let prova = isProva(eval)
         return HStack(spacing: 10) {
             // Mesma linguagem visual das celulas: solid = prova, ring = trabalho
             ZStack {
@@ -1218,7 +1379,7 @@ struct MonthlyCalendarView: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
-            Text(prettyType(eval.type))
+            Text(prettyType(eval))
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(color.opacity(0.95))
                 .padding(.horizontal, 6)
@@ -1229,18 +1390,16 @@ struct MonthlyCalendarView: View {
         }
     }
 
-    private func prettyType(_ raw: String) -> String {
-        let key = raw.uppercased()
-        if key.contains("EXAM") || key.contains("PROVA") { return "Prova" }
-        if key.contains("ASSIGNMENT") || key.contains("TASK") || key.contains("TRABALHO") { return "Trabalho" }
-        if key.contains("QUIZ") { return "Quiz" }
-        if key.contains("SIMULADO") { return "Simulado" }
-        return raw.capitalized
+    private func prettyType(_ eval: AgendaEvaluation) -> String {
+        switch eval.calendarKind {
+        case .exam: return "Prova"
+        case .assignment: return "Trabalho"
+        case .other: return "Trabalho"
+        }
     }
 
-    private func isProva(_ raw: String) -> Bool {
-        let key = raw.uppercased()
-        return key.contains("EXAM") || key.contains("PROVA")
+    private func isProva(_ eval: AgendaEvaluation) -> Bool {
+        eval.calendarKind == .exam
     }
 
     private func aulaRow(_ aula: AgendaClassBlock) -> some View {
@@ -1309,6 +1468,9 @@ struct MonthlyCalendarView: View {
                 cells.append(.day(date: date, dayNum: day))
             }
         }
+        while cells.count % 7 != 0 {
+            cells.append(.empty)
+        }
         return cells
     }
 
@@ -1336,6 +1498,35 @@ struct MonthlyCalendarView: View {
             guard let dStr = eval.date, let d = parseDate(dStr) else { return false }
             return calendar.isDate(d, inSameDayAs: date)
         }
+    }
+
+    private func evaluationsFor(date: Date, filter: CalendarFilter) -> [AgendaEvaluation] {
+        evalsFor(date: date).filter { eval in
+            switch filter {
+            case .classes:
+                return false
+            case .exams:
+                return eval.calendarKind == .exam
+            case .assignments:
+                return eval.calendarKind == .assignment || eval.calendarKind == .other
+            }
+        }
+    }
+
+    private func monthEvaluations(kind: AgendaEvaluationKind, includesOther: Bool = false) -> [AgendaEvaluation] {
+        evaluations.filter { eval in
+            guard let raw = eval.date, let date = parseDate(raw),
+                  calendar.isDate(date, equalTo: displayedMonth, toGranularity: .month)
+            else {
+                return false
+            }
+            if eval.calendarKind == kind { return true }
+            return includesOther && eval.calendarKind == .other
+        }
+    }
+
+    private func subjectsFor(aulas: [AgendaClassBlock], evaluations: [AgendaEvaluation]) -> [String] {
+        uniqueSubjects(aulas.map(\.subjectName) + evaluations.map { $0.subjectName ?? "—" })
     }
 
     private func evalSubjectsFor(date: Date) -> [String] {

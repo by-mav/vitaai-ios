@@ -20,7 +20,9 @@ struct QBankFiltersResponse: Decodable {
         groups = (try? c.decode([QBankGroup].self, forKey: .groups)) ?? []
         institutions = (try? c.decode([QBankInstitution].self, forKey: .institutions)) ?? []
         topics = (try? c.decode([QBankTopic].self, forKey: .topics)) ?? []
-        years = (try? c.decode([Int].self, forKey: .years)) ?? []
+        years = (try? c.decode([Int].self, forKey: .years))
+            ?? (try? c.decode([QBankYearStat].self, forKey: .years).map(\.year))
+            ?? []
         difficulties = (try? c.decode([QBankDifficultyStat].self, forKey: .difficulties)) ?? []
         totalQuestions = (try? c.decode(Int.self, forKey: .totalQuestions)) ?? 0
         disciplines = (try? c.decode([QBankDiscipline].self, forKey: .disciplines)) ?? []
@@ -29,6 +31,10 @@ struct QBankFiltersResponse: Decodable {
     private enum CodingKeys: String, CodingKey {
         case lens, groups, institutions, topics, years, difficulties, totalQuestions, disciplines
     }
+}
+
+private struct QBankYearStat: Decodable {
+    var year: Int
 }
 
 /// Grupo de Q conforme lente (Tradicional/PBL/CNRM-Areas). Schema novo
@@ -226,6 +232,19 @@ struct QBankDifficultyStat: Decodable, Identifiable {
     var count: Int = 0
     var id: String { difficulty }
 
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        difficulty = (try? c.decode(String.self, forKey: .difficulty)) ?? ""
+        label = (try? c.decode(String.self, forKey: .label)) ?? ""
+        count = (try? c.decode(Int.self, forKey: .count)) ?? 0
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case difficulty, label, count
+    }
+
     /// Display label: use API-provided label if available, else localize the key
     var displayLabel: String {
         if !label.isEmpty { return label }
@@ -328,10 +347,35 @@ extension QBankAlternative: Decodable {
     }
 }
 
-struct QBankImage: Decodable, Identifiable {
+struct QBankImage: Identifiable {
     var id: Int = 0
     var imageUrl: String = ""
+    var originalUrl: String? = nil
+    var questionId: Int? = nil
+    var alternativeId: Int? = nil
     var caption: String? = nil
+    var filename: String? = nil
+    var mimeType: String? = nil
+}
+
+extension QBankImage: Decodable {
+    private enum CodingKeys: String, CodingKey {
+        case id, imageUrl, originalUrl, questionId, alternativeId, caption, filename, mimeType
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(Int.self, forKey: .id)) ?? 0
+        originalUrl = try? c.decode(String.self, forKey: .originalUrl)
+        imageUrl = (try? c.decode(String.self, forKey: .imageUrl))
+            ?? originalUrl
+            ?? ""
+        questionId = try? c.decode(Int.self, forKey: .questionId)
+        alternativeId = try? c.decode(Int.self, forKey: .alternativeId)
+        caption = try? c.decode(String.self, forKey: .caption)
+        filename = try? c.decode(String.self, forKey: .filename)
+        mimeType = try? c.decode(String.self, forKey: .mimeType)
+    }
 }
 
 struct QBankStatistic: Decodable {
@@ -357,6 +401,17 @@ struct QBankAnswerResponse: Decodable {
     var answerId: Int = 0
 }
 
+struct QBankFinishSessionRequest: Encodable {
+    let correctCount: Int
+    let totalAnswered: Int
+}
+
+struct QBankFinishSessionResponse: Decodable {
+    var correctCount: Int = 0
+    var totalQuestions: Int = 0
+    var score: Int = 0
+}
+
 // MARK: - Session
 
 struct QBankCreateSessionRequest: Encodable {
@@ -365,14 +420,20 @@ struct QBankCreateSessionRequest: Encodable {
     let years: [Int]?
     let difficulties: [String]?
     let topicIds: [Int]?
+    let subgroupSlugs: [String]?
     let disciplineIds: [Int]?
     /// MedSimple catalog slugs derived from the selected enrolled/catalog disciplines.
     /// Backend uses this (via qbank_topics.disciplineSlug) to filter questions; the Int
     /// `disciplineIds` are local synthetic IDs and are ignored server-side.
     let disciplineSlugs: [String]?
+    let lens: String?
+    let pblSystemSlugs: [String]?
+    let examGreatAreaSlugs: [String]?
+    let mode: String?
     let onlyResidence: Bool?
     let onlyUnanswered: Bool?
     let title: String?
+    let stage: String?
     let status: String?
     /// Quality filter — drop questions com explanation NULL ou length<=50.
     /// Default true client-side (Rafael 2026-04-27): "questões boas têm gabarito".
@@ -394,11 +455,17 @@ struct QBankCreateSessionRequest: Encodable {
         years: [Int]? = nil,
         difficulties: [String]? = nil,
         topicIds: [Int]? = nil,
+        subgroupSlugs: [String]? = nil,
         disciplineIds: [Int]? = nil,
         disciplineSlugs: [String]? = nil,
+        lens: String? = nil,
+        pblSystemSlugs: [String]? = nil,
+        examGreatAreaSlugs: [String]? = nil,
+        mode: String? = nil,
         onlyResidence: Bool? = nil,
         onlyUnanswered: Bool? = nil,
         title: String? = nil,
+        stage: String? = nil,
         status: String? = nil,
         excludeNoExplanation: Bool? = nil,
         includeSynthetic: Bool? = nil,
@@ -411,11 +478,17 @@ struct QBankCreateSessionRequest: Encodable {
         self.years = years
         self.difficulties = difficulties
         self.topicIds = topicIds
+        self.subgroupSlugs = subgroupSlugs
         self.disciplineIds = disciplineIds
         self.disciplineSlugs = disciplineSlugs
+        self.lens = lens
+        self.pblSystemSlugs = pblSystemSlugs
+        self.examGreatAreaSlugs = examGreatAreaSlugs
+        self.mode = mode
         self.onlyResidence = onlyResidence
         self.onlyUnanswered = onlyUnanswered
         self.title = title
+        self.stage = stage
         self.status = status
         self.excludeNoExplanation = excludeNoExplanation
         self.includeSynthetic = includeSynthetic

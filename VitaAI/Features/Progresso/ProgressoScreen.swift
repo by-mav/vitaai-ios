@@ -23,6 +23,31 @@ import SwiftUI
 //
 // Mantém `ProgressoScreen()` (sem params) → AppRouter/pbxproj intocados.
 
+struct VitaHomeGrassBackdrop: View {
+    var body: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 0.55, green: 0.80, blue: 0.43),
+                Color(red: 0.42, green: 0.70, blue: 0.34),
+                Color(red: 0.31, green: 0.58, blue: 0.26)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .overlay(
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.16),
+                    Color.clear,
+                    Color.black.opacity(0.08)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+    }
+}
+
 struct ProgressoScreen: View {
     @Environment(\.appContainer) private var container
     @Environment(\.appData) private var appData
@@ -31,6 +56,10 @@ struct ProgressoScreen: View {
     @State private var pulse = false
     @State private var hop = false
     @State private var scrolledToCurrent = false
+    @State private var mascotLevel: Int = 1
+    @State private var jumpArc: CGFloat = 0
+    @State private var jumpStretch: CGFloat = 1
+    @Namespace private var mascotTrail
 
     private var vmProg: ProgressoViewModel { container.progressoViewModel }
     private var dash: DashboardViewModel { container.dashboardViewModel }
@@ -40,7 +69,10 @@ struct ProgressoScreen: View {
     private var flashcardsDue: Int { dash.flashcardsDueTotal }
 
     private var currentStage: Stage {
-        Self.stages.first(where: { userLevel >= $0.minLevel && userLevel <= $0.maxLevel }) ?? Self.stages[0]
+        if let stage = Self.stages.first(where: { userLevel >= $0.minLevel && userLevel <= $0.maxLevel }) {
+            return stage
+        }
+        return userLevel > (Self.stages.last?.maxLevel ?? 0) ? Self.stages[Self.stages.count - 1] : Self.stages[0]
     }
 
     // Geometria da trilha — cada nó ocupa um "slot" de altura fixa (rowStride) e
@@ -101,11 +133,8 @@ struct ProgressoScreen: View {
 
     // Verde base do mundo — preenche a tela inteira atrás de tudo (mata o dark/
     // estrelado do shell). A grama detalhada (folhas) scrolla por cima em grassField.
-    private static let grassBaseTop = Color(red: 0.52, green: 0.78, blue: 0.40)
-    private static let grassBaseBot = Color(red: 0.34, green: 0.62, blue: 0.28)
     private var grassBase: some View {
-        LinearGradient(colors: [Self.grassBaseTop, Self.grassBaseBot],
-                       startPoint: .top, endPoint: .bottom)
+        VitaHomeGrassBackdrop()
     }
 
     // MARK: - Card de seção (flat sólido, ref Duolingo 077) — no INÍCIO de cada
@@ -180,14 +209,26 @@ struct ProgressoScreen: View {
                     }
                     if !scrolledToCurrent {
                         scrolledToCurrent = true
+                        // Bonequinho comeca no ultimo nivel visto e SOBE pulando ate o
+                        // nivel atual (Duolingo: voce volta do estudo e ve o progresso).
+                        let lastSeen = UserDefaults.standard.integer(forKey: Self.lastSeenKey)
+                        let startLevel = lastSeen >= 1 ? min(lastSeen, userLevel) : userLevel
+                        mascotLevel = startLevel
                         try? await Task.sleep(for: .milliseconds(350))
                         withAnimation(.easeInOut(duration: 0.6)) {
-                            proxy.scrollTo(currentStage.index, anchor: .center)
+                            proxy.scrollTo(stageIndex(for: startLevel), anchor: .center)
                         }
+                        if userLevel > startLevel {
+                            try? await Task.sleep(for: .milliseconds(650))
+                            hopMascot(to: userLevel, proxy: proxy)
+                        }
+                        UserDefaults.standard.set(userLevel, forKey: Self.lastSeenKey)
                     }
                 }
-                .onChange(of: userLevel) { _, _ in
-                    withAnimation(.easeInOut(duration: 0.6)) { proxy.scrollTo(currentStage.index, anchor: .center) }
+                .onChange(of: userLevel) { _, newLevel in
+                    // Subiu de nivel AO VIVO (estudou e voltou) -> pula pro no novo.
+                    hopMascot(to: newLevel, proxy: proxy)
+                    UserDefaults.standard.set(newLevel, forKey: Self.lastSeenKey)
                 }
             }
             }
@@ -210,39 +251,70 @@ struct ProgressoScreen: View {
         .trackScreen("Progresso")
     }
 
-    // MARK: - Ferramentas de estudo — FIXAS no topo (Rafael 2026-06-18). O centro
-    // fica livre só pro mundo (estilo Duolingo). 4 botões chunky flat em linha.
+    // MARK: - Ferramentas de estudo — fixas no topo, agora no dialeto Pixio/Vita.
     private var topTools: some View {
-        HStack(spacing: 10) {
-            topTool("Flashcards", icon: "rectangle.on.rectangle.angled",
-                    mid: VitaColors.toolFlashcards, dark: Color(red: 0.29, green: 0.23, blue: 0.63)) { openStudy(.flashcardHome()) }
-            topTool("Questões", icon: "checklist",
-                    mid: VitaColors.accent, dark: VitaColors.accentDark) { openStudy(.qbank) }
-            topTool("Simulados", icon: "doc.text.magnifyingglass",
-                    mid: VitaColors.toolSimulados, dark: Color(red: 0.10, green: 0.37, blue: 0.65)) { openStudy(.simuladoHome) }
-            topTool("Transcrição", icon: "waveform",
-                    mid: VitaColors.toolTranscricao, dark: Color(red: 0.08, green: 0.50, blue: 0.47)) { openStudy(.transcricao) }
+        HStack(spacing: 8) {
+            topTool("Cards", icon: "rectangle.on.rectangle.angled", tint: VitaColors.toolFlashcards) {
+                openStudy(.flashcardHome())
+            }
+            topTool("Questões", icon: "checklist", tint: VitaColors.accent) {
+                openStudy(.qbank)
+            }
+            topTool("Simulados", icon: "doc.text.magnifyingglass", tint: VitaColors.toolSimulados) {
+                openStudy(.simuladoHome)
+            }
+            topTool("Transcrição", icon: "waveform", tint: VitaColors.toolTranscricao) {
+                openStudy(.transcricao)
+            }
         }
+        .padding(7)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule().fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.20),
+                                Color(red: 0.40, green: 0.68, blue: 0.32).opacity(0.16),
+                                Color.white.opacity(0.07)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                )
+                .overlay(Capsule().stroke(Color.white.opacity(0.30), lineWidth: 0.75))
+                .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
+        )
         .padding(.horizontal, 14)
-        .padding(.top, 4).padding(.bottom, 10)
+        .padding(.top, 2)
+        .padding(.bottom, 8)
     }
 
-    private func topTool(_ title: String, icon: String, mid: Color, dark: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 15, style: .continuous).fill(dark).offset(y: 4)
-                    RoundedRectangle(cornerRadius: 15, style: .continuous).fill(mid)
-                        .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous)
-                            .fill(LinearGradient(colors: [.white.opacity(0.22), .clear], startPoint: .top, endPoint: .center)))
-                    Image(systemName: icon).font(.system(size: 21, weight: .bold)).foregroundStyle(.white)
-                }
-                .frame(height: 50)
-                Text(title).font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Color(red: 0.16, green: 0.24, blue: 0.10))
-                    .lineLimit(1).minimumScaleFactor(0.8)
+    private func topTool(_ title: String, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button {
+            PixioHaptics.tap()
+            action()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(PixioTypo.micro)
+                    .foregroundStyle(tint)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.16))
+                            .overlay(Circle().stroke(tint.opacity(0.45), lineWidth: 0.75))
+                    )
+                Text(title)
+                    .font(PixioTypo.micro)
+                    .foregroundStyle(Color.white.opacity(0.86))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .frame(maxWidth: .infinity)
+            .padding(.vertical, 7)
         }
         .buttonStyle(TrailPressStyle())
     }
@@ -266,27 +338,51 @@ struct ProgressoScreen: View {
         let state = stageState(stage)
         let tier = Self.tiers[stage.tierIdx]
         return ZStack {
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 Button(action: { tapStage(state) }) {
                     coin(stage: stage, tier: tier, state: state)
                 }
                 .buttonStyle(TrailPressStyle())
                 .disabled(state != .current)
 
-                Text(state == .locked ? "Nível \(stage.maxLevel)" : stage.name)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(state == .locked ? VitaColors.textTertiary : VitaColors.textSecondary)
-                    .lineLimit(1)
+                stageCaption(stage, state: state)
             }
 
-            if state == .current {
-                // Vita AO LADO do nó atual (ref Duolingo 077), não em cima.
-                // Halo claro atrás pra ele "saltar" na grama (senão some no fundo).
+            if mascotLevel >= stage.minLevel && mascotLevel <= stage.maxLevel {
                 mascot
-                    .background(Circle().fill(.white.opacity(0.5)).frame(width: 66, height: 66).blur(radius: 13))
-                    .offset(x: -60, y: 8)
+                    .matchedGeometryEffect(id: "vita-trail-mascot", in: mascotTrail)
+                    .background(Circle().fill(.white.opacity(0.52)).frame(width: 66, height: 66).blur(radius: 13))
+                    .scaleEffect(x: 2 - jumpStretch, y: jumpStretch, anchor: .bottom)
+                    .offset(y: -64 + (hop ? -5 : 0) + jumpArc)
+                    .zIndex(4)
             }
         }
+        .zIndex(state == .current ? 3 : 1)
+        .animation(.spring(response: 0.72, dampingFraction: 0.78), value: mascotLevel)
+    }
+
+    private func stageCaption(_ stage: Stage, state: StageState) -> some View {
+        VStack(spacing: 0) {
+            Text(levelCaption(for: stage, state: state))
+                .font(.system(size: 11, weight: .heavy))
+                .foregroundStyle(state == .locked ? Color.white.opacity(0.62) : Color.white.opacity(0.92))
+                .lineLimit(1)
+            Text(stage.name)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(state == .locked ? Color.white.opacity(0.44) : Color.white.opacity(0.74))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(width: 118)
+    }
+
+    private func levelCaption(for stage: Stage, state: StageState) -> String {
+        if state == .current {
+            return "Nível \(userLevel)"
+        }
+        return stage.minLevel == stage.maxLevel
+            ? "Nível \(stage.minLevel)"
+            : "Níveis \(stage.minLevel)-\(stage.maxLevel)"
     }
 
     // Nó CHUNKY FLAT (ref Duolingo 077): círculo cor da seção + "lábio" mais escuro
@@ -343,6 +439,36 @@ struct ProgressoScreen: View {
     }
 
     // MARK: - Estado + ações
+
+    private static let lastSeenKey = "vita.trail.lastSeenLevel"
+
+    private func stageIndex(for level: Int) -> Int {
+        Self.stages.first(where: { level >= $0.minLevel && level <= $0.maxLevel })?.index
+            ?? (level > (Self.stages.last?.maxLevel ?? 0) ? Self.stages.count : 1)
+    }
+
+    /// Pula o bonequinho de no em no: agacha+estica na decolagem, desliza pelo arco
+    /// (matchedGeometry move quando mascotLevel troca de no) e aterrissa quicando.
+    private func hopMascot(to newLevel: Int, proxy: ScrollViewProxy) {
+        guard newLevel != mascotLevel else { return }
+        PixioHaptics.tap()
+        withAnimation(.easeOut(duration: 0.22)) {
+            jumpArc = -46
+            jumpStretch = 1.14
+        }
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.7)) {
+            mascotLevel = newLevel
+        }
+        withAnimation(.easeInOut(duration: 0.6)) {
+            proxy.scrollTo(stageIndex(for: newLevel), anchor: .center)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.5)) {
+                jumpArc = 0
+                jumpStretch = 1.0
+            }
+        }
+    }
 
     private func stageState(_ stage: Stage) -> StageState {
         if userLevel > stage.maxLevel { return .completed }

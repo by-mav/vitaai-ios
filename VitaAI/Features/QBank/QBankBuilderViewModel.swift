@@ -18,7 +18,7 @@ import Observation
 
 struct QBankBuilderState {
     // Lente
-    var lens: ContentOrganizationMode = .greatAreas
+    var lens: ContentOrganizationMode = .tradicional
 
     // Filters carregados do backend (lens-aware)
     var groups: [QBankGroup] = []
@@ -120,9 +120,9 @@ final class QBankBuilderViewModel {
 
     /// Hidrata lente do profile + carrega filters + progress + recents em paralelo.
     func boot() {
-        if let mode = dataManager.profile?.contentOrganizationMode {
-            state.lens = mode
-        }
+        // MedSimple is the launch QBank source and is tagged by discipline/topic,
+        // not by CNRM great areas or PBL systems.
+        state.lens = .tradicional
         Task { await loadAll() }
     }
 
@@ -150,7 +150,7 @@ final class QBankBuilderViewModel {
 
     func loadFilters() async {
         do {
-            let resp = try await api.getQBankFilters(lens: state.lens.rawValue)
+            let resp = try await api.getQBankFilters(lens: state.lens.rawValue, stage: "all")
             NSLog("[QBankBuilder] loadFilters lens=%@ groups=%d insts=%d total=%d",
                   state.lens.rawValue,
                   resp.groups.count,
@@ -194,10 +194,13 @@ final class QBankBuilderViewModel {
     // MARK: - Lens
 
     func setLens(_ lens: ContentOrganizationMode) {
-        guard state.lens != lens else { return }
-        state.lens = lens
+        let effectiveLens: ContentOrganizationMode = .tradicional
+        guard state.lens != effectiveLens || lens != effectiveLens else { return }
+        state.lens = effectiveLens
         // Reset slugs antigos (não fazem sentido na nova lente)
         state.selectedGroupSlugs.removeAll()
+        state.selectedSubgroupIds.removeAll()
+        state.expandedGroupSlugs.removeAll()
         Task {
             await loadFilters()
             scheduleRefreshPreview()
@@ -282,6 +285,8 @@ final class QBankBuilderViewModel {
 
     func clearAllFilters() {
         state.selectedGroupSlugs.removeAll()
+        state.selectedSubgroupIds.removeAll()
+        state.expandedGroupSlugs.removeAll()
         state.selectedInstitutionIds.removeAll()
         state.selectedDifficulties.removeAll()
         state.selectedFormats.removeAll()
@@ -355,6 +360,29 @@ final class QBankBuilderViewModel {
         return QBankPreviewYears(min: state.selectedYearMin, max: state.selectedYearMax)
     }
 
+    private func selectedYears() -> [Int]? {
+        guard state.selectedYearMin != nil || state.selectedYearMax != nil else { return nil }
+        let minYear = state.selectedYearMin ?? state.years.min()
+        let maxYear = state.selectedYearMax ?? state.years.max()
+        if !state.years.isEmpty {
+            return state.years
+                .filter { year in
+                    (minYear.map { year >= $0 } ?? true) && (maxYear.map { year <= $0 } ?? true)
+                }
+                .sorted()
+                .nilIfEmpty
+        }
+        guard let minYear, let maxYear, minYear <= maxYear else { return nil }
+        return Array(minYear...maxYear)
+    }
+
+    private func selectedSubgroupSlugs() -> [String]? {
+        state.selectedSubgroupIds
+            .compactMap { id in id.split(separator: "/", maxSplits: 1).last.map(String.init) }
+            .sorted()
+            .nilIfEmpty
+    }
+
     // MARK: - Create session
 
     /// Cria sessão com filtros aplicados. Retorna sessionId pra navegação.
@@ -362,17 +390,24 @@ final class QBankBuilderViewModel {
         state.creatingSession = true
         defer { state.creatingSession = false }
 
+        let groupSlugs = Array(state.selectedGroupSlugs).nilIfEmpty
         let req = QBankCreateSessionRequest(
             questionCount: state.questionCount,
             institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
-            years: nil,
+            years: selectedYears(),
             difficulties: Array(state.selectedDifficulties).nilIfEmpty,
             topicIds: nil,
+            subgroupSlugs: selectedSubgroupSlugs(),
             disciplineIds: nil,
-            disciplineSlugs: state.lens == .tradicional ? Array(state.selectedGroupSlugs).nilIfEmpty : nil,
+            disciplineSlugs: state.lens == .tradicional ? groupSlugs : nil,
+            lens: state.lens.rawValue,
+            pblSystemSlugs: state.lens == .pbl ? groupSlugs : nil,
+            examGreatAreaSlugs: state.lens == .greatAreas ? groupSlugs : nil,
+            mode: state.mode.rawValue,
             onlyResidence: nil,
             onlyUnanswered: state.hideAnswered ? true : nil,
             title: nil,
+            stage: "all",
             status: nil,
             excludeNoExplanation: state.excludeNoExplanation,
             includeSynthetic: state.includeSynthetic,

@@ -72,6 +72,11 @@ struct HorizontalDrillDown: View {
     /// Disparado em cada toggle pra que o caller refaça preview.
     let onSelectionChange: () -> Void
 
+    /// Limite opcional para a lista do nível atual. Quando definido, só a lista
+    /// interna rola; o cabeçalho/busca continuam fixos e o builder abaixo fica
+    /// acessível em telas menores.
+    let maxListHeight: CGFloat?
+
     // MARK: Internal nav state
 
     @State private var pathN1: DrillItem? = nil   // disciplina selecionada pro drill
@@ -93,21 +98,36 @@ struct HorizontalDrillDown: View {
                 breadcrumbHeader
                 searchBar
                 Divider().background(VitaColors.glassBorder.opacity(0.4))
-                Group {
-                    switch currentLevel {
-                    case .n1: list(items: filtered(n1Items), level: .n1)
-                    case .n2:
-                        if let n1 = pathN1 {
-                            list(items: filtered(n2ItemsFor(n1.id)), level: .n2, parent: n1)
-                        }
-                    case .n3:
-                        if let n2 = pathN2 {
-                            list(items: filtered(n3ItemsFor(n2.id)), level: .n3, parent: n2)
-                        }
-                    }
-                }
+                drillList
                 .animation(.easeInOut(duration: 0.18), value: currentLevel)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var drillList: some View {
+        let content = Group {
+            switch currentLevel {
+            case .n1:
+                list(items: filtered(n1Items), level: .n1)
+            case .n2:
+                if let n1 = pathN1 {
+                    list(items: filtered(n2ItemsFor(n1.id)), level: .n2, parent: n1)
+                }
+            case .n3:
+                if let n2 = pathN2 {
+                    list(items: filtered(n3ItemsFor(n2.id)), level: .n3, parent: n2)
+                }
+            }
+        }
+
+        if let maxListHeight {
+            ScrollView(showsIndicators: true) {
+                content
+            }
+            .frame(maxHeight: maxListHeight)
+        } else {
+            content
         }
     }
 

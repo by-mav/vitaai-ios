@@ -34,12 +34,12 @@ struct StudyShellTheme {
     // MARK: - Factory per tool
 
     static let questoes = StudyShellTheme(
-        primary: Color(red: 1.00, green: 0.54, blue: 0.24),
-        primaryLight: Color(red: 1.00, green: 0.73, blue: 0.48),
-        primaryMuted: Color(red: 1.00, green: 0.48, blue: 0.20).opacity(0.35),
-        surfaceTop: Color(red: 0.14, green: 0.09, blue: 0.035),
-        surfaceBottom: Color(red: 0.055, green: 0.035, blue: 0.015),
-        glow: Color(red: 1.00, green: 0.58, blue: 0.28),
+        primary: VitaColors.accent,
+        primaryLight: VitaColors.accentLight,
+        primaryMuted: VitaColors.accent.opacity(0.30),
+        surfaceTop: Color(red: 0.075, green: 0.078, blue: 0.095),
+        surfaceBottom: Color(red: 0.030, green: 0.032, blue: 0.040),
+        glow: VitaColors.accent,
         motifSymbol: "brain.head.profile",
         eyebrow: "Quest\u{f5}es"
     )
@@ -95,24 +95,22 @@ struct StudyShellCTA: View {
                 }
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
-                    .tracking(-0.1)
+                    .tracking(0)
             }
             .foregroundStyle(theme.primaryLight.opacity(0.98))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 15)
             .background(
                 ZStack {
-                    // 1. Glass base — real translucency
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                    // 2. Subtle theme tint on top (low opacity so it reads as a hue wash, not a solid fill)
+                        .fill(Color(red: 0.08, green: 0.085, blue: 0.10).opacity(0.92))
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    theme.primary.opacity(0.32),
-                                    theme.primary.opacity(0.18),
-                                    theme.primary.opacity(0.10),
+                                    theme.primary.opacity(0.28),
+                                    theme.primary.opacity(0.16),
+                                    Color.white.opacity(0.025),
                                 ],
                                 startPoint: .topLeading, endPoint: .bottomTrailing
                             )
@@ -148,7 +146,7 @@ struct StudyShellCTA: View {
                         lineWidth: 0.75
                     )
             )
-            .shadow(color: theme.primary.opacity(0.18), radius: 10, y: 5)
+            .shadow(color: theme.primary.opacity(0.16), radius: 12, y: 6)
         }
         .buttonStyle(.plain)
     }

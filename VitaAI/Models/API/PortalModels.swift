@@ -88,10 +88,40 @@ struct AgendaEvaluation: Codable, Identifiable {
     var id: String = ""
     var title: String = ""
     var type: String = ""
+    var kind: String?
     var date: String?
     var status: String = ""
     var score: Double?
     var subjectName: String?
+
+    var calendarKind: AgendaEvaluationKind {
+        AgendaEvaluationKind(rawType: kind ?? type, title: title)
+    }
+}
+
+enum AgendaEvaluationKind: String {
+    case exam
+    case assignment
+    case other
+
+    init(rawType: String, title: String) {
+        let key = "\(rawType) \(title)"
+            .lowercased()
+            .folding(options: .diacriticInsensitive, locale: Locale(identifier: "pt_BR"))
+
+        if key.contains("exam") || key.contains("prova") || key.contains("teste")
+            || key.contains("final") || key.contains("parcial") || key.contains("partial")
+            || key.contains("semestral") || key.contains("makeup") || key.contains("substitutiva") {
+            self = .exam
+        } else if key.contains("assignment") || key.contains("task") || key.contains("trabalho")
+            || key.contains("seminar") || key.contains("seminario") || key.contains("relatorio")
+            || key.contains("atividade") || key.contains("quiz") || key.contains("ade")
+            || key.contains("ad1") || key.contains("ad2") || key.contains("tde") {
+            self = .assignment
+        } else {
+            self = .other
+        }
+    }
 }
 
 struct AgendaSummary: Codable {

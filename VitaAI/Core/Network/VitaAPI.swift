@@ -7,6 +7,10 @@ actor VitaAPI {
         self.client = client
     }
 
+    private static func encodeCamelCase<T: Encodable>(_ body: T) throws -> Data {
+        try JSONEncoder().encode(body)
+    }
+
     // â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
     // â”‚  WORKING ENDPOINTS â€” backend route.ts exists    â”‚
     // â”‚  Validated by: scripts/lint-api-endpoints.sh    â”‚
@@ -538,10 +542,13 @@ actor VitaAPI {
         return try await client.get("qbank/progress", queryItems: items)
     }
 
-    func getQBankFilters(lens: String? = nil) async throws -> QBankFiltersResponse {
+    func getQBankFilters(lens: String? = nil, stage: String? = nil) async throws -> QBankFiltersResponse {
         var items: [URLQueryItem] = []
         if let lens, !lens.isEmpty {
             items.append(URLQueryItem(name: "lens", value: lens))
+        }
+        if let stage, !stage.isEmpty {
+            items.append(URLQueryItem(name: "stage", value: stage))
         }
         if items.isEmpty {
             return try await client.get("qbank/filters")
@@ -552,11 +559,11 @@ actor VitaAPI {
     /// POST /api/qbank/preview â€” count dinÃ¢mico ANTES de criar sessÃ£o.
     /// Usado pelo builder das telas Estudos com debounce 300ms client-side.
     func previewQBankPool(body: QBankPreviewBody) async throws -> QBankPreviewResp {
-        try await client.post("qbank/preview", body: body)
+        try await client.postRaw("qbank/preview", body: Self.encodeCamelCase(body))
     }
 
     func createQBankSession(request: QBankCreateSessionRequest) async throws -> QBankSession {
-        try await client.post("qbank/sessions", body: request)
+        try await client.postRaw("qbank/sessions", body: Self.encodeCamelCase(request))
     }
 
     func getQBankQuestion(id: Int) async throws -> QBankQuestionDetail {
@@ -564,7 +571,7 @@ actor VitaAPI {
     }
 
     func answerQBankQuestion(id: Int, request: QBankAnswerRequest) async throws -> QBankAnswerResponse {
-        try await client.post("qbank/questions/\(id)/answer", body: request)
+        try await client.postRaw("qbank/questions/\(id)/answer", body: Self.encodeCamelCase(request))
     }
 
     func getQBankSessions(limit: Int = 5) async throws -> QBankSessionsResponse {
@@ -577,11 +584,12 @@ actor VitaAPI {
         try await client.get("qbank/sessions/\(id)")
     }
 
-    func finishQBankSession(id: String, correctCount: Int, totalAnswered: Int) async throws -> QBankSession {
-        try await client.post("qbank/sessions/\(id)/finish", body: [
-            "correctCount": correctCount,
-            "totalAnswered": totalAnswered,
-        ])
+    func finishQBankSession(id: String, correctCount: Int, totalAnswered: Int) async throws -> QBankFinishSessionResponse {
+        let request = QBankFinishSessionRequest(
+            correctCount: correctCount,
+            totalAnswered: totalAnswered
+        )
+        return try await client.postRaw("qbank/sessions/\(id)/finish", body: Self.encodeCamelCase(request))
     }
 
     func getQBankQuestions(

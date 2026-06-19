@@ -51,8 +51,8 @@ struct QBankCoordinatorScreen: View {
             // inline + Recents + CTA sticky.
             QBankBuilderScreen(
                 onBack: onBack,
-                onSessionCreated: { sessionId in
-                    Task { await vm.openSession(sessionId: sessionId) }
+                onSessionCreated: { sessionId, mode in
+                    Task { await vm.openSession(sessionId: sessionId, mode: mode) }
                 }
             )
 

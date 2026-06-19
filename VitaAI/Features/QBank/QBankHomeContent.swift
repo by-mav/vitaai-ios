@@ -50,7 +50,9 @@ struct QBankHomeContent: View {
                     VStack(alignment: .leading, spacing: 0) {
 
                         // HERO — themed rich (questoes = amber)
-                        StudyHeroStat(
+                        StudyImageHeroStat(
+                            imageAsset: "hero-questoes-v2",
+                            eyebrow: "Questões",
                             primary: formatNumber(vm.state.progress.totalAnswered),
                             primaryCaption: primaryCaption,
                             stats: heroStats,

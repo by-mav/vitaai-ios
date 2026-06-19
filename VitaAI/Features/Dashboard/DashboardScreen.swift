@@ -248,8 +248,9 @@ struct DashboardScreen: View {
     /// emitted before the media pipeline existed). Keeps the card visible with a
     /// generic background instead of leaving a broken empty Image + log warnings.
     private func resolveHeroAsset(_ name: String) -> String {
+        if name == "fundo-dashboard" { return "hero-dashboard-v2" }
         if UIImage(named: name) != nil { return name }
-        return "fundo-dashboard"
+        return "hero-dashboard-v2"
     }
 
     /// Maps backend semantic tone to design system color. Single source of truth for hero label color.

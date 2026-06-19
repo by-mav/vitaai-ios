@@ -410,7 +410,7 @@ final class SimuladoViewModel {
                         action: "simulado_complete",
                         metadata: ["durationMinutes": String(durationMinutes)]
                     ) {
-                        gamificationEvents.handleActivityResponse(actResult, previousLevel: nil)
+                        gamificationEvents.handleActivityResponse(actResult, previousLevel: nil, source: .simuladoComplete)
                     }
                 }
             } catch {

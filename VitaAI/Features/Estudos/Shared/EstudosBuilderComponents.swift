@@ -410,7 +410,7 @@ struct StickyBottomCTA: View {
     /// Altura visual do VitaTabBar custom (54) + safe area bottom típico
     /// iPhone moderno (~34) + folga visual (6) = 94. Tab bar mora em
     /// overlay no AppRouter, então não conta no safeAreaInset do sistema.
-    private let tabBarReserve: CGFloat = 94
+    private let tabBarReserve: CGFloat = 78
 
     private var formattedCount: String {
         let f = NumberFormatter()
@@ -456,6 +456,290 @@ struct StickyBottomCTA: View {
             )
             .allowsHitTesting(false)
         )
+    }
+}
+
+// MARK: - StudyAmountSliderCard — compact quantity picker
+
+struct StudyAmountSliderCard: View {
+    let title: String
+    let value: Int
+    let range: ClosedRange<Int>
+    let step: Int
+    let theme: StudyShellTheme
+    var valueSuffix: String = ""
+    var presets: [Int] = []
+    let onChange: (Int) -> Void
+
+    @State private var expanded = false
+    @State private var lastHapticValue: Int?
+
+    private var clampedValue: Int {
+        min(max(value, range.lowerBound), range.upperBound)
+    }
+
+    private var displayValue: String {
+        let suffix = valueSuffix.isEmpty ? "" : " \(valueSuffix)"
+        return "\(formatNumber(clampedValue))\(suffix)"
+    }
+
+    var body: some View {
+        VitaGlassCard(cornerRadius: 14) {
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    PixioHaptics.tap()
+                    withAnimation(.easeInOut(duration: 0.18)) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(theme.primary.opacity(0.16))
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(theme.primaryLight.opacity(0.92))
+                        }
+                        .frame(width: 32, height: 32)
+
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(title)
+                                .font(PixioTypo.caption)
+                                .foregroundStyle(VitaColors.textPrimary.opacity(0.88))
+                        }
+
+                        Spacer()
+
+                        Text(displayValue)
+                            .font(PixioTypo.sans(size: 16, weight: .semibold))
+                            .foregroundStyle(theme.primaryLight.opacity(0.95))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(VitaColors.textTertiary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if expanded {
+                    Divider().background(VitaColors.glassBorder.opacity(0.35))
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text(formatNumber(range.lowerBound))
+                                .font(PixioTypo.micro)
+                                .foregroundStyle(VitaColors.textTertiary)
+                            Spacer()
+                            Text(formatNumber(range.upperBound))
+                                .font(PixioTypo.micro)
+                                .foregroundStyle(VitaColors.textTertiary)
+                        }
+
+                        Slider(
+                            value: Binding(
+                                get: { Double(clampedValue) },
+                                set: { updateSliderValue($0) }
+                            ),
+                            in: Double(range.lowerBound)...Double(range.upperBound),
+                            step: Double(max(1, step))
+                        )
+                        .tint(theme.primaryLight)
+
+                        if !presets.isEmpty {
+                            HStack(spacing: 6) {
+                                ForEach(presets, id: \.self) { preset in
+                                    let safePreset = min(max(preset, range.lowerBound), range.upperBound)
+                                    Button {
+                                        PixioHaptics.soft()
+                                        onChange(safePreset)
+                                    } label: {
+                                        Text(formatNumber(safePreset))
+                                            .font(PixioTypo.micro)
+                                            .foregroundStyle(clampedValue == safePreset ? theme.primaryLight : VitaColors.textSecondary)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 7)
+                                            .background(
+                                                Capsule()
+                                                    .fill(clampedValue == safePreset ? theme.primary.opacity(0.18) : Color.clear)
+                                            )
+                                            .overlay(
+                                                Capsule()
+                                                    .stroke(clampedValue == safePreset ? theme.primaryLight.opacity(0.30) : VitaColors.glassBorder.opacity(0.7), lineWidth: 0.75)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 12)
+                    .padding(.bottom, 14)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+        .onAppear { lastHapticValue = clampedValue }
+    }
+
+    private func updateSliderValue(_ rawValue: Double) {
+        let stepped = quantizedValue(rawValue)
+        guard stepped != clampedValue else { return }
+        if lastHapticValue != stepped {
+            PixioHaptics.soft()
+            lastHapticValue = stepped
+        }
+        onChange(stepped)
+    }
+
+    private func quantizedValue(_ rawValue: Double) -> Int {
+        let safeStep = max(1, step)
+        let rounded = Int((rawValue / Double(safeStep)).rounded()) * safeStep
+        return min(max(rounded, range.lowerBound), range.upperBound)
+    }
+
+    private func formatNumber(_ n: Int) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "pt_BR")
+        return f.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+}
+
+struct StudySliderOption: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let subtitle: String?
+
+    init(id: String, title: String, subtitle: String? = nil) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+    }
+}
+
+struct StudyOptionSliderCard: View {
+    let title: String
+    let selectedId: String
+    let options: [StudySliderOption]
+    let theme: StudyShellTheme
+    let onSelect: (String) -> Void
+
+    @State private var expanded = false
+    @State private var lastHapticIndex: Int?
+
+    private var selectedIndex: Int {
+        options.firstIndex(where: { $0.id == selectedId }) ?? 0
+    }
+
+    private var selectedOption: StudySliderOption? {
+        guard options.indices.contains(selectedIndex) else { return nil }
+        return options[selectedIndex]
+    }
+
+    var body: some View {
+        VitaGlassCard(cornerRadius: 14) {
+            VStack(alignment: .leading, spacing: 0) {
+                Button {
+                    PixioHaptics.tap()
+                    withAnimation(.easeInOut(duration: 0.18)) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(theme.primary.opacity(0.16))
+                            Image(systemName: "dial.low")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(theme.primaryLight.opacity(0.92))
+                        }
+                        .frame(width: 32, height: 32)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(title)
+                                .font(PixioTypo.caption)
+                                .foregroundStyle(VitaColors.textPrimary.opacity(0.88))
+                            if let subtitle = selectedOption?.subtitle {
+                                Text(subtitle)
+                                    .font(PixioTypo.micro)
+                                    .foregroundStyle(VitaColors.textTertiary)
+                            }
+                        }
+
+                        Spacer()
+
+                        Text(selectedOption?.title ?? "")
+                            .font(PixioTypo.sans(size: 16, weight: .semibold))
+                            .foregroundStyle(theme.primaryLight.opacity(0.95))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(VitaColors.textTertiary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if expanded && options.count > 1 {
+                    Divider().background(VitaColors.glassBorder.opacity(0.35))
+                    VStack(alignment: .leading, spacing: 12) {
+                        Slider(
+                            value: Binding(
+                                get: { Double(selectedIndex) },
+                                set: { updateSliderIndex($0) }
+                            ),
+                            in: 0...Double(options.count - 1),
+                            step: 1
+                        )
+                        .tint(theme.primaryLight)
+
+                        HStack(spacing: 6) {
+                            ForEach(Array(options.enumerated()), id: \.element.id) { index, option in
+                                Button {
+                                    PixioHaptics.soft()
+                                    onSelect(option.id)
+                                } label: {
+                                    Text(option.title)
+                                        .font(PixioTypo.micro)
+                                        .foregroundStyle(index == selectedIndex ? theme.primaryLight : VitaColors.textSecondary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 7)
+                                        .background(
+                                            Capsule()
+                                                .fill(index == selectedIndex ? theme.primary.opacity(0.18) : Color.clear)
+                                        )
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(index == selectedIndex ? theme.primaryLight.opacity(0.30) : VitaColors.glassBorder.opacity(0.7), lineWidth: 0.75)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 12)
+                    .padding(.bottom, 14)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+        .onAppear { lastHapticIndex = selectedIndex }
+    }
+
+    private func updateSliderIndex(_ rawValue: Double) {
+        let index = min(max(Int(rawValue.rounded()), 0), max(options.count - 1, 0))
+        guard options.indices.contains(index), options[index].id != selectedId else { return }
+        if lastHapticIndex != index {
+            PixioHaptics.soft()
+            lastHapticIndex = index
+        }
+        onSelect(options[index].id)
     }
 }
 

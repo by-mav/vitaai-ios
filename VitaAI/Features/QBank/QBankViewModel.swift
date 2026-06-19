@@ -359,10 +359,12 @@ final class QBankViewModel {
 
     /// Adopta uma session já criada (pelo QBankBuilderViewModel) e navega
     /// pra tela de session ativa. Usado pelo coordinator pós-onSessionCreated.
-    func openSession(sessionId: String) async {
+    func openSession(sessionId: String, mode: QBankMode = .pratica) async {
         do {
             let session = try await api.getQBankSessionDetail(id: sessionId)
             state.session = session
+            state.questionCount = session.totalQuestions
+            setMode(mode)
             state.currentQuestionIndex = session.currentIndex
             state.sessionAnswers = [:]
             state.sessionDetails = [:]
@@ -962,18 +964,28 @@ final class QBankViewModel {
                 state.answerError = nil
                 state.answerResult = result
                 state.sessionAnswers[question.id] = result
-                state.showFeedback = true
                 PostHogTracker.shared.event(.qbankQuestionAnswered, properties: [
                     "question_id": question.id,
                     "correct": result.isCorrect,
                     "seconds_elapsed": Int(responseTimeMs / 1000),
                     "session_id": state.session?.id ?? "",
+                    "mode": state.mode.rawValue,
                 ])
                 let action = result.isCorrect ? "question_answered" : "question_answered_wrong"
+                let xpSource: XpSource = result.isCorrect ? .questionAnswered : .questionAnsweredWrong
                 Task { [api, gamificationEvents] in
                     if let actResult = try? await api.logActivity(action: action) {
-                        gamificationEvents.handleActivityResponse(actResult, previousLevel: nil)
+                        gamificationEvents.handleActivityResponse(actResult, previousLevel: nil, source: xpSource)
                     }
+                }
+                if state.mode == .simulado {
+                    if state.isLastQuestion {
+                        finishSession()
+                    } else {
+                        nextQuestion()
+                    }
+                } else {
+                    state.showFeedback = true
                 }
             } else {
                 // Surface the real error to the UI instead of silently faking success.
@@ -1041,7 +1053,7 @@ final class QBankViewModel {
                     "totalAnswered": String(totalAnswered),
                 ]
             ) {
-                gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+                gamificationEvents.handleActivityResponse(result, previousLevel: nil, source: .qbankSessionComplete)
             }
         }
     }

@@ -116,7 +116,7 @@ struct EstatisticasScreen: View {
             progress: levelRatio,
             stats: stats,
             cta: "Ver ranking",
-            bgImage: "fundo-dashboard",
+            bgImage: "hero-dashboard-v2",
             action: { /* scroll to leaderboard — no-op for now */ }
         )
     }

@@ -141,18 +141,22 @@ private struct EstudosContent: View {
     // MARK: - 1. Hero Card
 
     private var estudosHeroCard: some View {
-        ZStack(alignment: .topLeading) {
-            // Book motif — background decoration
-            Image(systemName: "books.vertical.fill")
-                .font(.system(size: 64, weight: .ultraLight))
-                .foregroundStyle(goldPrimary.opacity(0.10))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(.top, 14)
-                .padding(.trailing, 16)
-            heroCardContent
-        }
-        .frame(height: 162)
-        .glassCard(cornerRadius: 18)
+        StudyImageHeroStat(
+            imageAsset: "hero-estudos-v2",
+            eyebrow: "Central de estudos",
+            primary: "\(viewModel.flashcardsDue)",
+            primaryCaption: "cards para revisar",
+            stats: estudosHeroStats,
+            theme: .questoes
+        )
+    }
+
+    private var estudosHeroStats: [StudyHeroStat.Stat] {
+        [
+            .init(value: "\(viewModel.streakDays)d", label: "sequência"),
+            .init(value: accuracyString, label: "acerto"),
+            .init(value: "\(gradeSubjects.count)", label: "matérias"),
+        ]
     }
 
     private var heroCardContent: some View {

@@ -34,8 +34,7 @@ struct StudyHeroStat: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // 1. Themed surface (dark gradient, hue-family)
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [theme.surfaceTop, theme.surfaceBottom],
@@ -44,92 +43,87 @@ struct StudyHeroStat: View {
                     )
                 )
 
-            // 2. Radial accent glow, top-right
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(
                     RadialGradient(
-                        colors: [theme.glow.opacity(0.38), theme.glow.opacity(0.0)],
+                        colors: [theme.glow.opacity(0.13), theme.glow.opacity(0.0)],
                         center: .topTrailing,
                         startRadius: 6,
-                        endRadius: 260
+                        endRadius: 180
                     )
                 )
                 .blendMode(.screen)
 
-            // 3. Decorative motif symbol, top-right — soft, clipped to card
             Image(systemName: theme.motifSymbol)
-                .font(.system(size: 110, weight: .light))
-                .foregroundStyle(theme.primary.opacity(0.10))
+                .font(.system(size: 58, weight: .light))
+                .foregroundStyle(theme.primary.opacity(0.045))
                 .rotationEffect(.degrees(-8))
-                .offset(x: 30, y: -18)
+                .offset(x: 18, y: -6)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .allowsHitTesting(false)
 
-            // 4. Content — eyebrow, big number, caption, stats strip
-            VStack(alignment: .leading, spacing: 0) {
-                eyebrow
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    eyebrow
 
-                Text(primary)
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [theme.primaryLight, theme.primary],
-                            startPoint: .top, endPoint: .bottom
+                    Text(primary)
+                        .font(PixioTypo.sans(size: 34, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [theme.primaryLight, theme.primary],
+                                startPoint: .top, endPoint: .bottom
+                            )
                         )
-                    )
-                    .shadow(color: theme.primary.opacity(0.45), radius: 16, y: 0)
-                    .minimumScaleFactor(0.55)
-                    .lineLimit(1)
-                    .tracking(-1.2)
-                    .padding(.top, 10)
+                        .shadow(color: theme.primary.opacity(0.16), radius: 8, y: 0)
+                        .minimumScaleFactor(0.55)
+                        .lineLimit(1)
 
-                Text(primaryCaption)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.62))
-                    .padding(.top, 4)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(primaryCaption)
+                        .font(PixioTypo.caption)
+                        .foregroundStyle(Color.white.opacity(0.58))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 if !stats.isEmpty {
                     statsStrip
-                        .padding(.top, 18)
+                        .frame(width: 116, alignment: .trailing)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 22)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
         .overlay(alignment: .top) {
-            // 5. Inner top highlight line — overhead-light feel
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [theme.primaryLight.opacity(0.30), .clear],
+                        colors: [Color.white.opacity(0.10), .clear],
                         startPoint: .top,
                         endPoint: .init(x: 0.5, y: 0.10)
                     )
                 )
-                .frame(height: 10)
+                .frame(height: 8)
                 .padding(.horizontal, 1)
         }
         .overlay(
-            // 6. Gradient stroke — liquid glass rim
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            theme.primaryLight.opacity(0.55),
-                            theme.primary.opacity(0.10),
-                            theme.primaryLight.opacity(0.25),
+                            Color.white.opacity(0.11),
+                            theme.primary.opacity(0.08),
+                            Color.white.opacity(0.05),
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1
+                    lineWidth: 0.75
                 )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: theme.primary.opacity(0.28), radius: 22, x: 0, y: 12)
-        .shadow(color: .black.opacity(0.45), radius: 14, x: 0, y: 6)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: theme.primary.opacity(0.10), radius: 12, x: 0, y: 6)
+        .shadow(color: .black.opacity(0.24), radius: 10, x: 0, y: 4)
     }
 
     // MARK: - Eyebrow (dot + uppercased theme label + optional subtitle)
@@ -138,50 +132,168 @@ struct StudyHeroStat: View {
         HStack(spacing: 8) {
             Circle()
                 .fill(theme.primary)
-                .frame(width: 6, height: 6)
-                .shadow(color: theme.primary.opacity(0.6), radius: 4)
-            Text((subtitle ?? theme.eyebrow).uppercased())
-                .font(.system(size: 10, weight: .bold))
-                .tracking(1.6)
-                .foregroundStyle(theme.primaryLight.opacity(0.80))
+                .frame(width: 5, height: 5)
+                .shadow(color: theme.primary.opacity(0.45), radius: 3)
+            Text(subtitle ?? theme.eyebrow)
+                .font(PixioTypo.micro)
+                .foregroundStyle(theme.primaryLight.opacity(0.76))
         }
     }
 
-    // MARK: - Stats strip (bottom row with subtle dividers)
+    // MARK: - Compact stats stack
 
     private var statsStrip: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(stats.enumerated()), id: \.element.id) { idx, stat in
-                VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .trailing, spacing: 7) {
+            ForEach(stats) { stat in
+                VStack(alignment: .trailing, spacing: 1) {
                     Text(stat.value)
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.92))
+                        .font(PixioTypo.sans(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.88))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Text(stat.label.uppercased())
-                        .font(.system(size: 9, weight: .semibold))
-                        .tracking(0.8)
+                    Text(stat.label)
+                        .font(PixioTypo.micro)
                         .foregroundStyle(Color.white.opacity(0.45))
                         .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if idx < stats.count - 1 {
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    theme.primaryMuted.opacity(0.0),
-                                    theme.primaryMuted.opacity(0.45),
-                                    theme.primaryMuted.opacity(0.0),
-                                ],
-                                startPoint: .top, endPoint: .bottom
-                            )
-                        )
-                        .frame(width: 1, height: 28)
-                }
             }
         }
+    }
+}
+
+// MARK: - Editorial image hero
+
+struct StudyImageHeroStat: View {
+    let imageAsset: String
+    let eyebrow: String
+    let primary: String
+    let primaryCaption: String
+    let stats: [StudyHeroStat.Stat]
+    var theme: StudyShellTheme = .questoes
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Image(imageAsset)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .clipped()
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.035, green: 0.036, blue: 0.045).opacity(0.98),
+                            Color(red: 0.035, green: 0.036, blue: 0.045).opacity(0.88),
+                            Color(red: 0.035, green: 0.036, blue: 0.045).opacity(0.30),
+                            Color.clear,
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                }
+                .overlay {
+                    LinearGradient(
+                        colors: [
+                            Color.black.opacity(0.25),
+                            Color.clear,
+                            Color.black.opacity(0.32),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(theme.primary)
+                            .frame(width: 5, height: 5)
+                            .shadow(color: theme.primary.opacity(0.45), radius: 4)
+                        Text(eyebrow)
+                            .font(PixioTypo.micro)
+                            .foregroundStyle(theme.primaryLight.opacity(0.82))
+                    }
+
+                    Text(primary)
+                        .font(PixioTypo.sans(size: 38, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [theme.primaryLight, theme.primary],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.55)
+                        .shadow(color: theme.primary.opacity(0.16), radius: 10)
+
+                    Text(primaryCaption)
+                        .font(PixioTypo.caption)
+                        .foregroundStyle(Color.white.opacity(0.62))
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: 8) {
+                    ForEach(stats.prefix(3)) { stat in
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(stat.value)
+                                .font(PixioTypo.sans(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.90))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Text(stat.label)
+                                .font(PixioTypo.micro)
+                                .foregroundStyle(Color.white.opacity(0.46))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.055))
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.white.opacity(0.09), lineWidth: 0.75)
+                        )
+                    }
+                }
+            }
+            .frame(maxWidth: 230, alignment: .leading)
+            .padding(.horizontal, 17)
+            .padding(.vertical, 15)
+        }
+        .frame(height: 160)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(alignment: .top) {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.13), .clear],
+                        startPoint: .top,
+                        endPoint: .init(x: 0.5, y: 0.14)
+                    )
+                )
+                .frame(height: 14)
+                .padding(.horizontal, 1)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.15),
+                            theme.primary.opacity(0.12),
+                            Color.white.opacity(0.05),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.75
+                )
+        )
+        .shadow(color: theme.primary.opacity(0.12), radius: 16, x: 0, y: 7)
+        .shadow(color: .black.opacity(0.28), radius: 12, x: 0, y: 5)
     }
 }
 

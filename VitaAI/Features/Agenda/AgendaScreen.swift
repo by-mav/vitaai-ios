@@ -13,16 +13,21 @@ struct AgendaScreen: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 14) {
-                MonthlyCalendarView(
-                    schedule: appData.classSchedule,
-                    evaluations: appData.academicEvaluations
-                )
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 12) {
+                    MonthlyCalendarView(
+                        schedule: appData.classSchedule,
+                        evaluations: appData.academicEvaluations
+                    )
+                }
+                .padding(14)
+                .pixioRaised(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .shadow(color: .black.opacity(0.24), radius: 14, y: 7)
 
                 Spacer().frame(height: 120)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
         }
         .background(Color.clear)
         .refreshable { await appData.forceRefresh() }

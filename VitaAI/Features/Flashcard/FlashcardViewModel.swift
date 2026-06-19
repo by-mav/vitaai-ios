@@ -188,7 +188,7 @@ final class FlashcardViewModel {
         // Track activity for gamification (XP, streak, study time)
         Task { [api, gamificationEvents] in
             if let result = try? await api.logActivity(action: action) {
-                gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+                gamificationEvents.handleActivityResponse(result, previousLevel: nil, source: .flashcardReview)
             }
         }
 
@@ -421,7 +421,7 @@ final class FlashcardViewModel {
                     action: "deck_completed",
                     metadata: ["durationMinutes": String(durationMinutes)]
                 ) {
-                    gamificationEvents.handleActivityResponse(result, previousLevel: nil)
+                    gamificationEvents.handleActivityResponse(result, previousLevel: nil, source: .deckComplete)
                 }
             }
         } else {

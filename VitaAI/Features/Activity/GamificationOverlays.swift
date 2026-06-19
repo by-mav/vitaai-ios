@@ -43,17 +43,21 @@ final class GamificationEventManager {
     }
 
     /// Process the response from POST /api/activity
-    func handleActivityResponse(_ data: LogActivityResponse, previousLevel: Int?) {
+    func handleActivityResponse(
+        _ data: LogActivityResponse,
+        previousLevel: Int?,
+        source: XpSource = .studySessionEnd
+    ) {
+        let baselineLevel = previousLevel ?? currentLevel
         currentLevel = max(1, data.level)
         let total = data.currentLevelXp + data.xpToNextLevel
         currentXpProgress = total > 0 ? Double(data.currentLevelXp) / Double(total) : 0
 
         if data.xpAwarded > 0 {
-            let source = XpSource.dailyLogin // generic — the toast shows XP amount
             xpToast.show(XpEvent(amount: data.xpAwarded, source: source))
         }
 
-        if let prev = previousLevel, data.level > prev {
+        if data.level > baselineLevel {
             Task {
                 try? await Task.sleep(for: .seconds(2.2))
                 levelUpEvent = LevelUpEvent(newLevel: data.level)
@@ -62,7 +66,7 @@ final class GamificationEventManager {
 
         for badge in data.newBadges {
             Task {
-                let delay: Double = (previousLevel != nil && data.level > previousLevel!) ? 5.5 : 2.2
+                let delay: Double = data.level > baselineLevel ? 5.5 : 2.2
                 try? await Task.sleep(for: .seconds(delay))
                 badgeEvent = BadgeUnlockEvent(name: badge.name)
             }

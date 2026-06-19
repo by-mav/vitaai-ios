@@ -45,6 +45,7 @@ enum TabItem: String, CaseIterable {
 // abre a gaveta "+" (VitaAddSheet). SOT: agent-brain/decisions/2026-06-16_vita-pixio-ui-port.md
 struct VitaTabBar: View {
     @Binding var selectedTab: TabItem
+    var homeGlass: Bool = false
     var onCenterTap: () -> Void
     var onTabReselect: ((TabItem) -> Void)? = nil
     var onAddSelect: ((VitaAddSheet.Kind) -> Void)? = nil
@@ -65,7 +66,7 @@ struct VitaTabBar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VitaBarGrabber(active: showAdd) { showAdd = true }
+            VitaBarGrabber(active: showAdd, homeGlass: homeGlass) { showAdd = true }
                 .frame(height: bumpHeight)
                 .padding(.top, 5)
 
@@ -81,29 +82,15 @@ struct VitaTabBar: View {
                 }
                 .padding(.horizontal, padding)
             }
-            .frame(height: 50)
-            .padding(.top, 6)
-            .padding(.bottom, 6)
+            .frame(height: 46)
+            .padding(.top, 3)
+            .padding(.bottom, 2)
         }
         // Rafael 2026-06-17: puxa o conteúdo pra baixo (centro do ícone vira o centro
         // da barra) e encolhe a faixa vazia embaixo — em vez de reservar a safe area
         // inteira (~34px) que deixava os ícones altos com vão escuro embaixo.
-        .padding(.bottom, 16)
-        .background(
-            VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
-                .fill(PixioColor.cardLight)
-                .overlay(
-                    VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
-                        .stroke(PixioColor.borderLight.opacity(0.7), lineWidth: 0.5)
-                )
-                .overlay(
-                    VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
-                        .stroke(LinearGradient(colors: [Color.white.opacity(scheme == .dark ? 0.18 : 0.0), Color.white.opacity(0.0)], startPoint: .top, endPoint: .center), lineWidth: 0.75)
-                )
-                .shadow(color: navContactShadow.color, radius: navContactShadow.radius, x: 0, y: -navContactShadow.y)
-                .shadow(color: navAmbientShadow.color, radius: navAmbientShadow.radius, x: 0, y: -navAmbientShadow.y)
-                .ignoresSafeArea(edges: .bottom)
-        )
+        .padding(.bottom, 4)
+        .background(navBackground.ignoresSafeArea(edges: .bottom))
         .ignoresSafeArea(.container, edges: .bottom)
         .sheet(isPresented: $showAdd) {
             VitaAddSheet(onSelect: { kind in
@@ -130,15 +117,15 @@ struct VitaTabBar: View {
         }) {
             VStack(spacing: 2) {
                 Image(systemName: isSelected ? item.selectedIcon : item.icon)
-                    .font(PixioTypo.sans(size: 20, weight: isSelected ? .medium : .light))
+                    .font(PixioTypo.sans(size: 19, weight: isSelected ? .medium : .light))
                     .symbolRenderingMode(.hierarchical)
-                    .frame(height: 22)
-                Text(item.shortLabel)
+                    .frame(height: 21)
+            Text(item.shortLabel)
                     .font(PixioTypo.sans(size: 10, weight: isSelected ? .medium : .regular))
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
-            .foregroundStyle(isSelected ? PixioColor.textLight : PixioColor.textLightMuted)
+            .foregroundStyle(tabForeground(isSelected: isSelected))
             .frame(width: width)
             .contentShape(Rectangle())
         }
@@ -170,6 +157,72 @@ struct VitaTabBar: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("tab_vita_chat")
         .accessibilityLabel("Abrir Vita Chat")
+    }
+
+    @ViewBuilder
+    private var navBackground: some View {
+        let shape = VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
+        if homeGlass {
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    shape.fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.22),
+                                Color(red: 0.42, green: 0.72, blue: 0.34).opacity(0.18),
+                                Color.black.opacity(0.08)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                )
+                .overlay(
+                    shape.stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.45),
+                                Color.white.opacity(0.16),
+                                Color.black.opacity(0.10)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.75
+                    )
+                )
+                .shadow(color: .black.opacity(0.16), radius: 14, x: 0, y: -4)
+                .shadow(color: Color(red: 0.20, green: 0.47, blue: 0.19).opacity(0.20), radius: 22, x: 0, y: -8)
+        } else {
+            shape
+                .fill(PixioColor.cardLight)
+                .overlay(
+                    shape.stroke(PixioColor.borderLight.opacity(0.7), lineWidth: 0.5)
+                )
+                .overlay(
+                    shape.stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(scheme == .dark ? 0.18 : 0.0),
+                                Color.white.opacity(0.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .center
+                        ),
+                        lineWidth: 0.75
+                    )
+                )
+                .shadow(color: navContactShadow.color, radius: navContactShadow.radius, x: 0, y: -navContactShadow.y)
+                .shadow(color: navAmbientShadow.color, radius: navAmbientShadow.radius, x: 0, y: -navAmbientShadow.y)
+        }
+    }
+
+    private func tabForeground(isSelected: Bool) -> Color {
+        if homeGlass {
+            return isSelected ? .white : .white.opacity(0.68)
+        }
+        return isSelected ? PixioColor.textLight : PixioColor.textLightMuted
     }
 }
 
@@ -204,11 +257,12 @@ struct VitaNavBarBumpShape: Shape {
 // MARK: - VitaBarGrabber — colado verbatim do PixioBarGrabber (tap abre a gaveta)
 private struct VitaBarGrabber: View {
     var active: Bool = false
+    var homeGlass: Bool = false
     var onTap: () -> Void
     @State private var glow = false
     var body: some View {
         let theme = PixioColor.brand
-        let tint = active ? theme : PixioColor.textLightFaint
+        let tint = active ? theme : (homeGlass ? Color.white.opacity(0.62) : PixioColor.textLightFaint)
         return VStack(spacing: PixioSpacing.xxs) {
             Capsule().fill(tint).frame(width: 16, height: 3)
             Grid(horizontalSpacing: PixioSpacing.xxs, verticalSpacing: PixioSpacing.xxs) {

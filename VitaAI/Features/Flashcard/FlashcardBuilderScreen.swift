@@ -49,10 +49,12 @@ struct FlashcardBuilderScreen: View {
     @ViewBuilder
     private func content(vm: FlashcardBuilderViewModel) -> some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
 
                 // 1. Hero (theme flashcards roxo)
-                StudyHeroStat(
+                StudyImageHeroStat(
+                    imageAsset: "hero-flashcards-v2",
+                    eyebrow: "Flashcards",
                     primary: "\(vm.state.dueNow)",
                     primaryCaption: "cards pra revisar agora",
                     stats: [
@@ -139,7 +141,8 @@ struct FlashcardBuilderScreen: View {
                             ),
                             n3ItemsFor: { _ in [] },
                             selectedN3Ids: .constant([]),
-                            onSelectionChange: { /* ViewModel já dispara refreshPreview no toggle */ }
+                            onSelectionChange: { /* ViewModel já dispara refreshPreview no toggle */ },
+                            maxListHeight: nil
                         )
                         .padding(.horizontal, 16)
                     }
@@ -304,25 +307,22 @@ struct FlashcardBuilderScreen: View {
     // MARK: - Limite
 
     private func limitSection(vm: FlashcardBuilderViewModel) -> some View {
-        VitaGlassCard(cornerRadius: 14) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("LIMITE POR SESSÃO")
-                    .font(.system(size: 11, weight: .bold))
-                    .tracking(0.8)
-                    .foregroundStyle(VitaColors.sectionLabel)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(FlashcardSessionLimit.allCases) { l in
-                            QBankChip(
-                                label: l.displayName,
-                                isSelected: vm.state.sessionLimit == l
-                            ) { vm.setSessionLimit(l) }
-                        }
-                    }
-                }
+        StudyOptionSliderCard(
+            title: "Limite por sessão",
+            selectedId: "\(vm.state.sessionLimit.rawValue)",
+            options: FlashcardSessionLimit.allCases.map { limit in
+                StudySliderOption(
+                    id: "\(limit.rawValue)",
+                    title: limit.displayName,
+                    subtitle: limit == .unlimited ? "todos os cards" : "cards"
+                )
+            },
+            theme: .flashcards,
+            onSelect: { id in
+                guard let raw = Int(id), let limit = FlashcardSessionLimit(rawValue: raw) else { return }
+                vm.setSessionLimit(limit)
             }
-            .padding(14)
-        }
+        )
     }
 
     // MARK: - Decks grid 2-col

@@ -49,10 +49,12 @@ struct SimuladoBuilderScreen: View {
     @ViewBuilder
     private func content(vm: SimuladoBuilderViewModel) -> some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
 
                 // 1. Hero — score médio + simulados completos + total questões
-                StudyHeroStat(
+                StudyImageHeroStat(
+                    imageAsset: "hero-simulados-v2",
+                    eyebrow: "Simulados",
                     primary: heroPrimary(avgScore: vm.state.statsAvgScore),
                     primaryCaption: "score médio",
                     stats: heroStats(vm: vm),
@@ -143,7 +145,8 @@ struct SimuladoBuilderScreen: View {
                             ),
                             n3ItemsFor: { _ in [] },
                             selectedN3Ids: .constant([]),
-                            onSelectionChange: { /* ViewModel já dispara scheduleRefreshPreview no toggle */ }
+                            onSelectionChange: { /* ViewModel já dispara scheduleRefreshPreview no toggle */ },
+                            maxListHeight: nil
                         )
                         .padding(.horizontal, 16)
                     }
@@ -448,25 +451,16 @@ struct SimuladoBuilderScreen: View {
     // MARK: - Quantity section
 
     private func quantitySection(vm: SimuladoBuilderViewModel) -> some View {
-        VitaGlassCard(cornerRadius: 14) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("QUANTIDADE")
-                    .font(.system(size: 11, weight: .bold))
-                    .tracking(0.8)
-                    .foregroundStyle(VitaColors.sectionLabel)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach([20, 30, 50, 100], id: \.self) { n in
-                            QBankChip(
-                                label: "\(n)",
-                                isSelected: vm.state.questionCount == n
-                            ) { vm.setQuestionCount(n) }
-                        }
-                    }
-                }
-            }
-            .padding(14)
-        }
+        StudyAmountSliderCard(
+            title: "Quantidade",
+            value: vm.state.questionCount,
+            range: 10...200,
+            step: 10,
+            theme: .simulados,
+            valueSuffix: "questões",
+            presets: [20, 30, 50, 100, 200],
+            onChange: { vm.setQuestionCount($0) }
+        )
     }
 
     // MARK: - Difficulty content (sem card wrapper — usado dentro de collapsibleSection)

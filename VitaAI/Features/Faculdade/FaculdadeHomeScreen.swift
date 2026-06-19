@@ -2,10 +2,9 @@ import SwiftUI
 
 // MARK: - FaculdadeHomeScreen
 //
-// Dashboard of the Faculdade tab. Structure:
-//   1. Subtab pills (Agenda · Matérias · Documentos) at top — navigation shortcut
-//   2. Hero card — institution branding (background image or fallback gradient)
-//   3. Mini cards — compact previews of each subpage content (today, CR, recent docs)
+// Dashboard of the Jornada/Faculdade tab. Structure:
+//   1. Hero card — institution branding
+//   2. Mini cards — compact previews of agenda, disciplines and documents
 //
 // Every navigable element pushes to its respective full subpage via NavigationStack.
 //
@@ -39,8 +38,7 @@ struct FaculdadeHomeScreen: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                subTabRow
+            VStack(spacing: 14) {
                 heroCard
                 if !isInternato {
                     disciplinesSection
@@ -76,41 +74,52 @@ struct FaculdadeHomeScreen: View {
         .trackScreen("Faculdade")
     }
 
-    // MARK: - Subtab row (navigation shortcuts)
+    // MARK: - In-page actions
 
-    private var subTabRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                // Internato esconde "Disciplinas" — não há grid de matérias
-                // tradicional; rotações vivem na agenda.
-                if !isInternato {
-                    subTabPill(title: "Disciplinas", icon: "graduationcap", route: .faculdadeDisciplinas)
-                }
-                subTabPill(title: "Documentos", icon: "doc.text", route: .faculdadeDocumentos)
-                subTabPill(title: "Trabalhos", icon: "doc.richtext", route: .trabalhos)
-                subTabPill(title: "Professores", icon: "person.2", route: .faculdadeProfessores)
-            }
+    private var journeyActionsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Acesso rápido")
+                .font(PixioTypo.sectionLabel)
+                .tracking(0.8)
+                .foregroundStyle(VitaColors.sectionLabel)
+
+            quickActionsRow
         }
     }
 
-    private func subTabPill(title: String, icon: String, route: Route) -> some View {
+    private var quickActionsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                if !isInternato {
+                    quickActionChip(title: "Disciplinas", icon: "graduationcap", route: .faculdadeDisciplinas)
+                }
+                quickActionChip(title: "Documentos", icon: "doc.text", route: .faculdadeDocumentos)
+                quickActionChip(title: "Trabalhos", icon: "doc.richtext", route: .trabalhos)
+                quickActionChip(title: "Professores", icon: "person.2", route: .faculdadeProfessores)
+            }
+            .padding(.vertical, 1)
+        }
+    }
+
+    private func quickActionChip(title: String, icon: String, route: Route) -> some View {
         Button {
+            PixioHaptics.tap()
             router.navigate(to: route)
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(PixioTypo.micro)
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(PixioTypo.caption)
             }
-            .foregroundStyle(goldMuted.opacity(0.75))
+            .foregroundStyle(VitaColors.textSecondary)
             .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .padding(.vertical, 8)
             .background(
-                Capsule().fill(VitaColors.glassInnerLight.opacity(0.05))
+                Capsule().fill(VitaColors.surfaceElevated.opacity(0.58))
             )
             .overlay(
-                Capsule().stroke(goldPrimary.opacity(0.16), lineWidth: 0.8)
+                Capsule().stroke(VitaColors.surfaceBorder.opacity(0.62), lineWidth: 0.75)
             )
         }
         .buttonStyle(.plain)
@@ -314,7 +323,9 @@ struct FaculdadeHomeScreen: View {
         // Pending list: any assignment not yet submitted — includes overdue,
         // because the student still needs to see them (and can submit late).
         // Canvas marks submitted rows with status='completed' or submitted=true.
-        let assignments = appData.academicEvaluations.filter { $0.type == "assignment" }
+        let assignments = appData.academicEvaluations.filter {
+            $0.calendarKind == .assignment || $0.calendarKind == .other
+        }
         let upcoming = assignments.filter { eval in
             // Show anything not yet submitted — overdue included. Student
             // still needs to see (and can submit late) past-due work.

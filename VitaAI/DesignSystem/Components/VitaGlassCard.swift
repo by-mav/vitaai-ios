@@ -21,9 +21,10 @@ struct VitaGlassCard<Content: View>: View {
 
     // MARK: - Mockup-exact colors (from CSS rgba values)
 
-    // Layer 1 base — D4 "carved" gradient (obsidiana quente top → preto quente base)
-    private let baseStart = Color(red: 30/255, green: 22/255, blue: 15/255).opacity(0.92)
-    private let baseEnd   = Color(red: 14/255, green: 10/255, blue: 7/255).opacity(0.92)
+    // Launch surface — graphite, not brown. The brand gold appears as a rim,
+    // not as a full-card wash.
+    private let baseStart = Color(red: 18/255, green: 19/255, blue: 23/255).opacity(0.88)
+    private let baseEnd   = Color(red: 9/255, green: 10/255, blue: 13/255).opacity(0.92)
 
     // Layer 2 inner glow
     private let glowGold120  = Color(red: 1.0, green: 200/255, blue: 120/255) // rgba(255,200,120)
@@ -62,7 +63,7 @@ struct VitaGlassCard<Content: View>: View {
                             context: &context, size: size,
                             center: CGPoint(x: size.width * 0.15, y: 0),
                             radiusFraction: 0.50,
-                            color: glowGold120, alpha: 0.08
+                            color: glowGold120, alpha: 0.035
                         )
 
                         // radial-gradient(circle at 85% 0%, rgba(255,200,120,0.05), transparent 40%)
@@ -70,7 +71,7 @@ struct VitaGlassCard<Content: View>: View {
                             context: &context, size: size,
                             center: CGPoint(x: size.width * 0.85, y: 0),
                             radiusFraction: 0.40,
-                            color: glowGold120, alpha: 0.05
+                            color: glowGold120, alpha: 0.025
                         )
 
                         // radial-gradient(circle at 50% 100%, rgba(255,180,100,0.04), transparent 35%)
@@ -78,7 +79,7 @@ struct VitaGlassCard<Content: View>: View {
                             context: &context, size: size,
                             center: CGPoint(x: size.width * 0.50, y: size.height),
                             radiusFraction: 0.35,
-                            color: glowGold100, alpha: 0.04
+                            color: glowGold100, alpha: 0.018
                         )
 
                         // radial-gradient(circle at 50% 50%, rgba(255,240,210,0.015), transparent 70%)
@@ -86,7 +87,7 @@ struct VitaGlassCard<Content: View>: View {
                             context: &context, size: size,
                             center: CGPoint(x: size.width * 0.50, y: size.height * 0.50),
                             radiusFraction: 0.70,
-                            color: glowWarm210, alpha: 0.015
+                            color: glowWarm210, alpha: 0.010
                         )
                     }
                     .allowsHitTesting(false)
@@ -96,7 +97,7 @@ struct VitaGlassCard<Content: View>: View {
                         Capsule()
                             .fill(
                                 LinearGradient(
-                                    colors: [.clear, Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.18), .clear],
+                                colors: [.clear, Color.white.opacity(0.13), .clear],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
@@ -106,12 +107,7 @@ struct VitaGlassCard<Content: View>: View {
                             .padding(.top, 1)
                         Spacer()
                         // Inset bottom shadow — dark bevel pra carved effect
-                        Capsule()
-                        // vita-modals-ignore: inset-bevel design element (Capsule decorativo), não overlay modal
-                            .fill(Color.black.opacity(0.5))
-                            .frame(height: 1)
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 1)
+                        Spacer()
                     }
                     .allowsHitTesting(false)
                 }
@@ -123,13 +119,21 @@ struct VitaGlassCard<Content: View>: View {
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(
-                        Color(red: 200/255, green: 160/255, blue: 80/255).opacity(0.22),
-                        lineWidth: 1
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.12),
+                                VitaColors.accent.opacity(0.10),
+                                Color.white.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.75
                     )
             )
             // ── Shadows D4 — card "sentado" na tela ──
-            .shadow(color: .black.opacity(0.50), radius: 16, x: 0, y: 6)
-            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.30), radius: 14, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.18), radius: 3, x: 0, y: 1)
     }
 
     // MARK: - Radial gradient helper (matches CSS radial-gradient circle)
@@ -185,8 +189,8 @@ extension View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color(red: 30/255, green: 22/255, blue: 15/255).opacity(0.92),
-                                    Color(red: 14/255, green: 10/255, blue: 7/255).opacity(0.92)
+                                    Color(red: 18/255, green: 19/255, blue: 23/255).opacity(0.88),
+                                    Color(red: 9/255, green: 10/255, blue: 13/255).opacity(0.92)
                                 ],
                                 startPoint: UnitPoint(x: 0.46, y: 0.0),
                                 endPoint: UnitPoint(x: 0.54, y: 1.0)
@@ -215,10 +219,10 @@ extension View {
                                 )
                             }
                         }
-                        drawRadial(center: CGPoint(x: size.width * 0.15, y: 0), radiusFraction: 0.50, color: glowGold120, alpha: 0.08)
-                        drawRadial(center: CGPoint(x: size.width * 0.85, y: 0), radiusFraction: 0.40, color: glowGold120, alpha: 0.05)
-                        drawRadial(center: CGPoint(x: size.width * 0.50, y: size.height), radiusFraction: 0.35, color: glowGold100, alpha: 0.04)
-                        drawRadial(center: CGPoint(x: size.width * 0.50, y: size.height * 0.50), radiusFraction: 0.70, color: glowWarm210, alpha: 0.015)
+                        drawRadial(center: CGPoint(x: size.width * 0.15, y: 0), radiusFraction: 0.50, color: glowGold120, alpha: 0.035)
+                        drawRadial(center: CGPoint(x: size.width * 0.85, y: 0), radiusFraction: 0.40, color: glowGold120, alpha: 0.025)
+                        drawRadial(center: CGPoint(x: size.width * 0.50, y: size.height), radiusFraction: 0.35, color: glowGold100, alpha: 0.018)
+                        drawRadial(center: CGPoint(x: size.width * 0.50, y: size.height * 0.50), radiusFraction: 0.70, color: glowWarm210, alpha: 0.010)
                     }
                     .allowsHitTesting(false)
 
@@ -227,7 +231,7 @@ extension View {
                         Capsule()
                             .fill(
                                 LinearGradient(
-                                    colors: [.clear, Color(red: 255/255, green: 230/255, blue: 180/255).opacity(0.18), .clear],
+                                    colors: [.clear, Color.white.opacity(0.13), .clear],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
@@ -236,27 +240,27 @@ extension View {
                             .padding(.horizontal, 20)
                             .padding(.top, 1)
                         Spacer()
-                        Capsule()
-                        // vita-modals-ignore: inset-bevel design element (Capsule decorativo), não overlay modal
-                            .fill(Color.black.opacity(0.5))
-                            .frame(height: 1)
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 1)
                     }
                     .allowsHitTesting(false)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            // ── Layer 3: Border gold solid 22% ──
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(
-                        Color(red: 200/255, green: 160/255, blue: 80/255).opacity(0.22),
-                        lineWidth: 1
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.12),
+                                VitaColors.accent.opacity(0.10),
+                                Color.white.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.75
                     )
             )
-            // ── Shadows D4 ──
-            .shadow(color: .black.opacity(0.50), radius: 16, x: 0, y: 6)
-            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.30), radius: 14, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.18), radius: 3, x: 0, y: 1)
     }
 }

@@ -54,7 +54,7 @@ struct LoginScreen: View {
             // Dark starry background
             Color(red: 0.03, green: 0.02, blue: 0.04).ignoresSafeArea()
 
-            Image("fundo-dashboard")
+            Image("hero-dashboard-v2")
                 .resizable()
                 .scaledToFill()
                 .frame(width: w, height: h)
@@ -308,4 +308,3 @@ struct LoginScreen: View {
         .trackScreen("Login")
     }
 }
-

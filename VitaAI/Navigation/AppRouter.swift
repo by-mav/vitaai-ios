@@ -244,12 +244,18 @@ struct MainTabView: View {
     var body: some View {
         // Shell OUTSIDE NavigationStack
         ZStack {
+            if isHomeRoot {
+                VitaHomeGrassBackdrop()
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+            }
+
             // TopBar + Content (respects safe area)
             VStack(spacing: 0) {
                 Color.clear.frame(height: 0)
                     .onChange(of: router.selectedTab) { _, _ in navVisibility.reset() }
                     .onChange(of: router.path.count) { _, _ in navVisibility.reset() }
-                if !isImmersiveMode && navVisibility.isVisible {
+                if shouldShowGlobalTopBar && navVisibility.isVisible {
                     VitaTopBar(
                         userName: authManager.userName,
                         userImageURL: authManager.userImage.flatMap(URL.init(string:)),
@@ -258,6 +264,7 @@ struct MainTabView: View {
                         streak: container.dashboardViewModel.streakDays,
                         xpProgress: container.gamificationEvents.currentXpProgress,
                         xpToast: container.gamificationEvents.xpToast,
+                        blendsWithHome: isHomeRoot,
                         onAvatarTap: { router.selectedTab = .progresso },
                         onMenuTap: {
                             withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
@@ -267,9 +274,6 @@ struct MainTabView: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 4)
                     .transition(.move(edge: .top).combined(with: .opacity))
-
-                    VitaBreadcrumb()
-                        .transition(.opacity)
                 }
 
                 ZStack(alignment: .topTrailing) {
@@ -317,7 +321,7 @@ struct MainTabView: View {
                             if newTab != router.selectedTab { router.popToRoot() }
                             router.selectedTab = newTab
                         }
-                    ), onCenterTap: {
+                    ), homeGlass: isHomeRoot, onCenterTap: {
                         withAnimation(.easeInOut(duration: 0.25)) { showChat.toggle() }
                     }, onTabReselect: { _ in
                         router.popToRoot()
@@ -445,6 +449,7 @@ struct MainTabView: View {
             }
             .allowsHitTesting(false)
         }
+        .vitaXpToastHost(container.gamificationEvents.xpToast)
         .task {
             // Populate subtitle from profile API (reliable source)
             if dashboardSubtitle.isEmpty {
@@ -463,7 +468,7 @@ struct MainTabView: View {
                 }
                 let previousLevel = stats?.level
                 if let result = try? await container.api.logActivity(action: "daily_login") {
-                    container.gamificationEvents.handleActivityResponse(result, previousLevel: previousLevel)
+                    container.gamificationEvents.handleActivityResponse(result, previousLevel: previousLevel, source: .dailyLogin)
                 }
             }
             // Deferred from AppContainer.init — only sync notes/mindmaps when
@@ -486,6 +491,14 @@ struct MainTabView: View {
     }
 
     // MARK: - Active Tab Content
+
+    private var shouldShowGlobalTopBar: Bool {
+        !isImmersiveMode && isHomeRoot
+    }
+
+    private var isHomeRoot: Bool {
+        router.selectedTab == .home && router.currentPath.isEmpty
+    }
 
     @ViewBuilder
     private var activeTabView: some View {

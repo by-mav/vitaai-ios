@@ -76,6 +76,48 @@ struct QBankHTMLText: UIViewRepresentable {
     }
 }
 
+extension String {
+    var qbankPlainText: String {
+        let raw = trimmingCharacters(in: .whitespacesAndNewlines)
+        guard raw.contains("<") || raw.contains("&") else { return raw }
+
+        if let data = raw.data(using: .utf8),
+           let attributed = try? NSAttributedString(
+            data: data,
+            options: [
+                .documentType: NSAttributedString.DocumentType.html,
+                .characterEncoding: String.Encoding.utf8.rawValue,
+            ],
+            documentAttributes: nil
+           ) {
+            return attributed.string.qbankNormalizedPlainText
+        }
+
+        return raw
+            .replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: .regularExpression)
+            .replacingOccurrences(of: "</p>", with: "\n", options: .regularExpression)
+            .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .qbankNormalizedPlainText
+    }
+
+    private var qbankNormalizedPlainText: String {
+        let withoutNonBreakingSpaces = replacingOccurrences(of: "\u{00A0}", with: " ")
+        let lines = withoutNonBreakingSpaces
+            .components(separatedBy: .newlines)
+            .map {
+                $0.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            .filter { !$0.isEmpty }
+        return lines.joined(separator: "\n\n")
+    }
+}
+
 // MARK: - Config Screen Helpers
 
 struct QBankSectionTitle: View {

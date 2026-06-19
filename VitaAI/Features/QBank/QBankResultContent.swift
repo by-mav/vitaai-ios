@@ -15,8 +15,8 @@ struct QBankResultContent: View {
         let answered = vm.state.sessionAnswers.count
         let correct = vm.state.correctCount
         let wrong = answered - correct
-        let total = vm.state.totalInSession
-        let unanswered = total - answered
+        let answeredLabel = answered == 1 ? "questão respondida" : "questões respondidas"
+        let correctLabel = correct == 1 ? "acerto" : "acertos"
         let accuracy = vm.state.accuracy
         let scoreColor: Color = accuracy >= 0.7 ? VitaColors.dataGreen : accuracy >= 0.5 ? VitaColors.dataAmber : VitaColors.dataRed
 
@@ -61,7 +61,7 @@ struct QBankResultContent: View {
                         .tracking(-0.04 * 22)
                         .foregroundStyle(scoreColor)
 
-                    Text("\(correct) de \(total) questões corretas")
+                    Text("\(correct) \(correctLabel) em \(answered) \(answeredLabel)")
                         .font(.system(size: 12))
                         .foregroundStyle(VitaColors.textSecondary)
                 }
@@ -210,8 +210,7 @@ struct QBankResultReviewRow: View {
     private var statusIcon: String  { answer.map { $0.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill" } ?? "minus.circle" }
     private var statement: String {
         guard let d = detail else { return "Questão \(questionId)" }
-        let s = d.statement.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let s = d.statement.qbankPlainText
         return s.isEmpty ? "Questão \(questionId)" : s
     }
 

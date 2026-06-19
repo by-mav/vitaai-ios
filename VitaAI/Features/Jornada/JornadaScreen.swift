@@ -61,31 +61,51 @@ struct JornadaEmptyStateCards: View {
     let icon: String
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer().frame(height: 40)
-            Image(systemName: icon)
-                .font(.system(size: 56, weight: .light))
-                .foregroundStyle(VitaColors.accentHover.opacity(0.7))
-            Text("Jornada \(journeyName)")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(VitaColors.textPrimary)
-            Text(tagline)
-                .font(.system(size: 15))
-                .foregroundStyle(VitaColors.textWarm.opacity(0.7))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            VStack(spacing: 8) {
-                Text("Em breve")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(VitaColors.accentHover)
-                Text("Estamos preparando os cards para sua jornada")
-                    .font(.system(size: 12))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.5))
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 14) {
+                StudyImageHeroStat(
+                    imageAsset: "hero-jornada-v2",
+                    eyebrow: "Jornada",
+                    primary: journeyName,
+                    primaryCaption: tagline,
+                    stats: [
+                        .init(value: "2026", label: "plano"),
+                        .init(value: "IA", label: "coach"),
+                        .init(value: "Beta", label: "status"),
+                    ],
+                    theme: .questoes
+                )
+
+                VitaGlassCard(cornerRadius: 16) {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(VitaColors.accent.opacity(0.16))
+                            Image(systemName: icon)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(VitaColors.accentLight)
+                        }
+                        .frame(width: 40, height: 40)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Preparando sua jornada")
+                                .font(PixioTypo.cardTitle)
+                                .foregroundStyle(VitaColors.textPrimary)
+                            Text("Cards e rotas específicas entram aqui.")
+                                .font(PixioTypo.caption)
+                                .foregroundStyle(VitaColors.textTertiary)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14)
+                }
+
+                Spacer().frame(height: 120)
             }
+            .padding(.horizontal, 16)
             .padding(.top, 8)
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(VitaColors.surface.ignoresSafeArea())
+        .background(Color.clear)
     }
 }
