@@ -89,7 +89,8 @@ struct VitaTabBar: View {
         // Rafael 2026-06-17: puxa o conteúdo pra baixo (centro do ícone vira o centro
         // da barra) e encolhe a faixa vazia embaixo — em vez de reservar a safe area
         // inteira (~34px) que deixava os ícones altos com vão escuro embaixo.
-        .padding(.bottom, 4)
+        .padding(.bottom, homeGlass ? 0 : 4)
+        .offset(y: homeGlass ? 10 : 0)
         .background(navBackground.ignoresSafeArea(edges: .bottom))
         .ignoresSafeArea(.container, edges: .bottom)
         .sheet(isPresented: $showAdd) {
@@ -263,23 +264,46 @@ private struct VitaBarGrabber: View {
     var body: some View {
         let theme = PixioColor.brand
         let tint = active ? theme : (homeGlass ? Color.white.opacity(0.62) : PixioColor.textLightFaint)
-        return VStack(spacing: PixioSpacing.xxs) {
-            Capsule().fill(tint).frame(width: 16, height: 3)
-            Grid(horizontalSpacing: PixioSpacing.xxs, verticalSpacing: PixioSpacing.xxs) {
-                ForEach(0..<3, id: \.self) { _ in
-                    GridRow {
-                        ForEach(0..<3, id: \.self) { _ in
-                            Circle().fill(tint).frame(width: 3, height: 3)
+        return ZStack {
+            if homeGlass {
+                Capsule()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color(red: 1.0, green: 0.84, blue: 0.42).opacity(glow ? 0.42 : 0.18),
+                                Color.white.opacity(glow ? 0.16 : 0.06),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 1,
+                            endRadius: 28
+                        )
+                    )
+                    .frame(width: 48, height: 28)
+                    .blur(radius: 3)
+                    .blendMode(.plusLighter)
+            }
+
+            VStack(spacing: PixioSpacing.xxs) {
+                Capsule().fill(tint).frame(width: 16, height: 3)
+                Grid(horizontalSpacing: PixioSpacing.xxs, verticalSpacing: PixioSpacing.xxs) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        GridRow {
+                            ForEach(0..<3, id: \.self) { _ in
+                                Circle().fill(tint).frame(width: 3, height: 3)
+                            }
                         }
                     }
                 }
             }
         }
-        .shadow(color: active ? theme.opacity(glow ? 0.85 : 0.28) : .clear, radius: active ? (glow ? 7 : 3) : 0)
+        .shadow(color: homeGlass ? Color(red: 1.0, green: 0.82, blue: 0.42).opacity(glow ? 0.46 : 0.20) : (active ? theme.opacity(glow ? 0.85 : 0.28) : .clear), radius: homeGlass ? (glow ? 11 : 5) : (active ? (glow ? 7 : 3) : 0))
         .animation(.easeInOut(duration: 0.3), value: active)
+        .animation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true), value: glow)
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { PixioHaptics.tap(); onTap() }
+        .onAppear { glow = true }
         .accessibilityLabel("Adicionar")
         .accessibilityIdentifier("quick_add_drawer_button")
         .accessibilityAddTraits(.isButton)

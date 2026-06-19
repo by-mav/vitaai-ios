@@ -92,7 +92,7 @@ struct AppRouter: View {
                 VitaOnboarding(
                     userName: authManager.userName ?? "",
                     onLogout: {
-                        Task { await authManager.logout() }
+                        authManager.logout()
                     }
                 ) {
                     isOnboardedStored = true
@@ -242,6 +242,7 @@ struct MainTabView: View {
     @State private var navVisibility = NavVisibility()
 
     var body: some View {
+        GeometryReader { shellGeo in
         // Shell OUTSIDE NavigationStack
         ZStack {
             if isHomeRoot {
@@ -275,64 +276,73 @@ struct MainTabView: View {
                                 routeDestination(for: route)
                             }
                     }
+                    .frame(width: shellGeo.size.width, height: shellGeo.size.height)
                     .background(.clear)
                     .scrollContentBackground(.hidden)
                     .toolbar(.hidden, for: .navigationBar)
                     .enableSwipeBack(router: router)
+                    .overlay(alignment: .top) {
+                        if shouldShowGlobalTopBar {
+                            VitaTopBar(
+                                userName: authManager.userName,
+                                userImageURL: authManager.userImage.flatMap(URL.init(string:)),
+                                subtitle: dashboardSubtitle,
+                                level: container.gamificationEvents.currentLevel,
+                                streak: container.dashboardViewModel.streakDays,
+                                xpProgress: container.gamificationEvents.currentXpProgress,
+                                xpToast: container.gamificationEvents.xpToast,
+                                blendsWithHome: isHomeRoot,
+                                onAvatarTap: { router.selectedTab = .progresso },
+                                onMenuTap: {
+                                    withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
+                                    showMenuPopout.toggle()
+                                }
+                            )
+                            .padding(.top, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                    }
+                    .overlay(alignment: .top) {
+                        if isHomeRoot {
+                            VitaHomeQuickActions(
+                                onFlashcards: { openHomeStudy(.flashcardHome()) },
+                                onQBank: { openHomeStudy(.qbank) },
+                                onSimulados: { openHomeStudy(.simuladoHome) },
+                                onTranscricao: { openHomeStudy(.transcricao) }
+                            )
+                            .padding(.top, 94)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+                    }
+                    .overlay(alignment: .bottom) {
+                        if !isImmersiveMode || isHomeRoot {
+                            VitaTabBar(selectedTab: Binding(
+                                get: { router.selectedTab },
+                                set: { newTab in
+                                    // Switching to a different tab must always start at that tab's
+                                    // root — otherwise the NavigationStack re-uses the path from
+                                    // the previous tab and the user lands on a stale sub-page
+                                    // (bug noted 2026-04-24 when Faculdade re-opened an old screen).
+                                    if newTab != router.selectedTab { router.popToRoot() }
+                                    router.selectedTab = newTab
+                                }
+                            ), homeGlass: isHomeRoot, onCenterTap: {
+                                withAnimation(.easeInOut(duration: 0.25)) { showChat.toggle() }
+                            }, onTabReselect: { _ in
+                                router.popToRoot()
+                            })
+                            .ignoresSafeArea(.keyboard)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
 
                     // VitaChatScreen movido pro ZStack root (abaixo) pra ficar
                     // ACIMA do backdrop blur global. Rafael 2026-04-27.
 
                 }
             }
-
-            if shouldShowGlobalTopBar && navVisibility.isVisible {
-                VitaTopBar(
-                    userName: authManager.userName,
-                    userImageURL: authManager.userImage.flatMap(URL.init(string:)),
-                    subtitle: dashboardSubtitle,
-                    level: container.gamificationEvents.currentLevel,
-                    streak: container.dashboardViewModel.streakDays,
-                    xpProgress: container.gamificationEvents.currentXpProgress,
-                    xpToast: container.gamificationEvents.xpToast,
-                    blendsWithHome: isHomeRoot,
-                    onAvatarTap: { router.selectedTab = .progresso },
-                    onMenuTap: {
-                        withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
-                        showMenuPopout.toggle()
-                    }
-                )
-                .padding(.top, 8)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .zIndex(120)
-            }
             // NotifPopout movido pro ZStack root (abaixo) pra ficar
             // ACIMA do backdrop blur compartilhado.
-
-            // TabBar — hidden in immersive mode (e.g. PDF fullscreen)
-            if !isImmersiveMode {
-                VStack {
-                    Spacer()
-                    VitaTabBar(selectedTab: Binding(
-                        get: { router.selectedTab },
-                        set: { newTab in
-                            // Switching to a different tab must always start at that tab's
-                            // root — otherwise the NavigationStack re-uses the path from
-                            // the previous tab and the user lands on a stale sub-page
-                            // (bug noted 2026-04-24 when Faculdade re-opened an old screen).
-                            if newTab != router.selectedTab { router.popToRoot() }
-                            router.selectedTab = newTab
-                        }
-                    ), homeGlass: isHomeRoot, onCenterTap: {
-                        withAnimation(.easeInOut(duration: 0.25)) { showChat.toggle() }
-                    }, onTabReselect: { _ in
-                        router.popToRoot()
-                    })
-                }
-                .ignoresSafeArea(.keyboard)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
 
             // MARK: - Backdrop blur (popouts/chat ofuscam conteúdo)
             // Rafael 2026-04-25: ao abrir notif/menu popout, fundo fica
@@ -410,7 +420,7 @@ struct MainTabView: View {
                     onAppearance: { router.navigateFromMenu(to: .appearance) },
                     onConnections: { router.navigateFromMenu(to: .connections) },
                     onPaywall: { router.navigateFromMenu(to: .paywall) },
-                    onLogout: { Task { await authManager.logout() } },
+                    onLogout: { authManager.logout() },
                     onDismiss: { showMenuPopout = false }
                 )
                 .transition(.opacity)
@@ -419,10 +429,17 @@ struct MainTabView: View {
 
             // Notification popout moved inside content ZStack (below TopNav)
         }
+        .frame(width: shellGeo.size.width, height: shellGeo.size.height)
+        }
         .environment(router)
         .background {
             VitaAmbientBackground { Color.clear }
                 .ignoresSafeArea()
+        }
+        .onAppear {
+            if router.currentPath.isEmpty {
+                isImmersiveMode = false
+            }
         }
         .onPreferenceChange(ImmersivePreferenceKey.self) { value in
             withAnimation(.easeInOut(duration: 0.25)) {
@@ -432,10 +449,18 @@ struct MainTabView: View {
         .onChange(of: router.path.count) { _, _ in
             // Sync routeStack when user swipes back (UIKit modifies path directly)
             router.syncStackToPath()
+            if router.currentPath.isEmpty {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isImmersiveMode = false
+                }
+            }
         }
         .onChange(of: router.selectedTab) { _, _ in
             // Dismiss popouts and chat on tab change
             showMenuPopout = false
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isImmersiveMode = false
+            }
             withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
             if showChat {
                 withAnimation(.easeInOut(duration: 0.25)) { showChat = false }
@@ -496,11 +521,19 @@ struct MainTabView: View {
     // MARK: - Active Tab Content
 
     private var shouldShowGlobalTopBar: Bool {
-        !isImmersiveMode && isHomeRoot
+        isHomeRoot
     }
 
     private var isHomeRoot: Bool {
-        router.selectedTab == .home && router.currentPath.isEmpty
+        router.selectedTab == .home
+    }
+
+    private func openHomeStudy(_ route: Route) {
+        PixioHaptics.tap()
+        router.selectedTab = .estudos
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            router.navigate(to: route)
+        }
     }
 
     @ViewBuilder
@@ -845,6 +878,82 @@ struct MainTabView: View {
         default:
             EmptyView()
         }
+    }
+}
+
+private struct VitaHomeQuickActions: View {
+    let onFlashcards: () -> Void
+    let onQBank: () -> Void
+    let onSimulados: () -> Void
+    let onTranscricao: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            actionButton("Cards", icon: "rectangle.on.rectangle.angled", tint: VitaColors.toolFlashcards, action: onFlashcards)
+            actionButton("Questões", icon: "checklist", tint: VitaColors.accent, action: onQBank)
+            actionButton("Simulados", icon: "doc.text.magnifyingglass", tint: VitaColors.toolSimulados, action: onSimulados)
+            actionButton("Transcrição", icon: "waveform", tint: VitaColors.toolTranscricao, action: onTranscricao)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule().fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.20),
+                                Color(red: 0.40, green: 0.68, blue: 0.32).opacity(0.10),
+                                Color.black.opacity(0.05)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                )
+                .overlay(Capsule().stroke(Color.white.opacity(0.30), lineWidth: 0.75))
+                .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
+        )
+        .padding(.horizontal, 20)
+    }
+
+    private func actionButton(_ title: String, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+        } label: {
+            VStack(spacing: 4) {
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .overlay(Circle().fill(tint.opacity(0.16)))
+                        .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 0.75))
+                        .shadow(color: tint.opacity(0.22), radius: 8, x: 0, y: 2)
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.92))
+                }
+                .frame(width: 30, height: 30)
+
+                Text(title)
+                    .font(.system(size: 7.8, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.82))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+            }
+            .frame(width: 58)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HomeQuickActionPressStyle())
+        .accessibilityLabel(title)
+    }
+}
+
+private struct HomeQuickActionPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.62), value: configuration.isPressed)
     }
 }
 

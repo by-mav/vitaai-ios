@@ -26,30 +26,13 @@ struct VitaTopBar: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Button(action: { onAvatarTap?() }) {
-                VStack(spacing: 4) {
-                    avatarView
-                        .frame(width: 48, height: 48)
-                        .background(avatarChrome)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            blendsWithHome ? Color.white.opacity(0.58) : VitaColors.accentLight.opacity(0.48),
-                                            blendsWithHome ? Color.white.opacity(0.20) : VitaColors.glassBorder.opacity(0.28),
-                                            Color.white.opacity(blendsWithHome ? 0.18 : 0.10)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1
-                                )
-                        )
+                VStack(spacing: blendsWithHome ? 2 : 4) {
+                    avatarBadge
 
-                    if !blendsWithHome && level > 0 {
-                        Text("Nível \(level)")
+                    if level > 0 {
+                        Text(blendsWithHome ? "\(level)" : "Nível \(level)")
                             .font(PixioTypo.micro)
-                            .foregroundStyle(VitaColors.textSecondary)
+                            .foregroundStyle(blendsWithHome ? Color.white.opacity(0.82) : VitaColors.textSecondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     }
@@ -85,6 +68,58 @@ struct VitaTopBar: View {
         .padding(.horizontal, 24)
         .padding(.top, 2)
         .padding(.bottom, 0)
+    }
+
+    private var avatarBadge: some View {
+        let size: CGFloat = blendsWithHome ? 56 : 48
+        let imageSize: CGFloat = blendsWithHome ? 42 : 42
+        return ZStack {
+            avatarChrome
+                .frame(width: size, height: size)
+
+            if blendsWithHome && level > 0 {
+                Circle()
+                    .stroke(Color.white.opacity(0.22), lineWidth: 3)
+                    .frame(width: size - 1, height: size - 1)
+
+                Circle()
+                    .trim(from: 0, to: max(0.04, min(1, xpProgress)))
+                    .stroke(
+                        AngularGradient(
+                            colors: [
+                                Color(red: 1.0, green: 0.86, blue: 0.46),
+                                Color.white.opacity(0.95),
+                                Color(red: 0.58, green: 0.92, blue: 0.50),
+                                Color(red: 1.0, green: 0.86, blue: 0.46)
+                            ],
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .frame(width: size - 1, height: size - 1)
+                    .shadow(color: Color(red: 1.0, green: 0.78, blue: 0.36).opacity(0.36), radius: 5, x: 0, y: 0)
+            }
+
+            avatarView
+                .frame(width: imageSize, height: imageSize)
+                .overlay(
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    blendsWithHome ? Color.white.opacity(0.52) : VitaColors.accentLight.opacity(0.48),
+                                    blendsWithHome ? Color.white.opacity(0.18) : VitaColors.glassBorder.opacity(0.28),
+                                    Color.white.opacity(blendsWithHome ? 0.14 : 0.10)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.75
+                        )
+                )
+        }
+        .frame(width: size, height: size)
     }
 
     @ViewBuilder
@@ -136,8 +171,23 @@ struct VitaTopBar: View {
         if blendsWithHome {
             Circle()
                 .fill(.ultraThinMaterial)
-                .overlay(Circle().fill(Color.white.opacity(0.14)))
+                .overlay(
+                    Circle().fill(
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(0.26),
+                                Color(red: 1.0, green: 0.80, blue: 0.38).opacity(0.16),
+                                Color.clear
+                            ],
+                            center: .topLeading,
+                            startRadius: 1,
+                            endRadius: 30
+                        )
+                    )
+                )
+                .overlay(Circle().fill(Color.white.opacity(0.08)))
                 .overlay(Circle().stroke(Color.white.opacity(0.30), lineWidth: 0.75))
+                .shadow(color: Color(red: 1.0, green: 0.78, blue: 0.36).opacity(0.18), radius: 9, x: 0, y: 0)
                 .shadow(color: Color.black.opacity(0.14), radius: 8, x: 0, y: 4)
         } else {
             Circle()

@@ -25,26 +25,19 @@ import SwiftUI
 
 struct VitaHomeGrassBackdrop: View {
     var body: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.55, green: 0.80, blue: 0.43),
-                Color(red: 0.42, green: 0.70, blue: 0.34),
-                Color(red: 0.31, green: 0.58, blue: 0.26)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .overlay(
+        ZStack {
+            GrassField(height: 1600)
+
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.16),
-                    Color.clear,
+                    Color.white.opacity(0.12),
+                    Color.clear.opacity(0.0),
                     Color.black.opacity(0.08)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-        )
+        }
     }
 }
 
@@ -80,6 +73,7 @@ struct ProgressoScreen: View {
     private static let rowStride: CGFloat = 116
     private static let rowAmp: CGFloat = 60
     private static let rowFreq: Double = 0.9
+    private static let trailTopInset: CGFloat = 172
 
     /// Stops travados por seção (cada tier ocupa 1/n da altura, cor sólida) — a cor
     /// muda EXATAMENTE na fronteira de capítulo (estrada + fundo), nunca antes.
@@ -120,10 +114,13 @@ struct ProgressoScreen: View {
     // (Canvas) + tinta sutil da cor do capítulo (cada "mundo" muda de cor a cada 20
     // níveis). Preenche a tela: sem céu, sem estrelado, sem glassmorphism.
     private var grassField: some View {
-        let h = CGFloat(trailItems.count) * Self.rowStride + 200
+        let h = Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + 200
         return ZStack {
             GrassField(height: h)
-            LinearGradient(gradient: Self.sectionStops { $0.mid.opacity(0.18) },
+            LinearGradient(gradient: Self.sectionStops { $0.bright.opacity(0.18) },
+                           startPoint: .top, endPoint: .bottom)
+                .blendMode(.softLight)
+            LinearGradient(gradient: Self.sectionStops { $0.mid.opacity(0.36) },
                            startPoint: .top, endPoint: .bottom)
                 .blendMode(.overlay)
         }
@@ -137,14 +134,15 @@ struct ProgressoScreen: View {
         VitaHomeGrassBackdrop()
     }
 
-    // MARK: - Card de seção (flat sólido, ref Duolingo 077) — no INÍCIO de cada
-    // seção, full-width, com "lábio" chunky embaixo. Marca a virada de capítulo.
+    // MARK: - Card de seção (flat sólido, ref Duolingo 077) — aparece nas
+    // transições de capítulo. A primeira seção fica implícita no nível atual,
+    // evitando uma placa parcialmente cortada no topo do mapa.
     private var sectionCards: some View {
         let h = CGFloat(trailItems.count) * Self.rowStride + 40
         return ZStack(alignment: .top) {
-            ForEach(0..<Self.tiers.count, id: \.self) { k in
+            ForEach(1..<Self.tiers.count, id: \.self) { k in
                 sectionCard(Self.tiers[k], number: k + 1)
-                    .offset(y: k == 0 ? 4 : CGFloat(k * 4) * Self.rowStride - 30)
+                    .offset(y: CGFloat(k * 4) * Self.rowStride - 30)
             }
         }
         .frame(height: h, alignment: .top)
@@ -152,29 +150,45 @@ struct ProgressoScreen: View {
     }
 
     private func sectionCard(_ tier: Tier, number: Int) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
+            Text("\(number)")
+                .font(.system(size: 13, weight: .black))
+                .foregroundStyle(tier.dark.opacity(0.86))
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(Color.white.opacity(0.86)))
+                .overlay(Circle().stroke(Color.white.opacity(0.45), lineWidth: 0.75))
+
             VStack(alignment: .leading, spacing: 1) {
                 Text("SEÇÃO \(number)")
-                    .font(.system(size: 11, weight: .heavy)).kerning(1.5)
-                    .foregroundStyle(.white.opacity(0.82))
+                    .font(.system(size: 9, weight: .heavy)).kerning(1.3)
+                    .foregroundStyle(.white.opacity(0.72))
                 Text(tier.name)
-                    .font(.system(size: 18, weight: .heavy))
+                    .font(.system(size: 15, weight: .heavy))
                     .foregroundStyle(.white)
             }
             Spacer()
-            Image(systemName: "list.bullet")
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(.white.opacity(0.9))
         }
-        .padding(.horizontal, 18).padding(.vertical, 13)
+        .frame(width: 214)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
             ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tier.dark).offset(y: 4)
-                RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tier.mid)
+                Capsule().fill(tier.dark.opacity(0.92)).offset(y: 3)
+                Capsule().fill(
+                    LinearGradient(
+                        colors: [
+                            tier.bright.opacity(0.95),
+                            tier.mid.opacity(0.94)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
             }
-            .shadow(color: .black.opacity(0.20), radius: 6, y: 4)
+            .shadow(color: .black.opacity(0.16), radius: 5, y: 3)
         )
-        .padding(.horizontal, 34)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 30)
     }
 
     // MARK: - Body
@@ -188,15 +202,18 @@ struct ProgressoScreen: View {
                         ZStack(alignment: .top) {
                             grassField
                             dirtPath
+                                .offset(y: Self.trailTopInset)
                             sectionCards
+                                .offset(y: Self.trailTopInset)
                             LazyVStack(spacing: 0) {
                                 ForEach(Array(trailItems.enumerated()), id: \.element.id) { idx, item in
                                     trailRow(item, rowIndex: idx)
                                 }
                             }
+                            .padding(.top, Self.trailTopInset)
                         }
-                        .frame(height: CGFloat(trailItems.count) * Self.rowStride + 40)
-                        .padding(.top, 136)
+                        .frame(height: Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + 40)
+                        .padding(.top, 0)
                         .padding(.bottom, 56)
                     }
                     .task {
@@ -215,7 +232,7 @@ struct ProgressoScreen: View {
                             mascotLevel = startLevel
                             try? await Task.sleep(for: .milliseconds(350))
                             withAnimation(.easeInOut(duration: 0.6)) {
-                                proxy.scrollTo(stageIndex(for: startLevel), anchor: .center)
+                                proxy.scrollTo(stageID(for: startLevel), anchor: .center)
                             }
                             if userLevel > startLevel {
                                 try? await Task.sleep(for: .milliseconds(650))
@@ -248,74 +265,6 @@ struct ProgressoScreen: View {
             }
         }
         .trackScreen("Progresso")
-    }
-
-    // MARK: - Ferramentas de estudo — fixas no topo, agora no dialeto Pixio/Vita.
-    private var topTools: some View {
-        HStack(spacing: 8) {
-            topTool("Cards", icon: "rectangle.on.rectangle.angled", tint: VitaColors.toolFlashcards) {
-                openStudy(.flashcardHome())
-            }
-            topTool("Questões", icon: "checklist", tint: VitaColors.accent) {
-                openStudy(.qbank)
-            }
-            topTool("Simulados", icon: "doc.text.magnifyingglass", tint: VitaColors.toolSimulados) {
-                openStudy(.simuladoHome)
-            }
-            topTool("Transcrição", icon: "waveform", tint: VitaColors.toolTranscricao) {
-                openStudy(.transcricao)
-            }
-        }
-        .padding(7)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule().fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.20),
-                                Color(red: 0.40, green: 0.68, blue: 0.32).opacity(0.16),
-                                Color.white.opacity(0.07)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                )
-                .overlay(Capsule().stroke(Color.white.opacity(0.30), lineWidth: 0.75))
-                .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
-        )
-        .padding(.horizontal, 14)
-        .padding(.top, 2)
-        .padding(.bottom, 8)
-    }
-
-    private func topTool(_ title: String, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
-        Button {
-            PixioHaptics.tap()
-            action()
-        } label: {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(PixioTypo.micro)
-                    .foregroundStyle(tint)
-                    .frame(width: 22, height: 22)
-                    .background(
-                        Circle()
-                            .fill(Color.white.opacity(0.16))
-                            .overlay(Circle().stroke(tint.opacity(0.45), lineWidth: 0.75))
-                    )
-                Text(title)
-                    .font(PixioTypo.micro)
-                    .foregroundStyle(Color.white.opacity(0.86))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 7)
-        }
-        .buttonStyle(TrailPressStyle())
     }
 
     // MARK: - Trilha
@@ -441,9 +390,13 @@ struct ProgressoScreen: View {
 
     private static let lastSeenKey = "vita.trail.lastSeenLevel"
 
-    private func stageIndex(for level: Int) -> Int {
-        Self.stages.first(where: { level >= $0.minLevel && level <= $0.maxLevel })?.index
-            ?? (level > (Self.stages.last?.maxLevel ?? 0) ? Self.stages.count : 1)
+    private func stageID(for level: Int) -> String {
+        let fallbackIndex = level > (Self.stages.last?.maxLevel ?? 0)
+            ? (Self.stages.last?.index ?? 1)
+            : (Self.stages.first?.index ?? 1)
+        let index = Self.stages.first(where: { level >= $0.minLevel && level <= $0.maxLevel })?.index
+            ?? fallbackIndex
+        return "stage-\(index)"
     }
 
     /// Pula o bonequinho de no em no: agacha+estica na decolagem, desliza pelo arco
@@ -459,7 +412,7 @@ struct ProgressoScreen: View {
             mascotLevel = newLevel
         }
         withAnimation(.easeInOut(duration: 0.6)) {
-            proxy.scrollTo(stageIndex(for: newLevel), anchor: .center)
+            proxy.scrollTo(stageID(for: newLevel), anchor: .center)
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.26) {
             withAnimation(.spring(response: 0.34, dampingFraction: 0.5)) {
