@@ -250,31 +250,12 @@ struct MainTabView: View {
                     .transition(.opacity)
             }
 
-            // TopBar + Content (respects safe area)
+            // Content owns the layout; Home chrome floats over the map so the
+            // grassy world stays continuous instead of reserving a top bar row.
             VStack(spacing: 0) {
                 Color.clear.frame(height: 0)
                     .onChange(of: router.selectedTab) { _, _ in navVisibility.reset() }
                     .onChange(of: router.path.count) { _, _ in navVisibility.reset() }
-                if shouldShowGlobalTopBar && navVisibility.isVisible {
-                    VitaTopBar(
-                        userName: authManager.userName,
-                        userImageURL: authManager.userImage.flatMap(URL.init(string:)),
-                        subtitle: dashboardSubtitle,
-                        level: container.gamificationEvents.currentLevel,
-                        streak: container.dashboardViewModel.streakDays,
-                        xpProgress: container.gamificationEvents.currentXpProgress,
-                        xpToast: container.gamificationEvents.xpToast,
-                        blendsWithHome: isHomeRoot,
-                        onAvatarTap: { router.selectedTab = .progresso },
-                        onMenuTap: {
-                            withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
-                            showMenuPopout.toggle()
-                        }
-                    )
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
 
                 ZStack(alignment: .topTrailing) {
                     NavigationStack(path: $router.path) {
@@ -303,6 +284,28 @@ struct MainTabView: View {
                     // ACIMA do backdrop blur global. Rafael 2026-04-27.
 
                 }
+            }
+
+            if shouldShowGlobalTopBar && navVisibility.isVisible {
+                VitaTopBar(
+                    userName: authManager.userName,
+                    userImageURL: authManager.userImage.flatMap(URL.init(string:)),
+                    subtitle: dashboardSubtitle,
+                    level: container.gamificationEvents.currentLevel,
+                    streak: container.dashboardViewModel.streakDays,
+                    xpProgress: container.gamificationEvents.currentXpProgress,
+                    xpToast: container.gamificationEvents.xpToast,
+                    blendsWithHome: isHomeRoot,
+                    onAvatarTap: { router.selectedTab = .progresso },
+                    onMenuTap: {
+                        withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
+                        showMenuPopout.toggle()
+                    }
+                )
+                .padding(.top, 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(120)
             }
             // NotifPopout movido pro ZStack root (abaixo) pra ficar
             // ACIMA do backdrop blur compartilhado.

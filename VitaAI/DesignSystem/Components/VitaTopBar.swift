@@ -46,10 +46,10 @@ struct VitaTopBar: View {
                                 )
                         )
 
-                    if level > 0 {
+                    if !blendsWithHome && level > 0 {
                         Text("Nível \(level)")
                             .font(PixioTypo.micro)
-                            .foregroundStyle(blendsWithHome ? Color.white.opacity(0.82) : VitaColors.textSecondary)
+                            .foregroundStyle(VitaColors.textSecondary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                     }
@@ -82,9 +82,9 @@ struct VitaTopBar: View {
             .accessibilityLabel("Menu")
             .accessibilityIdentifier("menuButton")
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 4)
-        .padding(.bottom, 2)
+        .padding(.horizontal, 24)
+        .padding(.top, 2)
+        .padding(.bottom, 0)
     }
 
     @ViewBuilder

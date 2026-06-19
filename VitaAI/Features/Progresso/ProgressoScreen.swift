@@ -183,54 +183,53 @@ struct ProgressoScreen: View {
         ZStack {
             grassBase.ignoresSafeArea()
             VStack(spacing: 0) {
-            topTools
-            ScrollViewReader { proxy in
-                ScrollView(showsIndicators: false) {
-                    ZStack(alignment: .top) {
-                        grassField
-                        dirtPath
-                        sectionCards
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(trailItems.enumerated()), id: \.element.id) { idx, item in
-                                trailRow(item, rowIndex: idx)
+                ScrollViewReader { proxy in
+                    ScrollView(showsIndicators: false) {
+                        ZStack(alignment: .top) {
+                            grassField
+                            dirtPath
+                            sectionCards
+                            LazyVStack(spacing: 0) {
+                                ForEach(Array(trailItems.enumerated()), id: \.element.id) { idx, item in
+                                    trailRow(item, rowIndex: idx)
+                                }
                             }
                         }
+                        .frame(height: CGFloat(trailItems.count) * Self.rowStride + 40)
+                        .padding(.top, 136)
+                        .padding(.bottom, 56)
                     }
-                    .frame(height: CGFloat(trailItems.count) * Self.rowStride + 40)
-                    .padding(.top, 78)
-                    .padding(.bottom, 56)
-                }
-                .task {
-                    await vmProg.loadIfNeeded()
-                    await dash.loadDashboard()
-                    ScreenLoadContext.finish(for: "Progresso")
-                    if let stats = try? await container.api.getGamificationStats() {
-                        gamify.updateFromStats(stats)
-                    }
-                    if !scrolledToCurrent {
-                        scrolledToCurrent = true
-                        // Bonequinho comeca no ultimo nivel visto e SOBE pulando ate o
-                        // nivel atual (Duolingo: voce volta do estudo e ve o progresso).
-                        let lastSeen = UserDefaults.standard.integer(forKey: Self.lastSeenKey)
-                        let startLevel = lastSeen >= 1 ? min(lastSeen, userLevel) : userLevel
-                        mascotLevel = startLevel
-                        try? await Task.sleep(for: .milliseconds(350))
-                        withAnimation(.easeInOut(duration: 0.6)) {
-                            proxy.scrollTo(stageIndex(for: startLevel), anchor: .center)
+                    .task {
+                        await vmProg.loadIfNeeded()
+                        await dash.loadDashboard()
+                        ScreenLoadContext.finish(for: "Progresso")
+                        if let stats = try? await container.api.getGamificationStats() {
+                            gamify.updateFromStats(stats)
                         }
-                        if userLevel > startLevel {
-                            try? await Task.sleep(for: .milliseconds(650))
-                            hopMascot(to: userLevel, proxy: proxy)
+                        if !scrolledToCurrent {
+                            scrolledToCurrent = true
+                            // Bonequinho comeca no ultimo nivel visto e SOBE pulando ate o
+                            // nivel atual (Duolingo: voce volta do estudo e ve o progresso).
+                            let lastSeen = UserDefaults.standard.integer(forKey: Self.lastSeenKey)
+                            let startLevel = lastSeen >= 1 ? min(lastSeen, userLevel) : userLevel
+                            mascotLevel = startLevel
+                            try? await Task.sleep(for: .milliseconds(350))
+                            withAnimation(.easeInOut(duration: 0.6)) {
+                                proxy.scrollTo(stageIndex(for: startLevel), anchor: .center)
+                            }
+                            if userLevel > startLevel {
+                                try? await Task.sleep(for: .milliseconds(650))
+                                hopMascot(to: userLevel, proxy: proxy)
+                            }
+                            UserDefaults.standard.set(userLevel, forKey: Self.lastSeenKey)
                         }
-                        UserDefaults.standard.set(userLevel, forKey: Self.lastSeenKey)
+                    }
+                    .onChange(of: userLevel) { _, newLevel in
+                        // Subiu de nivel AO VIVO (estudou e voltou) -> pula pro no novo.
+                        hopMascot(to: newLevel, proxy: proxy)
+                        UserDefaults.standard.set(newLevel, forKey: Self.lastSeenKey)
                     }
                 }
-                .onChange(of: userLevel) { _, newLevel in
-                    // Subiu de nivel AO VIVO (estudou e voltou) -> pula pro no novo.
-                    hopMascot(to: newLevel, proxy: proxy)
-                    UserDefaults.standard.set(newLevel, forKey: Self.lastSeenKey)
-                }
-            }
             }
         }
         .refreshable {
