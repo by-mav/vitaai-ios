@@ -9,6 +9,8 @@ struct TranscricaoDetailSheet: View {
     var onRenamed: ((String) -> Void)? = nil
     /// Called after a successful delete so the parent list can drop the row.
     var onDeleted: (() -> Void)? = nil
+    /// Called when a source becomes a playable Study Pack QBank session.
+    var onStudyPackCreated: ((String, String) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appContainer) private var container
@@ -39,10 +41,12 @@ struct TranscricaoDetailSheet: View {
 
     init(recording: TranscricaoEntry,
          onRenamed: ((String) -> Void)? = nil,
-         onDeleted: (() -> Void)? = nil) {
+         onDeleted: (() -> Void)? = nil,
+         onStudyPackCreated: ((String, String) -> Void)? = nil) {
         self.recording = recording
         self.onRenamed = onRenamed
         self.onDeleted = onDeleted
+        self.onStudyPackCreated = onStudyPackCreated
         self._liveTitle = State(initialValue: recording.title)
     }
 
@@ -339,7 +343,7 @@ struct TranscricaoDetailSheet: View {
             .components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>|"))
             .joined(separator: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let fileName = (safeName.isEmpty ? "Transcricao" : safeName) + ".txt"
+        let fileName = (safeName.isEmpty ? "Transcrição" : safeName) + ".txt"
 
         // Cabeçalho com metadata pra ficar útil offline (Apple Files preview).
         let dateFmt = DateFormatter()
@@ -533,6 +537,7 @@ struct TranscricaoDetailSheet: View {
                 TranscricaoActionsMenu(
                     sourceId: recording.id,
                     existingOutputTypes: Set(outputs.map(\.outputType)),
+                    onStudyPackCreated: onStudyPackCreated,
                     onGenerated: { newOutput in
                         outputs.append(newOutput)
                     }
@@ -632,6 +637,7 @@ struct TranscricaoDetailSheet: View {
             TranscricaoActionsMenu(
                 sourceId: recording.id,
                 existingOutputTypes: Set(outputs.map(\.outputType)),
+                onStudyPackCreated: onStudyPackCreated,
                 onGenerated: { newOutput in
                     outputs.append(newOutput)
                 }
@@ -1749,6 +1755,7 @@ struct TranscricaoPendingContent: View {
 struct TranscricaoActionsMenu: View {
     let sourceId: String
     let existingOutputTypes: Set<String>
+    var onStudyPackCreated: ((String, String) -> Void)? = nil
     let onGenerated: (StudioOutput) -> Void
 
     @Environment(\.appContainer) private var container
@@ -1758,9 +1765,11 @@ struct TranscricaoActionsMenu: View {
         let icon: String
         let name: String
         let desc: String
+        var repeatable: Bool = false
     }
 
     private let actions: [ActionDef] = [
+        ActionDef(id: "study-pack", icon: "bolt.circle", name: "Criar treino", desc: "Questões + flashcards valendo XP", repeatable: true),
         ActionDef(id: "summary", icon: "doc.text", name: "Gerar resumo", desc: "Resumo estruturado da aula"),
         ActionDef(id: "flashcards", icon: "rectangle.stack", name: "Gerar flashcards", desc: "Cards de memorização automáticos"),
         ActionDef(id: "questions", icon: "questionmark.circle", name: "Gerar questões", desc: "Questões de prova baseadas na aula"),
@@ -1774,7 +1783,7 @@ struct TranscricaoActionsMenu: View {
     @State private var generateError: String?
 
     private var availableActions: [ActionDef] {
-        actions.filter { !existingOutputTypes.contains($0.id) }
+        actions.filter { $0.repeatable || !existingOutputTypes.contains($0.id) }
     }
 
     var body: some View {
@@ -1865,10 +1874,28 @@ struct TranscricaoActionsMenu: View {
         for type in types {
             generatingType = type
             do {
-                let output = try await container.api.generateStudioOutput(sourceId: sourceId, outputType: type)
-                await MainActor.run {
-                    onGenerated(output)
-                    selectedActions.remove(type)
+                if type == "study-pack" {
+                    let pack = try await container.api.generateStudyPack(
+                        sourceIds: [sourceId],
+                        mode: "practice",
+                        difficulty: "mixed",
+                        questionCount: 10,
+                        flashcardCount: 15,
+                        includeQuestions: true,
+                        includeFlashcards: true
+                    )
+                    await MainActor.run {
+                        selectedActions.remove(type)
+                        if let sessionId = pack.qbankSessionId {
+                            onStudyPackCreated?(sessionId, "practice")
+                        }
+                    }
+                } else {
+                    let output = try await container.api.generateStudioOutput(sourceId: sourceId, outputType: type)
+                    await MainActor.run {
+                        onGenerated(output)
+                        selectedActions.remove(type)
+                    }
                 }
             } catch {
                 failCount += 1

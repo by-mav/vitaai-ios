@@ -29,17 +29,34 @@ struct TranscricaoRecorderArea: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // Timer gigante no topo, centralizado.
-            Text(formatTranscricaoElapsed(elapsedSeconds))
-                .font(.system(size: 54, weight: .bold, design: .default))
-                .tracking(-2)
-                .monospacedDigit()
-                .foregroundStyle(
-                    isRecording
-                        ? VitaColors.accentLight.opacity(0.95)
-                        : Color.white.opacity(0.22)
-                )
-                .shadow(color: isRecording ? VitaColors.accent.opacity(0.4) : .clear, radius: 32)
+            // Timer gigante centralizado; caixa de ferramentas + Importar
+            // ancorados à direita, na altura do cronômetro (Rafael 2026-07-01:
+            // consolida Disciplina/Idioma/Modo numa caixa só — área limpa).
+            ZStack {
+                Text(formatTranscricaoElapsed(elapsedSeconds))
+                    .font(.system(size: 54, weight: .bold, design: .default))
+                    .tracking(-2)
+                    .monospacedDigit()
+                    .foregroundStyle(
+                        isRecording
+                            ? VitaColors.accentLight.opacity(0.95)
+                            : Color.white.opacity(0.22)
+                    )
+                    .shadow(color: isRecording ? VitaColors.accent.opacity(0.4) : .clear, radius: 32)
+
+                HStack(spacing: 8) {
+                    Spacer()
+                    TranscricaoToolbox(
+                        selectedDiscipline: $selectedDiscipline,
+                        selectedLanguage: $selectedLanguage,
+                        transcribeWithAI: $transcribeWithAI,
+                        disciplines: disciplines,
+                        disabled: isRecording
+                    )
+                    TranscricaoImportButton(disabled: isRecording, onImport: onImportAudio)
+                }
+                .padding(.trailing, 4)
+            }
 
             // Status label secundário — só aparece enquanto gravando/pausado
             // (quando .idle o "Toque para gravar" do orb já cobre o estado).
@@ -135,98 +152,6 @@ struct TranscricaoRecorderArea: View {
                 )
             }
 
-            // 4 chips compactos lado a lado (Rafael 2026-04-26): Disciplina /
-            // Idioma / Modo / Importar. Mesma silhueta visual — Importar abre
-            // fileImporter da Apple (sem popout, o picker é a UI nativa).
-            // HStack centralizado (não ScrollView) — Rafael 2026-04-26: chips
-            // ficavam leading-aligned no scroll. lineLimit(1) + fixedSize em
-            // Cloud e Importar protegem contra quebra em iPhones menores.
-            HStack(spacing: 8) {
-                    TranscricaoDisciplinePicker(
-                        selected: $selectedDiscipline,
-                        disciplines: disciplines,
-                        disabled: isRecording
-                    )
-                    TranscricaoLanguagePicker(
-                        selected: $selectedLanguage,
-                        disabled: isRecording
-                    )
-                    Menu {
-                        Button {
-                            if !isRecording { transcribeWithAI = true }
-                        } label: {
-                            if transcribeWithAI {
-                                Label("VITACloud", systemImage: "checkmark")
-                            } else {
-                                Label("VITACloud", systemImage: "cloud.fill")
-                            }
-                        }
-                        Button {
-                            if !isRecording { transcribeWithAI = false }
-                        } label: {
-                            if !transcribeWithAI {
-                                Label("Só no dispositivo", systemImage: "checkmark")
-                            } else {
-                                Label("Só no dispositivo", systemImage: "iphone")
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: transcribeWithAI ? "cloud.fill" : "iphone")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(VitaColors.accent)
-                            Text(transcribeWithAI ? "Cloud" : "Local")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Color.white.opacity(0.80))
-                                .lineLimit(1)
-                                .fixedSize()
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 8, weight: .medium))
-                                .foregroundStyle(Color.white.opacity(0.30))
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.03))
-                                .overlay(Capsule().stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5))
-                        )
-                        .contentShape(Capsule())
-                    }
-                    .disabled(isRecording)
-                    .opacity(isRecording ? 0.5 : 1)
-
-                    // Importar áudio — mesma silhueta dos chips Auto/PT/Cloud,
-                    // sem chevron.down porque abre fileImporter da Apple
-                    // direto (UI nativa do picker).
-                    Button(action: {
-                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                        onImportAudio()
-                    }) {
-                        HStack(spacing: 5) {
-                            Image(systemName: "square.and.arrow.down")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(VitaColors.accent)
-                            Text("Importar")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Color.white.opacity(0.80))
-                                .lineLimit(1)
-                                .fixedSize()
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(Color.white.opacity(0.03))
-                                .overlay(Capsule().stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5))
-                        )
-                        .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isRecording)
-                    .opacity(isRecording ? 0.5 : 1)
-            }
-            .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity)
         .padding(.bottom, 4)
@@ -242,6 +167,258 @@ struct TranscricaoRecorderArea: View {
         if isPaused { return "Toque para parar" }
         if isRecording { return "Toque para parar" }
         return "Toque para gravar"
+    }
+}
+
+// MARK: - Toolbox (caixa de ferramentas: Disciplina + Idioma + Modo)
+//
+// Rafael 2026-07-01: consolida os 3 controles que antes eram chips soltos
+// abaixo do gravador numa caixa única, ancorada à direita do cronômetro.
+// Menu nativo (robusto/clean) — o botão usa o vocabulário visual dourado
+// dos chips antigos (cápsula vidro + stroke accent).
+
+struct TranscricaoToolbox: View {
+    @Binding var selectedDiscipline: String
+    @Binding var selectedLanguage: String
+    @Binding var transcribeWithAI: Bool
+    let disciplines: [String]
+    let disabled: Bool
+
+    @State private var showSheet = false
+
+    private var disciplineLabel: String {
+        selectedDiscipline.isEmpty ? "Auto" : selectedDiscipline
+    }
+    private var languageLabel: String {
+        (TranscricaoLanguagePicker.all.first { $0.code == selectedLanguage } ?? TranscricaoLanguagePicker.all[0]).label
+    }
+
+    var body: some View {
+        // Botão-caixa (dourado, cápsula-vidro igual aos antigos chips).
+        Button {
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            showSheet = true
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(VitaColors.accent)
+                .frame(width: 34, height: 34)
+                .background(
+                    Circle()
+                        .fill(Color.white.opacity(0.03))
+                        .overlay(Circle().stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5))
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.5 : 1)
+        .accessibilityLabel("Opções da gravação")
+        .sheet(isPresented: $showSheet) {
+            PixioSettingsScaffold(title: "Opções da gravação") {
+                PixioSettingsSection {
+                    NavigationLink {
+                        TranscricaoDisciplinaPicker(selected: $selectedDiscipline, disciplines: disciplines)
+                    } label: {
+                        navRow(icon: "book.closed.fill", label: "Disciplina", value: disciplineLabel)
+                    }
+                    .buttonStyle(.plain)
+                    PixioSettingsDivider()
+                    menuRow(icon: "globe", label: "Idioma", value: languageLabel) {
+                        ForEach(TranscricaoLanguagePicker.all) { lang in
+                            Button { selectedLanguage = lang.code } label: {
+                                if selectedLanguage == lang.code {
+                                    Label("\(lang.flag) \(lang.label)", systemImage: "checkmark")
+                                } else {
+                                    Text("\(lang.flag) \(lang.label)")
+                                }
+                            }
+                        }
+                    }
+                    PixioSettingsDivider()
+                    menuRow(icon: transcribeWithAI ? "cloud.fill" : "iphone", label: "Transcrição", value: transcribeWithAI ? "Cloud" : "Local") {
+                        Button { transcribeWithAI = true } label: {
+                            Label("VITACloud", systemImage: transcribeWithAI ? "checkmark" : "cloud.fill")
+                        }
+                        Button { transcribeWithAI = false } label: {
+                            Label("Só no dispositivo", systemImage: !transcribeWithAI ? "checkmark" : "iphone")
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
+    }
+
+    // Linha canon: ícone-tile + nome à esquerda; cápsula-menu dourada com o
+    // valor à direita (padrão dos Ajustes — "cada opção é o seu próprio menu").
+    @ViewBuilder
+    private func menuRow<Menu: View>(icon: String, label: String, value: String, @ViewBuilder content: () -> Menu) -> some View {
+        HStack(spacing: 14) {
+            PixioSettingsIcon(icon: icon)
+            Text(label)
+                .font(PixioTypo.geist(size: 15, weight: .regular))
+                .foregroundStyle(PixioColor.textLight)
+            Spacer(minLength: 8)
+            SwiftUI.Menu {
+                content()
+            } label: {
+                HStack(spacing: 5) {
+                    Text(value)
+                        .font(PixioTypo.geist(size: 14, weight: .regular))
+                        .foregroundStyle(VitaColors.accent)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(VitaColors.accent.opacity(0.7))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(VitaColors.accent.opacity(0.08)))
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    // Linha de navegação (empurra sub-tela): ícone-tile + nome + valor +
+    // chevron.right. Usada pela Disciplina (que abre busca + lista).
+    @ViewBuilder
+    private func navRow(icon: String, label: String, value: String) -> some View {
+        HStack(spacing: 14) {
+            PixioSettingsIcon(icon: icon)
+            Text(label)
+                .font(PixioTypo.geist(size: 15, weight: .regular))
+                .foregroundStyle(PixioColor.textLight)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(PixioTypo.geist(size: 14, weight: .regular))
+                .foregroundStyle(PixioColor.textLightMuted)
+                .lineLimit(1)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(PixioColor.textLightFaint)
+        }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Disciplina Picker (sub-tela: auto-detectar + busca + lista alfabética)
+//
+// Rafael 2026-07-02: disciplina não é dropdown — abre tela própria no dialeto
+// Ajustes com Auto-detectar (padrão), campo de busca e a lista das disciplinas
+// do semestre em ordem alfabética. Digitar algo fora da lista cria custom.
+
+struct TranscricaoDisciplinaPicker: View {
+    @Binding var selected: String
+    let disciplines: [String]
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+
+    private var trimmed: String { query.trimmingCharacters(in: .whitespaces) }
+    private var sorted: [String] {
+        disciplines.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+    private var filtered: [String] {
+        guard !trimmed.isEmpty else { return sorted }
+        return sorted.filter { $0.localizedCaseInsensitiveContains(trimmed) }
+    }
+    private var showCustom: Bool {
+        !trimmed.isEmpty && !disciplines.contains { $0.localizedCaseInsensitiveCompare(trimmed) == .orderedSame }
+    }
+
+    var body: some View {
+        PixioSettingsScaffold(title: "Disciplina") {
+            PixioSearchField(text: $query, placeholder: "Buscar disciplina")
+
+            PixioSettingsSection {
+                PixioSettingsRow(
+                    icon: "sparkles",
+                    accent: VitaColors.accent,
+                    title: "Auto-detectar",
+                    value: selected.isEmpty ? "Padrão" : nil,
+                    verified: selected.isEmpty,
+                    showChevron: false,
+                    action: { selected = ""; dismiss() }
+                )
+            }
+
+            if !filtered.isEmpty || showCustom {
+                PixioSettingsSection(trimmed.isEmpty ? "Minhas disciplinas" : nil) {
+                    ForEach(Array(filtered.enumerated()), id: \.element) { idx, d in
+                        PixioSettingsRow(
+                            icon: "book.closed.fill",
+                            accent: VitaColors.accent,
+                            title: d,
+                            verified: selected == d,
+                            showChevron: false,
+                            action: { selected = d; dismiss() }
+                        )
+                        if idx < filtered.count - 1 || showCustom {
+                            PixioSettingsDivider()
+                        }
+                    }
+                    if showCustom {
+                        PixioSettingsRow(
+                            icon: "plus.circle",
+                            accent: VitaColors.accent,
+                            title: "Usar \u{201C}\(trimmed)\u{201D}",
+                            showChevron: false,
+                            action: { selected = trimmed; dismiss() }
+                        )
+                    }
+                }
+            } else {
+                // Sem disciplinas sincronizadas ainda — orienta o aluno a
+                // digitar (que cria uma custom via o ramo showCustom acima).
+                VStack(spacing: 6) {
+                    Image(systemName: "books.vertical")
+                        .font(.system(size: 26, weight: .regular))
+                        .foregroundStyle(PixioColor.textLightFaint)
+                        .padding(.bottom, 2)
+                    Text("Nenhuma disciplina ainda")
+                        .font(PixioTypo.geist(size: 15, weight: .regular))
+                        .foregroundStyle(PixioColor.textLight)
+                    Text("Digite acima para criar uma, ou sincronize suas matérias na Faculdade.")
+                        .font(PixioTypo.geist(size: 13, weight: .regular))
+                        .foregroundStyle(PixioColor.textLightMuted)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+                .padding(.horizontal, 8)
+            }
+        }
+    }
+}
+
+// MARK: - Import Button (ao lado da caixa de ferramentas)
+
+struct TranscricaoImportButton: View {
+    let disabled: Bool
+    let onImport: () -> Void
+
+    var body: some View {
+        Button(action: {
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            onImport()
+        }) {
+            Image(systemName: "square.and.arrow.down")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(VitaColors.accent)
+                .frame(width: 34, height: 34)
+                .background(
+                    Circle()
+                        .fill(Color.white.opacity(0.03))
+                        .overlay(Circle().stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5))
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.5 : 1)
+        .accessibilityLabel("Importar áudio")
     }
 }
 

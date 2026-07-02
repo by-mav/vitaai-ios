@@ -71,13 +71,19 @@ private struct PermissionBanner: View {
 struct TranscricaoScreen: View {
     @Environment(\.appContainer) private var container
     let onBack: () -> Void
+    var onOpenStudyPack: ((String, String) -> Void)? = nil
 
     @State private var viewModel: TranscricaoViewModel?
 
     var body: some View {
         Group {
             if let vm = viewModel {
-                TranscricaoContent(viewModel: vm, onBack: onBack, api: container.api)
+                TranscricaoContent(
+                    viewModel: vm,
+                    onBack: onBack,
+                    api: container.api,
+                    onOpenStudyPack: onOpenStudyPack
+                )
             } else {
                 ProgressView().tint(VitaColors.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -95,6 +101,7 @@ struct TranscricaoScreen: View {
             }
             async let _ = viewModel?.loadRecordings()
             async let _ = viewModel?.loadFolders()
+            async let _ = viewModel?.loadCanonicalDisciplines()
             SentrySDK.reportFullyDisplayed()
         }
         .onDisappear {
@@ -118,6 +125,7 @@ private struct TranscricaoContent: View {
     @Bindable var viewModel: TranscricaoViewModel
     let onBack: () -> Void
     let api: VitaAPI
+    var onOpenStudyPack: ((String, String) -> Void)? = nil
 
     @Environment(\.appData) private var appData
     @State private var selectedMode: TranscricaoRecordingMode = .offline
@@ -141,6 +149,19 @@ private struct TranscricaoContent: View {
         (appData.gradesResponse?.current ?? [])
             .map(\.subjectName)
             .filter { !$0.isEmpty }
+    }
+
+    /// TODAS as disciplinas do aluno (semestre atual + concluídas), únicas e em
+    /// ordem alfabética — fonte do seletor de disciplina da caixa de opções
+    /// (Rafael 2026-07-02). O filtro da lista continua só com `disciplines`.
+    private var allDisciplines: [String] {
+        let g = appData.gradesResponse
+        let portal = ((g?.current ?? []) + (g?.completed ?? [])).map(\.subjectName)
+        // Catálogo canônico do Vita (QBank) SEMPRE presente + as do portal do
+        // aluno, únicas e em ordem alfabética.
+        let combined = portal + viewModel.canonicalDisciplines
+        return Set(combined.filter { !$0.isEmpty })
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     var body: some View {
@@ -196,7 +217,7 @@ private struct TranscricaoContent: View {
                                         get: { viewModel.transcribeWithAI },
                                         set: { viewModel.transcribeWithAI = $0 }
                                     ),
-                                    disciplines: disciplines,
+                                    disciplines: allDisciplines,
                                     onToggle: {
                                         if viewModel.phase == .recording || viewModel.phase == .paused {
                                             viewModel.stopRecording()
@@ -348,6 +369,10 @@ private struct TranscricaoContent: View {
                     },
                     onDeleted: {
                         withAnimation { viewModel.removeRecordingLocally(id: rec.id) }
+                    },
+                    onStudyPackCreated: { sessionId, mode in
+                        selectedRecording = nil
+                        onOpenStudyPack?(sessionId, mode)
                     }
                 )
             }

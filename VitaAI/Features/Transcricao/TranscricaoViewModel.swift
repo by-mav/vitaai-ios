@@ -78,6 +78,11 @@ final class TranscricaoViewModel {
     /// header da lista. Populated por loadFolders.
     private(set) var folders: [VitaAPI.StudioFolder] = []
 
+    /// Catálogo CANÔNICO de disciplinas (taxonomia do QBank), independente do
+    /// portal do aluno — sempre disponível no seletor de disciplina da caixa
+    /// (Rafael 2026-07-02). Populated por loadCanonicalDisciplines.
+    private(set) var canonicalDisciplines: [String] = []
+
     // MARK: - Private
 
     private let client: TranscricaoClient
@@ -212,7 +217,7 @@ final class TranscricaoViewModel {
         loadLocalRecordings()
 
         if transcribeWithAI {
-            VitaPostHogConfig.capture(event: "transcription_upload_started", properties: [
+            VitaAnalytics.capture(event: "transcription_upload_started", properties: [
                 "file_size_mb": Double(localRec.fileSize) / 1_048_576.0,
                 "duration_seconds": duration,
                 "background": true,
@@ -222,7 +227,7 @@ final class TranscricaoViewModel {
                 await self?.uploadLocalInBackground(id: localRec.id, liveTranscript: capturedLive)
             }
         } else {
-            VitaPostHogConfig.capture(event: "transcription_saved_local", properties: [
+            VitaAnalytics.capture(event: "transcription_saved_local", properties: [
                 "duration_seconds": duration,
                 "file_size_mb": Double(localRec.fileSize) / 1_048_576.0,
             ])
@@ -306,7 +311,7 @@ final class TranscricaoViewModel {
                     loadLocalRecordings()
                 case .complete(let t, let s, let cards):
                     try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: "ready", sourceId: sourceIdSeen)
-                    VitaPostHogConfig.capture(event: "transcription_completed", properties: [
+                    VitaAnalytics.capture(event: "transcription_completed", properties: [
                         "word_count": t.split(separator: " ").count,
                         "flashcards_generated": cards.count,
                         "seconds_elapsed": Int(Date().timeIntervalSince(uploadStart)),
@@ -317,7 +322,7 @@ final class TranscricaoViewModel {
                     finalStatus = "failed"
                     try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: "failed")
                     loadLocalRecordings()
-                    VitaPostHogConfig.capture(event: "transcription_upload_failed", properties: [
+                    VitaAnalytics.capture(event: "transcription_upload_failed", properties: [
                         "reason": msg,
                         "background": true,
                     ])
@@ -327,7 +332,7 @@ final class TranscricaoViewModel {
             finalStatus = "failed"
             try? TranscricaoLocalStore.shared.updateCloudStatus(id: id, status: "failed")
             loadLocalRecordings()
-            VitaPostHogConfig.capture(event: "transcription_upload_failed", properties: [
+            VitaAnalytics.capture(event: "transcription_upload_failed", properties: [
                 "reason": error.localizedDescription,
                 "background": true,
             ])
@@ -398,6 +403,21 @@ final class TranscricaoViewModel {
             folders = try await api.listStudioFolders()
         } catch {
             NSLog("[TranscricaoVM] loadFolders failed: %@", "\(error)")
+        }
+    }
+
+    /// Carrega o catálogo canônico de disciplinas (taxonomia QBank). Mesma
+    /// fonte que o QBank usa (`getQBankFilters().disciplines`). Sempre presente
+    /// no seletor, mesmo sem o portal do aluno sincronizado.
+    func loadCanonicalDisciplines() async {
+        guard let api else { return }
+        do {
+            let filters = try await api.getQBankFilters()
+            canonicalDisciplines = filters.disciplines
+                .map(\.title)
+                .filter { !$0.isEmpty }
+        } catch {
+            NSLog("[TranscricaoVM] loadCanonicalDisciplines failed: %@", "\(error)")
         }
     }
 
@@ -536,7 +556,7 @@ final class TranscricaoViewModel {
             try? FileManager.default.removeItem(at: url)
         }
 
-        VitaPostHogConfig.capture(event: "transcription_discarded", properties: [
+        VitaAnalytics.capture(event: "transcription_discarded", properties: [
             "duration_seconds": elapsedSeconds,
             "had_live_transcript": !liveTranscript.isEmpty,
         ])
