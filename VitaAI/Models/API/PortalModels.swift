@@ -276,6 +276,16 @@ struct AcademicSubject: Codable, Identifiable {
     /// server-side from qbank_topics. Replaces the need to cross-reference
     /// /api/qbank/filters.disciplines[] (deprecated).
     var questionCount: Int?
+    /// Notas derivadas de academic_evaluations pelo backend (mesma lógica do
+    /// /api/grades/current). Presentes no GET /api/subjects — as telas de nota
+    /// (Estudos, Insights, Faculdade) leem daqui, sem cruzar com /api/grades.
+    var grade1: Double?
+    var grade2: Double?
+    var grade3: Double?
+    var finalGrade: Double?
+    /// Frequência/faltas quando o portal fornece.
+    var attendance: Double?
+    var absences: Double?
 
     /// Preferred name for display — user edit wins over the portal/API name.
     /// canonicalName is taxonomy metadata only; never replace the student's

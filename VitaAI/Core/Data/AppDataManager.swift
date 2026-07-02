@@ -23,6 +23,38 @@ final class AppDataManager {
     /// here instead of fetching `/api/subjects` on their own.
     var enrolledDisciplines: [AcademicSubject] = []
 
+    /// Lista canônica PRONTA pra UI — `enrolledDisciplines` ordenado por nome de
+    /// exibição. Todo seletor/lista de disciplina do app usa ISTO. NÃO mesclar
+    /// com `gradesResponse` nem deduplicar no cliente: o backend (/api/subjects)
+    /// já unifica portal + manuais e traz as notas embutidas (Rafael 2026-07-02).
+    var canonicalDisciplines: [AcademicSubject] {
+        enrolledDisciplines.sorted {
+            ($0.displayName ?? $0.canonicalName ?? $0.name)
+                .localizedCaseInsensitiveCompare($1.displayName ?? $1.canonicalName ?? $1.name) == .orderedAscending
+        }
+    }
+
+    /// Adicionar disciplina manual — POST /api/subjects/manual + recarrega a
+    /// fonte canônica. Retorna a disciplina criada (pra seleção imediata).
+    @discardableResult
+    func addManualDiscipline(name: String) async throws -> AcademicSubject {
+        let created = try await api.createManualSubject(name: name)
+        if let resp = try? await api.getSubjects(status: "in_progress") {
+            enrolledDisciplines = resp.subjects
+        }
+        return created
+    }
+
+    /// Remover disciplina — DELETE /api/subjects/{id} (soft-delete) + recarrega
+    /// a fonte canônica. Otimista: some da lista local na hora.
+    func removeDiscipline(id: String) async throws {
+        enrolledDisciplines.removeAll { $0.id == id }
+        try await api.deleteSubject(id: id)
+        if let resp = try? await api.getSubjects(status: "in_progress") {
+            enrolledDisciplines = resp.subjects
+        }
+    }
+
     /// Prefetched secondary data — loaded in background on launch so tapping
     /// Flashcards/QBank/Simulados/Transcrição/Trabalhos in Estudos opens
     /// instantly with cache (SWR pattern). Each screen refetches silently on

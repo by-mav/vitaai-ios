@@ -973,6 +973,12 @@ actor VitaAPI {
         return try await client.patch("subjects/\(id)", body: Body(displayName: displayName))
     }
 
+    /// Remover (soft-delete) uma disciplina do aluno. O backend seta deletedAt
+    /// e a disciplina some do GET /api/subjects. DELETE /api/subjects/{id}.
+    func deleteSubject(id: String) async throws {
+        try await client.delete("subjects/\(id)")
+    }
+
     // MARK: - Grades
 
     func getGradesCurrent() async throws -> GradesCurrentResponse {
