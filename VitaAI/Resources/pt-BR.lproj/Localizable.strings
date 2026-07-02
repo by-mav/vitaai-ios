@@ -343,7 +343,7 @@
 "onboarding_syncing_speech" = "Deixa comigo! Escaneando %@...";
 "onboarding_done_speech" = "Pronto! Tudo configurado. Bora estudar!";
 "onboarding_done_speech_name" = "Pronto, %@! Tudo configurado. Bora estudar!";
-"onboarding_subjects_speech" = "Me diz a dificuldade de cada materia que eu monto teu plano de estudo personalizado.";
+"onboarding_subjects_speech" = "Me diz a dificuldade de cada matéria que eu monto teu plano de estudo personalizado.";
 "onboarding_notifications_speech" = "Posso te avisar quando tem prova chegando e flashcards pendentes?";
 "onboarding_trial_speech" = "Tudo pronto! Experimenta Vita completo por 7 dias, sem compromisso.";
 

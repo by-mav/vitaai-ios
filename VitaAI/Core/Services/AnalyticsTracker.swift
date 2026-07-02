@@ -1,24 +1,9 @@
 import Foundation
-import PostHog
 
 // MARK: - VitaEvent
 //
-// Canonical product analytics events for VitaAI iOS.
-//
-// Why an enum instead of raw strings:
-//   - Single source of truth for event names → no typos drifting across views
-//   - Refactor-safe (Xcode rename works)
-//   - Audit-friendly: `grep VitaEvent.` finds every emitter
-//   - PostHog dashboards use the rawValue verbatim
-//
-// When adding a new event:
-//   1. Add a `case` here with the snake_case rawValue
-//   2. Emit via `PostHogTracker.shared.event(.newCase, properties: [...])`
-//   3. (optional) Pre-create the event in PostHog UI for faster dashboards
-//
-// Naming convention: `<noun>_<verb_past>` (e.g. `subscription_started`).
-// Reserved names (`$pageview`, `$identify`, etc.) are emitted automatically
-// by the SDK — never duplicate them here.
+// Canonical product analytics event names. The SDK-backed implementation was
+// removed, but this enum stays useful as a local taxonomy for future sinks.
 
 enum VitaEvent: String {
     // Cross-cutting tool error (instrumented via tracked() helper).
@@ -58,25 +43,19 @@ enum VitaEvent: String {
     case documentUploaded = "document_uploaded"
 }
 
-// MARK: - PostHogTracker
+// MARK: - AnalyticsTracker
 //
-// Tipo facade fina por cima do PostHog SDK. Toda emissão de evento de
-// produto vai por aqui. Mantém os call sites curtos e auditáveis:
-//
-//     PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "google"])
-//
-// Para identify/reset use `VitaPostHogConfig.identify` / `.reset` direto —
-// auth state mora lá. Esta facade é só para EVENTS.
+// Shared product analytics tracker. Currently logs locally through
+// `VitaAnalytics`; no third-party SDK is linked.
 
-final class PostHogTracker {
-    static let shared = PostHogTracker()
+final class AnalyticsTracker {
+    static let shared = AnalyticsTracker()
 
     private init() {}
 
     /// Emits a typed product event. Use `VitaEvent` enum to keep the
-    /// dashboard taxonomy clean. `properties` may include any JSON-encodable
-    /// values; PostHog converts them server-side.
+    /// event taxonomy clean.
     func event(_ name: VitaEvent, properties: [String: Any] = [:]) {
-        PostHogSDK.shared.capture(name.rawValue, properties: properties)
+        VitaAnalytics.capture(event: name.rawValue, properties: properties)
     }
 }

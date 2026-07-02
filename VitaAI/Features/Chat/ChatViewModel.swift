@@ -79,7 +79,7 @@ final class ChatViewModel {
 
         isStreaming = true
         let streamStartTime = Date()
-        VitaPostHogConfig.capture(event: "chat_message_sent", properties: [
+        VitaAnalytics.capture(event: "chat_message_sent", properties: [
             "length_chars": text.count,
             "has_attachment": attachedImageData != nil,
             "attachment_type": attachedImageMime ?? "",
@@ -151,7 +151,7 @@ final class ChatViewModel {
             let latencyMs = Int(Date().timeIntervalSince(streamStartTime) * 1000)
             let responseChars = idx < self.messages.count ? self.messages[idx].content.count : 0
             let hadError = idx < self.messages.count && self.messages[idx].isError
-            VitaPostHogConfig.capture(event: "chat_response_received", properties: [
+            VitaAnalytics.capture(event: "chat_response_received", properties: [
                 "conversation_id": self.currentConversationId ?? "",
                 "latency_ms": latencyMs,
                 "response_length_chars": responseChars,
@@ -255,7 +255,7 @@ final class ChatViewModel {
         if let idx = messages.firstIndex(where: { m in m.id == messageId }) {
             messages[idx].feedback = value
         }
-        VitaPostHogConfig.capture(event: "chat_feedback_given", properties: [
+        VitaAnalytics.capture(event: "chat_feedback_given", properties: [
             "conversation_id": conversationId,
             "message_id": messageId,
             "rating": feedbackStr,

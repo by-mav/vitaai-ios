@@ -361,7 +361,7 @@ private struct PermissionDeniedView: View {
                 .font(.system(size: 32))
                 .foregroundStyle(VitaColors.textTertiary)
 
-            Text("Permissao necessaria")
+            Text("Permissão necessária")
                 .font(VitaTypography.titleSmall)
                 .foregroundStyle(VitaColors.textPrimary)
 

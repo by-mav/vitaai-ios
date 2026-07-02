@@ -243,12 +243,40 @@ final class PdfViewerViewModel {
         if let tokenStore, url.absoluteString.contains("/api/documents/") {
             do {
                 let token = await tokenStore.token
-                var request = URLRequest(url: url)
-                if let token {
-                    request.setValue(token, forHTTPHeaderField: "X-Extension-Token")
+                let config = URLSessionConfiguration.default
+                config.timeoutIntervalForRequest = 120
+                config.timeoutIntervalForResource = 300
+                let session = URLSession(configuration: config)
+                defer { session.finishTasksAndInvalidate() }
+
+                var lastError: Error?
+                var fetched: (Data, URLResponse)?
+                for attempt in 1...2 {
+                    var request = URLRequest(url: url)
+                    request.timeoutInterval = 120
+                    if let token {
+                        request.setValue("\(AppConfig.sessionCookieName)=\(token)", forHTTPHeaderField: "Cookie")
+                        request.setValue(token, forHTTPHeaderField: "X-Extension-Token")
+                    }
+                    if let forwardedHost = AppConfig.localForwardedHostHeader {
+                        request.setValue(forwardedHost, forHTTPHeaderField: "x-forwarded-host")
+                    }
+                    logger.notice("[PDF.load] fetching with auth attempt=\(attempt) tokenPresent=\(token != nil)")
+                    do {
+                        fetched = try await session.data(for: request)
+                        break
+                    } catch {
+                        lastError = error
+                        logger.error("[PDF.load] attempt=\(attempt) threw: \(error.localizedDescription, privacy: .public)")
+                        if attempt == 1 {
+                            try? await Task.sleep(nanoseconds: 650_000_000)
+                        }
+                    }
                 }
-                logger.notice("[PDF.load] fetching with auth, tokenPresent=\(token != nil)")
-                let (data, response) = try await URLSession.shared.data(for: request)
+
+                guard let (data, response) = fetched else {
+                    throw lastError ?? URLError(.networkConnectionLost)
+                }
                 let status = (response as? HTTPURLResponse)?.statusCode ?? -1
                 let contentType = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") ?? "?"
                 logger.notice("[PDF.load] response status=\(status) contentType=\(contentType, privacy: .public) bytes=\(data.count)")
@@ -593,7 +621,7 @@ final class PdfViewerViewModel {
             return false
         }
         // Success path
-        PostHogTracker.shared.event(.handwritingConverted, properties: [
+        AnalyticsTracker.shared.event(.handwritingConverted, properties: [
             "page_index": pageIndex,
             "char_count": trimmed.count,
             "score": Double(result.score),

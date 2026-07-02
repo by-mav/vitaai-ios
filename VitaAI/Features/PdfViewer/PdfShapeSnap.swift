@@ -35,7 +35,7 @@ enum PdfShapeSnap {
         case rectangle(rect: CGRect)
     }
 
-    /// Telemetria PostHog. Mantém compatibilidade com call site existente.
+    /// Semantic telemetry result for the existing call site.
     enum DetectOutcome {
         case appliedLine(confidence: CGFloat)
         case appliedCircle(confidence: CGFloat)

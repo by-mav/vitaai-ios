@@ -25,7 +25,7 @@ enum Route: Hashable {
     case flashcardSession(deckId: String, tagFilter: String? = nil)
     case flashcardSettings
     case flashcardStats
-    case pdfViewer(url: String, title: String? = nil)
+    case pdfViewer(url: String, title: String? = nil, documentId: String? = nil, studioSourceId: String? = nil)
 
     // MARK: - Atlas 3D
     case atlas3D
@@ -70,6 +70,7 @@ enum Route: Hashable {
 
     // MARK: - QBank (Question Bank)
     case qbank
+    case qbankSession(sessionId: String, mode: String? = nil)
 
     // MARK: - Tool Manager
     case toolManager

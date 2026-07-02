@@ -388,7 +388,7 @@ struct ConnectionsScreen: View {
 
                 if waStep == 0 {
                     Text("Conectar WhatsApp").font(.title2.bold()).foregroundStyle(.white)
-                    Text("Receba notificacoes e converse com a VITA pelo WhatsApp")
+                    Text("Receba notificações e converse com a VITA pelo WhatsApp")
                         .font(.subheadline).foregroundStyle(.gray).multilineTextAlignment(.center).padding(.horizontal)
                     TextField("51989484243", text: $waPhone)
                         .keyboardType(.phonePad).textContentType(.telephoneNumber)
@@ -401,7 +401,7 @@ struct ConnectionsScreen: View {
                     } label: {
                         HStack {
                             if waSending { ProgressView().tint(.black) }
-                            Text("Enviar codigo").fontWeight(.semibold)
+                            Text("Enviar código").fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity).padding(.vertical, 14)
                         .background(Color(red: 0.15, green: 0.68, blue: 0.38))
@@ -410,8 +410,8 @@ struct ConnectionsScreen: View {
                     .disabled(waPhone.count < 8 || waSending).padding(.horizontal, 24)
 
                 } else if waStep == 1 {
-                    Text("Digite o codigo").font(.title2.bold()).foregroundStyle(.white)
-                    Text("Enviamos um codigo de 6 digitos para seu WhatsApp")
+                    Text("Digite o código").font(.title2.bold()).foregroundStyle(.white)
+                    Text("Enviamos um código de 6 dígitos para seu WhatsApp")
                         .font(.subheadline).foregroundStyle(.gray).multilineTextAlignment(.center).padding(.horizontal)
                     TextField("000000", text: $waCode)
                         .keyboardType(.numberPad).textContentType(.oneTimeCode)
@@ -433,7 +433,7 @@ struct ConnectionsScreen: View {
                         .foregroundStyle(.white).clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .disabled(waCode.count < 6 || waSending).padding(.horizontal, 24)
-                    Button("Reenviar codigo") { Task { await sendWACode() } }
+                    Button("Reenviar código") { Task { await sendWACode() } }
                         .font(.caption).foregroundStyle(goldSubtle)
 
                 } else {
@@ -462,7 +462,7 @@ struct ConnectionsScreen: View {
         do {
             try await vm.linkWhatsApp(phone: waPhone)
             waStep = 1
-        } catch { waError = "Erro ao enviar codigo" }
+        } catch { waError = "Erro ao enviar código" }
         waSending = false
     }
 
@@ -474,7 +474,7 @@ struct ConnectionsScreen: View {
             waStep = 2
             try? await Task.sleep(for: .seconds(2))
             showWhatsAppSheet = false
-        } catch { waError = "Codigo invalido ou expirado" }
+        } catch { waError = "Código inválido ou expirado" }
         waSending = false
     }
 

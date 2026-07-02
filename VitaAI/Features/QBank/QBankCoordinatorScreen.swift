@@ -17,6 +17,9 @@ struct QBankCoordinatorScreen: View {
     @Environment(\.appContainer) private var container
     @State private var vm: QBankViewModel?
     let onBack: () -> Void
+    var onHome: (() -> Void)? = nil
+    var initialSessionId: String? = nil
+    var initialMode: QBankMode = .pratica
 
     var body: some View {
         Group {
@@ -30,9 +33,14 @@ struct QBankCoordinatorScreen: View {
         }
         .onAppear {
             if vm == nil {
-                vm = QBankViewModel(api: container.api, gamificationEvents: container.gamificationEvents, dataManager: container.dataManager)
+                let createdVM = QBankViewModel(api: container.api, gamificationEvents: container.gamificationEvents, dataManager: container.dataManager)
+                vm = createdVM
                 Task {
-                    vm?.loadHomeData()
+                    if let initialSessionId {
+                        await createdVM.openSession(sessionId: initialSessionId, mode: initialMode)
+                    } else {
+                        createdVM.loadHomeData()
+                    }
                     // Filters are loaded on-demand when user navigates to disciplines/config
                     SentrySDK.reportFullyDisplayed()
                 }
@@ -72,7 +80,7 @@ struct QBankCoordinatorScreen: View {
             })
 
         case .result:
-            QBankResultContent(vm: vm, onBack: onBack, onNewSession: {
+            QBankResultContent(vm: vm, onBack: onHome ?? onBack, onNewSession: {
                 vm.startNewSession()
             })
         }

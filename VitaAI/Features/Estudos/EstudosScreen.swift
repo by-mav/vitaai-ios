@@ -16,7 +16,7 @@ struct EstudosScreen: View {
     var onNavigateToSimulados:         (() -> Void)?
     var onNavigateToOsce:              (() -> Void)?
     var onNavigateToAtlas:             (() -> Void)?
-    var onNavigateToCourseDetail:      ((String, Int) -> Void)?
+    var onNavigateToCourseDetail:      ((String, String) -> Void)?
     var onNavigateToProvas:            (() -> Void)?
     var onNavigateToQBank:             (() -> Void)?
     var onNavigateToTranscricao:       (() -> Void)?
@@ -68,6 +68,7 @@ struct EstudosScreen: View {
 private struct EstudosContent: View {
     @Bindable var viewModel: EstudosViewModel
     @Environment(\.appData) private var appData
+    @Environment(Router.self) private var router
 
     let onNavigateToCanvasConnect:    (() -> Void)?
     let onNavigateToNotebooks:         (() -> Void)?
@@ -79,7 +80,7 @@ private struct EstudosContent: View {
     let onNavigateToSimulados:         (() -> Void)?
     let onNavigateToOsce:              (() -> Void)?
     let onNavigateToAtlas:             (() -> Void)?
-    let onNavigateToCourseDetail:      ((String, Int) -> Void)?
+    let onNavigateToCourseDetail:      ((String, String) -> Void)?
     let onNavigateToProvas:            (() -> Void)?
     let onNavigateToQBank:             (() -> Void)?
     let onNavigateToTranscricao:       (() -> Void)?
@@ -97,9 +98,54 @@ private struct EstudosContent: View {
     private var cardBg: Color { VitaColors.surfaceCard.opacity(0.55) }
     private var glassBorder: Color { VitaColors.textWarm.opacity(0.06) }
 
-    /// Grade subjects from appData (same source as Dashboard & Faculdade)
-    private var gradeSubjects: [GradeSubject] {
-        appData.gradesResponse?.current ?? []
+    private struct StudyDisciplineRow: Identifiable {
+        let id: String
+        let title: String
+        let rawName: String
+        let finalGrade: Double?
+        let attendance: Double?
+    }
+
+    /// Subjects shown in Estudos merge portal grades with the canonical Vita
+    /// disciplines. Portal rows carry grade/frequency; Vita-only rows prevent
+    /// mapped topics like Patologia from disappearing when the portal current
+    /// semester payload does not include them.
+    private var studyDisciplines: [StudyDisciplineRow] {
+        var rows: [StudyDisciplineRow] = []
+        var seen = Set<String>()
+
+        for subject in appData.gradesResponse?.current ?? [] {
+            let id = subject.id
+            let title = displayText(for: subject)
+            rows.append(.init(
+                id: id,
+                title: title,
+                rawName: subject.subjectName,
+                finalGrade: subject.finalGrade,
+                attendance: subject.attendance
+            ))
+            seen.insert(normalized(id))
+            seen.insert(normalized(title))
+            seen.insert(normalized(subject.subjectName))
+        }
+
+        for subject in appData.enrolledDisciplines {
+            let title = subject.displayName ?? subject.canonicalName ?? subject.name
+            let keys = [subject.id, title, subject.name, subject.canonicalName ?? ""].map(normalized)
+            guard !keys.contains(where: { seen.contains($0) }) else { continue }
+            rows.append(.init(
+                id: subject.id,
+                title: title,
+                rawName: subject.name,
+                finalGrade: nil,
+                attendance: nil
+            ))
+            keys.forEach { seen.insert($0) }
+        }
+
+        return rows.sorted {
+            $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
     }
 
     var body: some View {
@@ -155,7 +201,7 @@ private struct EstudosContent: View {
         [
             .init(value: "\(viewModel.streakDays)d", label: "sequência"),
             .init(value: accuracyString, label: "acerto"),
-            .init(value: "\(gradeSubjects.count)", label: "matérias"),
+            .init(value: "\(studyDisciplines.count)", label: "matérias"),
         ]
     }
 
@@ -281,9 +327,9 @@ private struct EstudosContent: View {
             HStack {
                 sectionHeader("DISCIPLINAS ATUAIS")
                 Spacer()
-                if !gradeSubjects.isEmpty {
+                if !studyDisciplines.isEmpty {
                     Button {
-                        // Navigate to full Faculdade disciplinas screen
+                        router.navigate(to: .faculdadeDisciplinas)
                     } label: {
                         HStack(spacing: 3) {
                             Text("Ver todas")
@@ -297,13 +343,13 @@ private struct EstudosContent: View {
                 }
             }
 
-            if gradeSubjects.isEmpty {
+            if studyDisciplines.isEmpty {
                 estudosEmptyRow(icon: "graduationcap", message: "Conecte seu portal para ver suas disciplinas")
             } else {
                 VStack(spacing: 8) {
-                    ForEach(Array(gradeSubjects.prefix(4))) { subject in
+                    ForEach(Array(studyDisciplines.prefix(4))) { subject in
                         Button {
-                            onNavigateToCourseDetail?(subject.subjectName, 0)
+                            onNavigateToCourseDetail?(subject.id, subject.title)
                         } label: {
                             disciplinaCard(subject)
                         }
@@ -314,9 +360,9 @@ private struct EstudosContent: View {
         }
     }
 
-    private func disciplinaCard(_ subject: GradeSubject) -> some View {
-        let color = SubjectColors.colorFor(subject: subject.subjectName)
-        let shortName = subject.subjectName
+    private func disciplinaCard(_ subject: StudyDisciplineRow) -> some View {
+        let color = SubjectColors.colorFor(subject: subject.rawName)
+        let shortName = subject.title
             .replacingOccurrences(of: "(?i),.*$", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
 
@@ -370,26 +416,40 @@ private struct EstudosContent: View {
         }
     }
 
+    private func displayText(for subject: GradeSubject) -> String {
+        guard let sid = subject.subjectId,
+              let match = appData.enrolledDisciplines.first(where: { $0.id == sid })
+        else { return subject.subjectName }
+        return match.displayName ?? match.canonicalName ?? match.name
+    }
+
+    private func normalized(_ value: String) -> String {
+        value
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     // MARK: - 4. Materiais Recentes Section
 
     private var materiaisSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionHeader("MATERIAIS RECENTES")
 
-            if viewModel.files.isEmpty {
+            if viewModel.vitaDocuments.isEmpty {
                 estudosEmptyRow(icon: "doc.text", message: "Conecte seu portal para ver materiais")
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(viewModel.files.prefix(8)) { file in
+                        ForEach(viewModel.vitaDocuments.prefix(8)) { document in
                             MaterialCard(
-                                file: file,
+                                document: document,
                                 onTap: {
-                                    Task {
-                                        if let url = await viewModel.downloadFile(fileId: file.id, fileName: file.displayName) {
-                                            onNavigateToPdfViewer?(url)
-                                        }
-                                    }
+                                    router.navigate(to: .pdfViewer(
+                                        url: "\(AppConfig.apiBaseURL)/documents/\(document.id)/file",
+                                        title: document.title.isEmpty ? document.fileName : document.title,
+                                        documentId: document.id,
+                                        studioSourceId: document.studioSourceId
+                                    ))
                                 }
                             )
                         }
@@ -689,7 +749,7 @@ private struct AtlasTallCard: View {
 // MARK: - Material Card (horizontal scroll cell)
 
 private struct MaterialCard: View {
-    let file: CanvasFile
+    let document: VitaDocument
     let onTap: () -> Void
 
     var body: some View {
@@ -707,11 +767,11 @@ private struct MaterialCard: View {
 
                 // Text
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(file.displayName)
+                    Text(document.title.isEmpty ? document.fileName : document.title)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(VitaColors.textWarm.opacity(0.90))
                         .lineLimit(2)
-                    Text(file.courseName ?? "")
+                    Text(document.subjectName ?? "")
                         .font(.system(size: 9.5))
                         .foregroundStyle(VitaColors.textWarm.opacity(0.35))
                         .lineLimit(1)
@@ -731,6 +791,6 @@ private struct MaterialCard: View {
             .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(file.displayName)
+        .accessibilityLabel(document.title.isEmpty ? document.fileName : document.title)
     }
 }

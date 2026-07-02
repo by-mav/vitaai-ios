@@ -6,11 +6,15 @@ struct OpenPdfDocument: Identifiable, Hashable, Codable {
     let id: UUID
     let url: URL
     var title: String
+    var documentId: String?
+    var studioSourceId: String?
 
-    init(id: UUID = UUID(), url: URL, title: String? = nil) {
+    init(id: UUID = UUID(), url: URL, title: String? = nil, documentId: String? = nil, studioSourceId: String? = nil) {
         self.id = id
         self.url = url
         self.title = (title?.isEmpty == false ? title! : url.lastPathComponent)
+        self.documentId = documentId
+        self.studioSourceId = studioSourceId
     }
 }
 
@@ -36,13 +40,17 @@ final class PdfWorkspaceState {
     /// Open a URL as a tab. If a tab with the same URL exists, just activates it.
     /// Returns the (existing or new) tab id so the caller can optionally focus it.
     @discardableResult
-    func open(url: URL, title: String? = nil) -> UUID {
+    func open(url: URL, title: String? = nil, documentId: String? = nil, studioSourceId: String? = nil) -> UUID {
         if let existing = openDocs.first(where: { $0.url == url }) {
+            if let idx = openDocs.firstIndex(where: { $0.id == existing.id }) {
+                openDocs[idx].documentId = documentId ?? openDocs[idx].documentId
+                openDocs[idx].studioSourceId = studioSourceId ?? openDocs[idx].studioSourceId
+            }
             activeId = existing.id
             persist()
             return existing.id
         }
-        let doc = OpenPdfDocument(url: url, title: title)
+        let doc = OpenPdfDocument(url: url, title: title, documentId: documentId, studioSourceId: studioSourceId)
         if openDocs.count >= Self.maxTabs {
             // Drop the oldest non-active tab
             if let oldestId = openDocs.first(where: { $0.id != activeId })?.id {
@@ -79,6 +87,13 @@ final class PdfWorkspaceState {
     func setActive(_ id: UUID) {
         guard openDocs.contains(where: { $0.id == id }) else { return }
         activeId = id
+        persist()
+    }
+
+    func setStudySourceId(_ sourceId: String, for id: UUID? = nil) {
+        guard let targetId = id ?? activeId,
+              let idx = openDocs.firstIndex(where: { $0.id == targetId }) else { return }
+        openDocs[idx].studioSourceId = sourceId
         persist()
     }
 

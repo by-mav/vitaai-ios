@@ -6,7 +6,7 @@ import SentrySwiftUI
 // MARK: - ScreenTracking — gold-standard per-screen instrumentation
 //
 // Wraps the SDK-official `SentryTracedView(_, waitForFullDisplay: true)` with
-// the BYMAV conventions (PostHog screen event + breadcrumb + logger).
+// the BYMAV conventions (semantic screen event + breadcrumb + logger).
 // Each screen call:
 //
 //     SomeScreen { ... }
@@ -17,7 +17,7 @@ import SentrySwiftUI
 //     and a `ttfd` span (closed by `SentrySDK.reportFullyDisplayed()`).
 //     If `reportFullyDisplayed()` is NOT called within 30s, the TTFD span
 //     finishes with DEADLINE_EXCEEDED automatically — no manual timeout.
-//   * PostHog `$screen` event with explicit name (not SwiftUI's generic
+//   * Semantic screen event with explicit name (not SwiftUI's generic
 //     "ContentView") + the `extra` dictionary as properties.
 //   * Sentry breadcrumb so crash reports show the user's last screen.
 //
@@ -25,7 +25,7 @@ import SentrySwiftUI
 // as soon as data is hydrated, so TTFD measures load time, not time-on-screen.
 
 extension View {
-    /// Track this screen with Sentry TTID/TTFD + PostHog screen view.
+    /// Track this screen with Sentry TTID/TTFD + semantic screen view.
     /// Inside `.task {}`, call `SentrySDK.reportFullyDisplayed()` when data is ready.
     func trackScreen(_ name: String, extra: [String: String] = [:]) -> some View {
         self.modifier(ScreenTrackingModifier(screenName: name, extra: extra))
@@ -43,11 +43,11 @@ private struct ScreenTrackingModifier: ViewModifier {
         SentryTracedView(screenName, waitForFullDisplay: true) {
             content
                 .onAppear {
-                    // PostHog screen event with explicit name so dashboards
-                    // group correctly (SwiftUI auto-name is generic).
+                    // Semantic screen event with explicit name so a future
+                    // analytics sink can group correctly.
                     var props: [String: Any] = [:]
                     for (k, v) in extra { props[k] = v }
-                    VitaPostHogConfig.screen(
+                    VitaAnalytics.screen(
                         name: screenName,
                         properties: props.isEmpty ? nil : props
                     )

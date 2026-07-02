@@ -25,6 +25,34 @@ struct LogActivityResponse: Decodable {
     var streakUpdated: Bool = false
     var totalStudyHours: Double = 0
 
+    init(
+        xpAwarded: Int = 0,
+        totalXp: Int = 0,
+        level: Int = 1,
+        currentLevelXp: Int = 0,
+        xpToNextLevel: Int = 0,
+        newBadges: [NewBadge] = [],
+        tier: String = "",
+        cycle: String = "",
+        iconPath: String = "",
+        streakDays: Int = 0,
+        streakUpdated: Bool = false,
+        totalStudyHours: Double = 0
+    ) {
+        self.xpAwarded = xpAwarded
+        self.totalXp = totalXp
+        self.level = level
+        self.currentLevelXp = currentLevelXp
+        self.xpToNextLevel = xpToNextLevel
+        self.newBadges = newBadges
+        self.tier = tier
+        self.cycle = cycle
+        self.iconPath = iconPath
+        self.streakDays = streakDays
+        self.streakUpdated = streakUpdated
+        self.totalStudyHours = totalStudyHours
+    }
+
     private enum CodingKeys: String, CodingKey {
         case xpAwarded, totalXp, level, currentLevelXp, xpToNextLevel
         case newBadges, tier, cycle, iconPath, streakDays, streakUpdated, totalStudyHours
@@ -73,18 +101,52 @@ struct GamificationStatsResponse: Decodable {
     var totalNotesCreated: Int { 0 }
     var dailyXp: Int { 0 }
     var badges: [BadgeWithStatus] { achievements }
+
+    private enum CodingKeys: String, CodingKey {
+        case totalXp, level, currentLevelXp, xpToNextLevel, streakDays, achievements
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        totalXp = (try? c.decode(Int.self, forKey: .totalXp)) ?? 0
+        level = max(1, (try? c.decode(Int.self, forKey: .level)) ?? 1)
+        currentLevelXp = (try? c.decode(Int.self, forKey: .currentLevelXp)) ?? 0
+        xpToNextLevel = (try? c.decode(Int.self, forKey: .xpToNextLevel)) ?? 0
+        streakDays = (try? c.decode(Int.self, forKey: .streakDays)) ?? 0
+        achievements = (try? c.decode([BadgeWithStatus].self, forKey: .achievements)) ?? []
+    }
 }
 
 struct BadgeWithStatus: Decodable, Identifiable {
-    let id: String
-    let name: String
-    let description: String
-    let icon: String
-    let category: String
+    var id: String = ""
+    var name: String = ""
+    var description: String = ""
+    var icon: String = "medal"
+    var category: String = ""
     var rarity: String = "common"
     // API returns "unlocked" not "earned", and "unlockedAt" as ISO string not Int
     var unlocked: Bool = false
     var unlockedAt: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, description, icon, category, rarity, unlocked, unlockedAt
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
+        description = (try? c.decode(String.self, forKey: .description)) ?? ""
+        icon = (try? c.decode(String.self, forKey: .icon)) ?? "medal"
+        category = (try? c.decode(String.self, forKey: .category)) ?? ""
+        rarity = (try? c.decode(String.self, forKey: .rarity)) ?? "common"
+        unlocked = (try? c.decode(Bool.self, forKey: .unlocked)) ?? false
+        unlockedAt = try? c.decode(String.self, forKey: .unlockedAt)
+    }
 
     var earned: Bool { unlocked }
     var earnedAt: Int? {

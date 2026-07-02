@@ -249,7 +249,7 @@ struct ProfileScreen: View {
                         .font(.system(size: 12))
                         .foregroundStyle(VitaColors.textSecondary)
                         .padding(.top, 2)
-                        .postHogMask()  // LGPD — email PII never sent to Session Replay
+                        .privacyAnalyticsMask()  // LGPD — email PII never sent to Session Replay
                 }
 
                 let uni = profile?.university ?? ""

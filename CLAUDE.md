@@ -54,7 +54,7 @@ App de estudo para estudantes de medicina brasileiros. Objetivo: ser o UNICO app
 
 ## STACK
 - SwiftUI, iOS 16+
-- SPM: Sentry, PostHog, swift-perception
+- SPM: Sentry, swift-perception
 - Auth: Better Auth via Cookie
 - API: SEMPRE vita-ai.cloud (prod, via Cloudflare) — DEBUG e Release (AppConfig.swift). 🚨 NUNCA bater no monstrinho :3110 DIRETO (http://100.120.41.13:3110): better-auth trata origin não-confiável → 401 em TODA rota protegida → kick loop infinito, mesmo com sessão válida no banco. dev.vita-ai.cloud e vita-ai.cloud caem no MESMO container via Cloudflare e compartilham o banco de auth; o caminho pelo Cloudflare é o único que valida. Override pontual de base URL: env VITA_API_BASE_URL / UserDefaults vita_api_base_url. Fix 2026-06-17 (kick loop do Rafael).
 - Design System: VitaAI/DesignSystem/ (VitaColors, tokens)

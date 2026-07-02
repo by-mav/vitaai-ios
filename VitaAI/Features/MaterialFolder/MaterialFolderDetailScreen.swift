@@ -93,7 +93,9 @@ struct MaterialFolderDetailScreen: View {
                 Button {
                     router.navigate(to: .pdfViewer(
                         url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file",
-                        title: doc.title.isEmpty ? doc.fileName : doc.title
+                        title: doc.title.isEmpty ? doc.fileName : doc.title,
+                        documentId: doc.id,
+                        studioSourceId: doc.studioSourceId
                     ))
                 } label: {
                     docRow(doc)

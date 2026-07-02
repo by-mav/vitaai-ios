@@ -4,7 +4,7 @@
 # SPM oficial (apenas CocoaPods). Wrappers community estão abandonados desde
 # 2023 e não suportam o modulo Digital Ink. CocoaPods é o caminho oficial.
 #
-# Resto das deps continua via SPM (Sentry, PostHog, GLTFKit2, plcrashreporter)
+# Resto das deps continua via SPM (Sentry, GLTFKit2, plcrashreporter)
 # — gerenciamento via VitaAI.xcodeproj.
 #
 # Build via VitaAI.xcworkspace (gerada por `pod install`).

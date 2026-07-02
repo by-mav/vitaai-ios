@@ -37,9 +37,9 @@ struct VitaAddSheet: View {
         Item(kind: .documento, icon: "doc.text.fill", color: VitaShellColor.catBlue,
              title: "Trabalho / PDF", subtitle: "Suba um PDF e eu organizo"),
         Item(kind: .transcricao, icon: "waveform", color: VitaShellColor.catCyan,
-             title: "Transcricao", subtitle: "Grave a aula e eu transcrevo"),
+             title: "Transcrição", subtitle: "Grave a aula e eu transcrevo"),
         Item(kind: .nota, icon: "note.text", color: VitaShellColor.catAmber,
-             title: "Nota", subtitle: "Anotacao rapida de estudo"),
+             title: "Nota", subtitle: "Anotação rápida de estudo"),
     ]
 
     var body: some View {

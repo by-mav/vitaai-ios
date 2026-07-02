@@ -10,6 +10,11 @@ echo "✅ Git Status:"
 git status --short | head -5 || echo "Clean"
 echo ""
 
+# Check 1.5: PT-BR strings
+echo "✅ PT-BR Accent Gate:"
+python3 scripts/lint-ptbr-strings.py || exit 1
+echo ""
+
 # Check 2: Arquivos críticos
 echo "✅ Arquivos Críticos:"
 files=(

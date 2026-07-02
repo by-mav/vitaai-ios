@@ -3,15 +3,15 @@ import Foundation
 // MARK: - tracked
 //
 // Helper to wrap any async throwing call in a try/catch that ALWAYS emits a
-// PostHog event when the catch fires. Stops silent failures (was the root
-// cause documented in incidents/vitaai/2026-04-30_silent-tool-catches.md).
+// semantic analytics event when the catch fires. Stops silent failures (was the
+// root cause documented in incidents/vitaai/2026-04-30_silent-tool-catches.md).
 //
 // Usage:
 //   let result: PKDrawing? = await tracked("mlkit", "recognize") {
 //       try await MLKitDigitalInkBridge.recognize(strokes: strokes, model: .textPtBR)
 //   }
 //
-// On error, PostHog gets:
+// On error, analytics gets:
 //   event: tool_error
 //   props: { tool, stage, error, error_type, file, line }
 //
@@ -26,7 +26,7 @@ func tracked<T>(_ tool: String,
     do {
         return try await block()
     } catch {
-        PostHogTracker.shared.event(.toolError, properties: [
+        AnalyticsTracker.shared.event(.toolError, properties: [
             "tool": tool,
             "stage": stage,
             "error": error.localizedDescription,
@@ -49,7 +49,7 @@ func trackedSync<T>(_ tool: String,
     do {
         return try block()
     } catch {
-        PostHogTracker.shared.event(.toolError, properties: [
+        AnalyticsTracker.shared.event(.toolError, properties: [
             "tool": tool,
             "stage": stage,
             "error": error.localizedDescription,
@@ -79,7 +79,7 @@ func trackToolFailure(tool: String,
         "line": line,
     ]
     props.merge(extraProps) { _, new in new }
-    PostHogTracker.shared.event(.toolError, properties: props)
+    AnalyticsTracker.shared.event(.toolError, properties: props)
 }
 
 /// Thin wrapper so tracked() can call SentrySDK without forcing the import on

@@ -85,6 +85,15 @@ struct QBankResultContent: View {
                 }
                 .padding(.horizontal, 16)
 
+                Spacer().frame(height: 12)
+
+                VitaSessionXpSummaryCard(
+                    title: "XP desta sessão",
+                    summary: vm.state.sessionReward,
+                    isLoading: vm.state.sessionRewardLoading
+                )
+                .padding(.horizontal, 16)
+
                 // Difficulty breakdown
                 let diffBreakdown = buildDiffBreakdown()
                 if !diffBreakdown.isEmpty {

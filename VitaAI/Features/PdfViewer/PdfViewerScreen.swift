@@ -3,6 +3,49 @@ import PDFKit
 import PencilKit
 import Combine
 
+private enum PdfStudyPackProgressStage {
+    case readingPdf
+    case preparingContent
+    case generatingItems
+    case openingSession
+
+    var title: String {
+        switch self {
+        case .readingPdf: return "Lendo PDF"
+        case .preparingContent: return "Preparando conteúdo"
+        case .generatingItems: return "Gerando treino"
+        case .openingSession: return "Abrindo sessão"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .readingPdf: return "Extraindo texto do material."
+        case .preparingContent: return "Organizando o PDF em blocos de estudo."
+        case .generatingItems: return "Criando 10 questões e 15 flashcards."
+        case .openingSession: return "Separando as questões para você responder."
+        }
+    }
+
+    var range: ClosedRange<Double> {
+        switch self {
+        case .readingPdf: return 0.04...0.18
+        case .preparingContent: return 0.18...0.34
+        case .generatingItems: return 0.34...0.90
+        case .openingSession: return 0.90...0.98
+        }
+    }
+
+    var expectedSeconds: TimeInterval {
+        switch self {
+        case .readingPdf: return 4
+        case .preparingContent: return 6
+        case .generatingItems: return 55
+        case .openingSession: return 4
+        }
+    }
+}
+
 // MARK: - PdfViewerScreen
 
 /// Full-screen PDF viewer using native PDFView + PDFPageOverlayViewProvider + PKToolPicker.
@@ -10,6 +53,9 @@ import Combine
 struct PdfViewerScreen: View {
     let url: URL
     var initialTitle: String? = nil
+    var documentId: String? = nil
+    var studioSourceId: String? = nil
+    var onOpenStudyPack: ((String, String) -> Void)? = nil
     let onBack: () -> Void
 
     @Environment(\.appContainer) private var container
@@ -25,6 +71,10 @@ struct PdfViewerScreen: View {
     @State private var showPerguntaVita: Bool = false
     @State private var perguntaVitaImageData: Data? = nil
     @State private var showFilePicker: Bool = false
+    @State private var isGeneratingStudyPack: Bool = false
+    @State private var studyPackProgressStage: PdfStudyPackProgressStage? = nil
+    @State private var studyPackStageStartedAt: Date = .now
+    @State private var studyPackError: String? = nil
     // Scan mode (Pergunte ao Vita)
     @State private var isScanMode: Bool = false
     @State private var scanSelection: CGRect? = nil   // in pdfViewContainer coords
@@ -136,6 +186,20 @@ struct PdfViewerScreen: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
+            if canCreateStudyPack && !isFullscreen && !isScanMode {
+                VStack(alignment: .trailing, spacing: 10) {
+                    Spacer()
+                    if let studyPackError {
+                        pdfStudyPackErrorToast(studyPackError)
+                    }
+                    pdfStudyPackButton
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.trailing, 16)
+                .padding(.bottom, 92)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
             // Floating Study Mode indicator — fica no canto direito quando Study
             // ON. Tap abre stats sheet. Substitui o long-press escondido do ícone
             // da toolbar (Rafael 2026-04-28: "long-press não dá pra tirar da bunda").
@@ -177,7 +241,7 @@ struct PdfViewerScreen: View {
             // Multi-doc workspace: open the URL passed by the router as a tab.
             // If user already had other tabs from a previous session, they remain.
             // Mutating activeId here triggers .onChange below — single load path.
-            workspace.open(url: url, title: initialTitle)
+            workspace.open(url: url, title: initialTitle, documentId: documentId, studioSourceId: studioSourceId)
             // Wire study mode tap callback — Coordinator chama quando user toca mask
             viewModel.onStudyMaskTap = { prompt in
                 studyMaskPrompt = prompt
@@ -193,7 +257,7 @@ struct PdfViewerScreen: View {
             Task {
                 await loadActiveTab()
                 ScreenLoadContext.finish(for: "PdfViewer")
-                VitaPostHogConfig.capture(event: "pdf_opened", properties: [
+                VitaAnalytics.capture(event: "pdf_opened", properties: [
                     "page_count": viewModel.pageCount,
                     "loaded": viewModel.document != nil,
                     "tab_count": workspace.openDocs.count,
@@ -227,8 +291,8 @@ struct PdfViewerScreen: View {
         // vita-modals-ignore: PdfUserDocumentsPicker tem NavigationStack próprio (necessário pra .searchable + toolbar com botão Files) — VitaSheet causaria header duplicado e quebra search nativo
         .sheet(isPresented: $showFilePicker) {
             PdfUserDocumentsPicker(
-                onSelect: { pickedURL, title in
-                    workspace.open(url: pickedURL, title: title)
+                onSelect: { pickedURL, title, documentId, studioSourceId in
+                    workspace.open(url: pickedURL, title: title, documentId: documentId, studioSourceId: studioSourceId)
                     showFilePicker = false
                 },
                 onCancel: { showFilePicker = false }
@@ -242,7 +306,7 @@ struct PdfViewerScreen: View {
                     showDocumentScanner = false
                     guard !images.isEmpty else { return }
                     viewModel.appendScannedPages(images)
-                    VitaPostHogConfig.capture(event: "pdf_scan_pages_added", properties: [
+                    VitaAnalytics.capture(event: "pdf_scan_pages_added", properties: [
                         "count": images.count,
                         "total_pages": viewModel.pageCount,
                     ])
@@ -371,6 +435,243 @@ struct PdfViewerScreen: View {
 
     // MARK: - Main Content
 
+    private var activeStudySourceId: String? {
+        workspace.activeDoc?.studioSourceId ?? studioSourceId
+    }
+
+    private var activeDocumentId: String? {
+        workspace.activeDoc?.documentId ?? documentId
+    }
+
+    private var canCreateStudyPack: Bool {
+        activeStudySourceId != nil || activeDocumentId != nil
+    }
+
+    private var activePdfTitle: String {
+        workspace.activeDoc?.title ?? initialTitle ?? viewModel.fileName
+    }
+
+    private func extractedPdfTextForStudyPack(maxCharacters: Int = 90_000) -> String? {
+        guard let document = viewModel.document else { return nil }
+        var remaining = maxCharacters
+        var parts: [String] = []
+
+        for pageIndex in 0..<document.pageCount where remaining > 0 {
+            guard let pageText = document.page(at: pageIndex)?.string?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                !pageText.isEmpty else {
+                continue
+            }
+            let clipped = String(pageText.prefix(remaining))
+            parts.append(clipped)
+            remaining -= clipped.count
+        }
+
+        let text = parts.joined(separator: "\n\n--- página ---\n\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.count >= 120 ? text : nil
+    }
+
+    private var pdfStudyPackButton: some View {
+        Group {
+            if isGeneratingStudyPack {
+                pdfStudyPackProgressCard
+            } else {
+                Button {
+                    Task { await createStudyPackFromActivePdf() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "bolt.circle.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Treinar")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .overlay(Capsule().fill(VitaColors.accent.opacity(0.44)))
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(.white.opacity(0.18), lineWidth: 0.8)
+                    )
+                    .shadow(color: VitaColors.accent.opacity(0.28), radius: 18, y: 8)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Criar treino com este PDF")
+            }
+        }
+    }
+
+    private var pdfStudyPackProgressCard: some View {
+        TimelineView(.periodic(from: .now, by: 0.5)) { timeline in
+            let progress = studyPackProgressValue(at: timeline.date)
+            let percent = Int((progress * 100).rounded())
+            let stage = studyPackProgressStage ?? .readingPdf
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 9) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .scaleEffect(0.74)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stage.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Text(stage.detail)
+                            .font(.system(size: 10.5, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.68))
+                            .lineLimit(2)
+                    }
+
+                    Spacer(minLength: 6)
+
+                    Text("\(percent)%")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.92))
+                }
+
+                ProgressView(value: progress)
+                    .tint(VitaColors.accent)
+                    .scaleEffect(x: 1, y: 0.72, anchor: .center)
+
+                Text("Isso pode levar cerca de 30 a 60s no primeiro treino.")
+                    .font(.system(size: 9.5, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.52))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(width: 292, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(VitaColors.accent.opacity(0.22))
+                    )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(.white.opacity(0.16), lineWidth: 0.8)
+            )
+            .shadow(color: VitaColors.accent.opacity(0.24), radius: 22, y: 10)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(stage.title), \(percent) por cento")
+        }
+    }
+
+    private func pdfStudyPackErrorToast(_ message: String) -> some View {
+        Text(message)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.white.opacity(0.90))
+            .lineLimit(2)
+            .multilineTextAlignment(.trailing)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .overlay(Capsule().fill(VitaColors.dataRed.opacity(0.24)))
+            )
+            .frame(maxWidth: 260, alignment: .trailing)
+    }
+
+    @MainActor
+    private func createStudyPackFromActivePdf() async {
+        guard !isGeneratingStudyPack else { return }
+        isGeneratingStudyPack = true
+        updateStudyPackProgress(.readingPdf)
+        studyPackError = nil
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        defer {
+            isGeneratingStudyPack = false
+            studyPackProgressStage = nil
+        }
+
+        do {
+            var sourceId = activeStudySourceId
+            if sourceId == nil, let documentId = activeDocumentId {
+                let extractedText = extractedPdfTextForStudyPack()
+                updateStudyPackProgress(.preparingContent)
+                let source = try await container.api.ensureDocumentStudySource(
+                    documentId: documentId,
+                    extractedText: extractedText
+                )
+                guard source.status == "ready" else {
+                    showStudyPackError(source.errorMessage ?? "PDF ainda não processado")
+                    return
+                }
+                sourceId = source.studioSourceId
+                workspace.setStudySourceId(source.studioSourceId)
+            }
+
+            guard let sourceId else {
+                showStudyPackError("PDF ainda não processado")
+                return
+            }
+
+            updateStudyPackProgress(.generatingItems)
+            let pack = try await container.api.generateStudyPack(
+                sourceIds: [sourceId],
+                title: "Treino: \(activePdfTitle)",
+                mode: "practice",
+                difficulty: "mixed",
+                questionCount: 10,
+                flashcardCount: 15,
+                includeQuestions: true,
+                includeFlashcards: true
+            )
+            updateStudyPackProgress(.openingSession)
+            viewModel.saveAllAnnotations()
+            if let sessionId = pack.qbankSessionId {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                onOpenStudyPack?(sessionId, "practice")
+            } else {
+                showStudyPackError("Treino sem questões")
+            }
+        } catch {
+            NSLog("[PdfViewer] Study pack generation failed: %@", error.localizedDescription)
+            showStudyPackError("Falha ao criar treino")
+        }
+    }
+
+    @MainActor
+    private func updateStudyPackProgress(_ stage: PdfStudyPackProgressStage) {
+        studyPackStageStartedAt = .now
+        withAnimation(.easeInOut(duration: 0.18)) {
+            studyPackProgressStage = stage
+        }
+    }
+
+    private func studyPackProgressValue(at date: Date) -> Double {
+        let stage = studyPackProgressStage ?? .readingPdf
+        let range = stage.range
+        let elapsed = max(0, date.timeIntervalSince(studyPackStageStartedAt))
+        let stageFill = min(0.86, elapsed / max(stage.expectedSeconds, 1))
+        let value = range.lowerBound + (range.upperBound - range.lowerBound) * stageFill
+        return min(range.upperBound, max(range.lowerBound, value))
+    }
+
+    @MainActor
+    private func showStudyPackError(_ message: String) {
+        studyPackError = message
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            if studyPackError == message {
+                withAnimation(.easeOut(duration: 0.18)) {
+                    studyPackError = nil
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private func mainContent(document: PDFDocument) -> some View {
         VStack(spacing: 0) {
@@ -427,7 +728,7 @@ struct PdfViewerScreen: View {
                             isScanMode = willEnable
                             scanSelection = nil
                         }
-                        VitaPostHogConfig.capture(event: "pergunte_ao_vita_tap", properties: ["enabled": willEnable])
+                        VitaAnalytics.capture(event: "pergunte_ao_vita_tap", properties: ["enabled": willEnable])
                     },
                     onExport: {
                         Task { await exportPDF(document: document) }
@@ -439,7 +740,7 @@ struct PdfViewerScreen: View {
                     },
                     onScanDocument: {
                         showDocumentScanner = true
-                        VitaPostHogConfig.capture(event: "pdf_scan_document_tap")
+                        VitaAnalytics.capture(event: "pdf_scan_document_tap")
                     },
                     onToggleEraser: {
                         isEraserMode.toggle()
@@ -472,7 +773,7 @@ struct PdfViewerScreen: View {
                             if isMaskingMode { toggleMaskingMode() }
                             if isStudyMode { toggleStudyMode() }
                         }
-                        VitaPostHogConfig.capture(event: "pdf_study_active_toggle", properties: [
+                        VitaAnalytics.capture(event: "pdf_study_active_toggle", properties: [
                             "open": showStudyActivePanel,
                         ])
                     },
@@ -576,20 +877,20 @@ struct PdfViewerScreen: View {
                     },
                     onMovePage: { src, dst in
                         viewModel.movePage(from: src, to: dst)
-                        VitaPostHogConfig.capture(event: "pdf_page_reordered", properties: [
+                        VitaAnalytics.capture(event: "pdf_page_reordered", properties: [
                             "from": src,
                             "to": dst,
                         ])
                     },
                     onDeletePage: { index in
                         viewModel.deletePage(at: index)
-                        VitaPostHogConfig.capture(event: "pdf_page_deleted", properties: [
+                        VitaAnalytics.capture(event: "pdf_page_deleted", properties: [
                             "index": index,
                         ])
                     },
                     onDuplicatePage: { index in
                         viewModel.duplicatePage(at: index)
-                        VitaPostHogConfig.capture(event: "pdf_page_duplicated", properties: [
+                        VitaAnalytics.capture(event: "pdf_page_duplicated", properties: [
                             "index": index,
                         ])
                     }
@@ -671,7 +972,7 @@ struct PdfViewerScreen: View {
         }
 
         perguntaVitaImageData = image.jpegData(compressionQuality: 0.78)
-        VitaPostHogConfig.capture(event: "pergunte_ao_vita_confirmed", properties: [
+        VitaAnalytics.capture(event: "pergunte_ao_vita_confirmed", properties: [
             "mode": rectInOverlay == nil ? "full_page" : "region",
             "bytes": perguntaVitaImageData?.count ?? 0,
             "page_index": viewModel.currentPage,
@@ -899,7 +1200,7 @@ struct PdfViewerScreen: View {
             // PDFAnnotation .freeText no MESMO bbox).
             Button {
                 viewModel.replaceCurrentDrawingWithFreeText()
-                VitaPostHogConfig.capture(event: "pdf_handwriting_replaced_with_text")
+                VitaAnalytics.capture(event: "pdf_handwriting_replaced_with_text")
             } label: {
                 Label("Substituir desenho por texto", systemImage: "text.cursor")
                     .font(VitaTypography.labelMedium)
@@ -927,10 +1228,10 @@ struct PdfViewerScreen: View {
         switch viewModel.audioRecorder.state {
         case .idle, .loaded, .paused:
             Task { await viewModel.audioRecorder.startRecording() }
-            VitaPostHogConfig.capture(event: "pdf_audio_record_start")
+            VitaAnalytics.capture(event: "pdf_audio_record_start")
         case .recording:
             viewModel.audioRecorder.stopRecording()
-            VitaPostHogConfig.capture(event: "pdf_audio_record_stop", properties: [
+            VitaAnalytics.capture(event: "pdf_audio_record_stop", properties: [
                 "duration_s": Int(viewModel.audioRecorder.totalDuration),
                 "events": viewModel.audioRecorder.timeline.events.count,
             ])
@@ -964,7 +1265,7 @@ struct PdfViewerScreen: View {
             if isMaskingMode { toggleMaskingMode() }
         }
         applyStudyModeVisibility()
-        VitaPostHogConfig.capture(event: "pdf_study_mode_toggle", properties: [
+        VitaAnalytics.capture(event: "pdf_study_mode_toggle", properties: [
             "active": isStudyMode,
             "page_index": viewModel.currentPage,
         ])
@@ -1005,7 +1306,7 @@ struct PdfViewerScreen: View {
             "attemptedAt": ISO8601DateFormatter().string(from: Date()),
         ])
         UserDefaults.standard.set(entries, forKey: key)
-        VitaPostHogConfig.capture(event: "pdf_mask_attempt", properties: [
+        VitaAnalytics.capture(event: "pdf_mask_attempt", properties: [
             "correct": correct,
             "page_index": prompt.pageIndex,
         ])
@@ -1166,7 +1467,7 @@ struct PdfViewerScreen: View {
             // Ação 1 — Criar máscaras
             Button {
                 toggleMaskingMode()
-                VitaPostHogConfig.capture(event: "pdf_study_active_panel_tap", properties: [
+                VitaAnalytics.capture(event: "pdf_study_active_panel_tap", properties: [
                     "action": "mask",
                     "active": isMaskingMode,
                 ])
@@ -1187,7 +1488,7 @@ struct PdfViewerScreen: View {
             // Ação 2 — Revisar
             Button {
                 toggleStudyMode()
-                VitaPostHogConfig.capture(event: "pdf_study_active_panel_tap", properties: [
+                VitaAnalytics.capture(event: "pdf_study_active_panel_tap", properties: [
                     "action": "review",
                     "active": isStudyMode,
                 ])
@@ -1266,7 +1567,7 @@ struct PdfViewerScreen: View {
     private var studyModeFloatingIndicator: some View {
         Button {
             showStudyStatsSheet = true
-            VitaPostHogConfig.capture(event: "pdf_study_stats_tap_indicator")
+            VitaAnalytics.capture(event: "pdf_study_stats_tap_indicator")
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "eye.fill")
@@ -1809,7 +2110,7 @@ guard snapEnabled else { return }
         var finalProps = outcomeProps
         finalProps["applied"] = appliedKind != nil
         if let appliedKind { finalProps["kind"] = appliedKind }
-        VitaPostHogConfig.capture(event: "pdf_shape_snap_applied", properties: finalProps)
+        VitaAnalytics.capture(event: "pdf_shape_snap_applied", properties: finalProps)
     }
 
     /// Roda o pipeline de auto-convert: pega delta vs baseline, recognize, replace.
@@ -1838,7 +2139,7 @@ guard snapEnabled else { return }
         )
 
         if converted {
-            VitaPostHogConfig.capture(
+            VitaAnalytics.capture(
                 event: "pdf_handwriting_auto_converted",
                 properties: [
                     "stroke_count": newStrokes.count,
@@ -2371,7 +2672,7 @@ guard snapEnabled else { return }
             case .mask:
                 let mask = PdfMaskAnnotation.makeAnnotation(bounds: pageRect)
                 page.addAnnotation(mask)
-                VitaPostHogConfig.capture(event: "pdf_mask_created", properties: [
+                VitaAnalytics.capture(event: "pdf_mask_created", properties: [
                     "page_index": viewModel.currentPage,
                     "width": Int(pageRect.width),
                     "height": Int(pageRect.height),
@@ -2381,7 +2682,7 @@ guard snapEnabled else { return }
                 let annotation = PDFAnnotation(bounds: pageRect, forType: .highlight, withProperties: nil)
                 annotation.color = highlightColor
                 page.addAnnotation(annotation)
-                VitaPostHogConfig.capture(event: "pdf_highlight_free_drag", properties: [
+                VitaAnalytics.capture(event: "pdf_highlight_free_drag", properties: [
                     "page_index": viewModel.currentPage,
                     "width": Int(pageRect.width),
                     "height": Int(pageRect.height),

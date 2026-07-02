@@ -12,10 +12,14 @@ final class GamificationEventManager {
 
     var levelUpEvent: LevelUpEvent?
     var badgeEvent: BadgeUnlockEvent?
+    var latestStudySessionSummary: StudySessionXpSummary?
+    private var pendingTrailCelebration: TrailCelebration?
 
     /// Current level from server — single source of truth for top bar and all UI
     var currentLevel: Int = 1
     var currentXpProgress: Double = 0
+    var currentLevelXp: Int = 0
+    var xpToNextLevel: Int = 0
 
     struct LevelUpEvent: Identifiable {
         let id = UUID()
@@ -35,21 +39,50 @@ final class GamificationEventManager {
         }
     }
 
+    struct StudySessionXpSummary: Identifiable {
+        let id = UUID()
+        let source: XpSource
+        let contextId: String?
+        let xpAwarded: Int
+        let startedLevel: Int
+        let finishedLevel: Int
+        let startedProgress: Double
+        let finishedProgress: Double
+        let currentLevelXp: Int
+        let xpToNextLevel: Int
+
+        var didLevelUp: Bool { finishedLevel > startedLevel }
+        var totalLevelXp: Int { currentLevelXp + xpToNextLevel }
+    }
+
+    struct TrailCelebration: Identifiable {
+        let id = UUID()
+        let xpAwarded: Int
+        let fromLevel: Int
+        let toLevel: Int
+        let source: XpSource
+    }
+
     /// Update level/XP from gamification stats response
     func updateFromStats(_ stats: GamificationStatsResponse) {
         currentLevel = max(1, stats.level)
+        currentLevelXp = stats.currentLevelXp
+        xpToNextLevel = stats.xpToNextLevel
         let total = stats.currentLevelXp + stats.xpToNextLevel
         currentXpProgress = total > 0 ? Double(stats.currentLevelXp) / Double(total) : 0
     }
 
     /// Process the response from POST /api/activity
+    @discardableResult
     func handleActivityResponse(
         _ data: LogActivityResponse,
         previousLevel: Int?,
         source: XpSource = .studySessionEnd
-    ) {
+    ) -> StudySessionXpSummary? {
         let baselineLevel = previousLevel ?? currentLevel
         currentLevel = max(1, data.level)
+        currentLevelXp = data.currentLevelXp
+        xpToNextLevel = data.xpToNextLevel
         let total = data.currentLevelXp + data.xpToNextLevel
         currentXpProgress = total > 0 ? Double(data.currentLevelXp) / Double(total) : 0
 
@@ -70,6 +103,164 @@ final class GamificationEventManager {
                 try? await Task.sleep(for: .seconds(delay))
                 badgeEvent = BadgeUnlockEvent(name: badge.name)
             }
+        }
+
+        return nil
+    }
+
+    @discardableResult
+    func recordStudySessionSummary(
+        source: XpSource,
+        contextId: String?,
+        xpAwarded: Int,
+        startedLevel: Int,
+        startedProgress: Double
+    ) -> StudySessionXpSummary {
+        let summary = StudySessionXpSummary(
+            source: source,
+            contextId: contextId,
+            xpAwarded: xpAwarded,
+            startedLevel: max(1, startedLevel),
+            finishedLevel: max(1, currentLevel),
+            startedProgress: min(max(startedProgress, 0), 1),
+            finishedProgress: min(max(currentXpProgress, 0), 1),
+            currentLevelXp: currentLevelXp,
+            xpToNextLevel: xpToNextLevel
+        )
+        latestStudySessionSummary = summary
+        pendingTrailCelebration = TrailCelebration(
+            xpAwarded: xpAwarded,
+            fromLevel: summary.startedLevel,
+            toLevel: summary.finishedLevel,
+            source: source
+        )
+        return summary
+    }
+
+    func consumePendingTrailCelebration() -> TrailCelebration? {
+        let event = pendingTrailCelebration
+        pendingTrailCelebration = nil
+        return event
+    }
+}
+
+// MARK: - Session XP Summary
+
+struct VitaSessionXpSummaryCard: View {
+    let title: String
+    let summary: GamificationEventManager.StudySessionXpSummary?
+    let isLoading: Bool
+
+    @State private var revealed = false
+    @State private var animatedProgress: Double = 0
+    @State private var pulse = false
+
+    private var xp: Int { summary?.xpAwarded ?? 0 }
+    private var level: Int { summary?.finishedLevel ?? 1 }
+    private var progressText: String {
+        guard let summary, summary.totalLevelXp > 0 else { return "Sincronizando progresso" }
+        return "\(summary.currentLevelXp) / \(summary.totalLevelXp) XP"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
+                ZStack {
+                    Circle()
+                        .stroke(Color.white.opacity(0.08), lineWidth: 7)
+                    Circle()
+                        .trim(from: 0, to: animatedProgress)
+                        .stroke(
+                            VitaColors.goldBarGradient,
+                            style: StrokeStyle(lineWidth: 7, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .shadow(color: VitaColors.accent.opacity(pulse ? 0.38 : 0.16), radius: pulse ? 14 : 6)
+
+                    VStack(spacing: 0) {
+                        Text("NÍVEL")
+                            .font(.system(size: 7, weight: .heavy))
+                            .foregroundStyle(VitaColors.textTertiary)
+                        Text("\(level)")
+                            .font(.system(size: 21, weight: .black, design: .rounded))
+                            .foregroundStyle(VitaColors.accentLight)
+                    }
+                }
+                .frame(width: 72, height: 72)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title)
+                        .font(PixioTypo.sectionLabel)
+                        .foregroundStyle(VitaColors.sectionLabel)
+
+                    if isLoading && summary == nil {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .tint(VitaColors.accent)
+                                .scaleEffect(0.78)
+                            Text("Calculando XP da sessão...")
+                                .font(PixioTypo.caption)
+                                .foregroundStyle(VitaColors.textSecondary)
+                        }
+                    } else if summary == nil {
+                        Text("XP sincronizado")
+                            .font(.system(size: 21, weight: .black, design: .rounded))
+                            .foregroundStyle(VitaColors.accentLight)
+                        Text("O resultado foi salvo; o XP aparece ao atualizar.")
+                            .font(PixioTypo.caption)
+                            .foregroundStyle(VitaColors.textSecondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                    } else {
+                        Text("+\(revealed ? xp : 0) XP")
+                            .font(.system(size: 27, weight: .black, design: .rounded))
+                            .foregroundStyle(VitaColors.accentLight)
+                            .monospacedDigit()
+                        Text(summary?.didLevelUp == true ? "Subiu do nível \(summary?.startedLevel ?? level) para \(level)" : progressText)
+                            .font(PixioTypo.caption)
+                            .foregroundStyle(VitaColors.textSecondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.08))
+                    Capsule()
+                        .fill(VitaColors.goldBarGradient)
+                        .frame(width: max(8, geo.size.width * animatedProgress))
+                        .shadow(color: VitaColors.accent.opacity(0.26), radius: 8)
+                }
+            }
+            .frame(height: 7)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(VitaColors.glassBg.opacity(0.78))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(VitaColors.accent.opacity(pulse ? 0.30 : 0.15), lineWidth: 1)
+        )
+        .shadow(color: VitaColors.accent.opacity(pulse ? 0.16 : 0.08), radius: pulse ? 18 : 10, y: 8)
+        .onAppear { animate() }
+        .onChange(of: summary?.id) { _, _ in animate() }
+    }
+
+    private func animate() {
+        revealed = false
+        animatedProgress = summary?.startedProgress ?? 0
+        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+            pulse = true
+        }
+        withAnimation(.easeOut(duration: 0.95).delay(0.18)) {
+            revealed = true
+            animatedProgress = summary?.finishedProgress ?? 0
         }
     }
 }

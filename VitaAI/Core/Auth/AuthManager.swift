@@ -49,7 +49,7 @@ final class AuthManager: ObservableObject {
         // Set monitoring user context if already logged in
         if loggedIn, let email {
             SentryConfig.setUser(id: email, email: email)
-            VitaPostHogConfig.identify(userId: email, properties: [
+            VitaAnalytics.identify(userId: email, properties: [
                 "name": name ?? "",
                 "platform": "ios",
             ])
@@ -201,12 +201,12 @@ final class AuthManager: ObservableObject {
 
                 if let email {
                     SentryConfig.setUser(id: email, email: email)
-                    VitaPostHogConfig.identify(userId: email, properties: [
+                    VitaAnalytics.identify(userId: email, properties: [
                         "name": name ?? "",
                         "platform": "ios",
                     ])
                 }
-                PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "apple"])
+                AnalyticsTracker.shared.event(.userLoggedIn, properties: ["method": "apple"])
             } else {
                 error = json?["error"] as? String ?? "Erro no login com Apple"
             }
@@ -287,12 +287,12 @@ final class AuthManager: ObservableObject {
 
             if let emailValue {
                 SentryConfig.setUser(id: emailValue, email: emailValue)
-                VitaPostHogConfig.identify(userId: emailValue, properties: [
+                VitaAnalytics.identify(userId: emailValue, properties: [
                     "name": name ?? "",
                     "platform": "ios",
                 ])
             }
-            PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "review_token"])
+            AnalyticsTracker.shared.event(.userLoggedIn, properties: ["method": "review_token"])
         } catch {
             self.error = "Erro de conexao"
         }
@@ -338,14 +338,14 @@ final class AuthManager: ObservableObject {
                 userImage = image
                 isLoggedIn = true
                 SentryConfig.setUser(id: email, email: email)
-                VitaPostHogConfig.identify(userId: email, properties: [
+                VitaAnalytics.identify(userId: email, properties: [
                     "name": name ?? "",
                     "platform": "ios",
                 ])
                 if isSignUp {
-                    PostHogTracker.shared.event(.userSignedUp, properties: ["method": "email"])
+                    AnalyticsTracker.shared.event(.userSignedUp, properties: ["method": "email"])
                 }
-                PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "email"])
+                AnalyticsTracker.shared.event(.userLoggedIn, properties: ["method": "email"])
             } else {
                 error = json?["message"] as? String ?? "Email ou senha incorretos"
             }
@@ -407,12 +407,12 @@ final class AuthManager: ObservableObject {
 
         if let email = params["email"] {
             SentryConfig.setUser(id: email, email: email)
-            VitaPostHogConfig.identify(userId: email, properties: [
+            VitaAnalytics.identify(userId: email, properties: [
                 "name": params["name"] ?? "",
                 "platform": "ios",
             ])
         }
-        PostHogTracker.shared.event(.userLoggedIn, properties: ["method": "oauth"])
+        AnalyticsTracker.shared.event(.userLoggedIn, properties: ["method": "oauth"])
         lastLoginAt = Date()
     }
 
@@ -420,7 +420,7 @@ final class AuthManager: ObservableObject {
     private var lastLoginAt: Date?
 
     /// Reason for logout - lets us distinguish telemetry signals.
-    /// See incident agent-brain/incidents/pixio/2026-04-29_posthog-phantom-logouts.md
+    /// Keeps session-expired telemetry separate from explicit user logout.
     enum LogoutReason: String {
         case userInitiated = "user_initiated"
         case sessionExpired = "session_expired"
@@ -446,13 +446,13 @@ final class AuthManager: ObservableObject {
             UserDefaults.standard.removeObject(forKey: "vita_onboarding_last_step")
             SentryConfig.clearUser()
 
-            // PostHog: only fire user_logged_out if the user was actually signed in.
+            // Only fire user_logged_out if the user was actually signed in.
             // Without this guard, every cold launch with no session = 1 phantom logout
-            // event (PostHog audit 2026-04-29: 251/253 user_logged_out events were orphan).
+            // event (legacy audit 2026-04-29: most logout events were orphan).
             if wasLoggedIn {
-                PostHogTracker.shared.event(.userLoggedOut, properties: ["reason": reason.rawValue])
+                AnalyticsTracker.shared.event(.userLoggedOut, properties: ["reason": reason.rawValue])
             }
-            VitaPostHogConfig.reset()
+            VitaAnalytics.reset()
         }
     }
 }

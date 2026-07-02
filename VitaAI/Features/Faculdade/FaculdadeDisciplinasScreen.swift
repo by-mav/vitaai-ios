@@ -33,8 +33,9 @@ struct FaculdadeDisciplinasScreen: View {
             VStack(spacing: 12) {
                 let current = appData.gradesResponse?.current ?? []
                 let completed = appData.gradesResponse?.completed ?? []
+                let supplemental = supplementalSubjects(current: current, completed: completed)
 
-                if current.isEmpty && completed.isEmpty {
+                if current.isEmpty && completed.isEmpty && supplemental.isEmpty {
                     emptyState
                 } else {
                     if !current.isEmpty {
@@ -46,6 +47,12 @@ struct FaculdadeDisciplinasScreen: View {
                         sectionHeader("Aprovadas", count: completed.count)
                             .padding(.top, current.isEmpty ? 0 : 8)
                         disciplinesList(completed)
+                    }
+
+                    if !supplemental.isEmpty {
+                        sectionHeader("Catálogo Vita", count: supplemental.count)
+                            .padding(.top, current.isEmpty && completed.isEmpty ? 0 : 8)
+                        academicDisciplinesList(supplemental)
                     }
                 }
 
@@ -75,6 +82,34 @@ struct FaculdadeDisciplinasScreen: View {
               let match = appData.enrolledDisciplines.first(where: { $0.id == sid })
         else { return subject.subjectName }
         return match.preferredName
+    }
+
+    private func displayText(for subject: AcademicSubject) -> String {
+        subject.displayName ?? subject.canonicalName ?? subject.name
+    }
+
+    private func supplementalSubjects(current: [GradeSubject], completed: [GradeSubject]) -> [AcademicSubject] {
+        var seen = Set<String>()
+        for subject in current + completed {
+            seen.insert(normalized(subject.id))
+            seen.insert(normalized(subject.subjectName))
+        }
+        return appData.enrolledDisciplines
+            .filter { subject in
+                let title = displayText(for: subject)
+                return ![subject.id, subject.name, title, subject.canonicalName ?? ""]
+                    .map(normalized)
+                    .contains(where: { seen.contains($0) })
+            }
+            .sorted {
+                displayText(for: $0).localizedCaseInsensitiveCompare(displayText(for: $1)) == .orderedAscending
+            }
+    }
+
+    private func normalized(_ value: String) -> String {
+        value
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Empty state
@@ -169,6 +204,22 @@ struct FaculdadeDisciplinasScreen: View {
         }
     }
 
+    private func academicDisciplinesList(_ subjects: [AcademicSubject]) -> some View {
+        VStack(spacing: 8) {
+            ForEach(subjects) { subject in
+                Button {
+                    router.navigate(to: .disciplineDetail(
+                        disciplineId: subject.id,
+                        disciplineName: displayText(for: subject)
+                    ))
+                } label: {
+                    disciplineCard(subject)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
     // MARK: - Card
 
     private func disciplineCard(_ subject: GradeSubject) -> some View {
@@ -197,6 +248,53 @@ struct FaculdadeDisciplinasScreen: View {
                     if let freq = subject.attendance {
                         miniStat("Freq", value: String(format: "%.0f%%", freq))
                     }
+                }
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(textWarm.opacity(0.20))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(VitaColors.surfaceCard.opacity(0.55))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
+        )
+    }
+
+    private func disciplineCard(_ subject: AcademicSubject) -> some View {
+        let color = SubjectColors.colorFor(subject: subject.canonicalName ?? subject.name)
+        let rendered = displayText(for: subject)
+        let shortName = rendered
+            .replacingOccurrences(of: "(?i),.*$", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+
+        return HStack(spacing: 12) {
+            Rectangle()
+                .fill(color)
+                .frame(width: 3, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 2))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(shortName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(textWarm.opacity(0.90))
+                    .lineLimit(1)
+
+                if let count = subject.questionCount, count > 0 {
+                    miniStat("Questões", value: "\(count)")
+                } else if let area = subject.area, !area.isEmpty {
+                    Text(area.capitalized)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(textDim)
+                        .lineLimit(1)
                 }
             }
 

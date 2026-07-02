@@ -30,11 +30,7 @@ struct VitaTopBar: View {
                     avatarBadge
 
                     if level > 0 {
-                        Text(blendsWithHome ? "\(level)" : "Nível \(level)")
-                            .font(PixioTypo.micro)
-                            .foregroundStyle(blendsWithHome ? Color.white.opacity(0.82) : VitaColors.textSecondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
+                        levelBadge
                     }
                 }
             }
@@ -62,6 +58,8 @@ struct VitaTopBar: View {
                 }
             }
             .buttonStyle(.plain)
+            .frame(width: 58, height: 58)
+            .contentShape(Circle())
             .accessibilityLabel("Menu")
             .accessibilityIdentifier("menuButton")
         }
@@ -98,7 +96,6 @@ struct VitaTopBar: View {
                     )
                     .rotationEffect(.degrees(-90))
                     .frame(width: size - 1, height: size - 1)
-                    .shadow(color: Color(red: 1.0, green: 0.78, blue: 0.36).opacity(0.36), radius: 5, x: 0, y: 0)
             }
 
             avatarView
@@ -120,6 +117,49 @@ struct VitaTopBar: View {
                 )
         }
         .frame(width: size, height: size)
+    }
+
+    @ViewBuilder
+    private var levelBadge: some View {
+        if blendsWithHome {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(Color(red: 1.0, green: 0.82, blue: 0.38))
+                    .frame(width: 3.5, height: 3.5)
+
+                Text("NÍVEL \(level)")
+                    .font(.system(size: 8.5, weight: .heavy))
+                    .kerning(0.45)
+                    .foregroundStyle(Color(red: 1.0, green: 0.92, blue: 0.72))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3.5)
+            .background(
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.075, green: 0.078, blue: 0.086).opacity(0.88),
+                                Color(red: 0.145, green: 0.145, blue: 0.155).opacity(0.82)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(0.18), lineWidth: 0.7)
+            )
+        } else {
+            Text("Nível \(level)")
+                .font(PixioTypo.micro)
+                .foregroundStyle(VitaColors.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
     }
 
     @ViewBuilder
@@ -156,9 +196,20 @@ struct VitaTopBar: View {
     private var avatarChrome: some View {
         if blendsWithHome {
             Circle()
-                .fill(.ultraThinMaterial)
-                .overlay(Circle().fill(Color.white.opacity(0.16)))
-                .shadow(color: Color.black.opacity(0.16), radius: 8, x: 0, y: 4)
+                .fill(Color.white.opacity(0.20))
+                .overlay(
+                    Circle().fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.30),
+                                Color(red: 0.18, green: 0.32, blue: 0.18).opacity(0.08)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                )
+                .overlay(Circle().stroke(Color.white.opacity(0.34), lineWidth: 0.75))
         } else {
             Circle()
                 .fill(VitaColors.surface.opacity(0.92))
@@ -170,7 +221,7 @@ struct VitaTopBar: View {
     private var menuChrome: some View {
         if blendsWithHome {
             Circle()
-                .fill(.ultraThinMaterial)
+                .fill(Color.white.opacity(0.18))
                 .overlay(
                     Circle().fill(
                         RadialGradient(
@@ -187,8 +238,6 @@ struct VitaTopBar: View {
                 )
                 .overlay(Circle().fill(Color.white.opacity(0.08)))
                 .overlay(Circle().stroke(Color.white.opacity(0.30), lineWidth: 0.75))
-                .shadow(color: Color(red: 1.0, green: 0.78, blue: 0.36).opacity(0.18), radius: 9, x: 0, y: 0)
-                .shadow(color: Color.black.opacity(0.14), radius: 8, x: 0, y: 4)
         } else {
             Circle()
                 .fill(VitaColors.glassBg.opacity(0.56))

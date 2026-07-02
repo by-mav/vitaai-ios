@@ -7,7 +7,7 @@
 # today's HealthKit purpose-string rejection:
 #
 #   1. PRE-FLIGHT validation: check Info.plist for every purpose-string Apple
-#      requires for our current SDKs (Sentry, PostHog, HealthKit, etc). If any
+#      requires for our current SDKs (Sentry, HealthKit, etc). If any
 #      is missing, FAIL BEFORE touching build number — no wasted uploads.
 #
 #   2. Build number: query ASC API for the last uploaded build and set
@@ -72,6 +72,9 @@ security unlock-keychain -p "" ~/Library/Keychains/login.keychain-db 2>/dev/null
 # -------------------------------------------------------------------------
 echo ""
 echo "[0/4] PRE-FLIGHT gates..."
+
+python3 "$PROJECT_DIR/scripts/lint-ptbr-strings.py"
+echo "       ✅ G0: PT-BR accents in visible strings"
 
 # G1 — Export compliance
 if ! /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$INFO_PLIST" 2>/dev/null | grep -qE "^(false|0)$"; then

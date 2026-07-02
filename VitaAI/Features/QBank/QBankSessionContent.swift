@@ -586,7 +586,13 @@ struct QBankAlternativeCard: View {
         }
         .padding(14)
         .background(bgColor)
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(borderColor.opacity(showFeedback ? 0.95 : 0.62), lineWidth: 1))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(borderColor.opacity(showFeedback ? 0.95 : 0.62), lineWidth: 1)
+            if isSelected {
+                QBankSelectedAnswerHalo(color: borderColor)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: isSelected ? borderColor.opacity(0.15) : .clear, radius: 12, x: 0, y: 6)
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -597,5 +603,40 @@ struct QBankAlternativeCard: View {
         .accessibilityLabel("Alternativa \(letter): \(alternative.text.qbankPlainText)\(accessibilityStateLabel)")
         .accessibilityHint(showFeedback ? "" : "Toque para selecionar esta alternativa")
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+private struct QBankSelectedAnswerHalo: View {
+    let color: Color
+    @State private var pulse = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .stroke(
+                AngularGradient(
+                    colors: [
+                        .white.opacity(0.76),
+                        color.opacity(0.98),
+                        color.opacity(0.22),
+                        .white.opacity(0.48),
+                        color.opacity(0.98)
+                    ],
+                    center: .center,
+                    angle: .degrees(pulse ? 360 : 0)
+                ),
+                lineWidth: 1.35
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(color.opacity(pulse ? 0.30 : 0.14), lineWidth: 7)
+                    .blur(radius: pulse ? 10 : 5)
+            )
+            .shadow(color: color.opacity(pulse ? 0.34 : 0.14), radius: pulse ? 20 : 8, y: pulse ? 7 : 3)
+            .allowsHitTesting(false)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.45).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
+            }
     }
 }

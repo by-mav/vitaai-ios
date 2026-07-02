@@ -170,7 +170,7 @@ struct AppRouter: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         router.navigate(to: route)
                     }
-                case .qbank, .simuladoHome, .transcricao, .atlas3D, .osce,
+                case .qbank, .qbankSession(_, _), .simuladoHome, .transcricao, .atlas3D, .osce,
                      .provas, .trabalhos, .flashcardHome, .flashcardSession:
                     // Sub-features de Estudos: ao chegar via deep link,
                     // ative a tab Estudos pra bottom nav refletir o contexto.
@@ -233,7 +233,7 @@ struct MainTabView: View {
     /// Set by Atlas 3D's "Perguntar pra VITA" so the chat lands with the
     /// student's question already submitted; cleared after consumption.
     @State private var chatInitialPrompt: String? = nil
-    @State private var showMenuPopout = false
+    @State private var showSettingsPanel = false
     @State private var showNotifPopout = false
     @State private var dashboardSubtitle: String = ""
     /// True when a descendant screen (e.g. PdfViewerScreen fullscreen) asks for
@@ -295,23 +295,26 @@ struct MainTabView: View {
                                 onAvatarTap: { router.selectedTab = .progresso },
                                 onMenuTap: {
                                     withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
-                                    showMenuPopout.toggle()
+                                    withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
+                                        showSettingsPanel = true
+                                    }
                                 }
                             )
                             .padding(.top, 8)
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
                     }
-                    .overlay(alignment: .top) {
+                    .overlay(alignment: .bottom) {
                         if isHomeRoot {
-                            VitaHomeQuickActions(
+                            VitaHomeStudyDock(
                                 onFlashcards: { openHomeStudy(.flashcardHome()) },
                                 onQBank: { openHomeStudy(.qbank) },
                                 onSimulados: { openHomeStudy(.simuladoHome) },
                                 onTranscricao: { openHomeStudy(.transcricao) }
                             )
-                            .padding(.top, 94)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .padding(.horizontal, 14)
+                            .padding(.bottom, 86)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
                     .overlay(alignment: .bottom) {
@@ -344,13 +347,13 @@ struct MainTabView: View {
             // NotifPopout movido pro ZStack root (abaixo) pra ficar
             // ACIMA do backdrop blur compartilhado.
 
-            // MARK: - Backdrop blur (popouts/chat ofuscam conteúdo)
-            // Rafael 2026-04-25: ao abrir notif/menu popout, fundo fica
+            // MARK: - Backdrop blur (notif/chat ofuscam conteúdo)
+            // Rafael 2026-04-25: ao abrir notif/chat, fundo fica
             // levemente ofuscado pra dar profundidade — padrão Apple
             // Shortcuts / context menus. Tap dismissa qualquer popout.
             // 2026-04-27: showChat também ativa o backdrop — Rafael quer
             // "tudo fora do VitaChat com o efeito do menu hamburguer".
-            if showMenuPopout || showNotifPopout || showChat {
+            if showNotifPopout || showChat {
                 Rectangle()
                     .fill(.ultraThinMaterial)
                     .opacity(0.85)
@@ -358,7 +361,6 @@ struct MainTabView: View {
                     .transition(.opacity)
                     .onTapGesture {
                         withAnimation(.spring(duration: 0.45, bounce: 0.15)) {
-                            showMenuPopout = false
                             showNotifPopout = false
                             // showChat NÃO dismissa via tap-out (Rafael não pediu)
                         }
@@ -408,23 +410,25 @@ struct MainTabView: View {
                 .zIndex(200)
             }
 
-            // MARK: - Menu Popout Overlay
-            if showMenuPopout {
-                VitaMenuPopout(
-                    userName: authManager.userName,
-                    userImageURL: authManager.userImage.flatMap(URL.init(string:)),
-                    onProfile: { router.navigateFromMenu(to: .profile) },
-                    onNotifications: { showMenuPopout = false; showNotifPopout = true },
-                    onAgenda: { router.navigateFromMenu(to: .agenda) },
-                    onConfiguracoes: { router.navigateFromMenu(to: .configuracoes) },
-                    onAppearance: { router.navigateFromMenu(to: .appearance) },
-                    onConnections: { router.navigateFromMenu(to: .connections) },
-                    onPaywall: { router.navigateFromMenu(to: .paywall) },
-                    onLogout: { authManager.logout() },
-                    onDismiss: { showMenuPopout = false }
+            // MARK: - Settings Panel (hamburger)
+            if showSettingsPanel {
+                ConfiguracoesScreen(
+                    authManager: container.authManager,
+                    onNavigateToPerfil: { openFromSettings(.profile) },
+                    onNavigateToAssinatura: { openFromSettings(.paywall) },
+                    onNavigateToDisciplinas: { openFromSettings(.disciplinasConfig) },
+                    onNavigateToConnections: { openFromSettings(.connections) },
+                    onNavigateToNotifications: { openFromSettings(.notifications) },
+                    onNavigateToReferral: { openFromSettings(.referral) },
+                    onNavigateToFeedback: { openFromSettings(.feedback) },
+                    onNavigateToPrivacyDocuments: { openFromSettings(.privacyDocuments) },
+                    onBack: { closeSettingsPanel() }
                 )
-                .transition(.opacity)
-                .zIndex(200)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .trailing).combined(with: .opacity)
+                ))
+                .zIndex(260)
             }
 
             // Notification popout moved inside content ZStack (below TopNav)
@@ -457,7 +461,7 @@ struct MainTabView: View {
         }
         .onChange(of: router.selectedTab) { _, _ in
             // Dismiss popouts and chat on tab change
-            showMenuPopout = false
+            showSettingsPanel = false
             withAnimation(.easeInOut(duration: 0.25)) {
                 isImmersiveMode = false
             }
@@ -525,14 +529,38 @@ struct MainTabView: View {
     }
 
     private var isHomeRoot: Bool {
-        router.selectedTab == .home
+        router.selectedTab == .home && router.currentPath.isEmpty
     }
 
     private func openHomeStudy(_ route: Route) {
         PixioHaptics.tap()
-        router.selectedTab = .estudos
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        withAnimation(.easeInOut(duration: 0.24)) {
             router.navigate(to: route)
+        }
+    }
+
+    private func closeSettingsPanel() {
+        PixioHaptics.tap()
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.9)) {
+            showSettingsPanel = false
+        }
+    }
+
+    private func openFromSettings(_ route: Route) {
+        PixioHaptics.tap()
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.92)) {
+            showSettingsPanel = false
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            router.navigateFromMenu(to: route)
+        }
+    }
+
+    private func returnToHomeTrail() {
+        PixioHaptics.tap()
+        withAnimation(.easeInOut(duration: 0.24)) {
+            router.popToRoot()
+            router.selectedTab = .home
         }
     }
 
@@ -557,7 +585,9 @@ struct MainTabView: View {
                 onNavigateToSimulados: { router.navigate(to: .simuladoHome) },
                 onNavigateToOsce: { router.navigate(to: .osce) },
                 onNavigateToAtlas: { router.navigate(to: .atlas3D) },
-                onNavigateToCourseDetail: { courseId, colorIdx in router.navigate(to: .courseDetail(courseId: courseId, colorIndex: colorIdx)) },
+                onNavigateToCourseDetail: { disciplineId, disciplineName in
+                    router.navigate(to: .disciplineDetail(disciplineId: disciplineId, disciplineName: disciplineName))
+                },
                 onNavigateToProvas: { router.navigate(to: .provas) },
                 onNavigateToQBank: { router.navigate(to: .qbank) },
                 onNavigateToTranscricao: { router.navigate(to: .transcricao) },
@@ -619,9 +649,18 @@ struct MainTabView: View {
                 store: container.mindMapStore,
                 onBack: { router.goBack() }
             )
-        case .pdfViewer(let urlString, let title):
+        case .pdfViewer(let urlString, let title, let documentId, let studioSourceId):
             if let url = URL(string: urlString) {
-                PdfViewerScreen(url: url, initialTitle: title, onBack: { router.goBack() })
+                PdfViewerScreen(
+                    url: url,
+                    initialTitle: title,
+                    documentId: documentId,
+                    studioSourceId: studioSourceId,
+                    onOpenStudyPack: { sessionId, mode in
+                        router.navigate(to: .qbankSession(sessionId: sessionId, mode: mode))
+                    },
+                    onBack: { router.goBack() }
+                )
             } else {
                 EmptyView()
             }
@@ -671,8 +710,7 @@ struct MainTabView: View {
             SimuladoBuilderScreen(
                 onBack: { router.goBack() },
                 onSessionCreated: { id in
-                    router.path.removeLast()
-                    router.navigate(to: .simuladoSession(attemptId: id))
+                    router.replaceTop(with: .simuladoSession(attemptId: id))
                 },
                 onOpenAttempt: { attempt in
                     if attempt.finishedAt == nil {
@@ -687,18 +725,16 @@ struct MainTabView: View {
                 attemptId: attemptId,
                 onBack: { router.goBack() },
                 onFinished: { id in
-                    router.path.removeLast()
-                    router.navigate(to: .simuladoResult(attemptId: id))
+                    router.replaceTop(with: .simuladoResult(attemptId: id))
                 }
             )
         case .simuladoResult(let attemptId):
             SimuladoResultScreen(
                 attemptId: attemptId,
-                onBack: { router.goBack() },
+                onBack: { returnToHomeTrail() },
                 onReview: { router.navigate(to: .simuladoReview(attemptId: attemptId)) },
                 onNewSimulado: {
-                    router.path.removeLast()
-                    router.navigate(to: .simuladoConfig)
+                    router.replaceTop(with: .simuladoConfig)
                 }
             )
         case .simuladoReview(let attemptId):
@@ -834,9 +870,21 @@ struct MainTabView: View {
         case .disciplinasConfig:
             DisciplinasConfigScreen(onBack: { router.goBack() })
         case .qbank:
-            QBankCoordinatorScreen(onBack: { router.goBack() })
+            QBankCoordinatorScreen(onBack: { router.goBack() }, onHome: { returnToHomeTrail() })
+        case .qbankSession(let sessionId, let mode):
+            QBankCoordinatorScreen(
+                onBack: { router.goBack() },
+                onHome: { returnToHomeTrail() },
+                initialSessionId: sessionId,
+                initialMode: mode == "simulado" ? .simulado : .pratica
+            )
         case .transcricao:
-            TranscricaoScreen(onBack: { router.goBack() })
+            TranscricaoScreen(
+                onBack: { router.goBack() },
+                onOpenStudyPack: { sessionId, mode in
+                    router.navigate(to: .qbankSession(sessionId: sessionId, mode: mode))
+                }
+            )
         case .flashcardHome(let subjectId):
             // Fase 5 (2026-04-29): FlashcardBuilderScreen reescrito substitui
             // FlashcardsListScreen como entry point. Hero + Mode (Revisão/Específico/
@@ -881,67 +929,78 @@ struct MainTabView: View {
     }
 }
 
-private struct VitaHomeQuickActions: View {
+private struct VitaHomeStudyDock: View {
     let onFlashcards: () -> Void
     let onQBank: () -> Void
     let onSimulados: () -> Void
     let onTranscricao: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             actionButton("Cards", icon: "rectangle.on.rectangle.angled", tint: VitaColors.toolFlashcards, action: onFlashcards)
             actionButton("Questões", icon: "checklist", tint: VitaColors.accent, action: onQBank)
             actionButton("Simulados", icon: "doc.text.magnifyingglass", tint: VitaColors.toolSimulados, action: onSimulados)
-            actionButton("Transcrição", icon: "waveform", tint: VitaColors.toolTranscricao, action: onTranscricao)
+            actionButton("Áudio", icon: "waveform", tint: VitaColors.toolTranscricao, action: onTranscricao)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity)
         .background(
             Capsule()
-                .fill(.ultraThinMaterial)
+                .fill(Color(red: 0.18, green: 0.35, blue: 0.20).opacity(0.76))
                 .overlay(
                     Capsule().fill(
                         LinearGradient(
                             colors: [
                                 Color.white.opacity(0.20),
-                                Color(red: 0.40, green: 0.68, blue: 0.32).opacity(0.10),
-                                Color.black.opacity(0.05)
+                                Color(red: 0.17, green: 0.32, blue: 0.20).opacity(0.10),
+                                Color.black.opacity(0.08)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                 )
-                .overlay(Capsule().stroke(Color.white.opacity(0.30), lineWidth: 0.75))
-                .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
+                .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 0.75))
         )
-        .padding(.horizontal, 20)
     }
 
     private func actionButton(_ title: String, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
         Button {
             action()
         } label: {
-            VStack(spacing: 4) {
+            VStack(spacing: 5) {
                 ZStack {
                     Circle()
-                        .fill(.ultraThinMaterial)
-                        .overlay(Circle().fill(tint.opacity(0.16)))
-                        .overlay(Circle().stroke(Color.white.opacity(0.28), lineWidth: 0.75))
-                        .shadow(color: tint.opacity(0.22), radius: 8, x: 0, y: 2)
+                        .fill(Color.white.opacity(0.16))
+                        .overlay(
+                            Circle().fill(
+                                RadialGradient(
+                                    colors: [
+                                        Color.white.opacity(0.34),
+                                        tint.opacity(0.24),
+                                        Color.black.opacity(0.05)
+                                    ],
+                                    center: .topLeading,
+                                    startRadius: 2,
+                                    endRadius: 32
+                                )
+                            )
+                        )
+                        .overlay(Circle().stroke(Color.white.opacity(0.38), lineWidth: 0.75))
                     Image(systemName: icon)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.92))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.96))
                 }
-                .frame(width: 30, height: 30)
+                .frame(width: 38, height: 38)
 
                 Text(title)
-                    .font(.system(size: 7.8, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.82))
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.88))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.68)
+                    .minimumScaleFactor(0.72)
             }
-            .frame(width: 58)
+            .frame(width: 66, height: 54)
             .contentShape(Rectangle())
         }
         .buttonStyle(HomeQuickActionPressStyle())
@@ -995,11 +1054,11 @@ private struct UnsupportedConnectorScreen: View {
                 Image(systemName: "link.badge.plus")
                     .font(.system(size: 36, weight: .semibold))
                     .foregroundStyle(VitaColors.accent)
-                Text("\(connectorName) ainda nao esta disponivel")
+                Text("\(connectorName) ainda não está disponível")
                     .font(VitaTypography.titleMedium)
                     .foregroundStyle(VitaColors.textPrimary)
                     .multilineTextAlignment(.center)
-                Text("O Vita agora conecta portais academicos apenas por API/token oficial.")
+                Text("O Vita agora conecta portais acadêmicos apenas por API/token oficial.")
                     .font(VitaTypography.bodyMedium)
                     .foregroundStyle(VitaColors.textSecondary)
                     .multilineTextAlignment(.center)

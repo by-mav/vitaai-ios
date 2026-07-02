@@ -77,7 +77,7 @@ final class StoreKitManager {
         isPurchasing = true
         purchaseError = nil
         defer { isPurchasing = false }
-        VitaPostHogConfig.capture(event: "checkout_started", properties: [
+        VitaAnalytics.capture(event: "checkout_started", properties: [
             "plan_id": product.id,
             "provider": "apple_iap",
             "price_brl": NSDecimalNumber(decimal: product.price).doubleValue,
@@ -89,7 +89,7 @@ final class StoreKitManager {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 print("[StoreKit] Purchase SUCCESS: \(transaction.productID)")
-                VitaPostHogConfig.capture(event: "checkout_completed", properties: [
+                VitaAnalytics.capture(event: "checkout_completed", properties: [
                     "plan_id": transaction.productID,
                     "transaction_id": String(transaction.id),
                     "provider": "apple_iap",
@@ -97,7 +97,7 @@ final class StoreKitManager {
                 await refreshSubscriptionStatus()
                 await transaction.finish()
             case .userCancelled:
-                VitaPostHogConfig.capture(event: "checkout_failed", properties: [
+                VitaAnalytics.capture(event: "checkout_failed", properties: [
                     "plan_id": product.id,
                     "reason": "user_cancelled",
                 ])
@@ -109,7 +109,7 @@ final class StoreKitManager {
             }
         } catch {
             purchaseError = "Ocorreu um erro ao processar o pagamento. Tente novamente."
-            VitaPostHogConfig.capture(event: "checkout_failed", properties: [
+            VitaAnalytics.capture(event: "checkout_failed", properties: [
                 "plan_id": product.id,
                 "reason": error.localizedDescription,
             ])

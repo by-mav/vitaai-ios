@@ -177,13 +177,13 @@ struct AtlasSceneScreen: View {
                         // Persist em history local pro chip "Continuar". Quando
                         // NOVA publicar `POST /atlas/history` ligar aqui também.
                         AtlasHistoryStore.recordView(info.id)
-                        VitaPostHogConfig.capture(event: "atlas_search_picked", properties: [
+                        VitaAnalytics.capture(event: "atlas_search_picked", properties: [
                             "layers": analyticsLayers,
                             "structure": info.pt,
                         ])
                         // Pair with atlas_focus_exit so we can measure the full
                         // funnel (search → focus enter → time spent → exit).
-                        VitaPostHogConfig.capture(event: "atlas_focus_entered", properties: [
+                        VitaAnalytics.capture(event: "atlas_focus_entered", properties: [
                             "structure": info.pt,
                             "system": info.system,
                             "layers_active": activeLayers.count,
@@ -205,14 +205,14 @@ struct AtlasSceneScreen: View {
                         selectedMesh = newInfo
                         focusedMesh = newInfo
                         AtlasHistoryStore.recordView(newInfo.id)
-                        VitaPostHogConfig.capture(event: "atlas_detail_navigated", properties: [
+                        VitaAnalytics.capture(event: "atlas_detail_navigated", properties: [
                             "from": info.pt,
                             "to": newInfo.pt,
                             "system": newInfo.system,
                         ])
                     },
                     onExpandToFullChat: { customPrompt in
-                        VitaPostHogConfig.capture(event: "atlas_ask_vita_expand", properties: [
+                        VitaAnalytics.capture(event: "atlas_ask_vita_expand", properties: [
                             "layers": analyticsLayers,
                             "structure": info.pt,
                             "system": info.system,
@@ -236,7 +236,7 @@ struct AtlasSceneScreen: View {
                             lastTappedCandidates.filter { !$0.hasPrefix("layer-") }
                         )
                         hiddenMeshes.formUnion(toHide)
-                        VitaPostHogConfig.capture(event: "atlas_mesh_hidden", properties: [
+                        VitaAnalytics.capture(event: "atlas_mesh_hidden", properties: [
                             "layers": analyticsLayers,
                             "structure": info.pt,
                             "hidden_total": hiddenMeshes.count,
@@ -276,7 +276,7 @@ struct AtlasSceneScreen: View {
         if resolved.hit {
             AtlasHistoryStore.recordView(resolved.info.id)
         }
-        VitaPostHogConfig.capture(event: "atlas_mesh_tapped", properties: [
+        VitaAnalytics.capture(event: "atlas_mesh_tapped", properties: [
             "layers": analyticsLayers,
             "mesh_name": candidates.first ?? "",
             "candidates_count": candidates.count,
@@ -311,7 +311,7 @@ struct AtlasSceneScreen: View {
                 focusedMesh = nil
             }
             UISelectionFeedbackGenerator().selectionChanged()
-            VitaPostHogConfig.capture(event: "atlas_focus_exit", properties: [
+            VitaAnalytics.capture(event: "atlas_focus_exit", properties: [
                 "structure": info.pt,
             ])
         } label: {
@@ -521,7 +521,7 @@ struct AtlasSceneScreen: View {
         let cached = cachedLayers.contains(layer)
         Button {
             UISelectionFeedbackGenerator().selectionChanged()
-            VitaPostHogConfig.capture(event: "atlas_layer_toggled", properties: [
+            VitaAnalytics.capture(event: "atlas_layer_toggled", properties: [
                 "layer": layer.rawValue,
                 "to_active": !active,
                 "active_count_before": activeLayers.count,
@@ -641,7 +641,7 @@ struct AtlasSceneScreen: View {
                     dissectMode.toggle()
                     if !dissectMode { transparency = 0 }
                 }
-                VitaPostHogConfig.capture(event: "atlas_dissect_toggled", properties: [
+                VitaAnalytics.capture(event: "atlas_dissect_toggled", properties: [
                     "to_active": dissectMode,
                     "layers": analyticsLayers,
                 ])
@@ -793,7 +793,7 @@ struct AtlasSceneScreen: View {
                 Button {
                     hiddenMeshes.removeAll()
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    VitaPostHogConfig.capture(event: "atlas_show_all", properties: [
+                    VitaAnalytics.capture(event: "atlas_show_all", properties: [
                         "layers": analyticsLayers,
                     ])
                 } label: {
@@ -1083,7 +1083,7 @@ struct AtlasSceneScreen: View {
             }
         } catch {
             atlasLog.error("[Atlas] load failed (\(layer.rawValue)): \(error.localizedDescription, privacy: .public)")
-            VitaPostHogConfig.capture(event: "atlas_load_failed", properties: [
+            VitaAnalytics.capture(event: "atlas_load_failed", properties: [
                 "layer": layer.rawValue,
                 "error": "\(error)",
             ])
@@ -1699,7 +1699,7 @@ private struct MeshDetailSheet: View {
                 await MainActor.run {
                     studyState = .success
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    VitaPostHogConfig.capture(event: "atlas_study_deck_created", properties: [
+                    VitaAnalytics.capture(event: "atlas_study_deck_created", properties: [
                         "structure": info.pt,
                         "system": info.system,
                     ])

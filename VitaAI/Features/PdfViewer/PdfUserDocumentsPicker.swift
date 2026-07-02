@@ -9,7 +9,7 @@ import SwiftUI
 /// to open it as a new PDF tab. Trailing toolbar button "Files" opens the
 /// system picker as a fallback for ad-hoc imports (rare case).
 struct PdfUserDocumentsPicker: View {
-    let onSelect: (URL, String) -> Void
+    let onSelect: (URL, String, String?, String?) -> Void
     let onCancel: () -> Void
 
     @Environment(\.appContainer) private var container
@@ -74,7 +74,7 @@ struct PdfUserDocumentsPicker: View {
             .sheet(isPresented: $showFilesPicker) {
                 PdfTabDocumentPicker { pickedURL in
                     showFilesPicker = false
-                    onSelect(pickedURL, pickedURL.lastPathComponent)
+                    onSelect(pickedURL, pickedURL.lastPathComponent, nil, nil)
                 }
             }
             .task { await load() }
@@ -125,7 +125,7 @@ struct PdfUserDocumentsPicker: View {
     private func select(_ doc: VitaDocument) {
         let urlString = "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file"
         guard let url = URL(string: urlString) else { return }
-        onSelect(url, doc.title)
+        onSelect(url, doc.title, doc.id, doc.studioSourceId)
     }
 
     private func load() async {

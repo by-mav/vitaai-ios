@@ -83,7 +83,7 @@ struct DeleteAccountSection: View {
             }
             .disabled(deleteConfirmInput.trimmingCharacters(in: .whitespaces).uppercased() != "DELETAR")
         } message: {
-            Text("Isto apaga PERMANENTEMENTE sua conta, notas, flashcards, conexoes de portal, assinaturas e todo historico. Acao IRREVERSIVEL. Digite DELETAR para confirmar.")
+            Text("Isto apaga PERMANENTEMENTE sua conta, notas, flashcards, conexões de portal, assinaturas e todo histórico. Ação IRREVERSÍVEL. Digite DELETAR para confirmar.")
         }
         // vita-modals-ignore: SwiftUI .alert nativo (mensagem dinâmica, OK only) — VitaAlert é destrutivo 2 botões
         .alert("Erro ao excluir", isPresented: .init(
@@ -105,7 +105,7 @@ struct DeleteAccountSection: View {
             deleteConfirmInput = ""
             authManager.logout()
         } catch {
-            deleteErrorMessage = "Nao foi possivel excluir agora. Tente novamente ou entre em contato com suporte."
+            deleteErrorMessage = "Não foi possível excluir agora. Tente novamente ou entre em contato com suporte."
         }
     }
 }

@@ -51,6 +51,14 @@ final class Router {
         if !routeStack.isEmpty { routeStack.removeLast() }
     }
 
+    func replaceTop(with route: Route) {
+        if !path.isEmpty {
+            path.removeLast()
+            if !routeStack.isEmpty { routeStack.removeLast() }
+        }
+        navigate(to: route)
+    }
+
     func popToRoot() {
         path = NavigationPath()
         routeStack.removeAll()

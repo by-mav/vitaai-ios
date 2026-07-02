@@ -18,9 +18,6 @@ packages:
   Sentry:
     url: https://github.com/getsentry/sentry-cocoa
     from: "8.40.0"
-  PostHog:
-    url: https://github.com/PostHog/posthog-ios
-    from: "3.15.0"
   GLTFKit2:
     url: https://github.com/warrenm/GLTFKit2
     from: "0.5.0"
@@ -56,7 +53,7 @@ targets:
         SENTRY_DSN: https://ebcb3ccce0cf4bfd8de976f3eab55046@glitchtip.vita-ai.cloud/1
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
-        NSMicrophoneUsageDescription: "VitaAI precisa do microfone para gravar suas aulas e gerar transcricoes automaticas."
+        NSMicrophoneUsageDescription: "VitaAI precisa do microfone para gravar suas aulas e gerar transcrições automáticas."
         NSSpeechRecognitionUsageDescription: "VitaAI usa reconhecimento de fala para transcrever suas aulas em tempo real."
         UIBackgroundModes:
           - fetch
@@ -77,7 +74,6 @@ targets:
         product: Sentry
       - package: Sentry
         product: SentrySwiftUI
-      - package: PostHog
       - package: GLTFKit2
         product: GLTFKit2
     settings:

@@ -105,7 +105,7 @@ final class SpeechRecognitionManager {
 
     func startListening() {
         guard permissionStatus == .authorized else {
-            errorMessage = "Permissao de microfone necessaria"
+            errorMessage = "Permissão de microfone necessária"
             return
         }
         guard let recognizer, recognizer.isAvailable else {

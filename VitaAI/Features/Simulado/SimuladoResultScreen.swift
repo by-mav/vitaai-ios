@@ -66,6 +66,10 @@ struct SimuladoResultScreen: View {
             guard let chosen = vm.state.answers[q.id] else { return false }
             return chosen != q.correctIdx
         }
+        let xpSummary = container.gamificationEvents.latestStudySessionSummary
+        let matchingSummary = xpSummary?.source == .simuladoComplete && xpSummary?.contextId == attemptId
+            ? xpSummary
+            : nil
 
         ResultBodyView(
             totalQ: totalQ,
@@ -73,6 +77,7 @@ struct SimuladoResultScreen: View {
             erradas: erradas,
             elapsedSeconds: elapsed,
             wrongQs: wrongQs,
+            xpSummary: matchingSummary,
             animatedProgress: $animatedProgress,
             onBack: onBack,
             onNewSimulado: onNewSimulado
@@ -120,6 +125,7 @@ private struct ResultBodyView: View {
     let elapsedSeconds: TimeInterval
     @Binding var animatedProgress: Double
     let wrongQs: [SimuladoQuestionEntry]
+    let xpSummary: GamificationEventManager.StudySessionXpSummary?
     let onBack: () -> Void
     let onNewSimulado: () -> Void
 
@@ -129,6 +135,7 @@ private struct ResultBodyView: View {
         erradas: Int,
         elapsedSeconds: TimeInterval,
         wrongQs: [SimuladoQuestionEntry],
+        xpSummary: GamificationEventManager.StudySessionXpSummary?,
         animatedProgress: Binding<Double>,
         onBack: @escaping () -> Void,
         onNewSimulado: @escaping () -> Void
@@ -138,6 +145,7 @@ private struct ResultBodyView: View {
         self.erradas = erradas
         self.elapsedSeconds = elapsedSeconds
         self.wrongQs = wrongQs
+        self.xpSummary = xpSummary
         self._animatedProgress = animatedProgress
         self.onBack = onBack
         self.onNewSimulado = onNewSimulado
@@ -190,6 +198,15 @@ private struct ResultBodyView: View {
                     statsGrid
                         .padding(.top, 20)
                         .padding(.horizontal, 16)
+                    if let xpSummary {
+                        VitaSessionXpSummaryCard(
+                            title: "XP do simulado",
+                            summary: xpSummary,
+                            isLoading: false
+                        )
+                        .padding(.top, 12)
+                        .padding(.horizontal, 16)
+                    }
                     // Wrong questions
                     wrongQuestionsSection
                         .padding(.top, 16)
@@ -390,7 +407,7 @@ private struct ResultBodyView: View {
 
             // Ghost secondary button
             Button(action: onBack) {
-                Text("Voltar para Simulados")
+                Text("Voltar ao Início")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(VitaColors.textWarm.opacity(0.55))
                     .frame(maxWidth: .infinity)

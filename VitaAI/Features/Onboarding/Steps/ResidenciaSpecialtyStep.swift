@@ -152,7 +152,7 @@ struct ResidenciaSpecialtyStep: View {
 
     private func loadSpecialties() async {
         guard let api else {
-            loadError = "API indisponivel"
+            loadError = "API indisponível"
             isLoading = false
             return
         }

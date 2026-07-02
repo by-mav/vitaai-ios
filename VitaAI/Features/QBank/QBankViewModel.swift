@@ -123,6 +123,9 @@ struct QBankUiState {
     // Result
     var sessionAnswers: [Int: QBankAnswerResponse] = [:]   // questionId -> answer
     var sessionDetails: [Int: QBankQuestionDetail] = [:]   // questionId -> detail
+    var sessionXpAwarded = 0
+    var sessionReward: GamificationEventManager.StudySessionXpSummary? = nil
+    var sessionRewardLoading = false
 
     // Error -- scoped per concern so filter errors don't leak to home screen
     var error: String? = nil
@@ -279,6 +282,9 @@ final class QBankViewModel {
 
     /// Track session start for duration calculation
     private var sessionStartDate = Date()
+    private var sessionStartLevel = 1
+    private var sessionStartProgress: Double = 0
+    private var completedSessionIds = Set<String>()
 
     init(api: VitaAPI, gamificationEvents: GamificationEventManager, dataManager: AppDataManager) {
         self.api = api
@@ -374,7 +380,7 @@ final class QBankViewModel {
             state.questionStartDate = Date()
             state.elapsedSeconds = 0
             state.activeScreen = .session
-            sessionStartDate = Date()
+            beginSessionTracking()
             await loadCurrentQuestion()
         } catch {
             state.error = "Erro ao abrir sessão: \(error.localizedDescription)"
@@ -438,8 +444,8 @@ final class QBankViewModel {
                 state.questionStartDate = Date()
                 state.elapsedSeconds = 0
                 state.activeScreen = .session
-                sessionStartDate = Date()
-                VitaPostHogConfig.capture(event: "qbank_session_started", properties: [
+                beginSessionTracking()
+                VitaAnalytics.capture(event: "qbank_session_started", properties: [
                     "session_id": session.id,
                     "question_count": session.questionIds.count,
                     "disciplines_count": state.selectedDisciplineIds.count,
@@ -800,8 +806,8 @@ final class QBankViewModel {
                 state.questionStartDate = Date()
                 state.elapsedSeconds = 0
                 state.activeScreen = .session
-                sessionStartDate = Date()
-                VitaPostHogConfig.capture(event: "qbank_quickfire_started", properties: [
+                beginSessionTracking()
+                VitaAnalytics.capture(event: "qbank_quickfire_started", properties: [
                     "session_id": session.id,
                     "discipline_slug": disciplineSlug ?? "global",
                     "topic_count": topicIds.count,
@@ -888,8 +894,8 @@ final class QBankViewModel {
                 state.questionStartDate = Date()
                 state.elapsedSeconds = 0
                 state.activeScreen = .session
-                sessionStartDate = Date()
-                VitaPostHogConfig.capture(event: "qbank_session_started", properties: [
+                beginSessionTracking()
+                VitaAnalytics.capture(event: "qbank_session_started", properties: [
                     "session_id": session.id,
                     "question_count": session.questionIds.count,
                     "disciplines_count": state.selectedDisciplineIds.count,
@@ -964,19 +970,17 @@ final class QBankViewModel {
                 state.answerError = nil
                 state.answerResult = result
                 state.sessionAnswers[question.id] = result
-                PostHogTracker.shared.event(.qbankQuestionAnswered, properties: [
+                AnalyticsTracker.shared.event(.qbankQuestionAnswered, properties: [
                     "question_id": question.id,
                     "correct": result.isCorrect,
                     "seconds_elapsed": Int(responseTimeMs / 1000),
                     "session_id": state.session?.id ?? "",
                     "mode": state.mode.rawValue,
                 ])
-                let action = result.isCorrect ? "question_answered" : "question_answered_wrong"
                 let xpSource: XpSource = result.isCorrect ? .questionAnswered : .questionAnsweredWrong
-                Task { [api, gamificationEvents] in
-                    if let actResult = try? await api.logActivity(action: action) {
-                        gamificationEvents.handleActivityResponse(actResult, previousLevel: nil, source: xpSource)
-                    }
+                if let activity = result.activityResponse {
+                    gamificationEvents.handleActivityResponse(activity, previousLevel: nil, source: xpSource)
+                    state.sessionXpAwarded += activity.xpAwarded
                 }
                 if state.mode == .simulado {
                     if state.isLastQuestion {
@@ -1025,11 +1029,12 @@ final class QBankViewModel {
     }
 
     private func logSessionComplete() {
-        guard let session = state.session else { return }
+        guard let session = state.session, !completedSessionIds.contains(session.id) else { return }
+        completedSessionIds.insert(session.id)
         let correctCount = state.sessionAnswers.values.filter { $0.isCorrect }.count
         let totalAnswered = state.sessionAnswers.count
         let durationMinutes = Int(Date().timeIntervalSince(sessionStartDate) / 60)
-        VitaPostHogConfig.capture(event: "qbank_session_ended", properties: [
+        VitaAnalytics.capture(event: "qbank_session_ended", properties: [
             "session_id": session.id,
             "answered_count": totalAnswered,
             "correct_count": correctCount,
@@ -1037,6 +1042,7 @@ final class QBankViewModel {
             "seconds_elapsed": Int(Date().timeIntervalSince(sessionStartDate)),
         ])
 
+        state.sessionRewardLoading = true
         Task { [api, gamificationEvents] in
             // POST finish to backend
             _ = try? await api.finishQBankSession(
@@ -1054,7 +1060,16 @@ final class QBankViewModel {
                 ]
             ) {
                 gamificationEvents.handleActivityResponse(result, previousLevel: nil, source: .qbankSessionComplete)
+                state.sessionXpAwarded += result.xpAwarded
+                state.sessionReward = gamificationEvents.recordStudySessionSummary(
+                    source: .qbankSessionComplete,
+                    contextId: session.id,
+                    xpAwarded: state.sessionXpAwarded,
+                    startedLevel: sessionStartLevel,
+                    startedProgress: sessionStartProgress
+                )
             }
+            state.sessionRewardLoading = false
         }
     }
 
@@ -1065,6 +1080,9 @@ final class QBankViewModel {
         state.session = nil
         state.sessionAnswers = [:]
         state.sessionDetails = [:]
+        state.sessionXpAwarded = 0
+        state.sessionReward = nil
+        state.sessionRewardLoading = false
         state.currentQuestionDetail = nil
         loadHomeData()
     }
@@ -1161,6 +1179,9 @@ final class QBankViewModel {
         state.session = nil
         state.sessionAnswers = [:]
         state.sessionDetails = [:]
+        state.sessionXpAwarded = 0
+        state.sessionReward = nil
+        state.sessionRewardLoading = false
         state.currentQuestionDetail = nil
         state.elapsedSeconds = 0
         loadFilters()
@@ -1181,7 +1202,7 @@ final class QBankViewModel {
                 state.showFeedback = false
                 state.questionStartDate = Date()
                 state.elapsedSeconds = 0
-                sessionStartDate = Date()
+                beginSessionTracking()
                 state.activeScreen = .session
                 await loadCurrentQuestion()
             } catch {
@@ -1197,6 +1218,15 @@ final class QBankViewModel {
 
     func tickTimer() {
         state.elapsedSeconds += 1
+    }
+
+    private func beginSessionTracking() {
+        sessionStartDate = Date()
+        sessionStartLevel = gamificationEvents.currentLevel
+        sessionStartProgress = gamificationEvents.currentXpProgress
+        state.sessionXpAwarded = 0
+        state.sessionReward = nil
+        state.sessionRewardLoading = false
     }
 }
 

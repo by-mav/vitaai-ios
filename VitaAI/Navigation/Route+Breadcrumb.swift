@@ -33,6 +33,7 @@ extension Route {
         case .flashcardSettings:   return "Configurações"
         case .flashcardStats:      return "Estatísticas"
         case .qbank:               return "Questões"
+        case .qbankSession(_, _):  return "Sessão"
         case .simuladoHome:        return "Simulados"
         case .simuladoConfig:      return "Configurar"
         case .simuladoSession:     return "Sessão"

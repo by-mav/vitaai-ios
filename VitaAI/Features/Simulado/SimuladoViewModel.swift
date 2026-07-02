@@ -212,7 +212,7 @@ final class SimuladoViewModel {
         state.selectedQuestionCount = template.count
         state.timedMode = template.timed
         state.selectedDisciplineName = template.disciplineName
-        VitaPostHogConfig.capture(event: "simulado_template_selected", properties: [
+        VitaAnalytics.capture(event: "simulado_template_selected", properties: [
             "template_id": template.id,
             "template_name": template.name,
             "question_count": template.count,
@@ -246,7 +246,7 @@ final class SimuladoViewModel {
                 state.sessionStartDate = now
                 state.questionStartDate = now
                 state.result = nil
-                PostHogTracker.shared.event(.simuladoStarted, properties: [
+                AnalyticsTracker.shared.event(.simuladoStarted, properties: [
                     "simulado_id": response.id,
                     "question_count": response.questions.count,
                     "subject": subject,
@@ -255,7 +255,7 @@ final class SimuladoViewModel {
                 ])
             } catch {
                 state.error = "Erro ao gerar simulado: \(error.localizedDescription)"
-                VitaPostHogConfig.capture(event: "simulado_start_failed", properties: [
+                VitaAnalytics.capture(event: "simulado_start_failed", properties: [
                     "subject": subject,
                     "reason": error.localizedDescription,
                 ])
@@ -314,7 +314,7 @@ final class SimuladoViewModel {
 
         let responseTimeMs = Int64(Date().timeIntervalSince(state.questionStartDate) * 1000)
         let isCorrect = chosenIdx == question.correctIdx
-        VitaPostHogConfig.capture(event: "simulado_question_answered", properties: [
+        VitaAnalytics.capture(event: "simulado_question_answered", properties: [
             "simulado_id": state.currentAttemptId ?? "",
             "question_index": state.currentQuestionIndex,
             "seconds_elapsed": Int(responseTimeMs / 1000),
@@ -395,7 +395,7 @@ final class SimuladoViewModel {
                 let percent = response.totalQ > 0
                     ? Double(response.correctQ) / Double(response.totalQ)
                     : 0.0
-                VitaPostHogConfig.capture(event: "simulado_submitted", properties: [
+                VitaAnalytics.capture(event: "simulado_submitted", properties: [
                     "simulado_id": response.id,
                     "correct_count": response.correctQ,
                     "total_count": response.totalQ,
@@ -405,12 +405,21 @@ final class SimuladoViewModel {
 
                 // Log simulado completion with study duration
                 let durationMinutes = Int(ms / 60_000)
+                let startedLevel = gamificationEvents.currentLevel
+                let startedProgress = gamificationEvents.currentXpProgress
                 Task { [api, gamificationEvents] in
                     if let actResult = try? await api.logActivity(
                         action: "simulado_complete",
                         metadata: ["durationMinutes": String(durationMinutes)]
                     ) {
                         gamificationEvents.handleActivityResponse(actResult, previousLevel: nil, source: .simuladoComplete)
+                        gamificationEvents.recordStudySessionSummary(
+                            source: .simuladoComplete,
+                            contextId: attemptId,
+                            xpAwarded: actResult.xpAwarded,
+                            startedLevel: startedLevel,
+                            startedProgress: startedProgress
+                        )
                     }
                 }
             } catch {

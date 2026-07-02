@@ -283,7 +283,7 @@
 		95D55FC456FBBA9A6AC12AC3 /* PdfWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE8C2F04615A9F14625C6579 /* PdfWorkspace.swift */; };
 		9600433CADA1F94C0638634D /* GradeAlertMeta.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA6A8C8C58763ADD42697C2 /* GradeAlertMeta.swift */; };
 		97696D66B15AF9A50675CF64 /* PlannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B6F86F91AABF4862EB5F25 /* PlannerViewModel.swift */; };
-		9785A23EB0B29087BD76ADCF /* PostHogConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13553A87F15CE6B715760E9 /* PostHogConfig.swift */; };
+		9785A23EB0B29087BD76ADCF /* VitaAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D13553A87F15CE6B715760E9 /* VitaAnalytics.swift */; };
 		98911F8CBA08E9A2F2572AEE /* PrivacySettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91CA64B308EF3C1F447F1ECA /* PrivacySettingsScreen.swift */; };
 		98F8242BCDD2FADABD727705 /* SimuladoReviewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95EB6BC0C85E92AB27B4320C /* SimuladoReviewScreen.swift */; };
 		9905478B6E1C15740CF9AC75 /* MindMapRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43D42AA80449E5C406E2B3B3 /* MindMapRepository.swift */; };
@@ -304,7 +304,6 @@
 		A43DAF430E852C6A5900BEB5 /* TokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389BFCF2463F09D0B4DBBD16 /* TokenRefresher.swift */; };
 		A4BFE9461B76DB354A6536CA /* RedeemReferralCode200Response.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A12EA87A5CC983C2711B06 /* RedeemReferralCode200Response.swift */; };
 		A6161AAAF2B0EA0C96DFD659 /* PixioVoiceRecordingBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2759283499F91467F6866DC2 /* PixioVoiceRecordingBar.swift */; };
-		A63BA82F96785DD38FE2EFD5 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 4B4B1876310F69478EE49BD0 /* PostHog */; };
 		A6663CFEF3202C1548440144 /* DashboardXp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BAB7AFA757139E38FAB0C32 /* DashboardXp.swift */; };
 		A8FDB522F11FC791CD275E72 /* View+SwipeBack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843A2E9941511F28FB5D2340 /* View+SwipeBack.swift */; };
 		A9660EB0D2F93B27F63FD890 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 071FF1B45D3A3121280AE457 /* Localizable.strings */; };
@@ -363,7 +362,7 @@
 		CA428A9C95ECDAA42F7CE362 /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B18EC14C18BD1A28685ADF2 /* HTTPClient.swift */; };
 		CA8C4DBCF2E36CED72C5C8EB /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ACE155F51ED39EBBE513B7 /* LoginScreen.swift */; };
 		CAFC22F70859BC5E8856DE49 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 58B636EDE3D2FC8F4C739405 /* PrivacyInfo.xcprivacy */; };
-		CBAD587E2645E10B492EAE72 /* PostHogTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B13C4DA9E3ABE31FBB22622 /* PostHogTracker.swift */; };
+		CBAD587E2645E10B492EAE72 /* AnalyticsTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B13C4DA9E3ABE31FBB22622 /* AnalyticsTracker.swift */; };
 		CBB0E09C707D2CD754724C81 /* PdfMaskAnnotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BECCE1654BB605FF04E02252 /* PdfMaskAnnotation.swift */; };
 		CBDB52325B789D01A697EBAE /* EmailAuthSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8FE94587B7F5721A573CFB /* EmailAuthSheet.swift */; };
 		CD764114E07D347F8DF2A44D /* OsceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A9EFD803AA3823BCDAB4F04 /* OsceScreen.swift */; };
@@ -647,7 +646,7 @@
 		758D6D8F66D8C196A6A93DF1 /* IntegrationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationModels.swift; sourceTree = "<group>"; };
 		76F86A1C618650FFC7FE1B39 /* AppDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataManager.swift; sourceTree = "<group>"; };
 		7993D339523EA36C4CC8B25C /* ProgressoScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressoScreen.swift; sourceTree = "<group>"; };
-		7B13C4DA9E3ABE31FBB22622 /* PostHogTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHogTracker.swift; sourceTree = "<group>"; };
+		7B13C4DA9E3ABE31FBB22622 /* AnalyticsTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsTracker.swift; sourceTree = "<group>"; };
 		7B17A9BC0F8C7370467633F9 /* Pods-VitaAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-VitaAI.release.xcconfig"; path = "Target Support Files/Pods-VitaAI/Pods-VitaAI.release.xcconfig"; sourceTree = "<group>"; };
 		7B354B45703FC01F5DBB4D68 /* FaculdadeDocumentosScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaculdadeDocumentosScreen.swift; sourceTree = "<group>"; };
 		7BD3F3D91DE3FE5D24710650 /* TranscricaoShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoShared.swift; sourceTree = "<group>"; };
@@ -791,7 +790,7 @@
 		CFB516FEEE3F8C5A3FB28626 /* ConfiguracoesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfiguracoesScreen.swift; sourceTree = "<group>"; };
 		D08D6E184B50BFEE6FF44E77 /* TranscricaoDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoDetailSheet.swift; sourceTree = "<group>"; };
 		D0AA34DA1F2E5FE7046BB9C1 /* ProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileScreen.swift; sourceTree = "<group>"; };
-		D13553A87F15CE6B715760E9 /* PostHogConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHogConfig.swift; sourceTree = "<group>"; };
+		D13553A87F15CE6B715760E9 /* VitaAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaAnalytics.swift; sourceTree = "<group>"; };
 		D1DCBDFFA9AF803B4B4E56E7 /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
 		D22584DB23356B862FEDC41E /* DisciplinasConfigScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisciplinasConfigScreen.swift; sourceTree = "<group>"; };
 		D2AAF23F5E3A72EBD5814F21 /* VitaToolGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaToolGlass.swift; sourceTree = "<group>"; };
@@ -869,7 +868,6 @@
 			files = (
 				E032B7AB430B778EB2CC814E /* Sentry in Frameworks */,
 				65B3D9025C1304C171AA8537 /* SentrySwiftUI in Frameworks */,
-				A63BA82F96785DD38FE2EFD5 /* PostHog in Frameworks */,
 				162C02F9A35AE862A245FE75 /* GLTFKit2 in Frameworks */,
 				5ED275E2E64879E68693CB19 /* Pods_VitaAI.framework in Frameworks */,
 			);
@@ -1402,8 +1400,8 @@
 				158B571AED8E5DD5541607CA /* HapticManager.swift */,
 				1070781C3ADCC296E31A5731 /* MindMapSyncManager.swift */,
 				3F7E09C6A6D9EF6518D7B05F /* NoteSyncManager.swift */,
-				D13553A87F15CE6B715760E9 /* PostHogConfig.swift */,
-				7B13C4DA9E3ABE31FBB22622 /* PostHogTracker.swift */,
+				D13553A87F15CE6B715760E9 /* VitaAnalytics.swift */,
+				7B13C4DA9E3ABE31FBB22622 /* AnalyticsTracker.swift */,
 				F4C7EE91AF90098D6FB1DAD0 /* PushManager.swift */,
 				B30F475603BEE5DD42020C1E /* ReferralCaptureService.swift */,
 				0A3908944C6BDBECD98FFDB7 /* ScreenTracking.swift */,
@@ -1912,7 +1910,6 @@
 			packageProductDependencies = (
 				BE8487C3CD50772214487973 /* Sentry */,
 				E99C11A3C78FC200CABA2D4C /* SentrySwiftUI */,
-				4B4B1876310F69478EE49BD0 /* PostHog */,
 				1C90EB3168CB992A0F979BBD /* GLTFKit2 */,
 			);
 			productName = VitaAI;
@@ -1951,7 +1948,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A3B6C9E38D2A8E4583BE8E6F /* XCRemoteSwiftPackageReference "GLTFKit2" */,
-				4B8B6C3BD730056191E42326 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 				B3F2C503FEE96A00E7D890E0 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -2269,8 +2265,8 @@
 				97696D66B15AF9A50675CF64 /* PlannerViewModel.swift in Sources */,
 				E67209EEF1E9AE724E3BF80E /* PortalIcon.swift in Sources */,
 				3DEF0CCEDB2734FE8B6A366C /* PortalModels.swift in Sources */,
-				9785A23EB0B29087BD76ADCF /* PostHogConfig.swift in Sources */,
-				CBAD587E2645E10B492EAE72 /* PostHogTracker.swift in Sources */,
+				9785A23EB0B29087BD76ADCF /* VitaAnalytics.swift in Sources */,
+				CBAD587E2645E10B492EAE72 /* AnalyticsTracker.swift in Sources */,
 				8A1DC8F306C03A7324680161 /* PreviewDTOs.swift in Sources */,
 				4910B03C5AEDF46BA2199B5F /* PrivacyDocumentsScreen.swift in Sources */,
 				21F24A997B54241764402DD2 /* PrivacyPreferences.swift in Sources */,
@@ -2494,7 +2490,7 @@
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 155;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;
@@ -2539,7 +2535,7 @@
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 155;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;
@@ -2732,14 +2728,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		4B8B6C3BD730056191E42326 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/PostHog/posthog-ios";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.15.0;
-			};
-		};
 		A3B6C9E38D2A8E4583BE8E6F /* XCRemoteSwiftPackageReference "GLTFKit2" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/warrenm/GLTFKit2";
@@ -2763,11 +2751,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A3B6C9E38D2A8E4583BE8E6F /* XCRemoteSwiftPackageReference "GLTFKit2" */;
 			productName = GLTFKit2;
-		};
-		4B4B1876310F69478EE49BD0 /* PostHog */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 4B8B6C3BD730056191E42326 /* XCRemoteSwiftPackageReference "posthog-ios" */;
-			productName = PostHog;
 		};
 		BE8487C3CD50772214487973 /* Sentry */ = {
 			isa = XCSwiftPackageProductDependency;

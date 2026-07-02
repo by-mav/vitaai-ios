@@ -49,7 +49,7 @@ final class PaywallViewModel {
         state.isLoading = true
         state.error = nil
         defer { state.isLoading = false }
-        VitaPostHogConfig.capture(event: "checkout_started", properties: [
+        VitaAnalytics.capture(event: "checkout_started", properties: [
             "plan_id": "pro",
             "provider": "stripe",
         ])
@@ -58,7 +58,7 @@ final class PaywallViewModel {
             if let url = response.url { openCheckoutURL(url) }
         } catch {
             state.error = "Não foi possível iniciar a assinatura. Tente novamente."
-            VitaPostHogConfig.capture(event: "checkout_failed", properties: [
+            VitaAnalytics.capture(event: "checkout_failed", properties: [
                 "plan_id": "pro",
                 "reason": error.localizedDescription,
             ])
@@ -68,7 +68,7 @@ final class PaywallViewModel {
     /// Restore purchase = re-check status from server.
     /// Mirrors Android: PaywallViewModel.restorePurchase() which calls loadStatus().
     func restorePurchase() async {
-        VitaPostHogConfig.capture(event: "subscription_restored", properties: [:])
+        VitaAnalytics.capture(event: "subscription_restored", properties: [:])
         await loadStatus()
     }
 

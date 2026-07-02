@@ -68,6 +68,7 @@ final class EstudosViewModel {
     var subjects: [AcademicSubject] = []
     var dashboardSubjects: [DashboardSubject] = []
     var files: [CanvasFile] = []
+    var vitaDocuments: [VitaDocument] = []
     var downloadingFileId: String? = nil
     var downloadedFilePaths: [String: URL] = [:]
     var flashcardsDue: Int = 0
@@ -133,18 +134,18 @@ final class EstudosViewModel {
         do {
             async let progressTask  = api.getProgress()
             async let subjectsTask  = api.getSubjects()
-            async let filesTask     = api.getFiles(courseId: selectedCourseId)
+            async let documentsTask = api.getDocuments()
             async let activityTask  = api.getActivityFeed(limit: 5)
             async let dashboardTask = api.getDashboard()
-            let (progressResp, subjectsResp, filesResp) =
-                try await (progressTask, subjectsTask, filesTask)
+            let (progressResp, subjectsResp, documentsResp) =
+                try await (progressTask, subjectsTask, documentsTask)
             if let r = try? await activityTask { recentActivity = r }
             if let dash = try? await dashboardTask { applyDashboard(dash) }
             flashcardsDue = progressResp.flashcardsDue
             streakDays    = progressResp.streakDays
             avgAccuracy   = progressResp.avgAccuracy
             if !subjectsResp.subjects.isEmpty { subjects = subjectsResp.subjects; canvasConnected = true }
-            if !filesResp.files.isEmpty { files = filesResp.files }
+            vitaDocuments = documentsResp.sorted { ($0.displayDate ?? "") > ($1.displayDate ?? "") }
             // rawDecks fetch removed 2026-04-21 — it was paired with
             // flashcardDisplayDecks (dead state, no View reads it) and the
             // 5.6MB payload was duplicated with FlashcardsListScreen's own
@@ -193,7 +194,7 @@ final class EstudosViewModel {
         if flashcardsDue > 0 {
             recs.append(DashboardRecommendation(
                 id: "flashcards-due", title: "Revisar Flashcards",
-                subtitle: "\(flashcardsDue) cards pendentes de revisao",
+                subtitle: "\(flashcardsDue) cards pendentes de revisão",
                 dueCount: flashcardsDue, deckId: "", type: "revision",
                 urgency: 80, ctaText: "Revisar agora", labelTone: "warning", subjectName: "Flashcards"
             ))
@@ -227,7 +228,7 @@ final class EstudosViewModel {
         if recs.isEmpty && flashcardsDue > 0 {
             recs.append(DashboardRecommendation(
                 id: "flashcards-pending", title: "Revisar Flashcards",
-                subtitle: "\(flashcardsDue) cards pendentes de revisao",
+                subtitle: "\(flashcardsDue) cards pendentes de revisão",
                 dueCount: flashcardsDue, deckId: "", type: "revision",
                 urgency: 70, ctaText: "Revisar agora", labelTone: "warning", subjectName: "Flashcards"
             ))

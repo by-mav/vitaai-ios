@@ -32,7 +32,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>152</string>
+	<string>155</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSAppTransportSecurity</key>
@@ -41,7 +41,7 @@
 		<true/>
 	</dict>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>VitaAI precisa do microfone para gravar suas aulas e gerar transcricoes automaticas.</string>
+	<string>VitaAI precisa do microfone para gravar suas aulas e gerar transcrições automáticas.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>VitaAI usa reconhecimento de fala para transcrever suas aulas em tempo real.</string>
 	<key>SENTRY_DSN</key>

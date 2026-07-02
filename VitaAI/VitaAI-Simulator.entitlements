@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements SÓ para builds de SIMULADOR (dev).
+  Motivo: o build de simulador não é assinado com provisioning, então o iOS não
+  injeta `application-identifier` e o Keychain falha com -34018 ("Client has neither
+  application-identifier nor keychain-access-groups entitlements"). Isso quebra a
+  persistência do token de sessão -> loop de login a cada reabertura do app.
+  Declarar `keychain-access-groups` explicitamente dá ao app um grupo de keychain
+  no simulador, resolvendo o -34018. NÃO usar no device/TestFlight (usa VitaAI.entitlements,
+  onde o application-identifier vem do provisioning real).
+-->
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>development</string>
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>PJ8972D48J.com.bymav.vitaai</string>
+	</array>
+</dict>
+</plist>

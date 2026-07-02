@@ -424,6 +424,43 @@ actor VitaAPI {
         let type: String
     }
 
+    struct StudyPackGenerateRequest: Encodable {
+        let sourceIds: [String]
+        let title: String?
+        let mode: String
+        let difficulty: String
+        let questionCount: Int
+        let flashcardCount: Int
+        let includeQuestions: Bool
+        let includeFlashcards: Bool
+    }
+
+    struct StudyPackGenerateResponse: Decodable {
+        struct Counts: Decodable {
+            let questions: Int
+            let flashcards: Int
+        }
+
+        let id: String
+        let title: String
+        let qbankSessionId: String?
+        let flashcardDeckId: String?
+        let counts: Counts
+    }
+
+    struct DocumentStudySourceResponse: Decodable {
+        let documentId: String
+        let studioSourceId: String
+        let status: String
+        let title: String
+        let totalChunks: Int?
+        let errorMessage: String?
+    }
+
+    struct DocumentStudySourceRequest: Encodable {
+        let extractedText: String?
+    }
+
     func generateStudioOutput(sourceId: String, outputType: String) async throws -> StudioOutput {
         // Backend expects sourceIds array and "type" field at POST /api/studio/generate
         let backendType = Self.mapOutputType(outputType)
@@ -432,6 +469,43 @@ actor VitaAPI {
             type: backendType
         ))
         return result
+    }
+
+    func generateStudyPack(
+        sourceIds: [String],
+        title: String? = nil,
+        mode: String = "practice",
+        difficulty: String = "mixed",
+        questionCount: Int = 10,
+        flashcardCount: Int = 15,
+        includeQuestions: Bool = true,
+        includeFlashcards: Bool = true
+    ) async throws -> StudyPackGenerateResponse {
+        try await client.post(
+            "study/packs/generate",
+            body: StudyPackGenerateRequest(
+                sourceIds: sourceIds,
+                title: title,
+                mode: mode,
+                difficulty: difficulty,
+                questionCount: questionCount,
+                flashcardCount: flashcardCount,
+                includeQuestions: includeQuestions,
+                includeFlashcards: includeFlashcards
+            ),
+            timeoutInterval: 180
+        )
+    }
+
+    func ensureDocumentStudySource(
+        documentId: String,
+        extractedText: String? = nil
+    ) async throws -> DocumentStudySourceResponse {
+        try await client.post(
+            "documents/\(documentId)/study-source",
+            body: DocumentStudySourceRequest(extractedText: extractedText),
+            timeoutInterval: 180
+        )
     }
 
     /// Map iOS output type names to backend enum values

@@ -399,6 +399,76 @@ struct QBankAnswerRequest: Encodable {
 struct QBankAnswerResponse: Decodable {
     var isCorrect: Bool = false
     var answerId: Int = 0
+    var xpAwarded: Int = 0
+    var totalXp: Int = 0
+    var level: Int = 0
+    var currentLevelXp: Int = 0
+    var xpToNextLevel: Int = 0
+    var newBadges: [NewBadge] = []
+    var tier: String = ""
+    var cycle: String = ""
+    var iconPath: String = ""
+
+    var activityResponse: LogActivityResponse? {
+        guard xpAwarded > 0 || totalXp > 0 else { return nil }
+        return LogActivityResponse(
+            xpAwarded: xpAwarded,
+            totalXp: totalXp,
+            level: level,
+            currentLevelXp: currentLevelXp,
+            xpToNextLevel: xpToNextLevel,
+            newBadges: newBadges,
+            tier: tier,
+            cycle: cycle,
+            iconPath: iconPath
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case isCorrect, answerId, xpAwarded, totalXp, level, currentLevelXp, xpToNextLevel
+        case newBadges, tier, cycle, iconPath
+    }
+
+    init(
+        isCorrect: Bool = false,
+        answerId: Int = 0,
+        xpAwarded: Int = 0,
+        totalXp: Int = 0,
+        level: Int = 0,
+        currentLevelXp: Int = 0,
+        xpToNextLevel: Int = 0,
+        newBadges: [NewBadge] = [],
+        tier: String = "",
+        cycle: String = "",
+        iconPath: String = ""
+    ) {
+        self.isCorrect = isCorrect
+        self.answerId = answerId
+        self.xpAwarded = xpAwarded
+        self.totalXp = totalXp
+        self.level = level
+        self.currentLevelXp = currentLevelXp
+        self.xpToNextLevel = xpToNextLevel
+        self.newBadges = newBadges
+        self.tier = tier
+        self.cycle = cycle
+        self.iconPath = iconPath
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        isCorrect = (try? c.decode(Bool.self, forKey: .isCorrect)) ?? false
+        answerId = (try? c.decode(Int.self, forKey: .answerId)) ?? 0
+        xpAwarded = (try? c.decode(Int.self, forKey: .xpAwarded)) ?? 0
+        totalXp = (try? c.decode(Int.self, forKey: .totalXp)) ?? 0
+        level = (try? c.decode(Int.self, forKey: .level)) ?? 0
+        currentLevelXp = (try? c.decode(Int.self, forKey: .currentLevelXp)) ?? 0
+        xpToNextLevel = (try? c.decode(Int.self, forKey: .xpToNextLevel)) ?? 0
+        newBadges = (try? c.decode([NewBadge].self, forKey: .newBadges)) ?? []
+        tier = (try? c.decode(String.self, forKey: .tier)) ?? ""
+        cycle = (try? c.decode(String.self, forKey: .cycle)) ?? ""
+        iconPath = (try? c.decode(String.self, forKey: .iconPath)) ?? ""
+    }
 }
 
 struct QBankFinishSessionRequest: Encodable {

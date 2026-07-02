@@ -246,7 +246,9 @@ struct FaculdadeDocumentosScreen: View {
         Button {
             router.navigate(to: .pdfViewer(
                 url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file",
-                title: doc.title
+                title: doc.title,
+                documentId: doc.id,
+                studioSourceId: doc.studioSourceId
             ))
         } label: {
             HStack(spacing: 12) {
