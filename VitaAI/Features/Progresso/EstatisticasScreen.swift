@@ -11,7 +11,7 @@ struct EstatisticasScreen: View {
     private let textPrimary = VitaColors.textPrimary
     private let textSec     = VitaColors.textSecondary
     private let textDim     = VitaColors.textTertiary
-    private let greenStat   = Color(red: 0.51, green: 0.784, blue: 0.549)
+    private let greenStat   = VitaColors.dataGreen
     private let glassBg     = VitaColors.glassBg
     private let glassBorder = VitaColors.glassBorder
 
@@ -371,8 +371,8 @@ struct EstatisticasScreen: View {
                     ForEach(Array(vm.subjects.sorted(by: { $0.accuracy < $1.accuracy }).prefix(5).enumerated()), id: \.offset) { idx, subject in
                         let pct = Int(subject.accuracy * 100)
                         let color = pct < 60
-                            ? Color(red: 1.0, green: 0.471, blue: 0.314)
-                            : Color(red: 1.0, green: 0.784, blue: 0.392)
+                            ? VitaColors.danger
+                            : VitaColors.warning
                         let hoursText = subject.hoursSpent < 1
                             ? "\(Int(subject.hoursSpent * 60))min"
                             : String(format: "%.0fh", subject.hoursSpent)
@@ -711,13 +711,23 @@ struct EstatisticasScreen: View {
 
             glassCard {
                 let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 13)
+                let activeDays = vm.heatmap.filter { $0 > 0 }.count
 
-                LazyVGrid(columns: columns, spacing: 2) {
-                    ForEach(0..<vm.heatmap.count, id: \.self) { i in
-                        Rectangle()
-                            .fill(heatmapColor(vm.heatmap[i]))
-                            .aspectRatio(1, contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                VStack(alignment: .leading, spacing: 10) {
+                    LazyVGrid(columns: columns, spacing: 2) {
+                        ForEach(0..<vm.heatmap.count, id: \.self) { i in
+                            Rectangle()
+                                .fill(heatmapColor(vm.heatmap[i]))
+                                .aspectRatio(1, contentMode: .fit)
+                                .clipShape(RoundedRectangle(cornerRadius: 3)) // ds-allow: célula ~8pt do heatmap, menor raio da escala (sm=8) já seria círculo
+                        }
+                    }
+                    // Mapa quase vazio lia como "quebrado" — explicar a mecânica
+                    // convida em vez de assustar (design review 2026-07-02).
+                    if activeDays < 7 {
+                        Text("Cada dia de estudo pinta um quadradinho de ouro. Seu mapa está só começando.")
+                            .font(PixioTypo.caption)
+                            .foregroundStyle(textSec)
                     }
                 }
                 .padding(14)
@@ -752,8 +762,8 @@ struct EstatisticasScreen: View {
     private func rankColorForPosition(_ rank: Int) -> Color {
         switch rank {
         case 1: return goldMuted.opacity(0.90)
-        case 2: return Color(red: 0.784, green: 0.784, blue: 0.824).opacity(0.70)
-        case 3: return Color(red: 0.706, green: 0.549, blue: 0.392).opacity(0.65)
+        case 2: return VitaColors.medalSilver.opacity(0.70)
+        case 3: return VitaColors.medalBronze.opacity(0.65)
         default: return textDim
         }
     }
@@ -761,8 +771,8 @@ struct EstatisticasScreen: View {
     private func avatarColorForPosition(_ rank: Int) -> Color {
         switch rank {
         case 1: return goldPrimary
-        case 2: return Color(red: 0.784, green: 0.784, blue: 0.824)
-        case 3: return Color(red: 0.706, green: 0.549, blue: 0.392)
+        case 2: return VitaColors.medalSilver
+        case 3: return VitaColors.medalBronze
         default: return Color.white
         }
     }

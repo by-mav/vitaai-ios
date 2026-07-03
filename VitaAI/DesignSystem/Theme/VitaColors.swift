@@ -72,6 +72,11 @@ enum VitaColors {
     static let danger     = VitaTokens.PrimitiveColors.red500       // delete, error, destructive action
     static let warning    = VitaTokens.PrimitiveColors.amber500     // alerta não-bloqueante
 
+    // Medalhas de ranking (ouro = accent; prata/bronze não têm primitivo no
+    // Tokens.swift — semânticos daqui até subirem pro design-tokens.json)
+    static let medalSilver = Color(red: 0.784, green: 0.784, blue: 0.824)
+    static let medalBronze = Color(red: 0.706, green: 0.549, blue: 0.392)
+
     // Tool-specific accent colors
     static let toolQBank       = VitaTokens.PrimitiveColors.gold400    // gold
     static let toolSimulados   = VitaTokens.PrimitiveColors.blue400    // blue
