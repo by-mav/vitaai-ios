@@ -35,6 +35,16 @@ enum VitaColors {
     static let glassHighlight = Color(red: 1.0, green: 0.941, blue: 0.824).opacity(0.10)   // rgba(255,240,210,0.10)
     static let glassInnerLight = VitaTokens.PrimitiveColors.gold700                         // rgba(200,155,70)
 
+    // Emblema / medalhão — rampa de ouro sólida (a física do medalhão de level-up:
+    // luz de cima → base na sombra, com um extremo escuro pra gravar o glifo).
+    // FONTE ÚNICA: VitaEmblem e VitaLevelUpOverlay consomem daqui. Muda aqui → muda
+    // todo emblema e o medalhão do app. NÃO redeclarar a rampa dentro de componente.
+    static let emblemBright  = Color(red: 0.976, green: 0.824, blue: 0.576) // topo iluminado
+    static let emblemMid     = Color(red: 0.878, green: 0.675, blue: 0.388) // corpo
+    static let emblemDeep    = Color(red: 0.663, green: 0.455, blue: 0.227) // dobra inferior
+    static let emblemDark    = Color(red: 0.431, green: 0.282, blue: 0.125) // base na sombra
+    static let emblemEngrave = Color(red: 0.329, green: 0.216, blue: 0.059) // glifo gravado
+
     // Text — warm white
     static let white         = VitaTokens.PrimitiveColors.white
     static let textPrimary   = VitaTokens.DarkColors.text            // rgba(255,252,248,0.96)

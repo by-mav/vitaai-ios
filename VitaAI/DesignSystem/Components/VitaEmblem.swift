@@ -20,12 +20,13 @@ struct VitaEmblem: View {
 
     private var corner: CGFloat { size * 0.30 }
 
-    // Ouro do medalhão (mesma família do VitaSectionColors tier 1)
-    private let bright  = Color(red: 0.976, green: 0.824, blue: 0.576)
-    private let mid     = Color(red: 0.878, green: 0.675, blue: 0.388)
-    private let deep    = Color(red: 0.663, green: 0.455, blue: 0.227)
-    private let dark    = Color(red: 0.431, green: 0.282, blue: 0.125)
-    private let engrave = Color(red: 0.329, green: 0.216, blue: 0.059)
+    // Rampa de ouro = FONTE ÚNICA em VitaColors (compartilhada com o medalhão de
+    // level-up). Zero RGB local: muda o token → muda todo emblema do app.
+    private var bright:  Color { VitaColors.emblemBright }
+    private var mid:     Color { VitaColors.emblemMid }
+    private var deep:    Color { VitaColors.emblemDeep }
+    private var dark:    Color { VitaColors.emblemDark }
+    private var engrave: Color { VitaColors.emblemEngrave }
 
     var body: some View {
         ZStack {
