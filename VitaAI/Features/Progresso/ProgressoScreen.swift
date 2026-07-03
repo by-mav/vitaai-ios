@@ -344,10 +344,12 @@ struct ProgressoScreen: View {
 
     private func critterSpawnLoop() async {
         while !Task.isCancelled {
-            let wait = critterStorm ? 6 : Double.random(in: 60...180)
+            let wait = critterStorm ? 6 : Double.random(in: 180...420)
             try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
             guard !Task.isCancelled, critters.isEmpty else { continue }
-            let kind: TrailCritter.Kind = Double.random(in: 0..<1) < 0.62 ? .capivara : .vagalumes
+            // So capivara no chao — o trio de vagalumes VOAVA e incomodava
+            // (Rafael 2026-07-03: "nao aguento mais esses bixo voando").
+            let kind: TrailCritter.Kind = .capivara
             // y = SEMPRE no vão ENTRE fileiras de nós (nunca por cima de moeda,
             // banner ou muralha — muralhas vivem nos vãos múltiplos de 4).
             // 65% nos primeiros vãos (banda onde o mapa descansa); resto em
@@ -364,7 +366,7 @@ struct ProgressoScreen: View {
                 golden: kind == .capivara && Double.random(in: 0..<1) < 0.05,
                 y: y,
                 leftToRight: Bool.random(),
-                duration: Double.random(in: 45...70),
+                duration: Double.random(in: 100...150),
                 scale: CGFloat.random(in: 0.62...0.85)
             )
             critters.append(critter)
@@ -1416,7 +1418,7 @@ private struct TrailSectionWall: View {
 // responde ao toque com brilho + haptic. Tudo sorteado no spawner: nunca script.
 
 struct TrailCritter: Identifiable {
-    enum Kind { case capivara, vagalumes }
+    enum Kind { case capivara }
     let id = UUID()
     let kind: Kind
     let golden: Bool
@@ -1431,7 +1433,6 @@ private struct TrailCritterView: View {
     let width: CGFloat
 
     @State private var t: CGFloat = 0
-    @State private var bob = false
     @State private var sparkle = false
 
     var body: some View {
@@ -1441,13 +1442,9 @@ private struct TrailCritterView: View {
         critterShape
             .scaleEffect(x: critter.leftToRight ? 1 : -1, y: 1)
             .scaleEffect(critter.scale)
-            // passinho sutil — animação ESCOPADA no `bob` (value:), pra o
-            // repeatForever nunca vazar pra travessia (bug 2026-07-03: o
-            // withAnimation global fazia a posição ir-e-voltar em loop).
-            // Sem rotação: lia como tremida/glitch (Rafael).
-            .offset(y: bob ? -1.0 : 1.0)
-            .animation(.easeInOut(duration: critter.kind == .vagalumes ? 1.6 : 0.85)
-                .repeatForever(autoreverses: true), value: bob)
+            // SEM bob/repeatForever nenhum (Rafael 2026-07-03: qualquer
+            // oscilacao lia como bicho tremendo/voando; corpo parado
+            // deslizando devagar = calmo e vivo o suficiente).
             .overlay(alignment: .top) {
                 if sparkle {
                     Image(systemName: "sparkles")
@@ -1460,10 +1457,7 @@ private struct TrailCritterView: View {
             // travessia: linear LENTA, escopada no `t`
             .position(x: startX + (endX - startX) * t, y: critter.y)
             .animation(.linear(duration: critter.duration), value: t)
-            .onAppear {
-                t = 1
-                bob = true
-            }
+            .onAppear { t = 1 }
             .onTapGesture {
                 guard !sparkle else { return }
                 if critter.golden { PixioHaptics.confirm() } else { PixioHaptics.tap() }
@@ -1475,10 +1469,7 @@ private struct TrailCritterView: View {
     }
 
     @ViewBuilder private var critterShape: some View {
-        switch critter.kind {
-        case .capivara:  capivara
-        case .vagalumes: vagalumes
-        }
+        capivara
     }
 
     // Capivara: silhueta rechonchuda + rim light; dourada quando rara.
@@ -1514,24 +1505,6 @@ private struct TrailCritterView: View {
         .shadow(color: critter.golden ? TrailWorld.fireflyGold.opacity(0.55) : .clear, radius: 9)
     }
 
-    // Trio de vaga-lumes vagando (a coruja de olhos acesos lia como morcego
-    // de terror na noite — Rafael 2026-07-03).
-    private var vagalumes: some View {
-        ZStack {
-            Circle().fill(TrailWorld.fireflyGold.opacity(0.9))
-                .frame(width: 4, height: 4)
-                .offset(x: -7, y: bob ? -3 : 2)
-                .shadow(color: TrailWorld.fireflyGold.opacity(0.8), radius: 3)
-            Circle().fill(TrailWorld.fireflyWarm.opacity(0.8))
-                .frame(width: 3, height: 3)
-                .offset(x: 4, y: bob ? 3 : -4)
-                .shadow(color: TrailWorld.fireflyGold.opacity(0.7), radius: 2.5)
-            Circle().fill(TrailWorld.fireflyGold.opacity(0.7))
-                .frame(width: 2.5, height: 2.5)
-                .offset(x: 9, y: bob ? -2 : 1)
-                .shadow(color: TrailWorld.fireflyGold.opacity(0.6), radius: 2)
-        }
-    }
 }
 
 // MARK: - Press style (afunda no toque)
