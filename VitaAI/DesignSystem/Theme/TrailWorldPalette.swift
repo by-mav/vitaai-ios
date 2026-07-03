@@ -80,6 +80,15 @@ enum TrailWorld {
     static let tier4Mid    = Color(red: 0.84, green: 0.34, blue: 0.30)
     static let tier4Dark   = Color(red: 0.40, green: 0.10, blue: 0.13)
 
+    // MARK: Muralha de seção (sebe + pilares de pedra com lampiões acesos)
+    static let hedgeTop    = Color(red: 0.20, green: 0.175, blue: 0.09)
+    static let hedgeBottom = Color(red: 0.10, green: 0.088, blue: 0.045)
+    static let hedgeBump   = Color(red: 0.245, green: 0.215, blue: 0.115)
+
+    // MARK: Bichinhos do mundo (silhueta noturna + variante dourada rara)
+    static let critterBody  = Color(red: 0.17, green: 0.13, blue: 0.075)
+    static let critterBelly = Color(red: 0.245, green: 0.195, blue: 0.115)
+
     // MARK: Chrome da Home (dock de ferramentas flutuante)
     static let dockFill = Color(red: 0.10, green: 0.085, blue: 0.06)
 }

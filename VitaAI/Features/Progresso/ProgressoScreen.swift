@@ -49,6 +49,7 @@ struct ProgressoScreen: View {
     @State private var trailCelebration: GamificationEventManager.TrailCelebration?
     @State private var showTrailCelebration = false
     @State private var trailCelebrationInFlight = false
+    @State private var critters: [TrailCritter] = []
     @Namespace private var mascotTrail
 
     private var vmProg: ProgressoViewModel { container.progressoViewModel }
@@ -120,7 +121,11 @@ struct ProgressoScreen: View {
     private var grassField: some View {
         let h = Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + 200
         return ZStack {
-            GrassField(height: h)
+            // Vento: fase contínua anima o lean das folhas e o sway das copas
+            // (12fps — sutil, o campo respira sem virar videogame).
+            TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { tl in
+                GrassField(height: h, phase: tl.date.timeIntervalSinceReferenceDate)
+            }
             LinearGradient(gradient: Self.sectionStops { $0.mid.opacity(0.05) },
                            startPoint: .top, endPoint: .bottom)
             LinearGradient(gradient: Self.sectionStops { $0.dark.opacity(0.25) },
@@ -291,6 +296,9 @@ struct ProgressoScreen: View {
             worldLandmarks
             dirtPath
                 .offset(y: Self.trailTopInset)
+            critterLayer
+            sectionWalls
+                .offset(y: Self.trailTopInset)
             sectionCards
                 .offset(y: Self.trailTopInset)
             VStack(spacing: 0) {
@@ -301,6 +309,77 @@ struct ProgressoScreen: View {
             .padding(.top, Self.trailTopInset)
         }
         .frame(height: trailContentHeight, alignment: .top)
+        .task { await critterSpawnLoop() }
+    }
+
+    // MARK: - Muralha de seção (Rafael 2026-07-03: transição FÍSICA entre mundos)
+    // Sebe escura atravessa o mapa na fronteira de cada seção; a estrada passa
+    // por um vão entre dois pilares de pedra com lampiões acesos. O banner de
+    // joia da seção continua por cima (é a placa do portal).
+    private var sectionWalls: some View {
+        let h = CGFloat(trailItems.count) * Self.rowStride + 40
+        return GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                ForEach(1..<Self.tiers.count, id: \.self) { k in
+                    let i = Double(k * 4) - 0.5
+                    let archX = geo.size.width / 2 + CGFloat(sin(i * Self.rowFreq)) * Self.rowAmp
+                    TrailSectionWall(archX: archX)
+                        .frame(width: geo.size.width, height: 64)
+                        .position(x: geo.size.width / 2,
+                                  y: CGFloat(k * 4) * Self.rowStride)
+                }
+            }
+        }
+        .frame(height: h, alignment: .top)
+        .allowsHitTesting(false)
+    }
+
+    // MARK: - Bichinhos (Rafael 2026-07-03: vida aleatória no mapa + easter egg)
+    // Spawner de verdade aleatório: intervalo, espécie, altura, direção, escala e
+    // velocidade sorteados — nunca parece script. Capivara dourada = raridade.
+    // QA: --vita-critter-storm spawna rapido e no topo (provar sem esperar sorte)
+    private var critterStorm: Bool {
+        ProcessInfo.processInfo.arguments.contains("--vita-critter-storm")
+    }
+
+    private func critterSpawnLoop() async {
+        while !Task.isCancelled {
+            let wait = critterStorm ? 6 : Double.random(in: 45...150)
+            try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+            guard !Task.isCancelled, critters.isEmpty else { continue }
+            let kind: TrailCritter.Kind = Double.random(in: 0..<1) < 0.62 ? .capivara : .coruja
+            // 65% dos spawns na banda onde o mapa DESCANSA (topo) — spawn 100%
+            // uniforme num mapa de ~3300pt deixava o bicho invisível na prática
+            // (viewport = ~18% do mundo). O resto continua em qualquer lugar.
+            let topBand = (Self.trailTopInset + 60)...(Self.trailTopInset + 560)
+            let anywhere = (Self.trailTopInset + 60)...(trailContentHeight - 460)
+            let y = (critterStorm || Double.random(in: 0..<1) < 0.65)
+                ? CGFloat.random(in: topBand)
+                : CGFloat.random(in: anywhere)
+            let critter = TrailCritter(
+                kind: kind,
+                golden: kind == .capivara && Double.random(in: 0..<1) < 0.05,
+                y: y,
+                leftToRight: Bool.random(),
+                duration: Double.random(in: 30...48),
+                scale: CGFloat.random(in: 0.78...1.12)
+            )
+            critters.append(critter)
+            if critterStorm { print("[critter] spawn \(critter.kind) y=\(Int(critter.y)) golden=\(critter.golden) n=\(critters.count)") }
+            let id = critter.id
+            DispatchQueue.main.asyncAfter(deadline: .now() + critter.duration + 1.5) {
+                critters.removeAll { $0.id == id }
+            }
+        }
+    }
+
+    private var critterLayer: some View {
+        GeometryReader { geo in
+            ForEach(critters) { critter in
+                TrailCritterView(critter: critter, width: geo.size.width)
+            }
+        }
+        .frame(height: trailContentHeight)
     }
 
     // MARK: - Trilha
@@ -1138,9 +1217,10 @@ struct ProgressoScreen: View {
 // Hybrid (Rafael 2026-06-18): vetor agora; trocável por textura crafted depois.
 private struct GrassField: View {
     let height: CGFloat
+    var phase: Double = 0
     var body: some View {
         Canvas { ctx, size in
-            func drawTree(at point: CGPoint, scale: CGFloat, side: CGFloat) {
+            func drawTree(at point: CGPoint, scale: CGFloat, side: CGFloat, sway: CGFloat) {
                 let trunk = CGRect(x: point.x - 4 * scale, y: point.y - 4 * scale,
                                    width: 8 * scale, height: 24 * scale)
                 let shadow = CGRect(x: point.x - 23 * scale, y: point.y + 15 * scale,
@@ -1165,9 +1245,9 @@ private struct GrassField: View {
                     ( 13, -29, 14, lightLeaf.opacity(0.92)),
                     (-13, -29, 13, lightLeaf.opacity(0.76)),
                 ]
-                for crown in crowns {
+                for (ci, crown) in crowns.enumerated() {
                     let rect = CGRect(
-                        x: point.x + (crown.0 * side - crown.2) * scale,
+                        x: point.x + (crown.0 * side - crown.2) * scale + sway * (1 + CGFloat(ci) * 0.25),
                         y: point.y + (crown.1 - crown.2) * scale,
                         width: crown.2 * 2 * scale,
                         height: crown.2 * 2 * scale
@@ -1201,7 +1281,8 @@ private struct GrassField: View {
                 guard y < size.height - 20 else { continue }
                 drawTree(at: CGPoint(x: x, y: y),
                          scale: 0.72 + CGFloat((i * 29) % 31) / 100,
-                         side: side)
+                         side: side,
+                         sway: CGFloat(sin(phase * 0.9 + Double(i) * 1.7)) * 1.6)
             }
 
             for r in 0..<rows {
@@ -1214,7 +1295,8 @@ private struct GrassField: View {
                     for k in -1...1 {
                         let bx = cx + CGFloat(k) * 3.4
                         let bh = 10 + CGFloat(seed) * 7 - CGFloat(abs(k)) * 2.5
-                        let lean = CGFloat(k) * 2.2 + (CGFloat(s2) - 0.5) * 1.8
+                        let wind = CGFloat(sin(phase * 1.5 + Double(cx) * 0.045 + Double(cy) * 0.018)) * 1.7
+                        let lean = CGFloat(k) * 2.2 + (CGFloat(s2) - 0.5) * 1.8 + wind
                         var blade = Path()
                         blade.move(to: CGPoint(x: bx, y: cy))
                         blade.addQuadCurve(to: CGPoint(x: bx + lean, y: cy - bh),
@@ -1262,6 +1344,197 @@ private struct TrailRoad: Shape {
                        control2: CGPoint(x: cur.x, y: midY))
         }
         return p
+    }
+}
+
+// MARK: - Muralha de seção — sebe noturna + pilares de pedra com lampiões.
+// A estrada passa pelo vão (archX vem da MESMA fórmula senoidal da trilha).
+
+private struct TrailSectionWall: View {
+    let archX: CGFloat
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let gap: CGFloat = 52
+            ZStack {
+                hedgeSegment(from: 0, to: max(0, archX - gap), width: w)
+                hedgeSegment(from: min(w, archX + gap), to: w, width: w)
+                pillar(at: archX - gap)
+                pillar(at: archX + gap)
+            }
+        }
+    }
+
+    private func hedgeSegment(from x0: CGFloat, to x1: CGFloat, width: CGFloat) -> some View {
+        let len = max(0, x1 - x0)
+        return ZStack {
+            // corpo da sebe (luz de cima)
+            Capsule()
+                .fill(LinearGradient(colors: [TrailWorld.hedgeBump, TrailWorld.hedgeBottom],
+                                     startPoint: .top, endPoint: .bottom))
+                .frame(width: len, height: 26)
+            // topo orgânico (moitas)
+            HStack(spacing: 10) {
+                ForEach(0..<max(1, Int(len / 26)), id: \.self) { i in
+                    Circle()
+                        .fill(i.isMultiple(of: 2) ? TrailWorld.hedgeTop : TrailWorld.hedgeBump)
+                        .frame(width: 16, height: 16)
+                }
+            }
+            .frame(width: len, alignment: .leading)
+            .offset(y: -11)
+            .clipped()
+        }
+        .position(x: x0 + len / 2, y: 34)
+        .shadow(color: .black.opacity(0.30), radius: 5, y: 4)
+    }
+
+    private func pillar(at x: CGFloat) -> some View {
+        ZStack {
+            // pilar de pedra
+            Capsule()
+                .fill(LinearGradient(colors: [TrailWorld.stoneTop, TrailWorld.stoneBottom],
+                                     startPoint: .top, endPoint: .bottom))
+                .frame(width: 13, height: 44)
+            // lampião aceso (a luz que convida pro próximo mundo)
+            Circle()
+                .fill(TrailWorld.windowGlow)
+                .frame(width: 8, height: 8)
+                .shadow(color: TrailWorld.windowGlow.opacity(0.85), radius: 7)
+                .offset(y: -24)
+        }
+        .position(x: x, y: 30)
+    }
+}
+
+// MARK: - Bichinhos do mundo (Rafael 2026-07-03) — vida aleatória + easter egg.
+// Silhuetas noturnas vetoriais; capivara DOURADA é rara (~5% das capivaras) e
+// responde ao toque com brilho + haptic. Tudo sorteado no spawner: nunca script.
+
+struct TrailCritter: Identifiable {
+    enum Kind { case capivara, coruja }
+    let id = UUID()
+    let kind: Kind
+    let golden: Bool
+    let y: CGFloat
+    let leftToRight: Bool
+    let duration: Double
+    let scale: CGFloat
+}
+
+private struct TrailCritterView: View {
+    let critter: TrailCritter
+    let width: CGFloat
+
+    @State private var t: CGFloat = 0
+    @State private var bob = false
+    @State private var sparkle = false
+
+    var body: some View {
+        let startX: CGFloat = critter.leftToRight ? -70 : width + 70
+        let endX: CGFloat   = critter.leftToRight ? width + 70 : -70
+
+        critterShape
+            .scaleEffect(x: critter.leftToRight ? 1 : -1, y: 1)
+            .scaleEffect(critter.scale)
+            // passinho sutil — animação ESCOPADA no `bob` (value:), pra o
+            // repeatForever nunca vazar pra travessia (bug 2026-07-03: o
+            // withAnimation global fazia a posição ir-e-voltar em loop).
+            .rotationEffect(.degrees(bob ? 1.2 : -1.2))
+            .offset(y: bob ? -1.2 : 1.2)
+            .animation(.easeInOut(duration: critter.kind == .coruja ? 1.1 : 0.65)
+                .repeatForever(autoreverses: true), value: bob)
+            .overlay(alignment: .top) {
+                if sparkle {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: critter.golden ? 22 : 14, weight: .bold)) // ds-allow: tamanho de arte do mundo (sparkle do bicho), nao tipografia de UI
+                        .foregroundStyle(TrailWorld.fireflyGold)
+                        .offset(y: -26)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            // travessia: linear LENTA, escopada no `t`
+            .position(x: startX + (endX - startX) * t, y: critter.y)
+            .animation(.linear(duration: critter.duration), value: t)
+            .onAppear {
+                t = 1
+                bob = true
+            }
+            .onTapGesture {
+                guard !sparkle else { return }
+                if critter.golden { PixioHaptics.confirm() } else { PixioHaptics.tap() }
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) { sparkle = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                    withAnimation(.easeOut(duration: 0.3)) { sparkle = false }
+                }
+            }
+    }
+
+    @ViewBuilder private var critterShape: some View {
+        switch critter.kind {
+        case .capivara: capivara
+        case .coruja:   coruja
+        }
+    }
+
+    // Capivara: silhueta rechonchuda + rim light; dourada quando rara.
+    private var capivara: some View {
+        let body: Color = critter.golden ? VitaColors.emblemMid : TrailWorld.critterBody
+        let top: Color  = critter.golden ? VitaColors.emblemBright : TrailWorld.critterBelly
+        return ZStack {
+            // sombra no chão
+            Ellipse().fill(Color.black.opacity(0.22))
+                .frame(width: 34, height: 7).offset(y: 14)
+            // pernas
+            HStack(spacing: 14) {
+                Capsule().fill(body).frame(width: 4.5, height: 9)
+                Capsule().fill(body).frame(width: 4.5, height: 9)
+            }
+            .offset(y: 10)
+            // corpo
+            RoundedRectangle(cornerRadius: 11, style: .continuous) // ds-allow: corpo organico da capivara (arte), nao raio de card
+                .fill(LinearGradient(colors: [top, body], startPoint: .top, endPoint: .bottom))
+                .frame(width: 36, height: 20)
+            // cabeça (focinho quadrado de capivara)
+            UnevenRoundedRectangle(topLeadingRadius: 7, bottomLeadingRadius: 5,
+                                   bottomTrailingRadius: 8, topTrailingRadius: 9)
+                .fill(LinearGradient(colors: [top, body], startPoint: .top, endPoint: .bottom))
+                .frame(width: 17, height: 14)
+                .offset(x: 20, y: -6)
+            // orelha
+            Circle().fill(body).frame(width: 5, height: 5).offset(x: 15, y: -13)
+            // olho
+            Circle().fill(critter.golden ? TrailWorld.fireflyWarm : Color.white.opacity(0.75))
+                .frame(width: 2.5, height: 2.5).offset(x: 22, y: -8)
+        }
+        .shadow(color: critter.golden ? TrailWorld.fireflyGold.opacity(0.55) : .clear, radius: 9)
+    }
+
+    // Coruja planando: corpo + asas abertas (flap sutil vem do bob).
+    private var coruja: some View {
+        ZStack {
+            // asas
+            Capsule().fill(TrailWorld.critterBody)
+                .frame(width: 26, height: 7)
+                .rotationEffect(.degrees(-16), anchor: .trailing)
+                .offset(x: -16, y: -2)
+            Capsule().fill(TrailWorld.critterBody)
+                .frame(width: 26, height: 7)
+                .rotationEffect(.degrees(16), anchor: .leading)
+                .offset(x: 16, y: -2)
+            // corpo
+            Ellipse()
+                .fill(LinearGradient(colors: [TrailWorld.critterBelly, TrailWorld.critterBody],
+                                     startPoint: .top, endPoint: .bottom))
+                .frame(width: 16, height: 20)
+            // olhos de coruja (brilham na noite)
+            HStack(spacing: 3) {
+                Circle().fill(TrailWorld.fireflyWarm).frame(width: 3, height: 3)
+                Circle().fill(TrailWorld.fireflyWarm).frame(width: 3, height: 3)
+            }
+            .offset(y: -5)
+        }
     }
 }
 
