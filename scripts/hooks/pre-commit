@@ -35,7 +35,9 @@ for f in $files; do
     if printf '%s' "$body" | grep -qE '\.font\(\.system\(size:'; then
       report "$f" "$(printf '%s' "$body" | sed 's/^[[:space:]]*//' | cut -c1-72)" "fonte crua → PixioTypo.* / VitaTypography"
     fi
-    if printf '%s' "$body" | grep -qE 'cornerRadius:[[:space:]]*[0-9]'; then
+    # raio cru = RoundedRectangle(cornerRadius: N) / .cornerRadius(N) direto.
+    # `.glassCard(cornerRadius: N)` e canonico (o componente e o dono do raio).
+    if printf '%s' "$body" | grep -qE '(RoundedRectangle\(cornerRadius:[[:space:]]*[0-9]|\.cornerRadius\([0-9])'; then
       report "$f" "$(printf '%s' "$body" | sed 's/^[[:space:]]*//' | cut -c1-72)" "raio cru → VitaTokens.Radius.*"
     fi
   done <<< "$added"

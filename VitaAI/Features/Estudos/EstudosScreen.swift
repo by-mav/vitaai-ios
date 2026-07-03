@@ -369,12 +369,9 @@ private struct EstudosContent: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12).fill(cardBg)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12).stroke(glassBorder, lineWidth: 0.5)
-        )
+        // Mesmo card canônico das outras linhas da tela (trabalhoRow/activityRow):
+        // chrome inline duplicado = as linhas divergiam do DS. (unificação 2026-07-03)
+        .glassCard(cornerRadius: 12)
     }
 
     private func disciplinaMiniStat(_ label: String, value: String) -> some View {

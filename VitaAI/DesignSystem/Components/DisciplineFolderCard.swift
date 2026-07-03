@@ -2,11 +2,14 @@ import SwiftUI
 
 // MARK: - DisciplineFolderCard
 //
-// Realistic 3D folder card — opaque, solid colors, no glassmorphism.
+// Pasta 3D no dialeto Frosted Gold (unificação 2026-07-03): corpo ESCURO
+// premium (tokens Dark), papéis creme saindo, e a COR da disciplina vive SÓ
+// na ABA (acento funcional pra distinguir matérias) — o corpo inteiramente
+// colorido brigava com a paleta monocromática-ouro do app (Rafael).
 // Structure (back to front):
-//   1. Back panel — lighter shade, taller, with tab nub
-//   2. Inner documents — 2-3 sheets with content hints, just tips peeking
-//   3. Front panel — solid main color, discipline name + star
+//   1. Back panel — dark elevado, com a aba na cor da disciplina
+//   2. Inner documents — 2-3 sheets creme com hints de conteúdo
+//   3. Front panel — dark, nome + estrela dourada + vitaScore
 //
 // Designed for 3-column LazyVGrid. Name is ON the folder, not below.
 
@@ -38,21 +41,23 @@ struct DisciplineFolderCard: View {
     // MARK: - The folder icon
 
     private var folderIcon: some View {
-        let lighter = color.opacity(0.50)
-        let lighterSolid = color.opacity(0.42)
-        let main = color.opacity(0.72)
-        let darker = color.opacity(0.85)
+        // Corpo escuro (tokens Dark, luz de cima: topo mais claro que a base);
+        // a cor da disciplina fica só na aba + glow sutil da sombra.
+        let backTop  = VitaTokens.DarkColors.bgActive
+        let backBot  = VitaTokens.DarkColors.bgElevated
+        let main     = VitaTokens.DarkColors.bgHover
+        let darker   = VitaTokens.DarkColors.bgCard
 
         return GeometryReader { geo in
             let w = geo.size.width
             let h = geo.size.height
 
             ZStack {
-                // ── Layer 1: Back panel (solid, behind documents)
+                // ── Layer 1: Back panel (dark, behind documents)
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: [lighter, lighterSolid],
+                            colors: [backTop, backBot],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -60,8 +65,8 @@ struct DisciplineFolderCard: View {
                     .frame(width: w - 4, height: h * 0.78)
                     .offset(y: -h * 0.02)
                     .overlay(
-                        // Tab nub on back panel (top-left)
-                        BackTab(color: lighter)
+                        // Aba = ÚNICO lugar com a cor da disciplina (acento funcional)
+                        BackTab(color: color.opacity(0.92))
                             .frame(width: w * 0.38, height: 10)
                             .offset(x: -(w - 4) / 2 + w * 0.19 + 2, y: -h * 0.02 - h * 0.39 + 1)
                     )
@@ -199,7 +204,7 @@ struct DisciplineFolderCard: View {
                     .padding(.horizontal, 4)
                     .offset(y: 1)
             }
-            // Subtle inner border for depth
+            // Rim dourado sutil (mesma família do glassBorder do DS)
             .overlay(
                 UnevenRoundedRectangle(
                     topLeadingRadius: 3,
@@ -207,7 +212,7 @@ struct DisciplineFolderCard: View {
                     bottomTrailingRadius: 8,
                     topTrailingRadius: 3
                 )
-                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                .stroke(VitaColors.glassBorder, lineWidth: 0.5)
                 .frame(width: w - 2, height: h * 0.62)
             )
 
@@ -216,7 +221,7 @@ struct DisciplineFolderCard: View {
                 // Discipline name — centered on the folder face
                 Text(shortName)
                     .font(.system(size: 9.5, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.90))
+                    .foregroundStyle(VitaColors.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.7)
@@ -233,7 +238,7 @@ struct DisciplineFolderCard: View {
                     } label: {
                         Image(systemName: starred ? "star.fill" : "star")
                             .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(starred ? Color.yellow : Color.white.opacity(0.35))
+                            .foregroundStyle(starred ? VitaColors.accentHover : Color.white.opacity(0.35))
                     }
                     .buttonStyle(.plain)
 
@@ -242,7 +247,7 @@ struct DisciplineFolderCard: View {
                     if vitaScore > 0 {
                         Text("\(vitaScore)")
                             .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.white.opacity(0.55))
+                            .foregroundStyle(VitaColors.goldText.opacity(0.75))
                     }
 
                     if onMenu != nil {
