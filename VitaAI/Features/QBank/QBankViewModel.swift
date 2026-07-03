@@ -299,12 +299,16 @@ final class QBankViewModel {
 
     // MARK: - Home
 
-    /// Slugify enrolled subject names into discipline slugs that the backend
-    /// resolves (exact / alias / token-trim) against qbank_topics.disciplineSlug.
-    /// e.g. "Patologia Medica" -> "patologia-medica" -> canonical "patologia-geral".
+    /// Discipline slugs de TODAS as matérias do aluno (cursando + aprovadas),
+    /// da fonte única `allDisciplines` (/api/subjects). Usa o `disciplineSlug`
+    /// canônico que o backend já resolveu; só cai no slugify do nome pras
+    /// matérias que o normalizador ainda não mapeou (Rafael 2026-07-02).
     var enrolledDisciplineSlugs: [String] {
-        let all = (dataManager.gradesResponse?.current ?? []) + (dataManager.gradesResponse?.completed ?? [])
-        let slugs = all.map { Self.slugifyDisciplineTitle($0.subjectName) }.filter { !$0.isEmpty }
+        let slugs = dataManager.allDisciplines.compactMap { subj -> String? in
+            if let slug = subj.disciplineSlug, !slug.isEmpty { return slug }
+            let fallback = Self.slugifyDisciplineTitle(subj.preferredName)
+            return fallback.isEmpty ? nil : fallback
+        }
         return Array(Set(slugs)).sorted()
     }
 

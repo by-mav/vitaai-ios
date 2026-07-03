@@ -29,18 +29,25 @@ struct TranscricaoMovePickerSheet: View {
     @State private var errorMessage: String?
 
     private var subjects: [(slug: String, name: String)] {
-        let current = appData.gradesResponse?.current ?? []
-        let completed = appData.gradesResponse?.completed ?? []
-        return (current + completed)
-            .compactMap { s in
-                guard !s.subjectName.isEmpty else { return nil }
-                let slug = s.subjectName
+        // Fonte única: TODAS as matérias do aluno (`/api/subjects` via
+        // allDisciplines) — dá pra mover a gravação pra qualquer matéria.
+        // Usa o `disciplineSlug` canônico do backend; só slugifica o nome
+        // quando o normalizador ainda não mapeou (Rafael 2026-07-02).
+        appData.allDisciplines.compactMap { s in
+            let name = s.preferredName
+            guard !name.isEmpty else { return nil }
+            let slug: String
+            if let canonical = s.disciplineSlug, !canonical.isEmpty {
+                slug = canonical
+            } else {
+                slug = name
                     .lowercased()
                     .folding(options: .diacriticInsensitive, locale: .init(identifier: "pt_BR"))
                     .replacingOccurrences(of: " ", with: "-")
                     .filter { $0.isLetter || $0.isNumber || $0 == "-" }
-                return (slug: slug, name: s.subjectName)
             }
+            return (slug: slug, name: name)
+        }
     }
 
     var body: some View {

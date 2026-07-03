@@ -44,13 +44,8 @@ struct FaculdadeHomeScreen: View {
                     disciplinesSection
                 }
                 MateriasAgendaWidget(
-                    subjects: appData.gradesResponse?.current ?? [],
                     schedule: appData.classSchedule,
-                    evaluations: appData.academicEvaluations,
-                    onNavigateToDiscipline: { id, name in
-                        router.navigate(to: .faculdadeDisciplinas)
-                        router.navigate(to: .disciplineDetail(disciplineId: id, disciplineName: name))
-                    }
+                    evaluations: appData.academicEvaluations
                 )
                 trabalhosMiniCard
                 documentosMiniCard
@@ -214,9 +209,9 @@ struct FaculdadeHomeScreen: View {
         HStack(spacing: 14) {
             heroStat(label: "CR", value: crValue)
             heroStatDivider
-            heroStat(label: "Aprov.", value: "\(appData.gradesResponse?.completed.count ?? 0)")
+            heroStat(label: "Aprov.", value: "\(appData.completedDisciplines.count)")
             heroStatDivider
-            heroStat(label: "Cursando", value: "\(appData.gradesResponse?.current.count ?? 0)")
+            heroStat(label: "Cursando", value: "\(appData.enrolledDisciplines.count)")
             Spacer()
         }
     }
@@ -248,7 +243,8 @@ struct FaculdadeHomeScreen: View {
     // MARK: - Disciplines section (folder grid)
 
     private var disciplinesSection: some View {
-        let subjects = appData.gradesResponse?.current ?? []
+        // Fonte única: matérias em curso (/api/subjects), não derivadas das notas.
+        let subjects = appData.canonicalDisciplines
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -291,11 +287,11 @@ struct FaculdadeHomeScreen: View {
                     ForEach(sorted) { subject in
                         Button {
                             router.navigate(to: .faculdadeDisciplinas)
-                            router.navigate(to: .disciplineDetail(disciplineId: subject.id, disciplineName: subject.subjectName))
+                            router.navigate(to: .disciplineDetail(disciplineId: subject.id, disciplineName: subject.preferredName))
                         } label: {
                             DisciplineFolderCard(
-                                subjectName: subject.subjectName,
-                                vitaScore: Int(appData.vitaScore(for: subject.subjectName))
+                                subjectName: subject.preferredName,
+                                vitaScore: Int(appData.vitaScore(for: subject.preferredName))
                             )
                         }
                         .buttonStyle(.plain)
@@ -307,13 +303,13 @@ struct FaculdadeHomeScreen: View {
 
     // MARK: - Helpers
 
-    private func sortedByFavorite(_ subjects: [GradeSubject]) -> [GradeSubject] {
+    private func sortedByFavorite(_ subjects: [AcademicSubject]) -> [AcademicSubject] {
         let favs = DisciplineFolderCard.favorites()
         return subjects.sorted { a, b in
-            let aFav = favs.contains(a.subjectName)
-            let bFav = favs.contains(b.subjectName)
+            let aFav = favs.contains(a.preferredName)
+            let bFav = favs.contains(b.preferredName)
             if aFav != bFav { return aFav }
-            return a.subjectName < b.subjectName
+            return a.preferredName < b.preferredName
         }
     }
 

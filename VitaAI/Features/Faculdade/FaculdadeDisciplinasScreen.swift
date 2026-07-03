@@ -31,28 +31,29 @@ struct FaculdadeDisciplinasScreen: View {
 
         return ScrollView(showsIndicators: false) {
             VStack(spacing: 12) {
-                let current = appData.gradesResponse?.current ?? []
-                let completed = appData.gradesResponse?.completed ?? []
-                let supplemental = supplementalSubjects(current: current, completed: completed)
+                // Fonte única (/api/subjects): Cursando = em curso, Aprovadas =
+                // concluídas — mesma regra de status do backend, notas embutidas.
+                // Sem gradesResponse, sem "Catálogo Vita" suplementar (tudo já
+                // vem na fonte), sem dedup no cliente (Rafael 2026-07-02).
+                let cursando = appData.enrolledDisciplines.sorted {
+                    $0.preferredName.localizedCaseInsensitiveCompare($1.preferredName) == .orderedAscending
+                }
+                let aprovadas = appData.completedDisciplines.sorted {
+                    $0.preferredName.localizedCaseInsensitiveCompare($1.preferredName) == .orderedAscending
+                }
 
-                if current.isEmpty && completed.isEmpty && supplemental.isEmpty {
+                if cursando.isEmpty && aprovadas.isEmpty {
                     emptyState
                 } else {
-                    if !current.isEmpty {
-                        sectionHeader("Cursando", count: current.count)
-                        disciplinesList(current)
+                    if !cursando.isEmpty {
+                        sectionHeader("Cursando", count: cursando.count)
+                        academicDisciplinesList(cursando)
                     }
 
-                    if !completed.isEmpty {
-                        sectionHeader("Aprovadas", count: completed.count)
-                            .padding(.top, current.isEmpty ? 0 : 8)
-                        disciplinesList(completed)
-                    }
-
-                    if !supplemental.isEmpty {
-                        sectionHeader("Catálogo Vita", count: supplemental.count)
-                            .padding(.top, current.isEmpty && completed.isEmpty ? 0 : 8)
-                        academicDisciplinesList(supplemental)
+                    if !aprovadas.isEmpty {
+                        sectionHeader("Aprovadas", count: aprovadas.count)
+                            .padding(.top, cursando.isEmpty ? 0 : 8)
+                        academicDisciplinesList(aprovadas)
                     }
                 }
 
@@ -77,39 +78,8 @@ struct FaculdadeDisciplinasScreen: View {
     }
 
     // Resolve the best name for a subject row: user edit > catalog > portal.
-    private func displayText(for subject: GradeSubject) -> String {
-        guard let sid = subject.subjectId,
-              let match = appData.enrolledDisciplines.first(where: { $0.id == sid })
-        else { return subject.subjectName }
-        return match.preferredName
-    }
-
     private func displayText(for subject: AcademicSubject) -> String {
         subject.displayName ?? subject.canonicalName ?? subject.name
-    }
-
-    private func supplementalSubjects(current: [GradeSubject], completed: [GradeSubject]) -> [AcademicSubject] {
-        var seen = Set<String>()
-        for subject in current + completed {
-            seen.insert(normalized(subject.id))
-            seen.insert(normalized(subject.subjectName))
-        }
-        return appData.enrolledDisciplines
-            .filter { subject in
-                let title = displayText(for: subject)
-                return ![subject.id, subject.name, title, subject.canonicalName ?? ""]
-                    .map(normalized)
-                    .contains(where: { seen.contains($0) })
-            }
-            .sorted {
-                displayText(for: $0).localizedCaseInsensitiveCompare(displayText(for: $1)) == .orderedAscending
-            }
-    }
-
-    private func normalized(_ value: String) -> String {
-        value
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Empty state
@@ -150,7 +120,7 @@ struct FaculdadeDisciplinasScreen: View {
 
     // MARK: - List
 
-    private func disciplinesList(_ subjects: [GradeSubject]) -> some View {
+    private func academicDisciplinesList(_ subjects: [AcademicSubject]) -> some View {
         VStack(spacing: 8) {
             ForEach(subjects) { subject in
                 ZStack(alignment: .topTrailing) {
@@ -164,110 +134,42 @@ struct FaculdadeDisciplinasScreen: View {
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        if let sid = subject.subjectId {
-                            Button {
-                                renameTarget = RenameTarget(
-                                    id: sid,
-                                    currentName: displayText(for: subject)
-                                )
-                            } label: {
-                                Label("Renomear", systemImage: "pencil")
-                            }
-                        }
-                    }
-
-                    // Explicit affordance — long-press isn't discoverable enough, especially
-                    // in the Simulator where it needs a held mouse click. Matches Notion /
-                    // Linear / Apple Files-style "more actions" dot button.
-                    if let sid = subject.subjectId {
-                        Menu {
-                            Button {
-                                renameTarget = RenameTarget(
-                                    id: sid,
-                                    currentName: displayText(for: subject)
-                                )
-                            } label: {
-                                Label("Renomear", systemImage: "pencil")
-                            }
+                        Button {
+                            renameTarget = RenameTarget(
+                                id: subject.id,
+                                currentName: displayText(for: subject)
+                            )
                         } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(VitaColors.textWarm.opacity(0.45))
-                                .frame(width: 32, height: 32)
-                                .contentShape(Rectangle())
+                            Label("Renomear", systemImage: "pencil")
                         }
-                        .offset(x: -4, y: 4)
-                        .accessibilityLabel("Mais ações da disciplina")
                     }
-                }
-            }
-        }
-    }
 
-    private func academicDisciplinesList(_ subjects: [AcademicSubject]) -> some View {
-        VStack(spacing: 8) {
-            ForEach(subjects) { subject in
-                Button {
-                    router.navigate(to: .disciplineDetail(
-                        disciplineId: subject.id,
-                        disciplineName: displayText(for: subject)
-                    ))
-                } label: {
-                    disciplineCard(subject)
+                    // Affordance explícito de "mais ações" (renomear) — long-press
+                    // não é descobrível, ainda mais no Simulador. Estilo Notion/Files.
+                    Menu {
+                        Button {
+                            renameTarget = RenameTarget(
+                                id: subject.id,
+                                currentName: displayText(for: subject)
+                            )
+                        } label: {
+                            Label("Renomear", systemImage: "pencil")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .offset(x: -4, y: 4)
+                    .accessibilityLabel("Mais ações da disciplina")
                 }
-                .buttonStyle(.plain)
             }
         }
     }
 
     // MARK: - Card
-
-    private func disciplineCard(_ subject: GradeSubject) -> some View {
-        let color = SubjectColors.colorFor(subject: subject.subjectName)
-        let rendered = displayText(for: subject)
-        let shortName = rendered
-            .replacingOccurrences(of: "(?i),.*$", with: "", options: .regularExpression)
-            .trimmingCharacters(in: .whitespaces)
-
-        return HStack(spacing: 12) {
-            Rectangle()
-                .fill(color)
-                .frame(width: 3, height: 36)
-                .clipShape(RoundedRectangle(cornerRadius: 2))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(shortName)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(textWarm.opacity(0.90))
-                    .lineLimit(1)
-
-                HStack(spacing: 10) {
-                    if let grade = subject.finalGrade {
-                        miniStat("Nota", value: String(format: "%.1f", grade))
-                    }
-                    if let freq = subject.attendance {
-                        miniStat("Freq", value: String(format: "%.0f%%", freq))
-                    }
-                }
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(textWarm.opacity(0.20))
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(VitaColors.surfaceCard.opacity(0.55))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
-        )
-    }
 
     private func disciplineCard(_ subject: AcademicSubject) -> some View {
         let color = SubjectColors.colorFor(subject: subject.canonicalName ?? subject.name)

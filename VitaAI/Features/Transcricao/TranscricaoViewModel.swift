@@ -78,11 +78,6 @@ final class TranscricaoViewModel {
     /// header da lista. Populated por loadFolders.
     private(set) var folders: [VitaAPI.StudioFolder] = []
 
-    /// Catálogo CANÔNICO de disciplinas (taxonomia do QBank), independente do
-    /// portal do aluno — sempre disponível no seletor de disciplina da caixa
-    /// (Rafael 2026-07-02). Populated por loadCanonicalDisciplines.
-    private(set) var canonicalDisciplines: [String] = []
-
     // MARK: - Private
 
     private let client: TranscricaoClient
@@ -403,21 +398,6 @@ final class TranscricaoViewModel {
             folders = try await api.listStudioFolders()
         } catch {
             NSLog("[TranscricaoVM] loadFolders failed: %@", "\(error)")
-        }
-    }
-
-    /// Carrega o catálogo canônico de disciplinas (taxonomia QBank). Mesma
-    /// fonte que o QBank usa (`getQBankFilters().disciplines`). Sempre presente
-    /// no seletor, mesmo sem o portal do aluno sincronizado.
-    func loadCanonicalDisciplines() async {
-        guard let api else { return }
-        do {
-            let filters = try await api.getQBankFilters()
-            canonicalDisciplines = filters.disciplines
-                .map(\.title)
-                .filter { !$0.isEmpty }
-        } catch {
-            NSLog("[TranscricaoVM] loadCanonicalDisciplines failed: %@", "\(error)")
         }
     }
 

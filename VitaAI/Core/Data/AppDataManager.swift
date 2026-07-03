@@ -15,18 +15,31 @@ final class AppDataManager {
     var classSchedule: [AgendaClassBlock] = []
     var academicEvaluations: [AgendaEvaluation] = []
     var dashboardSubjects: [DashboardSubject] = []
-    /// Canonical list of what the student is enrolled in RIGHT NOW — the
-    /// single source of truth for every screen that shows discipline chips
-    /// (QBank, Flashcards, Simulados, Transcrição, Estudos). Backed by
-    /// `GET /api/subjects?status=in_progress` and enriched server-side with
-    /// disciplineSlug + canonicalName + area + icon. Screens MUST read from
-    /// here instead of fetching `/api/subjects` on their own.
-    var enrolledDisciplines: [AcademicSubject] = []
+    /// FONTE ÚNICA de matérias do aluno — TODAS (cursando + aprovadas +
+    /// reprovadas/trancadas), vindas de `GET /api/subjects` (sem filtro), já com
+    /// `status` + notas embutidas (grade1/2/3/finalGrade/attendance) +
+    /// disciplineSlug + canonicalName + area + icon. É a única verdade: NENHUMA
+    /// tela deriva a lista de matérias das notas (`gradesResponse`) nem busca
+    /// `/api/subjects` por conta própria. Cursando/Aprovadas saem daqui por
+    /// `status`, com a MESMA regra do backend (Rafael 2026-07-02).
+    var allDisciplines: [AcademicSubject] = []
 
-    /// Lista canônica PRONTA pra UI — `enrolledDisciplines` ordenado por nome de
-    /// exibição. Todo seletor/lista de disciplina do app usa ISTO. NÃO mesclar
-    /// com `gradesResponse` nem deduplicar no cliente: o backend (/api/subjects)
-    /// já unifica portal + manuais e traz as notas embutidas (Rafael 2026-07-02).
+    /// Matérias EM CURSO agora (`status == in_progress`) — mesma regra do backend
+    /// (`grades/current`). Todo seletor/chip de "matéria atual" (QBank, Flashcards,
+    /// Simulados, Transcrição, Estudos) usa isto. Derivado da fonte única.
+    var enrolledDisciplines: [AcademicSubject] {
+        allDisciplines.filter { ($0.status ?? "in_progress") == "in_progress" }
+    }
+
+    /// Matérias APROVADAS/concluídas (`status != in_progress`) — mesma regra do
+    /// backend. Usado onde a UI separa "Cursando" de "Aprovadas" (Faculdade).
+    var completedDisciplines: [AcademicSubject] {
+        allDisciplines.filter { ($0.status ?? "in_progress") != "in_progress" }
+    }
+
+    /// Lista canônica PRONTA pra UI — `enrolledDisciplines` (cursando) ordenado
+    /// por nome de exibição. NÃO mesclar com `gradesResponse` nem deduplicar no
+    /// cliente: a fonte única já unifica portal + manuais e traz notas embutidas.
     var canonicalDisciplines: [AcademicSubject] {
         enrolledDisciplines.sorted {
             ($0.displayName ?? $0.canonicalName ?? $0.name)
@@ -39,20 +52,16 @@ final class AppDataManager {
     @discardableResult
     func addManualDiscipline(name: String) async throws -> AcademicSubject {
         let created = try await api.createManualSubject(name: name)
-        if let resp = try? await api.getSubjects(status: "in_progress") {
-            enrolledDisciplines = resp.subjects
-        }
+        if let resp = try? await api.getSubjects() { allDisciplines = resp.subjects }
         return created
     }
 
     /// Remover disciplina — DELETE /api/subjects/{id} (soft-delete) + recarrega
     /// a fonte canônica. Otimista: some da lista local na hora.
     func removeDiscipline(id: String) async throws {
-        enrolledDisciplines.removeAll { $0.id == id }
+        allDisciplines.removeAll { $0.id == id }
         try await api.deleteSubject(id: id)
-        if let resp = try? await api.getSubjects(status: "in_progress") {
-            enrolledDisciplines = resp.subjects
-        }
+        if let resp = try? await api.getSubjects() { allDisciplines = resp.subjects }
     }
 
     /// Prefetched secondary data — loaded in background on launch so tapping
@@ -200,8 +209,8 @@ final class AppDataManager {
         }
         // In-place cache patch (cheap, triggers @Observable for any View reading
         // enrolledDisciplines).
-        if let idx = enrolledDisciplines.firstIndex(where: { $0.id == id }) {
-            enrolledDisciplines[idx].displayName = updated.displayName
+        if let idx = allDisciplines.firstIndex(where: { $0.id == id }) {
+            allDisciplines[idx].displayName = updated.displayName
         }
         // FaculdadeDisciplinasScreen reads gradesResponse (GradeSubject list),
         // not AcademicSubject directly — force a refresh so any view layer
@@ -305,9 +314,7 @@ final class AppDataManager {
     }
 
     private func refreshEnrolled() async {
-        if let resp = try? await api.getSubjects(status: "in_progress") {
-            enrolledDisciplines = resp.subjects
-        }
+        if let resp = try? await api.getSubjects() { allDisciplines = resp.subjects }
     }
 
     private func refreshProfile() async {

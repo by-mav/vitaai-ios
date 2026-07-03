@@ -10,7 +10,6 @@ struct TranscricaoRecorderArea: View {
     @Binding var selectedDiscipline: String
     @Binding var selectedLanguage: String
     @Binding var transcribeWithAI: Bool
-    let disciplines: [String]
     let onToggle: () -> Void
     let onPauseResume: () -> Void
     let onDiscard: () -> Void
@@ -50,7 +49,6 @@ struct TranscricaoRecorderArea: View {
                         selectedDiscipline: $selectedDiscipline,
                         selectedLanguage: $selectedLanguage,
                         transcribeWithAI: $transcribeWithAI,
-                        disciplines: disciplines,
                         disabled: isRecording
                     )
                     TranscricaoImportButton(disabled: isRecording, onImport: onImportAudio)
@@ -181,7 +179,6 @@ struct TranscricaoToolbox: View {
     @Binding var selectedDiscipline: String
     @Binding var selectedLanguage: String
     @Binding var transcribeWithAI: Bool
-    let disciplines: [String]
     let disabled: Bool
 
     @State private var showSheet = false
@@ -218,7 +215,7 @@ struct TranscricaoToolbox: View {
             PixioSettingsScaffold(title: "Opções da gravação") {
                 PixioSettingsSection {
                     NavigationLink {
-                        TranscricaoDisciplinaPicker(selected: $selectedDiscipline, disciplines: disciplines)
+                        TranscricaoDisciplinaPicker(selected: $selectedDiscipline)
                     } label: {
                         navRow(icon: "book.closed.fill", label: "Disciplina", value: disciplineLabel)
                     }
@@ -303,92 +300,162 @@ struct TranscricaoToolbox: View {
     }
 }
 
-// MARK: - Disciplina Picker (sub-tela: auto-detectar + busca + lista alfabética)
+// MARK: - Disciplina Picker (sub-tela: auto-detectar + busca + lista canônica)
 //
-// Rafael 2026-07-02: disciplina não é dropdown — abre tela própria no dialeto
-// Ajustes com Auto-detectar (padrão), campo de busca e a lista das disciplinas
-// do semestre em ordem alfabética. Digitar algo fora da lista cria custom.
+// Rafael 2026-07-02: fonte ÚNICA = catálogo do aluno em `/api/subjects`, lido
+// via `AppDataManager.canonicalDisciplines` (o backend é quem decide a lista —
+// "1 cérebro", igual regra MCP=app do Pixio). Sem mesclar `gradesResponse` nem
+// deduplicar aqui. Auto-detectar (padrão) + campo de busca + lista alfabética.
+// Digitar algo novo ADICIONA de verdade (POST /api/subjects); "Gerenciar"
+// remove de verdade (DELETE /api/subjects/{id}, soft-delete).
 
 struct TranscricaoDisciplinaPicker: View {
     @Binding var selected: String
-    let disciplines: [String]
 
+    @Environment(\.appData) private var appData
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
+    @State private var busy = false
+    @State private var editing = false
+    @State private var pendingRemoval: AcademicSubject? = nil
 
     private var trimmed: String { query.trimmingCharacters(in: .whitespaces) }
-    private var sorted: [String] {
-        disciplines.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+    /// Catálogo canônico já pronto e ordenado (fonte única).
+    private var all: [AcademicSubject] { appData.canonicalDisciplines }
+
+    private var filtered: [AcademicSubject] {
+        guard !trimmed.isEmpty else { return all }
+        return all.filter { $0.preferredName.localizedCaseInsensitiveContains(trimmed) }
     }
-    private var filtered: [String] {
-        guard !trimmed.isEmpty else { return sorted }
-        return sorted.filter { $0.localizedCaseInsensitiveContains(trimmed) }
-    }
-    private var showCustom: Bool {
-        !trimmed.isEmpty && !disciplines.contains { $0.localizedCaseInsensitiveCompare(trimmed) == .orderedSame }
+
+    /// Oferece criar quando o texto não bate exatamente com nenhuma existente.
+    private var showCreate: Bool {
+        !trimmed.isEmpty && !all.contains {
+            $0.preferredName.localizedCaseInsensitiveCompare(trimmed) == .orderedSame
+        }
     }
 
     var body: some View {
         PixioSettingsScaffold(title: "Disciplina") {
-            PixioSearchField(text: $query, placeholder: "Buscar disciplina")
+            PixioSearchField(text: $query, placeholder: "Buscar ou adicionar")
 
-            PixioSettingsSection {
-                PixioSettingsRow(
-                    icon: "sparkles",
-                    accent: VitaColors.accent,
-                    title: "Auto-detectar",
-                    value: selected.isEmpty ? "Padrão" : nil,
-                    verified: selected.isEmpty,
-                    showChevron: false,
-                    action: { selected = ""; dismiss() }
-                )
+            // Auto-detectar (padrão) — escondido no modo Gerenciar.
+            if !editing {
+                PixioSettingsSection {
+                    PixioSettingsRow(
+                        icon: "sparkles",
+                        accent: VitaColors.accent,
+                        title: "Auto-detectar",
+                        value: selected.isEmpty ? "Padrão" : nil,
+                        verified: selected.isEmpty,
+                        showChevron: false,
+                        action: { selected = ""; dismiss() }
+                    )
+                }
             }
 
-            if !filtered.isEmpty || showCustom {
-                PixioSettingsSection(trimmed.isEmpty ? "Minhas disciplinas" : nil) {
-                    ForEach(Array(filtered.enumerated()), id: \.element) { idx, d in
-                        PixioSettingsRow(
-                            icon: "book.closed.fill",
-                            accent: VitaColors.accent,
-                            title: d,
-                            verified: selected == d,
-                            showChevron: false,
-                            action: { selected = d; dismiss() }
-                        )
-                        if idx < filtered.count - 1 || showCustom {
-                            PixioSettingsDivider()
-                        }
-                    }
-                    if showCustom {
-                        PixioSettingsRow(
-                            icon: "plus.circle",
-                            accent: VitaColors.accent,
-                            title: "Usar \u{201C}\(trimmed)\u{201D}",
-                            showChevron: false,
-                            action: { selected = trimmed; dismiss() }
-                        )
-                    }
+            // Adicionar disciplina nova a partir do que foi digitado.
+            if showCreate && !editing {
+                PixioSettingsSection {
+                    PixioSettingsRow(
+                        icon: "plus.circle.fill",
+                        accent: VitaColors.accent,
+                        title: "Adicionar \u{201C}\(trimmed)\u{201D}",
+                        showChevron: false,
+                        action: { addDiscipline(trimmed) }
+                    )
                 }
-            } else {
-                // Sem disciplinas sincronizadas ainda — orienta o aluno a
-                // digitar (que cria uma custom via o ramo showCustom acima).
-                VStack(spacing: 6) {
-                    Image(systemName: "books.vertical")
-                        .font(.system(size: 26, weight: .regular))
-                        .foregroundStyle(PixioColor.textLightFaint)
-                        .padding(.bottom, 2)
-                    Text("Nenhuma disciplina ainda")
-                        .font(PixioTypo.geist(size: 15, weight: .regular))
-                        .foregroundStyle(PixioColor.textLight)
-                    Text("Digite acima para criar uma, ou sincronize suas matérias na Faculdade.")
-                        .font(PixioTypo.geist(size: 13, weight: .regular))
-                        .foregroundStyle(PixioColor.textLightMuted)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 32)
-                .padding(.horizontal, 8)
             }
+
+            if !filtered.isEmpty {
+                PixioSettingsSection(
+                    trimmed.isEmpty ? "Minhas disciplinas" : nil,
+                    addLabel: editing ? "Concluir" : "Gerenciar",
+                    onAdd: { withAnimation { editing.toggle() } }
+                ) {
+                    ForEach(Array(filtered.enumerated()), id: \.element.id) { idx, subject in
+                        PixioSettingsRow(
+                            icon: editing ? "minus.circle.fill" : "book.closed.fill",
+                            accent: VitaColors.accent,
+                            title: subject.preferredName,
+                            verified: !editing && selected == subject.preferredName,
+                            showChevron: false,
+                            destructive: editing,
+                            action: {
+                                if editing {
+                                    pendingRemoval = subject
+                                } else {
+                                    selected = subject.preferredName
+                                    dismiss()
+                                }
+                            }
+                        )
+                        if idx < filtered.count - 1 { PixioSettingsDivider() }
+                    }
+                }
+            } else if !showCreate {
+                emptyState
+            }
+        }
+        .disabled(busy)
+        .confirmationDialog(
+            "Remover \(pendingRemoval?.preferredName ?? "")?",
+            isPresented: Binding(
+                get: { pendingRemoval != nil },
+                set: { if !$0 { pendingRemoval = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remover", role: .destructive) {
+                if let subject = pendingRemoval { removeDiscipline(subject) }
+            }
+            Button("Cancelar", role: .cancel) { pendingRemoval = nil }
+        } message: {
+            Text("Sai da sua lista de disciplinas. As gravações já feitas não são apagadas.")
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "books.vertical")
+                .font(.system(size: 26, weight: .regular))
+                .foregroundStyle(PixioColor.textLightFaint)
+                .padding(.bottom, 2)
+            Text("Nenhuma disciplina ainda")
+                .font(PixioTypo.geist(size: 15, weight: .regular))
+                .foregroundStyle(PixioColor.textLight)
+            Text("Digite acima para adicionar, ou sincronize suas matérias na Faculdade.")
+                .font(PixioTypo.geist(size: 13, weight: .regular))
+                .foregroundStyle(PixioColor.textLightMuted)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 8)
+    }
+
+    private func addDiscipline(_ name: String) {
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                let created = try await appData.addManualDiscipline(name: name)
+                selected = created.preferredName
+                query = ""
+                dismiss()
+            } catch {
+                NSLog("[disciplina] adicionar falhou: \(error)")
+            }
+        }
+    }
+
+    private func removeDiscipline(_ subject: AcademicSubject) {
+        busy = true
+        Task {
+            defer { busy = false }
+            if selected == subject.preferredName { selected = "" }
+            try? await appData.removeDiscipline(id: subject.id)
         }
     }
 }

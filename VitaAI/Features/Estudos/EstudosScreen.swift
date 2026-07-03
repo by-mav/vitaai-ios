@@ -111,40 +111,17 @@ private struct EstudosContent: View {
     /// mapped topics like Patologia from disappearing when the portal current
     /// semester payload does not include them.
     private var studyDisciplines: [StudyDisciplineRow] {
-        var rows: [StudyDisciplineRow] = []
-        var seen = Set<String>()
-
-        for subject in appData.gradesResponse?.current ?? [] {
-            let id = subject.id
-            let title = displayText(for: subject)
-            rows.append(.init(
-                id: id,
-                title: title,
-                rawName: subject.subjectName,
+        // Fonte única: matérias em curso (`/api/subjects` via canonicalDisciplines),
+        // já ordenadas e com as notas (finalGrade/attendance) embutidas. Sem
+        // mesclar gradesResponse nem deduplicar no cliente (Rafael 2026-07-02).
+        appData.canonicalDisciplines.map { subject in
+            StudyDisciplineRow(
+                id: subject.id,
+                title: subject.preferredName,
+                rawName: subject.name,
                 finalGrade: subject.finalGrade,
                 attendance: subject.attendance
-            ))
-            seen.insert(normalized(id))
-            seen.insert(normalized(title))
-            seen.insert(normalized(subject.subjectName))
-        }
-
-        for subject in appData.enrolledDisciplines {
-            let title = subject.displayName ?? subject.canonicalName ?? subject.name
-            let keys = [subject.id, title, subject.name, subject.canonicalName ?? ""].map(normalized)
-            guard !keys.contains(where: { seen.contains($0) }) else { continue }
-            rows.append(.init(
-                id: subject.id,
-                title: title,
-                rawName: subject.name,
-                finalGrade: nil,
-                attendance: nil
-            ))
-            keys.forEach { seen.insert($0) }
-        }
-
-        return rows.sorted {
-            $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+            )
         }
     }
 
@@ -414,19 +391,6 @@ private struct EstudosContent: View {
                 .monospacedDigit()
                 .foregroundStyle(textWarm.opacity(0.70))
         }
-    }
-
-    private func displayText(for subject: GradeSubject) -> String {
-        guard let sid = subject.subjectId,
-              let match = appData.enrolledDisciplines.first(where: { $0.id == sid })
-        else { return subject.subjectName }
-        return match.displayName ?? match.canonicalName ?? match.name
-    }
-
-    private func normalized(_ value: String) -> String {
-        value
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - 4. Materiais Recentes Section

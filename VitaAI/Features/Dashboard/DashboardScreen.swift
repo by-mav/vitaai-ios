@@ -97,10 +97,8 @@ struct DashboardScreen: View {
 
                 // ═══ MATÉRIAS ↔ AGENDA (swipe) ═══
                 MateriasAgendaWidget(
-                    subjects: appData.gradesResponse?.current ?? [],
                     schedule: appData.classSchedule,
-                    evaluations: appData.academicEvaluations,
-                    onNavigateToDiscipline: onNavigateToDisciplineDetail
+                    evaluations: appData.academicEvaluations
                 )
                     .padding(.horizontal, 16)
                     .padding(.top, 12)

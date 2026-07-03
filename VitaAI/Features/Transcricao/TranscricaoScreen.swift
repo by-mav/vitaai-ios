@@ -70,6 +70,7 @@ private struct PermissionBanner: View {
 ///   - TranscricaoDetailSheet.swift     (DetailSheet, AudioPlayer, PendingContent, TranscribedContent, ActionsMenu, DonePhase, Tabs)
 struct TranscricaoScreen: View {
     @Environment(\.appContainer) private var container
+    @Environment(\.appData) private var appData
     let onBack: () -> Void
     var onOpenStudyPack: ((String, String) -> Void)? = nil
 
@@ -101,7 +102,10 @@ struct TranscricaoScreen: View {
             }
             async let _ = viewModel?.loadRecordings()
             async let _ = viewModel?.loadFolders()
-            async let _ = viewModel?.loadCanonicalDisciplines()
+            // Garante o catálogo canônico de disciplinas (fonte da caixa de
+            // opções) mesmo se o aluno abrir a transcrição direto. Guardado
+            // por dentro — não recarrega se já veio no load do app.
+            async let _ = appData.loadIfNeeded()
             SentrySDK.reportFullyDisplayed()
         }
         .onDisappear {
@@ -143,25 +147,12 @@ private struct TranscricaoContent: View {
     /// Sem Sheets/Alerts — UX pattern Instagram/WhatsApp.
     @State private var toastMessage: String? = nil
 
-    /// Disciplines do semestre ATUAL apenas. `completed` (semestres passados)
-    /// ficavam acumuladas e poluíam o filtro.
+    /// Disciplinas do aluno — fonte canônica ÚNICA (`/api/subjects` via
+    /// `AppDataManager.canonicalDisciplines`, já ordenada). Sem mesclar
+    /// `gradesResponse` nem deduplicar no cliente: o backend unifica portal +
+    /// manuais e é a única verdade (Rafael 2026-07-02).
     private var disciplines: [String] {
-        (appData.gradesResponse?.current ?? [])
-            .map(\.subjectName)
-            .filter { !$0.isEmpty }
-    }
-
-    /// TODAS as disciplinas do aluno (semestre atual + concluídas), únicas e em
-    /// ordem alfabética — fonte do seletor de disciplina da caixa de opções
-    /// (Rafael 2026-07-02). O filtro da lista continua só com `disciplines`.
-    private var allDisciplines: [String] {
-        let g = appData.gradesResponse
-        let portal = ((g?.current ?? []) + (g?.completed ?? [])).map(\.subjectName)
-        // Catálogo canônico do Vita (QBank) SEMPRE presente + as do portal do
-        // aluno, únicas e em ordem alfabética.
-        let combined = portal + viewModel.canonicalDisciplines
-        return Set(combined.filter { !$0.isEmpty })
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        appData.canonicalDisciplines.map(\.preferredName)
     }
 
     var body: some View {
@@ -217,7 +208,6 @@ private struct TranscricaoContent: View {
                                         get: { viewModel.transcribeWithAI },
                                         set: { viewModel.transcribeWithAI = $0 }
                                     ),
-                                    disciplines: allDisciplines,
                                     onToggle: {
                                         if viewModel.phase == .recording || viewModel.phase == .paused {
                                             viewModel.stopRecording()
@@ -426,7 +416,8 @@ private struct TranscricaoContent: View {
                     .zIndex(10)
             }
         }
-        // Disciplines loaded from appData.gradesResponse (no separate API call needed)
+        // Disciplinas vêm do catálogo canônico (appData.canonicalDisciplines,
+        // = /api/subjects). Fonte única — sem chamada extra nem merge local.
     }
 
     /// Mostra toast por 1.8s. Chamar via MainActor.run se vier de Task background.

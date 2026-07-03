@@ -7,10 +7,8 @@ import SwiftUI
 // calendar controls: Aulas, Provas and Trabalhos.
 
 struct MateriasAgendaWidget: View {
-    let subjects: [GradeSubject]
     let schedule: [AgendaClassBlock]
     let evaluations: [AgendaEvaluation]
-    var onNavigateToDiscipline: ((String, String) -> Void)?
 
     var body: some View {
         MonthlyCalendarView(

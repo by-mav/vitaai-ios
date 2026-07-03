@@ -12,30 +12,27 @@ struct QBankHomeContent: View {
     /// kick the user out of Home.
     @State private var didCheckEmptyBounce = false
 
-    /// Enrolled subjects ordered by VitaScore desc. Matches Dashboard.
+    /// Matérias cursando ordenadas por VitaScore desc. Igual ao Dashboard.
     ///
-    /// SOT: `AppDataManager.gradesResponse.current` — same source the
-    /// Dashboard's MateriasAgendaWidget reads. One canonical disciplines list
-    /// across the whole app (per CLAUDE.md §AppDataManager is 4th SOT).
+    /// SOT: `AppDataManager.canonicalDisciplines` (= `/api/subjects`, matérias
+    /// em curso). NÃO deriva das notas (`gradesResponse`): a lista de matérias
+    /// tem uma fonte única, e a nota vem embutida na matéria (Rafael 2026-07-02).
     private var sortedSubjects: [StudySubjectChipItem] {
-        let grades = container.dataManager.gradesResponse?.current ?? []
         let dm = container.dataManager
-        return grades
-            .sorted { dm.vitaScore(for: $0.subjectName) > dm.vitaScore(for: $1.subjectName) }
-            .map { StudySubjectChipItem(id: $0.id, name: $0.subjectName) }
+        return dm.canonicalDisciplines
+            .sorted { dm.vitaScore(for: $0.preferredName) > dm.vitaScore(for: $1.preferredName) }
+            .map { StudySubjectChipItem(id: $0.id, name: $0.preferredName) }
     }
 
-    /// Enrolled subjects paired with the `questionCount` the backend
-    /// already computes per subject in `/api/subjects` (SOT). No slug
-    /// roundtrip: we match by raw portal subject name, which is identical
-    /// between `grades/current` (source of `sortedSubjects`) and `subjects`.
+    /// Matérias pareadas com o `questionCount` que o backend já calcula por
+    /// matéria em `/api/subjects` (SOT). Casa por `id` (robusto a rename).
     private var enrolledWithCounts: [(subject: StudySubjectChipItem, count: Int)] {
-        let byName = Dictionary(
-            container.dataManager.enrolledDisciplines.map { ($0.name, $0.questionCount ?? 0) },
+        let byId = Dictionary(
+            container.dataManager.canonicalDisciplines.map { ($0.id, $0.questionCount ?? 0) },
             uniquingKeysWith: { a, _ in a }
         )
         return sortedSubjects.map { subj in
-            (subj, byName[subj.name] ?? 0)
+            (subj, byId[subj.id] ?? 0)
         }
     }
 
