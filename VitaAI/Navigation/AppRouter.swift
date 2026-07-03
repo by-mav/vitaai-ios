@@ -947,13 +947,13 @@ private struct VitaHomeStudyDock: View {
         .frame(maxWidth: .infinity)
         .background(
             Capsule()
-                .fill(Color(red: 0.18, green: 0.35, blue: 0.20).opacity(0.76))
+                .fill(TrailWorld.dockFill.opacity(0.82))
                 .overlay(
                     Capsule().fill(
                         LinearGradient(
                             colors: [
                                 Color.white.opacity(0.20),
-                                Color(red: 0.17, green: 0.32, blue: 0.20).opacity(0.10),
+                                TrailWorld.dockFill.opacity(0.10),
                                 Color.black.opacity(0.08)
                             ],
                             startPoint: .topLeading,

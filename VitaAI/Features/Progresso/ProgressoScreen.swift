@@ -27,8 +27,8 @@ struct VitaHomeGrassBackdrop: View {
     var body: some View {
         LinearGradient(
             colors: [
-                Color(red: 0.62, green: 0.79, blue: 0.32),
-                Color(red: 0.37, green: 0.69, blue: 0.30)
+                TrailWorld.fieldTop,
+                TrailWorld.fieldBottom
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -103,10 +103,10 @@ struct ProgressoScreen: View {
                         style: StrokeStyle(lineWidth: 36, lineCap: .round, lineJoin: .round))
                 .offset(y: 4)
             // terra — borda escura (espessura)
-            road.stroke(Color(red: 0.52, green: 0.39, blue: 0.24),
+            road.stroke(TrailWorld.roadEdge,
                         style: StrokeStyle(lineWidth: 34, lineCap: .round, lineJoin: .round))
             // terra — topo claro (a superfície batida)
-            road.stroke(Color(red: 0.80, green: 0.66, blue: 0.45),
+            road.stroke(TrailWorld.roadSurface,
                         style: StrokeStyle(lineWidth: 27, lineCap: .round, lineJoin: .round))
             // pegadas / centro tracejado
             road.stroke(Color.white.opacity(0.30),
@@ -121,9 +121,9 @@ struct ProgressoScreen: View {
         let h = Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + 200
         return ZStack {
             GrassField(height: h)
-            LinearGradient(gradient: Self.sectionStops { $0.bright.opacity(0.18) },
+            LinearGradient(gradient: Self.sectionStops { $0.mid.opacity(0.05) },
                            startPoint: .top, endPoint: .bottom)
-            LinearGradient(gradient: Self.sectionStops { $0.mid.opacity(0.36) },
+            LinearGradient(gradient: Self.sectionStops { $0.dark.opacity(0.25) },
                            startPoint: .top, endPoint: .bottom)
         }
         .frame(height: h)
@@ -375,8 +375,8 @@ struct ProgressoScreen: View {
     private func coin(stage: Stage, tier: Tier, state: StageState) -> some View {
         let locked = state == .locked
         let size: CGFloat = state == .current ? 78 : 66
-        let face: Color = locked ? Color(white: 0.75) : tier.mid
-        let lip:  Color = locked ? Color(white: 0.57) : tier.dark
+        let face: Color = locked ? Color(white: 0.62) : tier.mid
+        let lip:  Color = locked ? Color(white: 0.45) : tier.dark
         return ZStack {
             // anel pulsante (nível atual) — convite a tocar
             if state == .current {
@@ -674,8 +674,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.92, green: 0.58, blue: 0.26),
-                                Color(red: 0.74, green: 0.32, blue: 0.22)
+                                TrailWorld.roofTop,
+                                TrailWorld.roofBottom
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -688,8 +688,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 1.0, green: 0.91, blue: 0.67),
-                                Color(red: 0.88, green: 0.67, blue: 0.38)
+                                TrailWorld.stoneTop,
+                                TrailWorld.stoneBottom
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -708,21 +708,21 @@ struct ProgressoScreen: View {
                     .overlay(
                         Image(systemName: "book.closed.fill")
                             .font(.system(size: 8, weight: .black))
-                            .foregroundStyle(Color(red: 0.42, green: 0.35, blue: 0.20))
+                            .foregroundStyle(TrailWorld.signTint)
                     )
                     .offset(y: -17)
 
                 HStack(spacing: 7) {
                     ForEach(0..<3, id: \.self) { idx in
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(idx == 1 ? Color.white.opacity(0.68) : Color(red: 0.45, green: 0.70, blue: 0.72).opacity(0.74))
+                            .fill(idx == 1 ? Color.white.opacity(0.68) : TrailWorld.windowGlow.opacity(0.74))
                             .frame(width: 12, height: 14)
                     }
                 }
                 .offset(y: 7)
 
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color(red: 0.43, green: 0.29, blue: 0.18).opacity(0.78))
+                    .fill(TrailWorld.wood.opacity(0.78))
                     .frame(width: 18, height: 24)
                     .offset(y: 25)
 
@@ -732,15 +732,15 @@ struct ProgressoScreen: View {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .frame(width: 74, height: 5)
                 }
-                .foregroundStyle(Color(red: 0.44, green: 0.33, blue: 0.20).opacity(0.72))
+                .foregroundStyle(TrailWorld.wood.opacity(0.72))
                 .offset(y: 44)
 
                 Capsule()
-                    .fill(Color(red: 0.42, green: 0.31, blue: 0.17).opacity(0.80))
+                    .fill(TrailWorld.wood.opacity(0.80))
                     .frame(width: 4, height: 38)
                     .offset(x: -42, y: -24)
                 LandmarkFlag()
-                    .fill(Color(red: 0.36, green: 0.72, blue: 0.45))
+                    .fill(TrailWorld.flag)
                     .frame(width: 24, height: 17)
                     .offset(x: -29, y: -37)
             }
@@ -752,8 +752,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.82, green: 0.66, blue: 0.44),
-                                Color(red: 0.56, green: 0.38, blue: 0.24)
+                                TrailWorld.roofTop,
+                                TrailWorld.roofBottom
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -766,8 +766,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.96, green: 0.88, blue: 0.70),
-                                Color(red: 0.71, green: 0.58, blue: 0.41)
+                                TrailWorld.stoneTop,
+                                TrailWorld.stoneBottom
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -783,7 +783,7 @@ struct ProgressoScreen: View {
                                 .fill(Color.white.opacity(0.74))
                                 .frame(width: 8, height: 37)
                             RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .fill(Color(red: 0.43, green: 0.32, blue: 0.20).opacity(0.58))
+                                .fill(TrailWorld.wood.opacity(0.58))
                                 .frame(width: 12, height: 5)
                         }
                         .opacity(idx == 2 ? 1 : 0.92)
@@ -792,12 +792,12 @@ struct ProgressoScreen: View {
                 .offset(y: 3)
 
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(Color(red: 0.40, green: 0.30, blue: 0.21).opacity(0.80))
+                    .fill(TrailWorld.wood.opacity(0.80))
                     .frame(width: 22, height: 25)
                     .offset(y: 24)
 
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color(red: 0.38, green: 0.30, blue: 0.20).opacity(0.78))
+                    .fill(TrailWorld.wood.opacity(0.78))
                     .frame(width: 108, height: 8)
                     .offset(y: 39)
 
@@ -807,7 +807,7 @@ struct ProgressoScreen: View {
                     .overlay(
                         Image(systemName: "cross.case.fill")
                             .font(.system(size: 11, weight: .black))
-                            .foregroundStyle(Color(red: 0.28, green: 0.56, blue: 0.40))
+                            .foregroundStyle(TrailWorld.signTint)
                     )
                     .offset(y: -36)
             }
@@ -819,8 +819,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.96, green: 0.99, blue: 0.91),
-                                Color(red: 0.72, green: 0.88, blue: 0.76)
+                                TrailWorld.stoneTop,
+                                TrailWorld.stoneBottom
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -836,8 +836,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.36, green: 0.72, blue: 0.46),
-                                Color(red: 0.18, green: 0.50, blue: 0.35)
+                                TrailWorld.roofTop,
+                                TrailWorld.roofBottom
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -857,24 +857,24 @@ struct ProgressoScreen: View {
 
                 HStack(spacing: 8) {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color(red: 0.46, green: 0.70, blue: 0.76).opacity(0.62))
+                        .fill(TrailWorld.windowGlow.opacity(0.62))
                         .frame(width: 18, height: 18)
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color(red: 0.42, green: 0.61, blue: 0.58).opacity(0.62))
+                        .fill(TrailWorld.windowDim.opacity(0.62))
                         .frame(width: 20, height: 26)
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color(red: 0.46, green: 0.70, blue: 0.76).opacity(0.62))
+                        .fill(TrailWorld.windowGlow.opacity(0.62))
                         .frame(width: 18, height: 18)
                 }
                 .offset(y: 10)
 
                 Image(systemName: "cross.fill")
                     .font(.system(size: 18, weight: .black))
-                    .foregroundStyle(Color(red: 0.86, green: 0.20, blue: 0.23))
+                    .foregroundStyle(TrailWorld.crossRed)
                     .offset(y: -5)
 
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(Color(red: 0.33, green: 0.50, blue: 0.40).opacity(0.66))
+                    .fill(TrailWorld.wood.opacity(0.66))
                     .frame(width: 96, height: 7)
                     .offset(y: 34)
             }
@@ -883,11 +883,11 @@ struct ProgressoScreen: View {
         private var majorHospital: some View {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color(red: 0.79, green: 0.90, blue: 0.89))
+                    .fill(TrailWorld.stoneWing)
                     .frame(width: 38, height: 62)
                     .offset(x: -42, y: 10)
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color(red: 0.78, green: 0.89, blue: 0.88))
+                    .fill(TrailWorld.stoneWing)
                     .frame(width: 38, height: 62)
                     .offset(x: 42, y: 10)
 
@@ -895,8 +895,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.98, green: 1.0, blue: 0.94),
-                                Color(red: 0.68, green: 0.84, blue: 0.82)
+                                TrailWorld.stoneTop,
+                                TrailWorld.stoneBottom
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -917,9 +917,9 @@ struct ProgressoScreen: View {
                     }
                     Image(systemName: "cross.fill")
                         .font(.system(size: 23, weight: .black))
-                        .foregroundStyle(Color(red: 0.88, green: 0.22, blue: 0.24))
+                        .foregroundStyle(TrailWorld.crossRed)
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(Color(red: 0.30, green: 0.52, blue: 0.50).opacity(0.64))
+                        .fill(TrailWorld.wood.opacity(0.64))
                         .frame(width: 24, height: 20)
                 }
                 .offset(y: 1)
@@ -935,7 +935,7 @@ struct ProgressoScreen: View {
                 .offset(y: 6)
 
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color(red: 0.36, green: 0.54, blue: 0.52).opacity(0.76))
+                    .fill(TrailWorld.wood.opacity(0.76))
                     .frame(width: 122, height: 9)
                     .offset(y: 53)
 
@@ -945,7 +945,7 @@ struct ProgressoScreen: View {
                     .overlay(
                         Text("H")
                             .font(.system(size: 15, weight: .black))
-                            .foregroundStyle(Color(red: 0.32, green: 0.58, blue: 0.73))
+                            .foregroundStyle(TrailWorld.signTint)
                     )
                     .offset(y: -50)
             }
@@ -953,7 +953,7 @@ struct ProgressoScreen: View {
 
         private var hospitalWindow: some View {
             RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                .fill(Color(red: 0.45, green: 0.68, blue: 0.76).opacity(0.52))
+                .fill(TrailWorld.windowGlow.opacity(0.52))
                 .frame(width: 10, height: 8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 2.5, style: .continuous)
@@ -968,7 +968,7 @@ struct ProgressoScreen: View {
                         LinearGradient(
                             colors: [
                                 Color.white.opacity(0.96),
-                                Color(red: 0.82, green: 0.92, blue: 0.88)
+                                TrailWorld.vanShade
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -980,16 +980,16 @@ struct ProgressoScreen: View {
                             .stroke(Color.white.opacity(0.54), lineWidth: 1)
                     )
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color(red: 0.35, green: 0.64, blue: 0.78).opacity(0.62))
+                    .fill(TrailWorld.windowGlow.opacity(0.62))
                     .frame(width: 22, height: 13)
                     .offset(x: 18, y: -5)
                 Image(systemName: "cross.fill")
                     .font(.system(size: 13, weight: .black))
-                    .foregroundStyle(Color(red: 0.87, green: 0.22, blue: 0.24))
+                    .foregroundStyle(TrailWorld.crossRed)
                     .offset(x: -16, y: -4)
                 HStack(spacing: 39) {
-                    Circle().fill(Color(red: 0.20, green: 0.25, blue: 0.23)).frame(width: 13, height: 13)
-                    Circle().fill(Color(red: 0.20, green: 0.25, blue: 0.23)).frame(width: 13, height: 13)
+                    Circle().fill(TrailWorld.wheel).frame(width: 13, height: 13)
+                    Circle().fill(TrailWorld.wheel).frame(width: 13, height: 13)
                 }
                 .offset(y: 18)
             }
@@ -1002,8 +1002,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.82, green: 0.95, blue: 0.92),
-                                Color(red: 0.49, green: 0.75, blue: 0.76)
+                                TrailWorld.stoneTop,
+                                TrailWorld.stoneBottom
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -1019,9 +1019,9 @@ struct ProgressoScreen: View {
                     .foregroundStyle(Color.white.opacity(0.94))
                     .offset(y: -4)
                 HStack(spacing: 5) {
-                    Circle().fill(Color(red: 0.36, green: 0.78, blue: 0.64)).frame(width: 7, height: 7)
-                    Circle().fill(Color(red: 0.98, green: 0.78, blue: 0.35)).frame(width: 7, height: 7)
-                    Circle().fill(Color(red: 0.52, green: 0.66, blue: 0.98)).frame(width: 7, height: 7)
+                    Circle().fill(TrailWorld.vialGreen).frame(width: 7, height: 7)
+                    Circle().fill(TrailWorld.vialAmber).frame(width: 7, height: 7)
+                    Circle().fill(TrailWorld.vialBlue).frame(width: 7, height: 7)
                 }
                 .offset(y: 20)
             }
@@ -1033,8 +1033,8 @@ struct ProgressoScreen: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.96, green: 0.88, blue: 0.92),
-                                Color(red: 0.73, green: 0.62, blue: 0.84)
+                                TrailWorld.stoneTop,
+                                TrailWorld.stoneBottom
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -1051,7 +1051,7 @@ struct ProgressoScreen: View {
                     .offset(y: -2)
                 Image(systemName: "heart.fill")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Color(red: 0.92, green: 0.25, blue: 0.34))
+                    .foregroundStyle(TrailWorld.crossRed)
                     .offset(x: 18, y: -18)
             }
         }
@@ -1084,15 +1084,15 @@ struct ProgressoScreen: View {
     // múltiplo de 20; dentro dela, os nós avançam em blocos de 5 níveis.
     private static let tiers: [Tier] = [
         Tier(idx: 0, name: "Vestibulando", minLevel: 0, maxLevel: 20,
-             bright: Color(red: 0.95, green: 0.74, blue: 0.42), mid: Color(red: 0.80, green: 0.58, blue: 0.30), dark: Color(red: 0.42, green: 0.28, blue: 0.12)),
+             bright: TrailWorld.tier0Bright, mid: TrailWorld.tier0Mid, dark: TrailWorld.tier0Dark),
         Tier(idx: 1, name: "Acadêmico", minLevel: 20, maxLevel: 40,
-             bright: Color(red: 0.50, green: 0.88, blue: 0.66), mid: Color(red: 0.20, green: 0.64, blue: 0.44), dark: Color(red: 0.06, green: 0.29, blue: 0.20)),
+             bright: TrailWorld.tier1Bright, mid: TrailWorld.tier1Mid, dark: TrailWorld.tier1Dark),
         Tier(idx: 2, name: "Clínico", minLevel: 40, maxLevel: 60,
-             bright: Color(red: 0.52, green: 0.76, blue: 1.0), mid: Color(red: 0.24, green: 0.52, blue: 0.88), dark: Color(red: 0.07, green: 0.23, blue: 0.50)),
+             bright: TrailWorld.tier2Bright, mid: TrailWorld.tier2Mid, dark: TrailWorld.tier2Dark),
         Tier(idx: 3, name: "Internato", minLevel: 60, maxLevel: 80,
-             bright: Color(red: 0.80, green: 0.64, blue: 1.0), mid: Color(red: 0.56, green: 0.40, blue: 0.88), dark: Color(red: 0.29, green: 0.17, blue: 0.56)),
+             bright: TrailWorld.tier3Bright, mid: TrailWorld.tier3Mid, dark: TrailWorld.tier3Dark),
         Tier(idx: 4, name: "Lenda", minLevel: 80, maxLevel: 100,
-             bright: Color(red: 1.0, green: 0.80, blue: 0.52), mid: Color(red: 0.87, green: 0.40, blue: 0.38), dark: Color(red: 0.45, green: 0.12, blue: 0.16)),
+             bright: TrailWorld.tier4Bright, mid: TrailWorld.tier4Mid, dark: TrailWorld.tier4Dark),
     ]
 
     private static let stages: [Stage] = [
@@ -1145,15 +1145,15 @@ private struct GrassField: View {
                                    width: 8 * scale, height: 24 * scale)
                 let shadow = CGRect(x: point.x - 23 * scale, y: point.y + 15 * scale,
                                     width: 46 * scale, height: 12 * scale)
-                let deepLeaf = Color(red: 0.12, green: 0.43, blue: 0.19)
-                let midLeaf = Color(red: 0.18, green: 0.58, blue: 0.25)
-                let lightLeaf = Color(red: 0.34, green: 0.72, blue: 0.34)
+                let deepLeaf = TrailWorld.canopyDeep
+                let midLeaf = TrailWorld.canopyMid
+                let lightLeaf = TrailWorld.canopyLight
 
                 ctx.fill(Path(ellipseIn: shadow), with: .color(.black.opacity(0.16)))
                 ctx.fill(Path(roundedRect: trunk, cornerRadius: 3 * scale),
                          with: .linearGradient(
-                            Gradient(colors: [Color(red: 0.54, green: 0.32, blue: 0.16),
-                                              Color(red: 0.34, green: 0.18, blue: 0.08)]),
+                            Gradient(colors: [TrailWorld.trunkTop,
+                                              TrailWorld.trunkBottom]),
                             startPoint: CGPoint(x: trunk.midX, y: trunk.minY),
                             endPoint: CGPoint(x: trunk.midX, y: trunk.maxY))
                 )
@@ -1179,16 +1179,16 @@ private struct GrassField: View {
             ctx.fill(
                 Path(CGRect(origin: .zero, size: size)),
                 with: .linearGradient(
-                    Gradient(colors: [Color(red: 0.52, green: 0.78, blue: 0.40),
-                                      Color(red: 0.34, green: 0.62, blue: 0.28)]),
+                    Gradient(colors: [TrailWorld.meadowTop,
+                                      TrailWorld.meadowBottom]),
                     startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height))
             )
             let step: CGFloat = 46
             let cols = Int(size.width / step) + 1
             let rows = Int(size.height / step) + 1
-            let g1 = Color(red: 0.29, green: 0.55, blue: 0.23)
-            let g2 = Color(red: 0.45, green: 0.73, blue: 0.34)
-            let g3 = Color(red: 0.64, green: 0.86, blue: 0.46)
+            let g1 = TrailWorld.tuftDeep
+            let g2 = TrailWorld.tuftMid
+            let g3 = TrailWorld.tuftLight
 
             let treeRows = max(5, Int(size.height / 360))
             for i in 0..<treeRows {
@@ -1224,8 +1224,8 @@ private struct GrassField: View {
                     }
                     // florzinha ocasional (vida no campo)
                     if s2 > 0.92 {
-                        let fc: Color = seed > 0.5 ? Color(red: 1.0, green: 0.85, blue: 0.32)
-                                                   : Color(red: 1.0, green: 0.62, blue: 0.76)
+                        let fc: Color = seed > 0.5 ? TrailWorld.fireflyGold
+                                                   : TrailWorld.fireflyWarm
                         ctx.fill(Path(ellipseIn: CGRect(x: cx - 2.5, y: cy - 2.5, width: 5, height: 5)),
                                  with: .color(fc.opacity(0.92)))
                     }
