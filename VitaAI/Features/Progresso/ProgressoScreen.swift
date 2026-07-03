@@ -344,25 +344,28 @@ struct ProgressoScreen: View {
 
     private func critterSpawnLoop() async {
         while !Task.isCancelled {
-            let wait = critterStorm ? 6 : Double.random(in: 45...150)
+            let wait = critterStorm ? 6 : Double.random(in: 60...180)
             try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
             guard !Task.isCancelled, critters.isEmpty else { continue }
-            let kind: TrailCritter.Kind = Double.random(in: 0..<1) < 0.62 ? .capivara : .coruja
-            // 65% dos spawns na banda onde o mapa DESCANSA (topo) — spawn 100%
-            // uniforme num mapa de ~3300pt deixava o bicho invisível na prática
-            // (viewport = ~18% do mundo). O resto continua em qualquer lugar.
-            let topBand = (Self.trailTopInset + 60)...(Self.trailTopInset + 560)
-            let anywhere = (Self.trailTopInset + 60)...(trailContentHeight - 460)
-            let y = (critterStorm || Double.random(in: 0..<1) < 0.65)
-                ? CGFloat.random(in: topBand)
-                : CGFloat.random(in: anywhere)
+            let kind: TrailCritter.Kind = Double.random(in: 0..<1) < 0.62 ? .capivara : .vagalumes
+            // y = SEMPRE no vão ENTRE fileiras de nós (nunca por cima de moeda,
+            // banner ou muralha — muralhas vivem nos vãos múltiplos de 4).
+            // 65% nos primeiros vãos (banda onde o mapa descansa); resto em
+            // qualquer vão — uniforme em 3300pt era invisível na prática.
+            let gapsTop = [1, 2, 3]
+            let gapsAll = (1..<trailItems.count).filter { !$0.isMultiple(of: 4) }
+            let gap = (critterStorm || Double.random(in: 0..<1) < 0.65)
+                ? gapsTop.randomElement()!
+                : gapsAll.randomElement()!
+            let y = Self.trailTopInset + CGFloat(gap) * Self.rowStride
+                + CGFloat.random(in: -14...14)
             let critter = TrailCritter(
                 kind: kind,
                 golden: kind == .capivara && Double.random(in: 0..<1) < 0.05,
                 y: y,
                 leftToRight: Bool.random(),
-                duration: Double.random(in: 30...48),
-                scale: CGFloat.random(in: 0.78...1.12)
+                duration: Double.random(in: 45...70),
+                scale: CGFloat.random(in: 0.62...0.85)
             )
             critters.append(critter)
             if critterStorm { print("[critter] spawn \(critter.kind) y=\(Int(critter.y)) golden=\(critter.golden) n=\(critters.count)") }
@@ -1413,7 +1416,7 @@ private struct TrailSectionWall: View {
 // responde ao toque com brilho + haptic. Tudo sorteado no spawner: nunca script.
 
 struct TrailCritter: Identifiable {
-    enum Kind { case capivara, coruja }
+    enum Kind { case capivara, vagalumes }
     let id = UUID()
     let kind: Kind
     let golden: Bool
@@ -1441,9 +1444,9 @@ private struct TrailCritterView: View {
             // passinho sutil — animação ESCOPADA no `bob` (value:), pra o
             // repeatForever nunca vazar pra travessia (bug 2026-07-03: o
             // withAnimation global fazia a posição ir-e-voltar em loop).
-            .rotationEffect(.degrees(bob ? 1.2 : -1.2))
-            .offset(y: bob ? -1.2 : 1.2)
-            .animation(.easeInOut(duration: critter.kind == .coruja ? 1.1 : 0.65)
+            // Sem rotação: lia como tremida/glitch (Rafael).
+            .offset(y: bob ? -1.0 : 1.0)
+            .animation(.easeInOut(duration: critter.kind == .vagalumes ? 1.6 : 0.85)
                 .repeatForever(autoreverses: true), value: bob)
             .overlay(alignment: .top) {
                 if sparkle {
@@ -1473,8 +1476,8 @@ private struct TrailCritterView: View {
 
     @ViewBuilder private var critterShape: some View {
         switch critter.kind {
-        case .capivara: capivara
-        case .coruja:   coruja
+        case .capivara:  capivara
+        case .vagalumes: vagalumes
         }
     }
 
@@ -1511,29 +1514,22 @@ private struct TrailCritterView: View {
         .shadow(color: critter.golden ? TrailWorld.fireflyGold.opacity(0.55) : .clear, radius: 9)
     }
 
-    // Coruja planando: corpo + asas abertas (flap sutil vem do bob).
-    private var coruja: some View {
+    // Trio de vaga-lumes vagando (a coruja de olhos acesos lia como morcego
+    // de terror na noite — Rafael 2026-07-03).
+    private var vagalumes: some View {
         ZStack {
-            // asas
-            Capsule().fill(TrailWorld.critterBody)
-                .frame(width: 26, height: 7)
-                .rotationEffect(.degrees(-16), anchor: .trailing)
-                .offset(x: -16, y: -2)
-            Capsule().fill(TrailWorld.critterBody)
-                .frame(width: 26, height: 7)
-                .rotationEffect(.degrees(16), anchor: .leading)
-                .offset(x: 16, y: -2)
-            // corpo
-            Ellipse()
-                .fill(LinearGradient(colors: [TrailWorld.critterBelly, TrailWorld.critterBody],
-                                     startPoint: .top, endPoint: .bottom))
-                .frame(width: 16, height: 20)
-            // olhos de coruja (brilham na noite)
-            HStack(spacing: 3) {
-                Circle().fill(TrailWorld.fireflyWarm).frame(width: 3, height: 3)
-                Circle().fill(TrailWorld.fireflyWarm).frame(width: 3, height: 3)
-            }
-            .offset(y: -5)
+            Circle().fill(TrailWorld.fireflyGold.opacity(0.9))
+                .frame(width: 4, height: 4)
+                .offset(x: -7, y: bob ? -3 : 2)
+                .shadow(color: TrailWorld.fireflyGold.opacity(0.8), radius: 3)
+            Circle().fill(TrailWorld.fireflyWarm.opacity(0.8))
+                .frame(width: 3, height: 3)
+                .offset(x: 4, y: bob ? 3 : -4)
+                .shadow(color: TrailWorld.fireflyGold.opacity(0.7), radius: 2.5)
+            Circle().fill(TrailWorld.fireflyGold.opacity(0.7))
+                .frame(width: 2.5, height: 2.5)
+                .offset(x: 9, y: bob ? -2 : 1)
+                .shadow(color: TrailWorld.fireflyGold.opacity(0.6), radius: 2)
         }
     }
 }
