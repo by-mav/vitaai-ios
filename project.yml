@@ -87,6 +87,11 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
         CODE_SIGN_ENTITLEMENTS: VitaAI/VitaAI.entitlements
+        # Simulador: build nao-assinado nao ganha application-identifier ->
+        # Keychain falha (-34018) -> token de sessao NUNCA persiste -> pede
+        # login a cada relaunch (bug cronico, Rafael 2026-07-01). O entitlements
+        # de sim declara keychain-access-groups explicito e resolve.
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]": VitaAI/VitaAI-Simulator.entitlements
       configs:
         Debug:
           CODE_SIGN_STYLE: Automatic

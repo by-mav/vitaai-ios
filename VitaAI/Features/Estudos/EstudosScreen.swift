@@ -264,27 +264,23 @@ private struct EstudosContent: View {
                 let leftColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 2)
                 LazyVGrid(columns: leftColumns, spacing: 8) {
                     ToolCard(
-                        imageName: "tool-questoes",
-                        label: "QBanco",
-                        accentColor: VitaColors.toolQBank,
+                        symbol: "list.clipboard",
+                        label: "Questões",
                         onTap: { onNavigateToQBank?() }
                     )
                     ToolCard(
-                        imageName: "tool-flashcards",
+                        symbol: "rectangle.on.rectangle.angled",
                         label: "Flashcards",
-                        accentColor: VitaColors.toolFlashcards,
                         onTap: { onNavigateToFlashcardHome?() }
                     )
                     ToolCard(
-                        imageName: "tool-simulados",
+                        symbol: "stopwatch",
                         label: "Simulados",
-                        accentColor: VitaColors.toolSimulados,
                         onTap: { onNavigateToSimulados?() }
                     )
                     ToolCard(
-                        imageName: "tool-transcricao",
+                        symbol: "mic",
                         label: "Transcrição",
-                        accentColor: VitaColors.toolTranscricao,
                         onTap: { onNavigateToTranscricao?() }
                     )
                 }
@@ -611,51 +607,39 @@ private struct EstudosContent: View {
 // MARK: - Tool Card (2x2 grid cell)
 
 private struct ToolCard: View {
-    let imageName: String
+    let symbol: String
     let label: String
-    let accentColor: Color
     let onTap: () -> Void
 
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     private var cardHeight: CGFloat { sizeClass == .regular ? 140 : 90 }
+    private var emblemSize: CGFloat { sizeClass == .regular ? 56 : 40 }
 
     var body: some View {
+        // 2026-07-02 (Rafael): fim dos PNGs gerados (cada um com estética
+        // própria = colcha de retalhos). Card de vidro do DS + VitaEmblem
+        // (emblema dourado, mesma física de luz do medalhão de level-up).
         Button(action: onTap) {
-            // 2026-04-23: removido overlay de Text(label) + scrim gradient —
-            // as imagens `tool-*` já trazem o rótulo desenhado. Manter
-            // accessibilityLabel pra VoiceOver.
-            Group {
-                if UIImage(named: imageName) != nil {
-                    // iPhone: scaledToFill (aspect ratio card ≈ imagem, corte imperceptível)
-                    // iPad: scaledToFit (card muito wide vs imagem 1.27:1 — scaledToFill
-                    // cortaria metade da imagem no topo/base). iPad usa fit + bg
-                    // do card accentColor pra não ficar transparente nas bordas.
-                    Color.clear
-                        .frame(height: cardHeight)
-                        .background(
-                            sizeClass == .regular ? accentColor.opacity(0.15) : Color.clear
-                        )
-                        .overlay {
-                            Image(imageName)
-                                .resizable()
-                                .aspectRatio(contentMode: sizeClass == .regular ? .fit : .fill)
-                        }
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                } else {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(VitaColors.surfaceCard.opacity(0.55))
-                        .frame(height: cardHeight)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
-                        )
+            VStack(alignment: .leading, spacing: 0) {
+                VitaEmblem(symbol: symbol, size: emblemSize)
+                Spacer(minLength: 4)
+                HStack(spacing: 4) {
+                    Text(label)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.92))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.25))
                 }
             }
+            .padding(12)
             .frame(height: cardHeight)
-            .frame(maxWidth: .infinity)
-            .shadow(color: .black.opacity(0.30), radius: 6, y: 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(cornerRadius: 16)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -668,42 +652,30 @@ private struct AtlasTallCard: View {
     let onTap: () -> Void
     @Environment(\.horizontalSizeClass) private var sizeClass
 
+    // Mesma altura das 2 linhas do grid ao lado (cardHeight×2 + spacing 8)
+    private var cardHeight: CGFloat { sizeClass == .regular ? 288 : 188 }
+
     var body: some View {
+        // 2026-07-02 (Rafael): banner PNG dourado destoante → mesmo sistema
+        // dos ToolCards (vidro + emblema), com emblema maior por ser destaque.
         Button(action: onTap) {
-            Group {
-                if UIImage(named: "tool-atlas3d") != nil {
-                    // iPad usa scaledToFit pra evitar crop (imagem atlas3d tall,
-                    // mas card iPad é MAIS alto que o iPhone e pode cortar).
-                    Color.clear
-                        .background(
-                            sizeClass == .regular ? VitaColors.accent.opacity(0.10) : Color.clear
-                        )
-                        .overlay {
-                            Image("tool-atlas3d")
-                                .resizable()
-                                .aspectRatio(contentMode: sizeClass == .regular ? .fit : .fill)
-                        }
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                } else {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    VitaColors.surfaceCard.opacity(0.80),
-                                    VitaColors.surfaceElevated.opacity(0.70)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(VitaColors.textWarm.opacity(0.06), lineWidth: 0.5)
-                        )
+            VStack(spacing: 10) {
+                Spacer(minLength: 0)
+                VitaEmblem(symbol: "brain.head.profile", size: sizeClass == .regular ? 72 : 56)
+                VStack(spacing: 3) {
+                    Text("Atlas 3D")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.92))
+                    Text("anatomia\ninterativa")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.40))
+                        .multilineTextAlignment(.center)
                 }
+                Spacer(minLength: 0)
             }
-            .shadow(color: .black.opacity(0.30), radius: 6, y: 4)
+            .frame(maxWidth: .infinity)
+            .frame(height: cardHeight)
+            .glassCard(cornerRadius: 16)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Atlas 3D")
