@@ -50,13 +50,19 @@ struct ProgressoScreen: View {
     @State private var showTrailCelebration = false
     @State private var trailCelebrationInFlight = false
     @State private var critters: [TrailCritter] = []
+    @State private var demoLevel: Int? = nil   // QA: simula level-up (--vita-levelup-demo)
     @Namespace private var mascotTrail
+
+    // QA: --vita-levelup-demo roda em loop a passagem por uma seção (portão abre + Vita atravessa)
+    private var demoLevelUp: Bool {
+        ProcessInfo.processInfo.arguments.contains("--vita-levelup-demo")
+    }
 
     private var vmProg: ProgressoViewModel { container.progressoViewModel }
     private var dash: DashboardViewModel { container.dashboardViewModel }
     private var gamify: GamificationEventManager { container.gamificationEvents }
 
-    private var userLevel: Int { max(0, gamify.currentLevel) }
+    private var userLevel: Int { demoLevel ?? max(0, gamify.currentLevel) }
     private var flashcardsDue: Int { dash.flashcardsDueTotal }
 
     private var currentStage: Stage {
@@ -68,8 +74,8 @@ struct ProgressoScreen: View {
 
     // Geometria da trilha — cada nó ocupa um "slot" de altura fixa (rowStride) e
     // serpenteia em x por sin(i*freq)*amp. A estrada usa a MESMA fórmula → alinha.
-    private static let rowStride: CGFloat = 136
-    private static let rowAmp: CGFloat = 60
+    private static let rowStride: CGFloat = 188
+    private static let rowAmp: CGFloat = 66
     private static let rowFreq: Double = 0.9
     // The home chrome floats over the map. Keep the first playable node below it,
     // otherwise the scroll is technically at the top while level 1 is hidden.
@@ -98,19 +104,29 @@ struct ProgressoScreen: View {
     private var dirtPath: some View {
         let road = TrailRoad(count: trailItems.count, stride: Self.rowStride,
                              amp: Self.rowAmp, freq: Self.rowFreq)
+        // A estrada pega a COR DA SEÇÃO (Rafael 2026-07-05): gradiente travado por
+        // seção (mesmo do fundo), muda exatamente na fronteira/muralha.
+        let edgeGrad = LinearGradient(gradient: Self.sectionStops { $0.dark },
+                                      startPoint: .top, endPoint: .bottom)
+        let surfaceGrad = LinearGradient(gradient: Self.sectionStops { $0.mid },
+                                         startPoint: .top, endPoint: .bottom)
         return ZStack {
             // sombra do caminho na grama
             road.stroke(Color.black.opacity(0.14),
                         style: StrokeStyle(lineWidth: 36, lineCap: .round, lineJoin: .round))
                 .offset(y: 4)
-            // terra — borda escura (espessura)
-            road.stroke(TrailWorld.roadEdge,
+            // borda escura (cor escura da seção)
+            road.stroke(edgeGrad,
                         style: StrokeStyle(lineWidth: 34, lineCap: .round, lineJoin: .round))
-            // terra — topo claro (a superfície batida)
-            road.stroke(TrailWorld.roadSurface,
+            // superfície (cor média da seção)
+            road.stroke(surfaceGrad,
                         style: StrokeStyle(lineWidth: 27, lineCap: .round, lineJoin: .round))
-            // pegadas / centro tracejado
-            road.stroke(Color.white.opacity(0.30),
+            // fio de luz no topo da superfície (dá relevo)
+            road.stroke(Color.white.opacity(0.14),
+                        style: StrokeStyle(lineWidth: 27, lineCap: .round, lineJoin: .round))
+                .blendMode(.plusLighter).mask(road.stroke(style: StrokeStyle(lineWidth: 27)).offset(y: -1))
+            // centro tracejado
+            road.stroke(Color.white.opacity(0.28),
                         style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [2, 16]))
         }
     }
@@ -171,6 +187,7 @@ struct ProgressoScreen: View {
             grassBase.ignoresSafeArea()
             VStack(spacing: 0) {
                 GeometryReader { geo in
+                    ScrollViewReader { proxy in
                     ScrollView(.vertical, showsIndicators: false) {
                         trailMapContent
                             .frame(width: geo.size.width, alignment: .top)
@@ -199,6 +216,8 @@ struct ProgressoScreen: View {
                     }
                     .scrollContentBackground(.hidden)
                     .frame(width: geo.size.width, height: geo.size.height)
+                    .onAppear { if demoLevelUp { runLevelUpDemo(proxy) } }
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -268,7 +287,7 @@ struct ProgressoScreen: View {
                     // Portão aberto = já alcançou este mundo. Seção 1 (minLevel 0) sempre aberta.
                     let unlocked = gatesForceOpen || userLevel >= Self.tiers[k].minLevel
                     TrailSectionWall(archX: archX, tier: Self.tiers[k], number: k + 1, isOpen: unlocked)
-                        .frame(width: geo.size.width, height: 112)
+                        .frame(width: geo.size.width, height: 132)
                         .position(x: geo.size.width / 2,
                                   // ponto médio entre o último nó da seção anterior e o
                                   // primeiro desta (nós são centralizados +rowStride/2 no slot).
@@ -461,7 +480,40 @@ struct ProgressoScreen: View {
 
     /// Pula o bonequinho de no em no: agacha+estica na decolagem, desliza pelo arco
     /// (matchedGeometry move quando mascotLevel troca de no) e aterrissa quicando.
+    // MARK: - Demo da passagem de seção (grava o portão abrindo + Vita atravessando)
+    private func runLevelUpDemo(_ proxy: ScrollViewProxy) {
+        demoLevel = 19
+        mascotLevel = 19
+        func cycle() {
+            // estado inicial: portão da seção 2 FECHADO, Vita no último nó da seção 1
+            demoLevel = 19
+            mascotLevel = 19
+            withAnimation(.easeInOut(duration: 0.7)) { proxy.scrollTo("stage-5", anchor: .center) }
+            // sobe de nível: portão ABRE
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                withAnimation(.easeInOut(duration: 0.85)) { demoLevel = 20 }
+                // Vita atravessa o portão aberto (hopMascot já espera o portão)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { hopMascot(to: 20) }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.5) { cycle() }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { cycle() }
+    }
+
     private func hopMascot(to newLevel: Int) {
+        guard newLevel != mascotLevel else { return }
+        // Atravessou uma fronteira de seção? Espera o portão abrir (0.8s) antes de
+        // o Vita passar (Rafael 2026-07-05: "o vita espera o portão abrir e atravessa").
+        let from = mascotLevel
+        let crossed = Self.tiers.contains { $0.minLevel > 0 && from < $0.minLevel && newLevel >= $0.minLevel }
+        if crossed {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { self.doHop(to: newLevel) }
+        } else {
+            doHop(to: newLevel)
+        }
+    }
+
+    private func doHop(to newLevel: Int) {
         guard newLevel != mascotLevel else { return }
         PixioHaptics.tap()
         withAnimation(.easeOut(duration: 0.22)) {
@@ -1320,36 +1372,46 @@ private struct TrailSectionWall: View {
             let w = geo.size.width
             let gap: CGFloat = 50
             ZStack {
-                rampart(width: w)
-                gate(gap: gap)
+                gate(gap: gap)                 // ATRÁS do muro: desliza e some atrás dele
+                rampart(width: w, gap: gap)
                 pillar(at: archX - gap)
                 pillar(at: archX + gap)
-                signPlate(width: w)
+                wallInscription(width: w, gap: gap)   // texto GRAVADO na pedra
             }
             .animation(.easeInOut(duration: 0.85), value: isOpen)
         }
     }
 
     // MARK: muralha ALTA na cor da seção (pedra + ameias no topo)
-    private func rampart(width w: CGFloat) -> some View {
+    private func rampart(width w: CGFloat, gap: CGFloat) -> some View {
+        // Muralha em DOIS segmentos com um VÃO no meio (onde fica o portão) —
+        // assim, portão aberto = a estrada aparece pelo vão, não mais parede
+        // atrás (Rafael 2026-07-05).
+        ZStack {
+            wallSegment(x0: 0, x1: max(0, archX - gap))
+            wallSegment(x0: min(w, archX + gap), x1: w)
+        }
+    }
+
+    private func wallSegment(x0: CGFloat, x1: CGFloat) -> some View {
+        let len = max(0, x1 - x0)
         let bodyH: CGFloat = 42
+        let merlons = max(0, Int((len - 4) / 25))   // ameias que cabem no segmento
         return ZStack(alignment: .top) {
-            // ameias (crenellations) — dá a altura de fortaleza
             HStack(spacing: 10) {
-                ForEach(0..<max(3, Int(w / 26)), id: \.self) { _ in
+                ForEach(0..<merlons, id: \.self) { _ in
                     UnevenRoundedRectangle(topLeadingRadius: 2, topTrailingRadius: 2)
                         .fill(LinearGradient(colors: [tier.mid, tier.dark],
                                              startPoint: .top, endPoint: .bottom))
                         .frame(width: 15, height: 14)
                 }
             }
-            .frame(width: w)
+            .frame(width: len)
             .offset(y: -10)
-            // corpo da muralha (cor da seção = atmosfera)
             Rectangle()
                 .fill(LinearGradient(colors: [tier.mid.opacity(0.92), tier.dark],
                                      startPoint: .top, endPoint: .bottom))
-                .frame(width: w, height: bodyH)
+                .frame(width: len, height: bodyH)
                 .overlay(alignment: .top) {
                     Rectangle().fill(tier.bright.opacity(0.45)).frame(height: 1.4)
                 }
@@ -1361,69 +1423,72 @@ private struct TrailSectionWall: View {
                     .padding(.top, 12)
                 )
         }
-        .frame(width: w, alignment: .top)
-        .position(x: w / 2, y: wallY)
+        .frame(width: len, alignment: .top)
+        .position(x: x0 + len / 2, y: wallY)
         .shadow(color: .black.opacity(0.42), radius: 7, y: 6)
     }
 
-    // MARK: placa de PEDRA com o nome GRAVADO (substitui o banner roxo)
-    private func signPlate(width w: CGFloat) -> some View {
-        let plateX = min(max(archX, 96), w - 96)
-        return VStack(spacing: 1) {
-            Text("SEÇÃO \(number)")
-                .font(.system(size: 8, weight: .black)).kerning(1.5) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
-                .foregroundStyle(tier.bright.opacity(0.92))
-            Text(tier.name.uppercased())
-                .font(.system(size: 13, weight: .black)).kerning(0.4) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.7), radius: 0, y: 1)   // gravado (letterpress)
-            Text("Níveis \(tier.minLevel)–\(tier.maxLevel)")
-                .font(.system(size: 8, weight: .bold)) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
-                .foregroundStyle(Color.white.opacity(0.62))
-        }
-        .padding(.horizontal, 13).padding(.vertical, 5)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
-                .fill(LinearGradient(colors: [tier.dark, Color.black.opacity(0.9)],
-                                     startPoint: .top, endPoint: .bottom))
-                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
-                    .strokeBorder(tier.bright.opacity(0.45), lineWidth: 0.8))
-        )
-        .shadow(color: .black.opacity(0.5), radius: 4, y: 3)
-        .position(x: plateX, y: 16)
+    // MARK: nome GRAVADO na pedra do muro (sem card) — no maior segmento, ao lado do portão.
+    private func wallInscription(width w: CGFloat, gap: CGFloat) -> some View {
+        // maior segmento = lado oposto ao portão
+        let leftLen = max(0, archX - gap)
+        let rightLen = max(0, w - (archX + gap))
+        let onLeft = leftLen >= rightLen
+        let segLen = onLeft ? leftLen : rightLen
+        let cx = onLeft ? leftLen / 2 : (archX + gap) + rightLen / 2
+        // Lettering de monumento: marfim quente ENTALHADO na pedra (sombra escura
+        // em cima = recesso, luz fraca embaixo = aresta iluminada). Lê em qualquer
+        // cor de seção; sem o ouro que abafava no verde (Rafael 2026-07-05).
+        return Text("SEÇÃO \(number) · \(tier.name.uppercased())")
+            .font(.system(size: 11, weight: .black)).kerning(0.5) // ds-allow: inscrição gravada na muralha (arte), não UI
+            .foregroundStyle(Color(red: 0.96, green: 0.93, blue: 0.85))   // marfim quente // ds-allow: inscrição gravada na muralha (arte), não UI
+            .shadow(color: .black.opacity(0.55), radius: 0, y: 1.2)       // recesso (entalhe)
+            .shadow(color: .white.opacity(0.12), radius: 0, y: -0.6)      // aresta iluminada
+            .frame(width: max(40, segLen - 12))
+            .minimumScaleFactor(0.7)
+            .lineLimit(1)
+            .position(x: cx, y: wallY)
     }
 
-    // MARK: portão (2 batentes que giram nas dobradiças; abre quando desbloqueia)
+    // MARK: portão (2 batentes que DESLIZAM pro lado e somem atrás do muro)
     private func gate(gap: CGFloat) -> some View {
         ZStack {
-            doorLeaf(width: gap, openAngle: -104, anchor: .leading,  centerX: archX - gap / 2)
-            doorLeaf(width: gap, openAngle: 104,  anchor: .trailing, centerX: archX + gap / 2)
+            doorLeaf(width: gap, isLeft: true,  centerX: archX - gap / 2)
+            doorLeaf(width: gap, isLeft: false, centerX: archX + gap / 2)
         }
     }
 
-    private func doorLeaf(width: CGFloat, openAngle: Double, anchor: UnitPoint, centerX: CGFloat) -> some View {
-        let freeEdgeTrailing = anchor == .leading
-        return RoundedRectangle(cornerRadius: 3, style: .continuous) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+    private func doorLeaf(width: CGFloat, isLeft: Bool, centerX: CGFloat) -> some View {
+        return RoundedRectangle(cornerRadius: 3, style: .continuous) // ds-allow: arte do portão da fortaleza, não UI
             .fill(LinearGradient(colors: [TrailWorld.wood, TrailWorld.stoneBottom],
                                  startPoint: .top, endPoint: .bottom))
             .frame(width: width, height: 34)
-            .overlay(  // bandas na cor da seção
+            .overlay(  // tábuas verticais (madeira)
+                HStack(spacing: 0) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Rectangle().fill(Color.black.opacity(0.12)).frame(width: 0.8)
+                        Spacer()
+                    }
+                }.padding(.horizontal, 4)
+            )
+            .overlay(  // reforço na cor da seção
                 VStack(spacing: 10) {
                     Capsule().fill(tier.bright.opacity(0.7)).frame(height: 2)
                     Capsule().fill(tier.bright.opacity(0.7)).frame(height: 2)
                 }
                 .padding(.horizontal, 5)
             )
-            .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+            .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous) // ds-allow: arte do portão da fortaleza, não UI
                 .strokeBorder(tier.bright.opacity(0.30), lineWidth: 0.6))
-            .overlay(  // argola na borda livre (encontro do meio quando fechado)
+            .overlay(  // argola na borda que se encontra no meio (fechado)
                 Circle().fill(TrailWorld.windowGlow)
                     .frame(width: 3.5, height: 3.5)
                     .shadow(color: TrailWorld.windowGlow.opacity(0.8), radius: 2)
-                    .position(x: freeEdgeTrailing ? width - 4 : 4, y: 17)
+                    .position(x: isLeft ? width - 4 : 4, y: 17)
             )
             .shadow(color: .black.opacity(0.4), radius: 3, y: 2)
-            .rotationEffect(.degrees(isOpen ? openAngle : 0), anchor: anchor)
+            // DESLIZA pro lado (pro pilar) e some atrás do muro
+            .offset(x: isOpen ? (isLeft ? -width : width) : 0)
             .position(x: centerX, y: wallY)
     }
 
