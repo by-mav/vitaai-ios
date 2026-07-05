@@ -141,63 +141,7 @@ struct ProgressoScreen: View {
         VitaHomeGrassBackdrop()
     }
 
-    // MARK: - Gate de seção — um portal horizontal no início de cada mundo.
-    // A seção 1 também aparece; esconder ela deixava o mapa começar "no meio".
-    private var sectionCards: some View {
-        let h = CGFloat(trailItems.count) * Self.rowStride + 40
-        return ZStack(alignment: .top) {
-            ForEach(0..<Self.tiers.count, id: \.self) { k in
-                sectionCard(Self.tiers[k], number: k + 1)
-                    .offset(y: CGFloat(k * 4) * Self.rowStride - 70)
-            }
-        }
-        .frame(height: h, alignment: .top)
-        .allowsHitTesting(false)
-    }
 
-    private func sectionCard(_ tier: Tier, number: Int) -> some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 5) {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .fill(tier.dark.opacity(0.88))
-                    .frame(width: 4, height: 30)
-                Text("SEÇÃO \(number)")
-                    .font(.system(size: 9, weight: .black))
-                    .kerning(1.2)
-                    .foregroundStyle(Color.white.opacity(0.72))
-            }
-
-            Text(tier.name)
-                .font(.system(size: 15, weight: .black))
-                .foregroundStyle(.white)
-
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(tier.dark.opacity(0.92))
-                    .offset(y: 4)
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(
-                    LinearGradient(
-                        colors: [
-                            tier.bright.opacity(0.95),
-                            tier.mid.opacity(0.94)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.white.opacity(0.28), lineWidth: 0.8)
-            }
-        )
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 18)
-    }
 
     private var worldLandmarks: some View {
         let h = Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + 140
@@ -299,8 +243,6 @@ struct ProgressoScreen: View {
             critterLayer
             sectionWalls
                 .offset(y: Self.trailTopInset)
-            sectionCards
-                .offset(y: Self.trailTopInset)
             VStack(spacing: 0) {
                 ForEach(Array(trailItems.enumerated()), id: \.element.id) { idx, item in
                     trailRow(item, rowIndex: idx)
@@ -320,12 +262,16 @@ struct ProgressoScreen: View {
         let h = CGFloat(trailItems.count) * Self.rowStride + 40
         return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                ForEach(1..<Self.tiers.count, id: \.self) { k in
+                ForEach(0..<Self.tiers.count, id: \.self) { k in
                     let i = Double(k * 4) - 0.5
                     let archX = geo.size.width / 2 + CGFloat(sin(i * Self.rowFreq)) * Self.rowAmp
-                    TrailSectionWall(archX: archX)
-                        .frame(width: geo.size.width, height: 64)
+                    // Portão aberto = já alcançou este mundo. Seção 1 (minLevel 0) sempre aberta.
+                    let unlocked = gatesForceOpen || userLevel >= Self.tiers[k].minLevel
+                    TrailSectionWall(archX: archX, tier: Self.tiers[k], number: k + 1, isOpen: unlocked)
+                        .frame(width: geo.size.width, height: 112)
                         .position(x: geo.size.width / 2,
+                                  // ponto médio entre o último nó da seção anterior e o
+                                  // primeiro desta (nós são centralizados +rowStride/2 no slot).
                                   y: CGFloat(k * 4) * Self.rowStride)
                 }
             }
@@ -340,6 +286,12 @@ struct ProgressoScreen: View {
     // QA: --vita-critter-storm spawna rapido e no topo (provar sem esperar sorte)
     private var critterStorm: Bool {
         ProcessInfo.processInfo.arguments.contains("--vita-critter-storm")
+    }
+
+    // QA: --vita-gates-open força todos os portões abertos (provar a animação sem
+    // precisar de um user de nível alto).
+    private var gatesForceOpen: Bool {
+        ProcessInfo.processInfo.arguments.contains("--vita-gates-open")
     }
 
     private func critterSpawnLoop() async {
@@ -603,7 +555,7 @@ struct ProgressoScreen: View {
         var id: Int { index }
     }
 
-    private struct Tier {
+    fileprivate struct Tier {
         let idx: Int
         let name: String
         let minLevel: Int
@@ -1357,59 +1309,136 @@ private struct TrailRoad: Shape {
 
 private struct TrailSectionWall: View {
     let archX: CGFloat
+    let tier: ProgressoScreen.Tier
+    let number: Int
+    var isOpen: Bool = false
+
+    private let wallY: CGFloat = 66   // centro vertical da muralha no componente
 
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
-            let gap: CGFloat = 52
+            let gap: CGFloat = 50
             ZStack {
-                hedgeSegment(from: 0, to: max(0, archX - gap), width: w)
-                hedgeSegment(from: min(w, archX + gap), to: w, width: w)
+                rampart(width: w)
+                gate(gap: gap)
                 pillar(at: archX - gap)
                 pillar(at: archX + gap)
+                signPlate(width: w)
             }
+            .animation(.easeInOut(duration: 0.85), value: isOpen)
         }
     }
 
-    private func hedgeSegment(from x0: CGFloat, to x1: CGFloat, width: CGFloat) -> some View {
-        let len = max(0, x1 - x0)
-        return ZStack {
-            // corpo da sebe (luz de cima)
-            Capsule()
-                .fill(LinearGradient(colors: [TrailWorld.hedgeBump, TrailWorld.hedgeBottom],
-                                     startPoint: .top, endPoint: .bottom))
-                .frame(width: len, height: 26)
-            // topo orgânico (moitas)
+    // MARK: muralha ALTA na cor da seção (pedra + ameias no topo)
+    private func rampart(width w: CGFloat) -> some View {
+        let bodyH: CGFloat = 42
+        return ZStack(alignment: .top) {
+            // ameias (crenellations) — dá a altura de fortaleza
             HStack(spacing: 10) {
-                ForEach(0..<max(1, Int(len / 26)), id: \.self) { i in
-                    Circle()
-                        .fill(i.isMultiple(of: 2) ? TrailWorld.hedgeTop : TrailWorld.hedgeBump)
-                        .frame(width: 16, height: 16)
+                ForEach(0..<max(3, Int(w / 26)), id: \.self) { _ in
+                    UnevenRoundedRectangle(topLeadingRadius: 2, topTrailingRadius: 2)
+                        .fill(LinearGradient(colors: [tier.mid, tier.dark],
+                                             startPoint: .top, endPoint: .bottom))
+                        .frame(width: 15, height: 14)
                 }
             }
-            .frame(width: len, alignment: .leading)
-            .offset(y: -11)
-            .clipped()
+            .frame(width: w)
+            .offset(y: -10)
+            // corpo da muralha (cor da seção = atmosfera)
+            Rectangle()
+                .fill(LinearGradient(colors: [tier.mid.opacity(0.92), tier.dark],
+                                     startPoint: .top, endPoint: .bottom))
+                .frame(width: w, height: bodyH)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(tier.bright.opacity(0.45)).frame(height: 1.4)
+                }
+                .overlay(  // juntas de pedra
+                    VStack(spacing: 13) {
+                        Rectangle().fill(Color.black.opacity(0.16)).frame(height: 1)
+                        Rectangle().fill(Color.black.opacity(0.16)).frame(height: 1)
+                    }
+                    .padding(.top, 12)
+                )
         }
-        .position(x: x0 + len / 2, y: 34)
-        .shadow(color: .black.opacity(0.30), radius: 5, y: 4)
+        .frame(width: w, alignment: .top)
+        .position(x: w / 2, y: wallY)
+        .shadow(color: .black.opacity(0.42), radius: 7, y: 6)
     }
 
+    // MARK: placa de PEDRA com o nome GRAVADO (substitui o banner roxo)
+    private func signPlate(width w: CGFloat) -> some View {
+        let plateX = min(max(archX, 96), w - 96)
+        return VStack(spacing: 1) {
+            Text("SEÇÃO \(number)")
+                .font(.system(size: 8, weight: .black)).kerning(1.5) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+                .foregroundStyle(tier.bright.opacity(0.92))
+            Text(tier.name.uppercased())
+                .font(.system(size: 13, weight: .black)).kerning(0.4) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.7), radius: 0, y: 1)   // gravado (letterpress)
+            Text("Níveis \(tier.minLevel)–\(tier.maxLevel)")
+                .font(.system(size: 8, weight: .bold)) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+                .foregroundStyle(Color.white.opacity(0.62))
+        }
+        .padding(.horizontal, 13).padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+                .fill(LinearGradient(colors: [tier.dark, Color.black.opacity(0.9)],
+                                     startPoint: .top, endPoint: .bottom))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+                    .strokeBorder(tier.bright.opacity(0.45), lineWidth: 0.8))
+        )
+        .shadow(color: .black.opacity(0.5), radius: 4, y: 3)
+        .position(x: plateX, y: 16)
+    }
+
+    // MARK: portão (2 batentes que giram nas dobradiças; abre quando desbloqueia)
+    private func gate(gap: CGFloat) -> some View {
+        ZStack {
+            doorLeaf(width: gap, openAngle: -104, anchor: .leading,  centerX: archX - gap / 2)
+            doorLeaf(width: gap, openAngle: 104,  anchor: .trailing, centerX: archX + gap / 2)
+        }
+    }
+
+    private func doorLeaf(width: CGFloat, openAngle: Double, anchor: UnitPoint, centerX: CGFloat) -> some View {
+        let freeEdgeTrailing = anchor == .leading
+        return RoundedRectangle(cornerRadius: 3, style: .continuous) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+            .fill(LinearGradient(colors: [TrailWorld.wood, TrailWorld.stoneBottom],
+                                 startPoint: .top, endPoint: .bottom))
+            .frame(width: width, height: 34)
+            .overlay(  // bandas na cor da seção
+                VStack(spacing: 10) {
+                    Capsule().fill(tier.bright.opacity(0.7)).frame(height: 2)
+                    Capsule().fill(tier.bright.opacity(0.7)).frame(height: 2)
+                }
+                .padding(.horizontal, 5)
+            )
+            .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous) // ds-allow: arte do mundo do jogo (placa/portão da fortaleza), não chrome de UI
+                .strokeBorder(tier.bright.opacity(0.30), lineWidth: 0.6))
+            .overlay(  // argola na borda livre (encontro do meio quando fechado)
+                Circle().fill(TrailWorld.windowGlow)
+                    .frame(width: 3.5, height: 3.5)
+                    .shadow(color: TrailWorld.windowGlow.opacity(0.8), radius: 2)
+                    .position(x: freeEdgeTrailing ? width - 4 : 4, y: 17)
+            )
+            .shadow(color: .black.opacity(0.4), radius: 3, y: 2)
+            .rotationEffect(.degrees(isOpen ? openAngle : 0), anchor: anchor)
+            .position(x: centerX, y: wallY)
+    }
+
+    // MARK: pilares com lampião aceso
     private func pillar(at x: CGFloat) -> some View {
         ZStack {
-            // pilar de pedra
             Capsule()
-                .fill(LinearGradient(colors: [TrailWorld.stoneTop, TrailWorld.stoneBottom],
+                .fill(LinearGradient(colors: [tier.mid, tier.dark],
                                      startPoint: .top, endPoint: .bottom))
-                .frame(width: 13, height: 44)
-            // lampião aceso (a luz que convida pro próximo mundo)
-            Circle()
-                .fill(TrailWorld.windowGlow)
-                .frame(width: 8, height: 8)
+                .frame(width: 15, height: 54)
+            Circle().fill(TrailWorld.windowGlow).frame(width: 8, height: 8)
                 .shadow(color: TrailWorld.windowGlow.opacity(0.85), radius: 7)
-                .offset(y: -24)
+                .offset(y: -30)
         }
-        .position(x: x, y: 30)
+        .position(x: x, y: wallY - 5)
     }
 }
 
