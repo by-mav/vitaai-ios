@@ -86,17 +86,33 @@ struct ProgressoScreen: View {
         Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + Self.trailBottomInset
     }
 
-    /// Stops travados por seção (cada tier ocupa 1/n da altura, cor sólida) — a cor
-    /// muda EXATAMENTE na fronteira de capítulo (estrada + fundo), nunca antes.
-    private static func sectionStops(_ key: (Tier) -> Color) -> Gradient {
+    /// Stops travados por seção com HARD-STOPS na posição REAL de cada muralha —
+    /// a cor muda EXATAMENTE onde o muro cruza a estrada/grama, não numa fração
+    /// uniforme (Rafael 2026-07-05: "a rua não troca exatamente após o portão").
+    /// `wallLocalY(k)` = Y da muralha k (fronteira da seção k) em coord LOCAL da
+    /// view onde o gradiente é pintado; `height` = altura total dessa view. Cada
+    /// view (estrada tem offset trailTopInset; grama não) passa seu próprio mapa.
+    private static func sectionStops(_ key: (Tier) -> Color,
+                                     wallLocalY: (Int) -> CGFloat,
+                                     height: CGFloat) -> Gradient {
         let n = tiers.count
+        guard height > 0 else { return Gradient(colors: [key(tiers[0])]) }
+        func frac(_ y: CGFloat) -> Double { Double(min(height, max(0, y)) / height) }
         var stops: [Gradient.Stop] = []
-        for (i, t) in tiers.enumerated() {
-            stops.append(.init(color: key(t), location: Double(i) / Double(n)))
-            stops.append(.init(color: key(t), location: Double(i + 1) / Double(n)))
+        for i in 0..<n {
+            let top = i == 0 ? 0.0 : frac(wallLocalY(i))          // fronteira superior da seção i
+            let bot = i == n - 1 ? 1.0 : frac(wallLocalY(i + 1))  // fronteira inferior
+            stops.append(.init(color: key(tiers[i]), location: top))
+            stops.append(.init(color: key(tiers[i]), location: bot))
         }
         return Gradient(stops: stops)
     }
+
+    /// Y local da muralha k DENTRO da estrada (dirtPath tem offset trailTopInset,
+    /// então o inset já sai da coord local → muro k = k*4*rowStride).
+    private static func roadWallY(_ k: Int) -> CGFloat { CGFloat(k * 4) * rowStride }
+    /// Y local da muralha k DENTRO da grama (grassField NÃO tem offset → inclui o inset).
+    private static func grassWallY(_ k: Int) -> CGFloat { trailTopInset + CGFloat(k * 4) * rowStride }
 
     // MARK: - Caminho de TERRA sobre a grama (ref Duolingo, Rafael 2026-06-18).
     // Aterra os nós no mundo (não flutuam). Terra clara em cima + borda escura +
@@ -104,11 +120,16 @@ struct ProgressoScreen: View {
     private var dirtPath: some View {
         let road = TrailRoad(count: trailItems.count, stride: Self.rowStride,
                              amp: Self.rowAmp, freq: Self.rowFreq)
-        // A estrada pega a COR DA SEÇÃO (Rafael 2026-07-05): gradiente travado por
-        // seção (mesmo do fundo), muda exatamente na fronteira/muralha.
-        let edgeGrad = LinearGradient(gradient: Self.sectionStops { $0.dark },
+        // A estrada pega a COR DA SEÇÃO (Rafael 2026-07-05): hard-stops na posição
+        // REAL de cada muralha (roadWallY) sobre a altura da estrada → a cor muda
+        // exatamente ao cruzar o muro, nunca antes/depois.
+        let edgeGrad = LinearGradient(gradient: Self.sectionStops({ $0.dark },
+                                                                  wallLocalY: Self.roadWallY,
+                                                                  height: trailContentHeight),
                                       startPoint: .top, endPoint: .bottom)
-        let surfaceGrad = LinearGradient(gradient: Self.sectionStops { $0.mid },
+        let surfaceGrad = LinearGradient(gradient: Self.sectionStops({ $0.mid },
+                                                                     wallLocalY: Self.roadWallY,
+                                                                     height: trailContentHeight),
                                          startPoint: .top, endPoint: .bottom)
         return ZStack {
             // sombra do caminho na grama
@@ -142,9 +163,11 @@ struct ProgressoScreen: View {
             TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { tl in
                 GrassField(height: h, phase: tl.date.timeIntervalSinceReferenceDate)
             }
-            LinearGradient(gradient: Self.sectionStops { $0.mid.opacity(0.05) },
+            LinearGradient(gradient: Self.sectionStops({ $0.mid.opacity(0.05) },
+                                                       wallLocalY: Self.grassWallY, height: h),
                            startPoint: .top, endPoint: .bottom)
-            LinearGradient(gradient: Self.sectionStops { $0.dark.opacity(0.25) },
+            LinearGradient(gradient: Self.sectionStops({ $0.dark.opacity(0.25) },
+                                                       wallLocalY: Self.grassWallY, height: h),
                            startPoint: .top, endPoint: .bottom)
         }
         .frame(height: h)
