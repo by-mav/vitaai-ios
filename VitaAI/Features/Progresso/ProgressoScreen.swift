@@ -209,8 +209,8 @@ struct ProgressoScreen: View {
                         .opacity(landmark.opacity)
                         .position(
                             x: landmark.side == .leading
-                                ? geo.size.width * 0.17
-                                : geo.size.width * 0.83,
+                                ? geo.size.width * 0.15
+                                : geo.size.width * 0.85,
                             y: Self.trailTopInset + (landmark.row * Self.rowStride)
                         )
                 }
@@ -1203,14 +1203,14 @@ struct ProgressoScreen: View {
     ]
 
     private static let landmarks: [Landmark] = [
-        Landmark(id: "school-calouro", kind: .school, side: .leading, row: 1.15, scale: 0.98, opacity: 0.96),
-        Landmark(id: "university-calouro", kind: .university, side: .trailing, row: 3.20, scale: 0.96, opacity: 0.94),
-        Landmark(id: "health-post-academico", kind: .healthPost, side: .leading, row: 5.30, scale: 0.94, opacity: 0.92),
-        Landmark(id: "hospital-academico", kind: .majorHospital, side: .trailing, row: 7.55, scale: 0.94, opacity: 0.94),
-        Landmark(id: "ambulance-residente", kind: .ambulance, side: .leading, row: 9.80, scale: 0.88, opacity: 0.90),
-        Landmark(id: "lab-residente", kind: .lab, side: .trailing, row: 12.10, scale: 0.92, opacity: 0.92),
-        Landmark(id: "clinic-especialista", kind: .clinic, side: .leading, row: 14.60, scale: 0.90, opacity: 0.88),
-        Landmark(id: "hospital-lenda", kind: .majorHospital, side: .trailing, row: 17.35, scale: 0.82, opacity: 0.84),
+        // 1 casa por SEÇÃO, no MEIO dela (linha k*4+2) — longe do banner (em k*4)
+        // e do próximo (k*4+4). Antes: 8 casas, 2 na seção 1 e algumas ATRÁS do
+        // banner (Rafael 2026-07-05). Temática por fase da carreira.
+        Landmark(id: "sec1-school",     kind: .school,        side: .leading,  row: 2,  scale: 1.02, opacity: 0.95),
+        Landmark(id: "sec2-university", kind: .university,    side: .trailing, row: 6,  scale: 1.02, opacity: 0.93),
+        Landmark(id: "sec3-healthpost", kind: .healthPost,    side: .leading,  row: 10, scale: 1.00, opacity: 0.92),
+        Landmark(id: "sec4-hospital",   kind: .majorHospital, side: .trailing, row: 14, scale: 1.00, opacity: 0.92),
+        Landmark(id: "sec5-clinic",     kind: .clinic,        side: .leading,  row: 18, scale: 0.98, opacity: 0.90),
     ]
 
     private var trailItems: [TrailItem] {
