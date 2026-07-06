@@ -10,6 +10,7 @@ Name | Type | Description | Notes
 **highSchoolYear** | **Int** |  | [optional] 
 **examBoard** | **String** |  | [optional] 
 **studyGoalId** | **String** |  | [optional] 
+**dailyStudyMinutes** | **Int** | Meta diária de estudo em minutos | [optional] 
 **university** | **String** |  | [optional] 
 **universityState** | **String** |  | [optional] 
 **universityId** | **String** |  | [optional] 

@@ -14,6 +14,8 @@ public struct Document: Sendable, Codable, Hashable {
     public var fileName: String?
     public var fileUrl: String?
     public var subjectId: String?
+    /** Studio source created from this document when available for AI study tools. */
+    public var studioSourceId: String?
     public var totalPages: Int?
     public var currentPage: Int?
     public var readProgress: Double?
@@ -24,12 +26,13 @@ public struct Document: Sendable, Codable, Hashable {
     /** Última modificação do material no portal de origem. */
     public var portalModifiedAt: Date?
 
-    public init(id: String? = nil, title: String? = nil, fileName: String? = nil, fileUrl: String? = nil, subjectId: String? = nil, totalPages: Int? = nil, currentPage: Int? = nil, readProgress: Double? = nil, isFavorite: Bool? = nil, createdAt: Date? = nil, portalCreatedAt: Date? = nil, portalModifiedAt: Date? = nil) {
+    public init(id: String? = nil, title: String? = nil, fileName: String? = nil, fileUrl: String? = nil, subjectId: String? = nil, studioSourceId: String? = nil, totalPages: Int? = nil, currentPage: Int? = nil, readProgress: Double? = nil, isFavorite: Bool? = nil, createdAt: Date? = nil, portalCreatedAt: Date? = nil, portalModifiedAt: Date? = nil) {
         self.id = id
         self.title = title
         self.fileName = fileName
         self.fileUrl = fileUrl
         self.subjectId = subjectId
+        self.studioSourceId = studioSourceId
         self.totalPages = totalPages
         self.currentPage = currentPage
         self.readProgress = readProgress
@@ -45,6 +48,7 @@ public struct Document: Sendable, Codable, Hashable {
         case fileName
         case fileUrl
         case subjectId
+        case studioSourceId
         case totalPages
         case currentPage
         case readProgress
@@ -63,6 +67,7 @@ public struct Document: Sendable, Codable, Hashable {
         try container.encodeIfPresent(fileName, forKey: .fileName)
         try container.encodeIfPresent(fileUrl, forKey: .fileUrl)
         try container.encodeIfPresent(subjectId, forKey: .subjectId)
+        try container.encodeIfPresent(studioSourceId, forKey: .studioSourceId)
         try container.encodeIfPresent(totalPages, forKey: .totalPages)
         try container.encodeIfPresent(currentPage, forKey: .currentPage)
         try container.encodeIfPresent(readProgress, forKey: .readProgress)

@@ -14,6 +14,7 @@ public struct StudioOutput: Sendable, Codable, Hashable {
         case flashcards = "flashcards"
         case mindmap = "mindmap"
         case quiz = "quiz"
+        case studyPack = "study_pack"
     }
     public var id: String?
     public var outputType: OutputType?

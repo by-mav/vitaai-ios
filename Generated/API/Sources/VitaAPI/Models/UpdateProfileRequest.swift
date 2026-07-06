@@ -9,6 +9,7 @@ import Foundation
 
 public struct UpdateProfileRequest: Sendable, Codable, Hashable {
 
+    public static let dailyStudyMinutesRule = NumericRule<Int>(minimum: 15, exclusiveMinimum: false, maximum: 720, exclusiveMaximum: false, multipleOf: nil)
     public var displayName: String?
     public var moment: String?
     public var year: Int?
@@ -16,12 +17,14 @@ public struct UpdateProfileRequest: Sendable, Codable, Hashable {
     public var highSchoolYear: Int?
     public var examBoard: String?
     public var studyGoalId: String?
+    /** Meta diária de estudo em minutos */
+    public var dailyStudyMinutes: Int?
     public var university: String?
     public var universityState: String?
     public var universityId: String?
     public var universityLms: String?
 
-    public init(displayName: String? = nil, moment: String? = nil, year: Int? = nil, semester: Int? = nil, highSchoolYear: Int? = nil, examBoard: String? = nil, studyGoalId: String? = nil, university: String? = nil, universityState: String? = nil, universityId: String? = nil, universityLms: String? = nil) {
+    public init(displayName: String? = nil, moment: String? = nil, year: Int? = nil, semester: Int? = nil, highSchoolYear: Int? = nil, examBoard: String? = nil, studyGoalId: String? = nil, dailyStudyMinutes: Int? = nil, university: String? = nil, universityState: String? = nil, universityId: String? = nil, universityLms: String? = nil) {
         self.displayName = displayName
         self.moment = moment
         self.year = year
@@ -29,6 +32,7 @@ public struct UpdateProfileRequest: Sendable, Codable, Hashable {
         self.highSchoolYear = highSchoolYear
         self.examBoard = examBoard
         self.studyGoalId = studyGoalId
+        self.dailyStudyMinutes = dailyStudyMinutes
         self.university = university
         self.universityState = universityState
         self.universityId = universityId
@@ -43,6 +47,7 @@ public struct UpdateProfileRequest: Sendable, Codable, Hashable {
         case highSchoolYear
         case examBoard
         case studyGoalId
+        case dailyStudyMinutes
         case university
         case universityState
         case universityId
@@ -60,6 +65,7 @@ public struct UpdateProfileRequest: Sendable, Codable, Hashable {
         try container.encodeIfPresent(highSchoolYear, forKey: .highSchoolYear)
         try container.encodeIfPresent(examBoard, forKey: .examBoard)
         try container.encodeIfPresent(studyGoalId, forKey: .studyGoalId)
+        try container.encodeIfPresent(dailyStudyMinutes, forKey: .dailyStudyMinutes)
         try container.encodeIfPresent(university, forKey: .university)
         try container.encodeIfPresent(universityState, forKey: .universityState)
         try container.encodeIfPresent(universityId, forKey: .universityId)

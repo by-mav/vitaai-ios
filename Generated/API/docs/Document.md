@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **fileName** | **String** |  | [optional] 
 **fileUrl** | **String** |  | [optional] 
 **subjectId** | **String** |  | [optional] 
+**studioSourceId** | **String** | Studio source created from this document when available for AI study tools. | [optional] 
 **totalPages** | **Int** |  | [optional] 
 **currentPage** | **Int** |  | [optional] 
 **readProgress** | **Double** |  | [optional] 
