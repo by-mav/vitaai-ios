@@ -112,7 +112,7 @@ struct PdfViewerScreen: View {
         ZStack {
             if viewModel.isLoading {
                 VStack(spacing: 16) {
-                    OrbMascot(palette: .vita, state: .thinking, size: 120)
+                    VitaMascotEquipped(state: .thinking, size: 120)
                     Text("Abrindo documento")
                         .font(VitaTypography.labelMedium)
                         .foregroundStyle(VitaColors.textSecondary)

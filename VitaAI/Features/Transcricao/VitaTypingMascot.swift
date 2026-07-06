@@ -38,8 +38,7 @@ struct VitaTypingMascot: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            OrbMascot(
-                palette: .vita,
+            VitaMascotEquipped(
                 state: isRecording ? .thinking : .sleeping,
                 size: orbSize,
                 bounceEnabled: false

@@ -609,7 +609,7 @@ struct ProgressoScreen: View {
         // OrbMascot, paleta gold, state .awake, grande (olhos + glow dourado, vivo).
         // Na TRILHA tem comportamento próprio: bounceEnabled=false (NÃO fica pulando
         // toda hora — só flutua/pisca/olha, calmo). TODO: saltar de nó em nó ao upar.
-        OrbMascot(palette: .vita, state: .awake, size: 58, bounceEnabled: false)
+        VitaMascotEquipped(state: .awake, size: 58, bounceEnabled: false)
     }
 
     // MARK: - Estado + ações

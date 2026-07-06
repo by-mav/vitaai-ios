@@ -1819,8 +1819,7 @@ private struct MeshDetailSheet: View {
                         // pediu várias vezes pra parar com sparkles. Estado
                         // muda conforme stream: thinking enquanto vazio, awake
                         // quando texto começa a chegar.
-                        OrbMascot(
-                            palette: .vita,
+                        VitaMascotEquipped(
                             state: turn.text.isEmpty ? .thinking : .awake,
                             size: 26,
                             bounceEnabled: false

@@ -105,8 +105,7 @@ struct VitaSpeakingMascot: View {
             }
 
             ZStack(alignment: .bottomLeading) {
-                OrbMascot(
-                    palette: .vita,
+                VitaMascotEquipped(
                     state: persona.orbState,
                     size: size,
                     bounceEnabled: persona == .idle || persona == .cheering

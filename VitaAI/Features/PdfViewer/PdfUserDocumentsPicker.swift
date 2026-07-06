@@ -25,7 +25,7 @@ struct PdfUserDocumentsPicker: View {
                 VitaColors.surface.ignoresSafeArea()
 
                 if isLoading {
-                    OrbMascot(palette: .vita, state: .thinking, size: 96)
+                    VitaMascotEquipped(state: .thinking, size: 96)
                 } else if let err = loadError {
                     VStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle.fill")
