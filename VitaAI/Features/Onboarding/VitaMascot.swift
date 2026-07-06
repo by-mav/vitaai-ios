@@ -527,28 +527,34 @@ struct OrbMascot: View {
     // Coroa de louros — dois ramos simétricos de folhas correndo por um arco em
     // volta da cabeça (de baixo-lado até quase o topo), tangentes à curva.
     private func laurelView(_ s: CGFloat) -> some View {
-        let leaf  = Color(red: 0.60, green: 0.72, blue: 0.34)   // ds-allow: skin color
-        let leafD = Color(red: 0.37, green: 0.50, blue: 0.19)   // ds-allow: skin color
-        let R = s * 0.50
-        let n = 7
+        let leaf  = Color(red: 0.58, green: 0.72, blue: 0.32)   // ds-allow: skin color
+        let leafD = Color(red: 0.34, green: 0.48, blue: 0.17)   // ds-allow: skin color
+        let berry = Color(red: 0.90, green: 0.76, blue: 0.32)   // ds-allow: skin color
+        let R = s * 0.52
+        let n = 9
         return ZStack {
             ForEach([1.0, -1.0], id: \.self) { sign in
                 ForEach(0..<n, id: \.self) { i in
-                    // arco de -48° (baixo-lado) até +76° (quase topo), lado direito
-                    let deg = -48.0 + Double(i) * (124.0 / Double(n - 1))
+                    // arco denso de -30° (baixo-lado) → +86° (topo); folhas deitadas ao longo do arco
+                    let t = Double(i) / Double(n - 1)
+                    let deg = -30.0 + t * 116.0
                     let rad = deg * .pi / 180.0
+                    let px = CGFloat(cos(rad)) * R
+                    let py = -CGFloat(sin(rad)) * R
                     Ellipse()
                         .fill(LinearGradient(colors: [leaf, leafD], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: s * 0.17, height: s * 0.085)
-                        // folha tangente ao arco, apontando pra fora
-                        .rotationEffect(.degrees(sign * (deg + 96)))
-                        .offset(x: CGFloat(sign) * CGFloat(cos(rad)) * R,
-                                y: -CGFloat(sin(rad)) * R)
+                        .frame(width: s * 0.155, height: s * 0.07)
+                        .rotationEffect(.degrees(sign * (deg + 112)))
+                        .offset(x: CGFloat(sign) * px, y: py)
+                    if i % 3 == 1 {
+                        Circle().fill(berry).frame(width: s * 0.034, height: s * 0.034)
+                            .offset(x: CGFloat(sign) * px * 0.82, y: py * 0.82)
+                    }
                 }
             }
-            // laço na base traseira (só um traço dourado sutil)
-            Capsule().fill(leafD)
-                .frame(width: s * 0.10, height: s * 0.03).offset(y: s * 0.40)
+            // laço dourado na base
+            Capsule().fill(berry.opacity(0.85))
+                .frame(width: s * 0.10, height: s * 0.026).offset(y: s * 0.42)
         }
     }
 
@@ -602,41 +608,52 @@ struct OrbMascot: View {
         }
     }
 
-    // Máscara cirúrgica — cobre a metade de baixo do rosto, pregas + alças.
+    // Máscara cirúrgica — cobre nariz→queixo (ABAIXO dos olhos, que ficam à mostra),
+    // aramezinho do nariz no topo, pregas horizontais e alças subindo pras orelhas.
     private func surgicalMaskView(_ s: CGFloat) -> some View {
-        let top = Color(red: 0.48, green: 0.76, blue: 0.66)     // ds-allow: skin color
-        let mid = Color(red: 0.33, green: 0.59, blue: 0.51)     // ds-allow: skin color
+        let top  = Color(red: 0.50, green: 0.78, blue: 0.68)    // ds-allow: skin color
+        let mid  = Color(red: 0.32, green: 0.58, blue: 0.50)    // ds-allow: skin color
+        let wire = Color(red: 0.23, green: 0.45, blue: 0.39)    // ds-allow: skin color
         return ZStack {
+            // alças finas subindo pras "orelhas" (laterais), atrás do corpo
             ForEach([-1.0, 1.0], id: \.self) { sign in
                 Capsule().fill(mid)
-                    .frame(width: s * 0.022, height: s * 0.30)
-                    .rotationEffect(.degrees(Double(sign) * 30))
-                    .offset(x: CGFloat(sign) * s * 0.30, y: -s * 0.02)
+                    .frame(width: s * 0.018, height: s * 0.24)
+                    .rotationEffect(.degrees(Double(sign) * 20))
+                    .offset(x: CGFloat(sign) * s * 0.27, y: s * 0.08)
             }
-            RoundedRectangle(cornerRadius: s * 0.08)
+            // corpo cobrindo nariz→queixo
+            MaskShape()
                 .fill(LinearGradient(colors: [top, mid], startPoint: .top, endPoint: .bottom))
-                .frame(width: s * 0.52, height: s * 0.36).offset(y: s * 0.14)
+                .frame(width: s * 0.56, height: s * 0.40).offset(y: s * 0.20)
+            // aramezinho do nariz (borda de cima)
+            Capsule().fill(wire).frame(width: s * 0.38, height: s * 0.02).offset(y: s * 0.03)
+            // pregas
             ForEach(0..<3, id: \.self) { i in
-                Capsule().fill(Color.black.opacity(0.09))
-                    .frame(width: s * 0.44, height: s * 0.014)
-                    .offset(y: s * 0.06 + CGFloat(i) * s * 0.07)
+                Capsule().fill(Color.black.opacity(0.08))
+                    .frame(width: s * 0.46, height: s * 0.013)
+                    .offset(y: s * 0.15 + CGFloat(i) * s * 0.07)
             }
         }
     }
 
     // Monóculo — 1 lente com aro dourado + correntinha pendurada. Nobre.
     private func monocleView(_ s: CGFloat) -> some View {
-        let gold  = Color(red: 0.86, green: 0.70, blue: 0.36)   // ds-allow: skin color
-        let glass = Color(red: 0.62, green: 0.78, blue: 0.94).opacity(0.14)  // ds-allow: skin color
+        let gold  = Color(red: 0.90, green: 0.74, blue: 0.38)   // ds-allow: skin color
+        let goldD = Color(red: 0.58, green: 0.42, blue: 0.15)   // ds-allow: skin color
+        let glass = Color(red: 0.64, green: 0.80, blue: 0.96).opacity(0.16)  // ds-allow: skin color
         return ZStack {
-            Circle().fill(glass).frame(width: s * 0.24, height: s * 0.24)
-            Circle().stroke(gold, lineWidth: s * 0.02).frame(width: s * 0.24, height: s * 0.24)
-            Capsule().fill(Color.white.opacity(0.5))
-                .frame(width: s * 0.012, height: s * 0.06)
-                .rotationEffect(.degrees(-30)).offset(x: -s * 0.05, y: -s * 0.04)
-            ForEach(0..<4, id: \.self) { i in
-                Circle().fill(gold).frame(width: s * 0.02, height: s * 0.02)
-                    .offset(x: s * 0.12 + CGFloat(i) * s * 0.014, y: s * 0.10 + CGFloat(i) * s * 0.05)
+            Circle().fill(glass).frame(width: s * 0.26, height: s * 0.26)
+            Circle().stroke(LinearGradient(colors: [gold, goldD], startPoint: .top, endPoint: .bottom),
+                            lineWidth: s * 0.028)
+                .frame(width: s * 0.26, height: s * 0.26)
+            Capsule().fill(Color.white.opacity(0.6))
+                .frame(width: s * 0.014, height: s * 0.07)
+                .rotationEffect(.degrees(-30)).offset(x: -s * 0.055, y: -s * 0.05)
+            // correntinha pendurada, mais nítida
+            ForEach(0..<5, id: \.self) { i in
+                Circle().fill(goldD).frame(width: s * 0.022, height: s * 0.022)
+                    .offset(x: s * 0.13 - CGFloat(i) * s * 0.012, y: s * 0.13 + CGFloat(i) * s * 0.055)
             }
         }
         .offset(x: s * 0.13, y: -s * 0.02)
@@ -711,23 +728,34 @@ struct OrbMascot: View {
     private func bowTieView(_ s: CGFloat) -> some View {
         let silk  = Color(red: 0.82, green: 0.22, blue: 0.28)   // ds-allow: skin color
         let silkD = Color(red: 0.52, green: 0.12, blue: 0.18)   // ds-allow: skin color
+        let collar  = Color(red: 0.96, green: 0.97, blue: 1.00) // ds-allow: skin color
+        let collarS = Color(red: 0.74, green: 0.78, blue: 0.85) // ds-allow: skin color
         let y: CGFloat = s * 0.40
         return ZStack {
+            // gola branca de camisa atrás (dá contexto — não flutua)
+            ForEach([-1.0, 1.0], id: \.self) { sign in
+                CollarWingShape()
+                    .fill(LinearGradient(colors: [collar, collarS], startPoint: .top, endPoint: .bottom))
+                    .frame(width: s * 0.18, height: s * 0.16)
+                    .scaleEffect(x: CGFloat(sign), y: 1)
+                    .offset(x: CGFloat(sign) * s * 0.09, y: y + s * 0.02)
+            }
+            // asas da gravata
             ForEach([-1.0, 1.0], id: \.self) { sign in
                 BowSideShape()
                     .fill(LinearGradient(colors: [silk, silkD], startPoint: .top, endPoint: .bottom))
-                    .frame(width: s * 0.18, height: s * 0.16)
+                    .frame(width: s * 0.19, height: s * 0.17)
                     .scaleEffect(x: CGFloat(sign), y: 1)
                     .offset(x: CGFloat(sign) * s * 0.10, y: y)
                 BowSideShape().stroke(Color.black.opacity(0.14), lineWidth: s * 0.006)
-                    .frame(width: s * 0.18, height: s * 0.16)
+                    .frame(width: s * 0.19, height: s * 0.17)
                     .scaleEffect(x: CGFloat(sign), y: 1)
                     .offset(x: CGFloat(sign) * s * 0.10, y: y)
             }
             RoundedRectangle(cornerRadius: s * 0.02)
                 .fill(LinearGradient(colors: [silk, silkD], startPoint: .top, endPoint: .bottom))
-                .frame(width: s * 0.06, height: s * 0.11).offset(y: y)
-            Capsule().fill(Color.white.opacity(0.28))
+                .frame(width: s * 0.06, height: s * 0.12).offset(y: y)
+            Capsule().fill(Color.white.opacity(0.3))
                 .frame(width: s * 0.035, height: s * 0.014).offset(x: -s * 0.08, y: y - s * 0.03)
         }
     }
@@ -768,23 +796,30 @@ struct OrbMascot: View {
 
     // Medalha de ouro — fitas em V + medalhão com estrela. Campeão.
     private func goldMedalView(_ s: CGFloat) -> some View {
-        let ribbon = Color(red: 0.80, green: 0.20, blue: 0.24)  // ds-allow: skin color
-        let goldT  = Color(red: 1.00, green: 0.86, blue: 0.52)  // ds-allow: skin color
-        let goldM  = Color(red: 0.82, green: 0.62, blue: 0.24)  // ds-allow: skin color
+        let ribbon  = Color(red: 0.30, green: 0.42, blue: 0.72) // ds-allow: skin color
+        let ribbonD = Color(red: 0.18, green: 0.28, blue: 0.52) // ds-allow: skin color
+        let goldT = Color(red: 1.00, green: 0.87, blue: 0.52)   // ds-allow: skin color
+        let goldM = Color(red: 0.84, green: 0.63, blue: 0.24)   // ds-allow: skin color
+        let goldD = Color(red: 0.55, green: 0.40, blue: 0.14)   // ds-allow: skin color
         return ZStack {
+            // fitas dos ombros convergindo pro medalhão (V em volta do pescoço)
             ForEach([-1.0, 1.0], id: \.self) { sign in
-                Capsule().fill(ribbon)
-                    .frame(width: s * 0.06, height: s * 0.26)
-                    .rotationEffect(.degrees(Double(sign) * 18))
-                    .offset(x: CGFloat(sign) * s * 0.07, y: s * 0.34)
+                Capsule().fill(LinearGradient(colors: [ribbon, ribbonD], startPoint: .top, endPoint: .bottom))
+                    .frame(width: s * 0.055, height: s * 0.34)
+                    .rotationEffect(.degrees(Double(sign) * 20))
+                    .offset(x: CGFloat(sign) * s * 0.10, y: s * 0.32)
             }
+            // medalhão (rim + estrela + brilho especular)
             ZStack {
-                Circle().fill(LinearGradient(colors: [goldT, goldM], startPoint: .topLeading, endPoint: .bottomTrailing))
-                Circle().stroke(goldM, lineWidth: s * 0.012)
+                Circle().fill(RadialGradient(colors: [goldT, goldM, goldD],
+                    center: UnitPoint(x: 0.38, y: 0.30), startRadius: 0, endRadius: s * 0.12))
+                Circle().strokeBorder(goldD, lineWidth: s * 0.014)
                 Image(systemName: "star.fill")
-                    .font(.system(size: s * 0.10)).foregroundColor(goldM.opacity(0.85))  // ds-allow: ícone gravado na medalha (arte)
+                    .font(.system(size: s * 0.11)).foregroundColor(goldD.opacity(0.85))  // ds-allow: gravado (arte)
+                Ellipse().fill(Color.white.opacity(0.5))
+                    .frame(width: s * 0.06, height: s * 0.03).offset(x: -s * 0.04, y: -s * 0.04).blur(radius: 0.4)
             }
-            .frame(width: s * 0.22, height: s * 0.22).offset(y: s * 0.50)
+            .frame(width: s * 0.24, height: s * 0.24).offset(y: s * 0.50)
         }
     }
 
@@ -1546,6 +1581,35 @@ private struct HeadbandShape: Shape {
             p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
             p.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY),
                            control: CGPoint(x: r.midX, y: r.minY + h * 0.45))
+            p.closeSubpath()
+        }
+    }
+}
+
+/// Máscara cirúrgica — trapézio arredondado: largo em cima (nariz), estreita no queixo.
+private struct MaskShape: Shape {
+    func path(in r: CGRect) -> Path {
+        let w = r.width, h = r.height
+        return Path { p in
+            p.move(to: CGPoint(x: r.minX + w * 0.04, y: r.minY + h * 0.06))
+            p.addQuadCurve(to: CGPoint(x: r.maxX - w * 0.04, y: r.minY + h * 0.06),
+                           control: CGPoint(x: r.midX, y: r.minY - h * 0.06))
+            p.addLine(to: CGPoint(x: r.maxX - w * 0.20, y: r.maxY - h * 0.05))
+            p.addQuadCurve(to: CGPoint(x: r.minX + w * 0.20, y: r.maxY - h * 0.05),
+                           control: CGPoint(x: r.midX, y: r.maxY + h * 0.10))
+            p.closeSubpath()
+        }
+    }
+}
+
+/// Aba de gola de camisa (ponta pra baixo-centro). Espelha por scaleEffect.
+private struct CollarWingShape: Shape {
+    func path(in r: CGRect) -> Path {
+        let w = r.width, h = r.height
+        return Path { p in
+            p.move(to: CGPoint(x: r.minX, y: r.minY))
+            p.addLine(to: CGPoint(x: r.maxX, y: r.minY + h * 0.15))
+            p.addLine(to: CGPoint(x: r.minX + w * 0.35, y: r.maxY))
             p.closeSubpath()
         }
     }
