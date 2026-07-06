@@ -10,6 +10,9 @@ info:
   # 2026-04-20: Haiku plano-de-ensino extract via CLAUDE_CODE_OAUTH_TOKEN (no more x-api-key); no API surface change
   # 2026-04-27: portal notifications refactor — sendNotification unified dispatch + portal source/metadata in Notification schema (additive, no breaking change)
   # 2026-04-20: subject UPDATE via Drizzle native (raw SQL was silently failing on escape of long syllabus strings); no API surface change
+  # 2026-07-03: SECURITY P0 — removed hardcoded 'vita-cron-dev'/'vita-admin-dev' fallbacks from 18 cron/admin/portal/mindmap routes (fail-closed helper). Auth-only, no API surface change.
+  # 2026-07-03: SECURITY P0 — deletion token now HMAC-SHA256 (was base64 embedding BETTER_AUTH_SECRET). Internal, no API surface change.
+  # 2026-07-03: LGPD — checkAIConsent gate added to vita/chat, vita/explain-pdf, ai/transcribe/from-live, whatsapp/webhook (403 AI_CONSENT_REQUIRED / reply). Consent-only.
   # 2026-04-24: Layer 4 LLM Judge fire-and-forget after audit (issue #170); no API surface change
   # 2026-04-20: cron-drives-Haiku — PDFs recém-baixados pro R2 disparam Haiku server-side (plano extract sem iOS inline)
   # 2026-04-20: cron-haiku-backfill — varredura retroativa de planos já em R2 sem extraction (sem precisar download novo)
@@ -2048,7 +2051,7 @@ components:
           type: string
         outputType:
           type: string
-          enum: [summary, flashcards, mindmap, quiz]
+          enum: [summary, flashcards, mindmap, quiz, study_pack]
         title:
           type: string
         sourceName:
@@ -2077,6 +2080,92 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    StudyPackGenerateRequest:
+      type: object
+      properties:
+        sourceIds:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+          description: Ready Studio source IDs. Backend also accepts source_ids for iOS.
+        title:
+          type: string
+          nullable: true
+        mode:
+          type: string
+          enum: [practice, simulado]
+          default: practice
+          description: practice creates a QBank practice session; simulado creates a no-feedback exam-style session.
+        difficulty:
+          type: string
+          enum: [mixed, easy, medium, hard]
+          default: mixed
+        questionCount:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 10
+        flashcardCount:
+          type: integer
+          minimum: 1
+          maximum: 30
+          default: 15
+        includeQuestions:
+          type: boolean
+          default: true
+        includeFlashcards:
+          type: boolean
+          default: true
+      required: [sourceIds]
+
+    StudyPackGenerateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        sourceIds:
+          type: array
+          items:
+            type: string
+        sourceTitles:
+          type: array
+          items:
+            type: string
+        qbankSessionId:
+          type: string
+          nullable: true
+        flashcardDeckId:
+          type: string
+          nullable: true
+        outputIds:
+          type: object
+          properties:
+            pack:
+              type: string
+            quiz:
+              type: string
+              nullable: true
+            flashcards:
+              type: string
+              nullable: true
+        counts:
+          type: object
+          properties:
+            questions:
+              type: integer
+            flashcards:
+              type: integer
+        mode:
+          type: string
+          enum: [practice, simulado]
+        difficulty:
+          type: string
+          enum: [mixed, easy, medium, hard]
 
     # ── User ──
     Profile:
@@ -2110,6 +2199,10 @@ components:
         studyGoalId:
           type: string
           nullable: true
+        dailyStudyMinutes:
+          type: integer
+          nullable: true
+          description: Meta diária de estudo em minutos (null = não definida; UI usa 120 como fallback)
         university:
           type: string
           nullable: true
@@ -2125,6 +2218,23 @@ components:
           type: string
           nullable: true
           description: Portal type the university uses. Canonical live path is canvas; moodle is reserved for future OAuth/API partner integrations.
+        equippedSkin:
+          type: object
+          nullable: true
+          description: Skin cosmética equipada no mascote Vita (Fase 1). Cliente só desenha; null = orb puro.
+          properties:
+            head:
+              type: string
+              nullable: true
+            face:
+              type: string
+              nullable: true
+            neck:
+              type: string
+              nullable: true
+            palette:
+              type: string
+              nullable: true
         subjects:
           type: array
           items:
@@ -2398,6 +2508,10 @@ components:
         subjectId:
           type: string
           nullable: true
+        studioSourceId:
+          type: string
+          nullable: true
+          description: Studio source created from this document when available for AI study tools.
         totalPages:
           type: integer
           nullable: true
@@ -2426,6 +2540,36 @@ components:
           format: date-time
           nullable: true
           description: Última modificação do material no portal de origem.
+
+    DocumentStudySourceResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+        studioSourceId:
+          type: string
+        status:
+          type: string
+          enum: [processing, ready, error]
+        title:
+          type: string
+        totalChunks:
+          type: integer
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+
+    DocumentStudySourceRequest:
+      type: object
+      properties:
+        extractedText:
+          type: string
+          nullable: true
+          description: >
+            Texto extraído no cliente a partir do PDF aberto. O iOS envia esse
+            campo via PDFKit para evitar que o servidor web baixe e parseie PDFs
+            grandes do Canvas dentro do request.
 
     Note:
       type: object
@@ -3467,6 +3611,46 @@ components:
             $ref: '#/components/schemas/Error'
 
 paths:
+  /api/farmaco/chat:
+    post:
+      tags: [ai]
+      operationId: farmacoChat
+      summary: Chat público do Caderno de Revisão de Farmacologia
+      description: |
+        Tutor de Farmacologia (material de estudo público). Sem auth, sem PII,
+        read-only — repassa a pergunta pro LLM com o conteúdo do caderno no contexto.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                  maxLength: 2000
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string }
+      responses:
+        '200':
+          description: Resposta do tutor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer: { type: string }
+        '400':
+          description: Pergunta vazia ou JSON inválido
+        '502':
+          description: Falha ao falar com a IA
   # ════════════════════════════════════════
   # AUTH
   # ════════════════════════════════════════
@@ -4846,6 +5030,41 @@ paths:
             application/json:
               schema:
                 type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/study/packs/generate:
+    post:
+      tags: [study, studio, qbank]
+      operationId: generateStudyPack
+      summary: Generate a playable Study Pack from Studio sources
+      description: |
+        Promove materiais do Studio (PDF/audio/text chunks prontos) para atividades
+        jogáveis: questões viram uma sessão QBank privada (`source=study-pack`,
+        `isActive=false`) e flashcards viram um deck FSRS real. XP continua sendo
+        concedido pelos fluxos normais de resposta/revisão, não pela geração.
+        Aceita sourceIds (camelCase) ou source_ids (snake_case).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudyPackGenerateRequest'
+      responses:
+        '201':
+          description: Study Pack generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudyPackGenerateResponse'
+        '400':
+          description: Source not ready, content too short, or generation returned no playable items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -7693,6 +7912,12 @@ paths:
                   type: string
                 studyGoalId:
                   type: string
+                dailyStudyMinutes:
+                  type: integer
+                  nullable: true
+                  minimum: 15
+                  maximum: 720
+                  description: Meta diária de estudo em minutos
                 university:
                   type: string
                 universityState:
@@ -8186,6 +8411,47 @@ paths:
         '403':
           description: Key does not belong to the caller
 
+  /api/skins/equip:
+    post:
+      tags: [skins]
+      operationId: equipSkin
+      summary: Equipa a skin cosmética do mascote Vita (Fase 1). Server-authoritative.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                head:
+                  type: string
+                  nullable: true
+                face:
+                  type: string
+                  nullable: true
+                neck:
+                  type: string
+                  nullable: true
+                palette:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Skin equipada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  equippedSkin:
+                    type: object
+                    nullable: true
+        '400':
+          description: Skin fora do catálogo
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Profile not found
   /api/user/ai-consent:
     get:
       tags: [user]
@@ -8531,7 +8797,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [weekly, monthly, all]
+            enum: [daily, weekly, monthly, all]
             default: weekly
       responses:
         '200':
@@ -8757,6 +9023,54 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/documents/{id}/study-source:
+    post:
+      tags: [content, studio]
+      operationId: ensureDocumentStudySource
+      summary: Promote a document into a Studio source for AI study tools
+      description: |
+        Idempotently creates or returns a `studio_sources` row for a user-owned PDF document.
+        When possible, clients should send `extractedText` from the opened PDF.
+        This avoids loading large Canvas PDFs into the web server heap. If the
+        document has no `studioSourceId`, the endpoint creates chunks, stores
+        the source id back on the document, and returns the source for Study Pack
+        generation.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentStudySourceRequest'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Existing source
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentStudySourceResponse'
+        '201':
+          description: Source created and processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentStudySourceResponse'
+        '400':
+          description: Unsupported document type
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Document text extraction failed
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -9954,6 +10268,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AcademicSubject'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Subject not found
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [platform]
+      operationId: deleteSubject
+      summary: Soft-delete a subject (remover disciplina)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  id:
+                    type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':

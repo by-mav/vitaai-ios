@@ -19,13 +19,16 @@ public struct Profile: Sendable, Codable, Hashable {
     public var highSchoolYear: Int?
     public var examBoard: String?
     public var studyGoalId: String?
+    /** Meta diária de estudo em minutos (null = não definida; UI usa 120 como fallback) */
+    public var dailyStudyMinutes: Int?
     /** Short display name of the user's university (e.g. \"ULBRA Porto Alegre\"). Resolved via LEFT JOIN universities on user_profiles.universityId. */
     public var university: String?
     /** 2-letter state code (e.g. \"RS\") from the linked universities row. */
     public var universityState: String?
     public var universityId: String?
-    /** Portal type the university uses (canvas, mannesoft, moodle, sigaa, totvs...). Resolved from universities.portalType. */
+    /** Portal type the university uses. Canonical live path is canvas; moodle is reserved for future OAuth/API partner integrations. */
     public var universityLms: String?
+    public var equippedSkin: ProfileEquippedSkin?
     public var subjects: [JSONValue]?
     public var stats: JSONValue?
     public var onboardingCompleted: Bool?
@@ -33,7 +36,7 @@ public struct Profile: Sendable, Codable, Hashable {
     public var journeyConfig: JourneyConfig?
     public var contentOrganizationMode: ContentOrganizationMode?
 
-    public init(id: String? = nil, displayName: String? = nil, email: String? = nil, image: String? = nil, moment: String? = nil, year: Int? = nil, semester: Int? = nil, highSchoolYear: Int? = nil, examBoard: String? = nil, studyGoalId: String? = nil, university: String? = nil, universityState: String? = nil, universityId: String? = nil, universityLms: String? = nil, subjects: [JSONValue]? = nil, stats: JSONValue? = nil, onboardingCompleted: Bool? = nil, journeyType: JourneyType? = nil, journeyConfig: JourneyConfig? = nil, contentOrganizationMode: ContentOrganizationMode? = nil) {
+    public init(id: String? = nil, displayName: String? = nil, email: String? = nil, image: String? = nil, moment: String? = nil, year: Int? = nil, semester: Int? = nil, highSchoolYear: Int? = nil, examBoard: String? = nil, studyGoalId: String? = nil, dailyStudyMinutes: Int? = nil, university: String? = nil, universityState: String? = nil, universityId: String? = nil, universityLms: String? = nil, equippedSkin: ProfileEquippedSkin? = nil, subjects: [JSONValue]? = nil, stats: JSONValue? = nil, onboardingCompleted: Bool? = nil, journeyType: JourneyType? = nil, journeyConfig: JourneyConfig? = nil, contentOrganizationMode: ContentOrganizationMode? = nil) {
         self.id = id
         self.displayName = displayName
         self.email = email
@@ -44,10 +47,12 @@ public struct Profile: Sendable, Codable, Hashable {
         self.highSchoolYear = highSchoolYear
         self.examBoard = examBoard
         self.studyGoalId = studyGoalId
+        self.dailyStudyMinutes = dailyStudyMinutes
         self.university = university
         self.universityState = universityState
         self.universityId = universityId
         self.universityLms = universityLms
+        self.equippedSkin = equippedSkin
         self.subjects = subjects
         self.stats = stats
         self.onboardingCompleted = onboardingCompleted
@@ -67,10 +72,12 @@ public struct Profile: Sendable, Codable, Hashable {
         case highSchoolYear
         case examBoard
         case studyGoalId
+        case dailyStudyMinutes
         case university
         case universityState
         case universityId
         case universityLms
+        case equippedSkin
         case subjects
         case stats
         case onboardingCompleted
@@ -93,10 +100,12 @@ public struct Profile: Sendable, Codable, Hashable {
         try container.encodeIfPresent(highSchoolYear, forKey: .highSchoolYear)
         try container.encodeIfPresent(examBoard, forKey: .examBoard)
         try container.encodeIfPresent(studyGoalId, forKey: .studyGoalId)
+        try container.encodeIfPresent(dailyStudyMinutes, forKey: .dailyStudyMinutes)
         try container.encodeIfPresent(university, forKey: .university)
         try container.encodeIfPresent(universityState, forKey: .universityState)
         try container.encodeIfPresent(universityId, forKey: .universityId)
         try container.encodeIfPresent(universityLms, forKey: .universityLms)
+        try container.encodeIfPresent(equippedSkin, forKey: .equippedSkin)
         try container.encodeIfPresent(subjects, forKey: .subjects)
         try container.encodeIfPresent(stats, forKey: .stats)
         try container.encodeIfPresent(onboardingCompleted, forKey: .onboardingCompleted)

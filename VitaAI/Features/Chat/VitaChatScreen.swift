@@ -264,9 +264,9 @@ private struct EmptyState: View {
             Spacer()
 
             VStack(spacing: 16) {
-                // VITA mascot — same OrbMascot used in onboarding (Rafael's
-                // explicit ask: never the SF "sparkles" star here).
-                OrbMascot(palette: .vita, state: .awake, size: 88)
+                // VITA mascot VESTIDO com a skin equipada do usuário (Fase 1).
+                // Rafael: nunca a estrela SF "sparkles" aqui.
+                VitaMascotEquipped(state: .awake, size: 88)
                     .frame(width: 88, height: 88)
                     .accessibilityHidden(true)
 
