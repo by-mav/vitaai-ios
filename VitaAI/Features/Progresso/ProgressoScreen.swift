@@ -51,6 +51,11 @@ struct ProgressoScreen: View {
     @State private var trailCelebrationInFlight = false
     @State private var critters: [TrailCritter] = []
     @State private var demoLevel: Int? = nil   // QA: simula level-up (--vita-levelup-demo)
+    // Provador de skins (--vita-skin-demo): 1 item equipado por slot.
+    @State private var equipHead: MascotAccessory? = nil
+    @State private var equipFace: MascotAccessory? = nil
+    @State private var equipNeck: MascotAccessory? = nil
+    @State private var equipPalette: MascotPalette = .vita
     @Namespace private var mascotTrail
 
     // QA: --vita-levelup-demo roda em loop a passagem por uma seção (portão abre + Vita atravessa)
@@ -206,6 +211,10 @@ struct ProgressoScreen: View {
     // MARK: - Body
 
     var body: some View {
+        if skinDemo { skinTryOn } else { worldBody }
+    }
+
+    private var worldBody: some View {
         ZStack {
             grassBase.ignoresSafeArea()
             VStack(spacing: 0) {
@@ -334,6 +343,110 @@ struct ProgressoScreen: View {
     // precisar de um user de nível alto).
     private var gatesForceOpen: Bool {
         ProcessInfo.processInfo.arguments.contains("--vita-gates-open")
+    }
+
+    // QA: --vita-skin-demo mostra o Vita REAL (OrbMascot) com skins ancoradas,
+    // pra provar que acessório no orb não fica tosco. Prototype 2026-07-05.
+    private var skinDemo: Bool {
+        ProcessInfo.processInfo.arguments.contains("--vita-skin-demo")
+    }
+
+    // PROVADOR de skins (QA, --vita-skin-demo) — 1 Vita grande + galeria lateral.
+    // Só 1 orb ANIMADO (o grande); os thumbs são estáticos (animated:false) pra
+    // não afundar o FPS. Toca no item → equipa/tira; 1 por categoria.
+    private var skinTryOn: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 0) {
+                // PREVIEW — 1 Vita PARADO (sem bob) montando o look. É aqui que a
+                // pessoa vê como fica ao tocar nos itens.
+                ZStack(alignment: .bottomTrailing) {
+                    OrbMascot(palette: equipPalette,
+                              size: 120,
+                              accessories: [equipNeck, equipHead, equipFace].compactMap { $0 },
+                              animated: true, nameTag: "Rafael", bounceEnabled: false, bob: false)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 208)
+                    if equipHead != nil || equipFace != nil || equipNeck != nil || equipPalette != .vita {
+                        Button {
+                            equipHead = nil; equipFace = nil; equipNeck = nil; equipPalette = .vita
+                        } label: {
+                            Text("Limpar")
+                                .font(.system(size: 12, weight: .semibold))  // ds-allow: QA
+                                .foregroundColor(.white.opacity(0.75))
+                                .padding(.horizontal, 16).padding(.vertical, 7)
+                                .background(Capsule().fill(Color.white.opacity(0.10)))
+                        }
+                        .padding(.trailing, 22).padding(.bottom, 6)
+                    }
+                }
+                .padding(.top, 66)
+
+                // GALERIA — só os itens, por categoria, largura toda.
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        tryOnCategory("Cabeça", MascotAccessory.allCases.filter { $0.slot == "Cabeça" }, equipHead) { tapEquip(&equipHead, $0) }
+                        tryOnCategory("Rosto",  MascotAccessory.allCases.filter { $0.slot == "Rosto" }, equipFace) { tapEquip(&equipFace, $0) }
+                        tryOnCategory("Pescoço", MascotAccessory.allCases.filter { $0.slot == "Pescoço" }, equipNeck) { tapEquip(&equipNeck, $0) }
+                        tryOnColors()
+                        Spacer(minLength: 40)
+                    }
+                    .padding(.horizontal, 16).padding(.top, 14)
+                }
+            }
+        }
+    }
+
+    private func tapEquip(_ slot: inout MascotAccessory?, _ item: MascotAccessory) {
+        slot = (slot == item) ? nil : item
+    }
+
+    private func tryOnCategory(_ title: String, _ items: [MascotAccessory], _ selected: MascotAccessory?, _ tap: @escaping (MascotAccessory) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .heavy))  // ds-allow: QA
+                .foregroundColor(.white.opacity(0.5))
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 14) {
+                ForEach(items, id: \.self) { item in
+                    tryOnCell(AnyView(OrbMascot(palette: .vita, size: 30, accessories: [item], animated: false)),
+                              item.label, selected == item) { tap(item) }
+                }
+            }
+        }
+    }
+
+    private func tryOnColors() -> some View {
+        let colors: [(MascotPalette, String)] = [
+            (.vita, "Ouro"), (.emerald, "Esmeralda"), (.sapphire, "Safira"),
+            (.ruby, "Rubi"), (.amethyst, "Ametista")
+        ]
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("CORES")
+                .font(.system(size: 11, weight: .heavy))  // ds-allow: QA
+                .foregroundColor(.white.opacity(0.5))
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 14) {
+                ForEach(0..<colors.count, id: \.self) { i in
+                    tryOnCell(AnyView(OrbMascot(palette: colors[i].0, size: 30, accessories: [], animated: false)),
+                              colors[i].1, equipPalette == colors[i].0) { equipPalette = colors[i].0 }
+                }
+            }
+        }
+    }
+
+    private func tryOnCell(_ orb: AnyView, _ label: String, _ selected: Bool, _ tap: @escaping () -> Void) -> some View {
+        Button(action: tap) {
+            VStack(spacing: 6) {
+                orb.frame(width: 46, height: 46)
+                Text(label)
+                    .font(.system(size: 8, weight: .semibold))  // ds-allow: QA
+                    .foregroundColor(.white.opacity(selected ? 0.95 : 0.5)).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 12).fill(selected ? Color.white.opacity(0.14) : Color.clear))  // ds-allow: QA
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(selected ? Color.white.opacity(0.5) : Color.clear, lineWidth: 1))  // ds-allow: QA
+        }
+        .buttonStyle(.plain)
     }
 
     private func critterSpawnLoop() async {
