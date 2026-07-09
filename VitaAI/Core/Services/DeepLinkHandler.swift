@@ -120,6 +120,7 @@ final class DeepLinkHandler {
         case "profile":    return .navigate(.profile)
         case "paywall":    return .navigate(.paywall)
         case "progresso":  return .navigate(.progresso)
+        case "flashcards": return .navigate(.flashcardHome())
         case "notebooks":  return .navigate(.notebookList)
 
         // Chat with optional prompt
