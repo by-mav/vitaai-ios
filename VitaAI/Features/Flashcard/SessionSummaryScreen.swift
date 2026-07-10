@@ -1,8 +1,8 @@
 import SwiftUI
 import Sentry
 
-// MARK: - Session Summary accent colors (purple from flashcard-session-v1.html mockup)
-private let summaryAccent = Color(red: 148/255, green: 75/255, blue: 220/255)
+// MARK: - Session Summary accent (ouro Vita — roxo aposentado 2026-07-10)
+private let summaryAccent = VitaColors.accent
 
 // MARK: - SessionSummaryScreen
 

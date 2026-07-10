@@ -1,5 +1,10 @@
 import Foundation
 
+extension Notification.Name {
+    /// Posted quando o RealtimeStream (re)conecta — telas re-hidratam via refresh.
+    static let realtimeReconnected = Notification.Name("realtimeReconnected")
+}
+
 /// Single-connection SSE multiplexer pra GET /api/stream — gold-standard 2026
 /// (ver shell.md secao 3.1 — REALTIME SYNC).
 ///
@@ -35,6 +40,9 @@ final class RealtimeStream {
     typealias Handler = @MainActor (Event) -> Void
 
     var onEvent: Handler?
+    /// Chamado toda vez que a conexao SSE abre (inclusive reconexao). Gold-standard:
+    /// re-hidrata o estado completo (snapshot na conexao + deltas depois).
+    var onConnect: (() -> Void)?
     private(set) var isConnected: Bool = false
 
     private let baseURL: URL
@@ -138,6 +146,7 @@ final class RealtimeStream {
                 Task { @MainActor [weak self] in
                     self?.isConnected = true
                     NSLog("[RealtimeStream] connected (resume=%@)", self?.lastEventId ?? "none")
+                    self?.onConnect?()
                 }
             }
             delegate.onComplete = { [weak self] success in

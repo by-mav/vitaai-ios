@@ -40,6 +40,10 @@ struct FlashcardBuilderScreen: View {
                 vm?.boot()
                 vm?.setInitialSubject(slug: initialSubjectId)
                 SentrySDK.reportFullyDisplayed()
+            } else {
+                // Voltou da sessao (VM viva): re-busca stats+decks pra "hoje"/
+                // "pendentes" refletirem as revisoes recem-feitas.
+                Task { await vm?.refresh() }
             }
         }
         .navigationBarHidden(true)
@@ -51,12 +55,10 @@ struct FlashcardBuilderScreen: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 12) {
 
-                // 1. Hero (theme flashcards roxo)
-                StudyImageHeroStat(
-                    imageAsset: "hero-flashcards-v2",
-                    eyebrow: "Flashcards",
-                    primary: "\(vm.state.dueNow)",
-                    primaryCaption: "cards pra revisar agora",
+                // 1. Hero — glass premium ouro (sem ilustração roxa; Rafael 2026-07-09)
+                StudyHeroStat(
+                    primary: vm.state.dueNow > 0 ? "\(vm.state.dueNow)" : "\(vm.state.newNow)",
+                    primaryCaption: vm.state.dueNow > 0 ? "cards pra revisar agora" : "cards novos pra aprender",
                     stats: [
                         .init(value: formatNumber(vm.state.totalCards), label: "no baralho"),
                         .init(value: "\(vm.state.reviewedToday)", label: "hoje"),
@@ -188,59 +190,28 @@ struct FlashcardBuilderScreen: View {
         .background(Color.clear)
     }
 
-    // MARK: - Mode selector (3 opções: Revisão / Específico / Novos)
+    // MARK: - Mode selector — pills limpas (Pendentes · Filtros · Novos)
+    // Clean-up 2026-07-09 (Rafael): antes eram 3 cards grandes com ícone+subtítulo.
+    // Agora GlassChip pills discretas. Rótulo curto por modo.
+
+    private func modeLabel(_ m: FlashcardSessionMode) -> String {
+        switch m {
+        case .due: return "Pendentes"
+        case .specific: return "Filtros"
+        case .newCards: return "Novos"
+        }
+    }
 
     private func modeSelector(vm: FlashcardBuilderViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("MODO")
-                .font(.system(size: 11, weight: .bold))
-                .tracking(0.8)
-                .foregroundStyle(VitaColors.sectionLabel)
-            HStack(spacing: 6) {
-                ForEach(FlashcardSessionMode.allCases) { m in
-                    let isSelected = vm.state.mode == m
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { vm.setMode(m) }
-                    } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: m.systemIcon)
-                                .font(.system(size: 16, weight: .semibold))
-                            Text(m.displayName)
-                                .font(.system(size: 12, weight: .semibold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            Text(m.subtitle)
-                                .font(.system(size: 9))
-                                .foregroundStyle(
-                                    isSelected
-                                    ? StudyShellTheme.flashcards.primaryLight.opacity(0.7)
-                                    : VitaColors.textTertiary
-                                )
-                        }
-                        .foregroundStyle(
-                            isSelected
-                            ? StudyShellTheme.flashcards.primaryLight.opacity(0.98)
-                            : VitaColors.textSecondary
-                        )
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(
-                            RoundedRectangle(cornerRadius: 11)
-                                .fill(isSelected ? StudyShellTheme.flashcards.primary.opacity(0.22) : Color.clear)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 11)
-                                .stroke(
-                                    isSelected
-                                    ? StudyShellTheme.flashcards.primaryLight.opacity(0.32)
-                                    : VitaColors.glassBorder,
-                                    lineWidth: 0.75
-                                )
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+        HStack(spacing: VitaTokens.Spacing.sm) {
+            ForEach(FlashcardSessionMode.allCases) { m in
+                GlassChip(
+                    label: modeLabel(m),
+                    isSelected: vm.state.mode == m,
+                    action: { withAnimation(.easeInOut(duration: 0.2)) { vm.setMode(m) } }
+                )
             }
+            Spacer(minLength: 0)
         }
     }
 
@@ -327,84 +298,93 @@ struct FlashcardBuilderScreen: View {
 
     // MARK: - Decks grid 2-col
 
+    // Clean-up 2026-07-09 (Rafael): 2-col cards → lista seccionada estilo Ajustes.
+    // "Sugeridos pelo Vita" (Biblioteca, userId==nil) + "Seus baralhos" (do aluno).
     private func decksSection(vm: FlashcardBuilderViewModel) -> some View {
         let visible = vm.visibleDecks()
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("BARALHOS \(visible.isEmpty ? "" : "(\(visible.count))")")
-                .font(.system(size: 11, weight: .bold))
-                .tracking(0.8)
-                .foregroundStyle(VitaColors.sectionLabel)
-
+        let library = visible.filter { ($0.userId ?? "").isEmpty }
+        let mine = visible.filter { !($0.userId ?? "").isEmpty }
+        return VStack(alignment: .leading, spacing: VitaTokens.Spacing.xl) {
             if vm.state.decksLoading && visible.isEmpty {
-                decksGridSkeleton
+                groupsSkeleton
             } else if visible.isEmpty {
                 emptyDecksCard
             } else {
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 10),
-                        GridItem(.flexible(), spacing: 10),
-                    ],
-                    spacing: 10
-                ) {
-                    ForEach(visible) { deck in
-                        deckCard(deck)
+                if !library.isEmpty {
+                    deckGroup(title: "Sugeridos pelo Vita", decks: library)
+                }
+                if !mine.isEmpty {
+                    deckGroup(title: "Seus baralhos", decks: mine)
+                }
+            }
+        }
+    }
+
+    private func deckGroup(title: String, decks: [FlashcardDeckEntry]) -> some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            Text(title)
+                .font(VitaTypography.labelMedium)
+                .kerning(0.5)
+                .textCase(.uppercase)
+                .foregroundStyle(VitaColors.sectionLabel)
+            VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) {
+                VStack(spacing: 0) {
+                    ForEach(Array(decks.enumerated()), id: \.element.id) { idx, deck in
+                        deckRow(deck)
+                        if idx < decks.count - 1 {
+                            Divider()
+                                .overlay(VitaColors.glassBorder.opacity(0.5))
+                                .padding(.leading, VitaTokens.Spacing.lg)
+                        }
                     }
                 }
             }
         }
     }
 
-    private func deckCard(_ deck: FlashcardDeckEntry) -> some View {
+    private func deckRow(_ deck: FlashcardDeckEntry) -> some View {
         Button(action: { onOpenDeck(deck.id) }) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(deck.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.92))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Spacer(minLength: 4)
-                HStack(spacing: 8) {
-                    let due = deck.dueCount ?? 0
-                    if due > 0 {
-                        Text("\(due) due")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(StudyShellTheme.flashcards.primaryLight)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(
-                                Capsule().fill(StudyShellTheme.flashcards.primary.opacity(0.20))
-                            )
-                    }
-                    Spacer()
-                    Text("\(deck.cardCount)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(VitaColors.textSecondary)
+            HStack(spacing: VitaTokens.Spacing.md) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(cleanDeckTitle(deck.title))
+                        .font(VitaTypography.titleMedium)
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .lineLimit(1)
+                    Text(deckSubtitle(deck))
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle((deck.dueCount ?? 0) > 0 ? VitaColors.accent : VitaColors.textTertiary)
                 }
+                Spacer(minLength: VitaTokens.Spacing.sm)
+                Text("\(deck.cardCount)")
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textSecondary)
+                Image(systemName: "chevron.right")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textTertiary)
             }
-            .padding(12)
-            .frame(minHeight: 90, alignment: .topLeading)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                VitaColors.surfaceCard.opacity(0.85),
-                                VitaColors.surfaceElevated.opacity(0.80),
-                            ],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                    )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(StudyShellTheme.flashcards.primaryMuted.opacity(0.55), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .padding(.vertical, VitaTokens.Spacing.md)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func deckSubtitle(_ deck: FlashcardDeckEntry) -> String {
+        let due = deck.dueCount ?? 0
+        if due > 0 { return "\(due) pendentes" }
+        let total = deck.totalCards ?? deck.cardCount
+        let novos = max(0, total - due)
+        return novos > 0 ? "\(novos) novos" : "em dia"
+    }
+
+    /// Limpa ruído do gerador antigo: "Treino: " e " - Flashcards".
+    private func cleanDeckTitle(_ raw: String) -> String {
+        var t = raw
+        if t.hasPrefix("Treino: ") { t = String(t.dropFirst(8)) }
+        for suffix in [" - Flashcards", " \u{2014} Flashcards"] {
+            if t.hasSuffix(suffix) { t = String(t.dropLast(suffix.count)) }
+        }
+        return t.trimmingCharacters(in: .whitespaces)
     }
 
     private var emptyDecksCard: some View {
@@ -422,23 +402,6 @@ struct FlashcardBuilderScreen: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 22)
-        }
-    }
-
-    private var decksGridSkeleton: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 10),
-                GridItem(.flexible(), spacing: 10),
-            ],
-            spacing: 10
-        ) {
-            ForEach(0..<6, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(VitaColors.glassBg)
-                    .frame(height: 90)
-                    .opacity(0.5)
-            }
         }
     }
 

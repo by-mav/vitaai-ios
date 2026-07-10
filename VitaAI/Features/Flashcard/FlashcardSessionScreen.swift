@@ -3,11 +3,11 @@ import Combine
 import Sentry
 
 // MARK: - Flashcard Session accent colors (from flashcard-session-v1.html mockup)
-// Purple accent: rgba(148,75,220), rgba(100,40,180), rgba(120,50,200)
-private let flashcardAccent     = Color(red: 148/255, green: 75/255, blue: 220/255)
-private let flashcardAccentDark = Color(red: 100/255, green: 40/255, blue: 180/255)
-// Screen bg: #08060a + purple ambient per mockup .app-shell
-private let flashcardScreenBg   = Color(red: 8/255, green: 6/255, blue: 10/255) // #08060a
+// Gold accent (Vita mono-ouro; roxo do mockup v1 aposentado — Rafael 2026-07-10)
+private let flashcardAccent     = VitaColors.accent
+private let flashcardAccentDark = VitaColors.accentDark
+// Screen bg: VitaColors.surface + ambient ouro
+private let flashcardScreenBg   = VitaColors.surface
 
 // MARK: - Flashcard Session Screen
 

@@ -1,8 +1,8 @@
 import SwiftUI
 import Charts
 
-// MARK: - Flashcard Stats accent colors (purple from flashcard-session-v1.html mockup)
-private let flashcardStatsAccent = Color(red: 148/255, green: 75/255, blue: 220/255)
+// MARK: - Flashcard Stats accent (ouro Vita — roxo aposentado 2026-07-10)
+private let flashcardStatsAccent = VitaColors.accent
 
 // MARK: - FlashcardStatsView
 // Mirrors Android FlashcardStatsScreen. Requires iOS 17+ (Swift Charts, @Observable).

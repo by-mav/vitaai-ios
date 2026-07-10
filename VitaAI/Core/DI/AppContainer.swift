@@ -137,6 +137,15 @@ final class AppContainer: ObservableObject {
         realtimeStream.onEvent = { [weak dataManagerRef] event in
             dataManagerRef?.applyEvent(event)
         }
+        realtimeStream.onConnect = { [weak dataManagerRef] in
+            // Gold-standard re-hidratacao: toda (re)conexao do SSE puxa o retrato
+            // completo (forceRefresh) + avisa as telas. Cobre servidor reiniciado /
+            // SSE caido sem mudanca de scenePhase. Rafael 2026-07-09.
+            Task { @MainActor in
+                await dataManagerRef?.forceRefresh()
+                NotificationCenter.default.post(name: .realtimeReconnected, object: nil)
+            }
+        }
         self.realtimeStream = realtimeStream
 
         // Wire 401 interceptor → auto-logout on HTTPClient + all SSE clients

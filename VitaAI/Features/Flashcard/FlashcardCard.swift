@@ -1,15 +1,15 @@
 import SwiftUI
 
-// MARK: - Card accent colors (purple theme from flashcard-session-v1.html mockup)
+// MARK: - Card accent colors (ouro Vita — roxo do mockup v1 aposentado 2026-07-10)
 
-private let purpleAccent  = Color(red: 148/255, green: 75/255, blue: 220/255) // rgba(148,75,220)
-private let purpleLabel   = Color(red: 180/255, green: 120/255, blue: 255/255) // rgba(180,120,255)
+private let cardAccent  = VitaColors.accent
+private let cardLabel   = VitaColors.accentLight
 
 // Card gradient: linear-gradient(135deg, #100818 0%, #08040e 100%)
 private let cardGradient  = LinearGradient(
     colors: [
-        Color(red: 0x10/255, green: 0x08/255, blue: 0x18/255),
-        Color(red: 0x08/255, green: 0x04/255, blue: 0x0e/255)
+        VitaTokens.DarkColors.bgHover,
+        VitaColors.surface
     ],
     startPoint: .topLeading,
     endPoint: .bottomTrailing
@@ -19,7 +19,7 @@ private let cardGradient  = LinearGradient(
 
 /// Animated flip card matching flashcard-session-v1.html mockup.
 /// - Front: uppercase tag, question, italic hint at bottom
-/// - Back: "Resposta" tag, purple divider, answer text
+/// - Back: "Resposta" tag, divider ouro, answer text
 struct FlashcardCardView: View {
 
     let front: String
@@ -62,7 +62,7 @@ struct FlashcardCardView: View {
                 Text(deckTitle.uppercased())
                     .font(.system(size: 10, weight: .bold))
                     .kerning(1.0)
-                    .foregroundStyle(purpleLabel.opacity(0.65))
+                    .foregroundStyle(cardLabel.opacity(0.65))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer().frame(height: 16)
@@ -97,13 +97,13 @@ struct FlashcardCardView: View {
                 Text("RESPOSTA")
                     .font(.system(size: 10, weight: .bold))
                     .kerning(1.0)
-                    .foregroundStyle(purpleLabel.opacity(0.65))
+                    .foregroundStyle(cardLabel.opacity(0.65))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Divider — 40px × 2px, rgba(148,75,220,0.25), per .card-divider
                 HStack {
                     RoundedRectangle(cornerRadius: 999)
-                        .fill(purpleAccent.opacity(0.25))
+                        .fill(cardAccent.opacity(0.25))
                         .frame(width: 40, height: 2)
                     Spacer()
                 }
@@ -137,13 +137,13 @@ struct FlashcardCardView: View {
 
             // Border
             RoundedRectangle(cornerRadius: 22)
-                .stroke(purpleAccent.opacity(0.20), lineWidth: 1)
+                .stroke(cardAccent.opacity(0.20), lineWidth: 1)
 
             // Top-right glow overlay
             RoundedRectangle(cornerRadius: 22)
                 .fill(
                     RadialGradient(
-                        colors: [purpleAccent.opacity(0.18), .clear],
+                        colors: [cardAccent.opacity(0.18), .clear],
                         center: UnitPoint(x: 0.85, y: 0.15),
                         startRadius: 0,
                         endRadius: 120
@@ -158,7 +158,7 @@ struct FlashcardCardView: View {
         }
         // Shadow approximating mockup box-shadow
         .shadow(color: .black.opacity(0.45), radius: 30, x: 0, y: 12)
-        .shadow(color: purpleAccent.opacity(0.20), radius: 24, x: 0, y: 0)
+        .shadow(color: cardAccent.opacity(0.20), radius: 24, x: 0, y: 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

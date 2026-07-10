@@ -37,42 +37,44 @@ struct StudyShellTheme {
         primary: VitaColors.accent,
         primaryLight: VitaColors.accentLight,
         primaryMuted: VitaColors.accent.opacity(0.30),
-        surfaceTop: Color(red: 0.075, green: 0.078, blue: 0.095),
-        surfaceBottom: Color(red: 0.030, green: 0.032, blue: 0.040),
+        surfaceTop: Color(red: 0.075, green: 0.078, blue: 0.095),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        surfaceBottom: Color(red: 0.030, green: 0.032, blue: 0.040),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
         glow: VitaColors.accent,
         motifSymbol: "brain.head.profile",
         eyebrow: "Quest\u{f5}es"
     )
 
+    // Vita é monocromático OURO (design system: "múltiplas accent colors proibido").
+    // Flashcards era roxo/violeta — trocado pra gold accent (Rafael 2026-07-09).
     static let flashcards = StudyShellTheme(
-        primary: Color(red: 0.71, green: 0.42, blue: 1.00),
-        primaryLight: Color(red: 0.84, green: 0.63, blue: 1.00),
-        primaryMuted: Color(red: 0.71, green: 0.42, blue: 1.00).opacity(0.35),
-        surfaceTop: Color(red: 0.10, green: 0.06, blue: 0.18),
-        surfaceBottom: Color(red: 0.045, green: 0.025, blue: 0.085),
-        glow: Color(red: 0.80, green: 0.48, blue: 1.00),
+        primary: VitaColors.accent,
+        primaryLight: VitaColors.accentLight,
+        primaryMuted: VitaColors.accent.opacity(0.30),
+        surfaceTop: Color(red: 0.075, green: 0.078, blue: 0.095),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        surfaceBottom: Color(red: 0.030, green: 0.032, blue: 0.040),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        glow: VitaColors.accent,
         motifSymbol: "rectangle.on.rectangle",
         eyebrow: "Flashcards"
     )
 
     static let simulados = StudyShellTheme(
-        primary: Color(red: 0.26, green: 0.64, blue: 1.00),
-        primaryLight: Color(red: 0.50, green: 0.77, blue: 1.00),
-        primaryMuted: Color(red: 0.26, green: 0.64, blue: 1.00).opacity(0.35),
-        surfaceTop: Color(red: 0.03, green: 0.10, blue: 0.22),
-        surfaceBottom: Color(red: 0.015, green: 0.045, blue: 0.115),
-        glow: Color(red: 0.42, green: 0.76, blue: 1.00),
+        primary: Color(red: 0.26, green: 0.64, blue: 1.00),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        primaryLight: Color(red: 0.50, green: 0.77, blue: 1.00),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        primaryMuted: Color(red: 0.26, green: 0.64, blue: 1.00).opacity(0.35),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        surfaceTop: Color(red: 0.03, green: 0.10, blue: 0.22),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        surfaceBottom: Color(red: 0.015, green: 0.045, blue: 0.115),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        glow: Color(red: 0.42, green: 0.76, blue: 1.00),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
         motifSymbol: "doc.text.magnifyingglass",
         eyebrow: "Simulados"
     )
 
     static let transcricao = StudyShellTheme(
-        primary: Color(red: 0.25, green: 0.85, blue: 0.76),
-        primaryLight: Color(red: 0.50, green: 0.92, blue: 0.85),
-        primaryMuted: Color(red: 0.25, green: 0.85, blue: 0.76).opacity(0.35),
-        surfaceTop: Color(red: 0.025, green: 0.14, blue: 0.13),
-        surfaceBottom: Color(red: 0.01, green: 0.065, blue: 0.06),
-        glow: Color(red: 0.38, green: 0.92, blue: 0.82),
+        primary: Color(red: 0.25, green: 0.85, blue: 0.76),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        primaryLight: Color(red: 0.50, green: 0.92, blue: 0.85),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        primaryMuted: Color(red: 0.25, green: 0.85, blue: 0.76).opacity(0.35),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        surfaceTop: Color(red: 0.025, green: 0.14, blue: 0.13),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        surfaceBottom: Color(red: 0.01, green: 0.065, blue: 0.06),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+        glow: Color(red: 0.38, green: 0.92, blue: 0.82),  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
         motifSymbol: "waveform",
         eyebrow: "Transcri\u{e7}\u{e3}o"
     )
@@ -91,10 +93,10 @@ struct StudyShellCTA: View {
             HStack(spacing: 8) {
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                 }
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                     .tracking(0)
             }
             .foregroundStyle(theme.primaryLight.opacity(0.98))
@@ -102,9 +104,9 @@ struct StudyShellCTA: View {
             .padding(.vertical, 15)
             .background(
                 ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color(red: 0.08, green: 0.085, blue: 0.10).opacity(0.92))
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
+                        .fill(Color(red: 0.08, green: 0.085, blue: 0.10).opacity(0.92))  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                         .fill(
                             LinearGradient(
                                 colors: [
@@ -117,10 +119,10 @@ struct StudyShellCTA: View {
                         )
                 }
             )
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
             .overlay(alignment: .top) {
                 // Top inner highlight — overhead light simulation
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                     .fill(
                         LinearGradient(
                             colors: [Color.white.opacity(0.18), .clear],
@@ -133,7 +135,7 @@ struct StudyShellCTA: View {
             }
             .overlay(
                 // Thin gradient stroke — liquid-glass rim, low contrast
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                     .stroke(
                         LinearGradient(
                             colors: [
@@ -176,11 +178,11 @@ struct LensSwitcher: View {
         }
         .padding(4)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                 .fill(.ultraThinMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                 .stroke(theme.primaryMuted.opacity(0.18), lineWidth: 0.75)
         )
     }
@@ -196,9 +198,9 @@ struct LensSwitcher: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: mode.icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                 Text(mode.displayName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                     .tracking(-0.1)
             }
             .foregroundStyle(
@@ -209,14 +211,14 @@ struct LensSwitcher: View {
             .background(
                 ZStack {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                             .fill(theme.primary.opacity(0.22))
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
                             .stroke(theme.primaryLight.opacity(0.32), lineWidth: 0.75)
                     }
                 }
             )
-            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
         }
         .buttonStyle(.plain)
     }

@@ -23,10 +23,10 @@ struct RatingButtonsView: View {
     var onRate: (ReviewRating) -> Void
 
     // Data colors — match mockup flashcard-session-v1.html rating buttons
-    // Errei=red, Difícil=amber, Bom=purple, Fácil=green
+    // Errei=red, Difícil=amber, Bom=ouro (accent), Fácil=green
     private let colorAgain = Color(red: 255/255, green: 120/255, blue: 80/255)    // rgba(255,120,80)
     private let colorHard  = Color(red: 245/255, green: 180/255, blue: 60/255)    // rgba(245,180,60)
-    private let colorGood  = Color(red: 180/255, green: 120/255, blue: 255/255)   // rgba(180,120,255) — purple!
+    private let colorGood  = VitaColors.accentHover   // ouro claro (era roxo do mockup)
     private let colorEasy  = Color(red: 130/255, green: 200/255, blue: 140/255)   // rgba(130,200,140)
 
     private func options() -> [RatingOption] {
@@ -57,8 +57,8 @@ struct RatingButtonsView: View {
                 label: ReviewRating.good.label,
                 icon: "checkmark",
                 color: colorGood,
-                bgColor: Color(red: 16/255, green: 10/255, blue: 20/255).opacity(0.88),
-                borderColor: Color(red: 148/255, green: 75/255, blue: 220/255).opacity(0.18),
+                bgColor: VitaTokens.DarkColors.bgActive.opacity(0.88),
+                borderColor: VitaColors.accent.opacity(0.18),
                 intervalLabel: showIntervals ? fmt(intervalPreviews[.good] ?? 3) : ""
             ),
             RatingOption(

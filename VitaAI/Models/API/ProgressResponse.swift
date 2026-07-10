@@ -125,6 +125,26 @@ struct FlashcardStatsResponse: Codable {
     var reviewsPerDay: [String: Int] = [:]
     var forecastNext7Days: [Int] = []
     var dailyRetention: [DailyRetentionEntry] = []
+
+    init() {}
+    // Decode TOLERANTE: o sintetizado do Swift lanca se o /stats omitir qualquer
+    // campo -> zerava TUDO (heroi 0 mesmo com 5083 cards). Por-campo com try?
+    // deixa totalCards/streakDays passar mesmo em resposta parcial. Rafael 2026-07-09.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        totalCards = (try? c.decode(Int.self, forKey: .totalCards)) ?? 0
+        newCards = (try? c.decode(Int.self, forKey: .newCards)) ?? 0
+        youngCards = (try? c.decode(Int.self, forKey: .youngCards)) ?? 0
+        matureCards = (try? c.decode(Int.self, forKey: .matureCards)) ?? 0
+        totalReviews = (try? c.decode(Int.self, forKey: .totalReviews)) ?? 0
+        retentionRate = (try? c.decode(Double.self, forKey: .retentionRate)) ?? 0
+        streakDays = (try? c.decode(Int.self, forKey: .streakDays)) ?? 0
+        totalStudyMinutes = (try? c.decode(Int.self, forKey: .totalStudyMinutes)) ?? 0
+        todayReviews = (try? c.decode(Int.self, forKey: .todayReviews)) ?? 0
+        reviewsPerDay = (try? c.decode([String: Int].self, forKey: .reviewsPerDay)) ?? [:]
+        forecastNext7Days = (try? c.decode([Int].self, forKey: .forecastNext7Days)) ?? []
+        dailyRetention = (try? c.decode([DailyRetentionEntry].self, forKey: .dailyRetention)) ?? []
+    }
 }
 
 struct DailyRetentionEntry: Codable, Identifiable {

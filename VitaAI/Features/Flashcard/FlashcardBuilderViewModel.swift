@@ -116,7 +116,12 @@ struct FlashcardBuilderState {
     var skipTooEasy: Bool = false
 
     // Hero / stats
-    var dueNow: Int = 0
+    // dueNow DERIVADO dos decks (computed) — elimina a corrida loadStats vs
+    // loadDecks (rodavam em paralelo; se stats chegava antes, dueNow=0 e nunca
+    // recalculava). Rafael 2026-07-09.
+    var dueNow: Int { decks.reduce(0) { $0 + ($1.dueCount ?? 0) } }
+    /// Cards NEW (nunca estudados): por deck (total - due), somado. Vao pro modo "Novos".
+    var newNow: Int { decks.reduce(0) { $0 + max(0, ($1.totalCards ?? 0) - ($1.dueCount ?? 0)) } }
     var totalCards: Int = 0
     var reviewedToday: Int = 0
     var streakDays: Int = 0
@@ -181,13 +186,31 @@ final class FlashcardBuilderViewModel {
 
     private let api: VitaAPI
     private let dataManager: AppDataManager
+    nonisolated(unsafe) private var reconnectObserver: NSObjectProtocol?
 
     init(api: VitaAPI, dataManager: AppDataManager) {
         self.api = api
         self.dataManager = dataManager
+        // Auto-heal: quando o SSE reconecta (servidor voltou), re-carrega tudo —
+        // heroi + decks frescos, sem o aluno reabrir o app. Rafael 2026-07-09.
+        reconnectObserver = NotificationCenter.default.addObserver(
+            forName: .realtimeReconnected, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in await self?.loadAll() }
+        }
+    }
+
+    deinit {
+        if let o = reconnectObserver { NotificationCenter.default.removeObserver(o) }
     }
 
     // MARK: - Boot
+
+    /// Re-busca stats+decks. Chamado quando a tela REAPARECE (volta da sessao) —
+    /// senao "hoje"/"pendentes" ficam congelados no valor do boot. Rafael 2026-07-10.
+    func refresh() async {
+        await loadAll()
+    }
 
     func boot() {
         if let lens = dataManager.profile?.contentOrganizationMode {
@@ -219,6 +242,11 @@ final class FlashcardBuilderViewModel {
         async let filtersTask: Void = loadFilters()
         async let previewTask: Void = refreshPreview()
         _ = await (decksTask, statsTask, filtersTask, previewTask)
+        // Default inteligente: sem pendentes mas com novos -> abre em "Novos"
+        // (senao o aluno cai em "Pendentes" vazio com milhares de cards novos esperando).
+        if state.mode == .due, state.dueNow == 0, state.newNow > 0 {
+            state.mode = .newCards
+        }
     }
 
     /// GET /api/study/flashcards/preview — atualiza counts due/learning/new
@@ -255,7 +283,9 @@ final class FlashcardBuilderViewModel {
         do {
             // summary=true: 182KB pra ~530 decks. Hidratação on-demand
             // quando user tapa o deck (FlashcardSessionScreen carrega cards).
-            let decks = try await api.getFlashcardDecks(summary: true)
+            // deckLimit alto: o aluno pode ter centenas de baralhos; default 100
+            // cortava a conta (Rafael 2026-07-09: heroi somava so 100 de 621 decks).
+            let decks = try await api.getFlashcardDecks(deckLimit: 2000, summary: true)
             state.decks = decks.filter { $0.cardCount > 0 }
         } catch {
             NSLog("[FlashcardBuilder] loadDecks error: %@", String(describing: error))
@@ -271,8 +301,7 @@ final class FlashcardBuilderViewModel {
             state.totalCards = stats.totalCards
             state.reviewedToday = stats.todayReviews
             state.streakDays = stats.streakDays
-            // dueNow vem do studyOverviewStore (canon) OU derivado dos decks.
-            state.dueNow = state.decks.reduce(0) { $0 + ($1.dueCount ?? 0) }
+            // dueNow agora e computed (derivado de state.decks) — sem corrida.
         } catch {
             NSLog("[FlashcardBuilder] loadStats error: %@", String(describing: error))
         }
