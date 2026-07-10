@@ -23,6 +23,16 @@ struct FlashcardBuilderScreen: View {
     /// Baralhos marcados pra estudar juntos (Cardiologia + Medicina de Família...). Rafael 2026-07-10.
     @State private var selectedDeckIds: Set<String> = []
     @State private var showStudioImport = false
+    /// Aba da lista de baralhos: Biblioteca (disciplinas canonicas) vs os que o aluno criou.
+    @State private var deckTab: DeckTab = .biblioteca
+    @State private var deckSearch: String = ""
+    @State private var showSessionSettings = false
+
+    private enum DeckTab: String, CaseIterable, Identifiable {
+        case biblioteca, mine
+        var id: String { rawValue }
+        var label: String { self == .biblioteca ? "Biblioteca" : "Meus baralhos" }
+    }
     /// Quando vem de DisciplineDetailScreen → flashcardHome(subjectId), pré-seleciona
     /// essa disciplina e abre em mode `.specific`. nil = comportamento padrão (mode `.due`).
     var initialSubjectId: String? = nil
@@ -157,23 +167,13 @@ struct FlashcardBuilderScreen: View {
                         .padding(.horizontal, 16)
                 }
 
-                // 4. Avançadas (collapsible) — flashcard-only items
-                AdvancedSection(
-                    items: advancedItems(vm: vm),
-                    theme: .flashcards
-                )
-                .padding(.horizontal, 16)
-
-                // 5. Limite por sessão (visível, não em avançadas — decisão central)
-                limitSection(vm: vm)
-                    .padding(.horizontal, 16)
-
-                // 5.5 Criar do teu material (PDF/slides -> flashcards via Studio)
+                // 4. Criar do teu material (PDF/slides -> flashcards via Studio)
                 studioImportRow
                     .padding(.horizontal, 16)
 
-                // 6. Decks Grid (sempre embaixo, 2 col, lente-aware via visibleDecks)
-                decksSection(vm: vm)
+                // 5. Baralhos — switcher Biblioteca | Meus baralhos + busca.
+                //    Limite + Avançadas foram pro ⚙ do seletor de modo (Rafael 2026-07-10).
+                decksSectionWithSwitcher(vm: vm)
                     .padding(.horizontal, 16)
             }
             .padding(.bottom, 16)
@@ -219,6 +219,19 @@ struct FlashcardBuilderScreen: View {
                 return .init(label: "\(pack.counts.flashcards) flashcards criados", open: { onOpenDeck(deckId) })
             }
         }
+        .sheet(isPresented: $showSessionSettings) {
+            VitaSheet(title: "Ajustes da sessão", detents: [.medium, .large]) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+                        limitSection(vm: vm)
+                        AdvancedSection(items: advancedItems(vm: vm), theme: .flashcards)
+                    }
+                    .padding(.horizontal, VitaTokens.Spacing.xl)
+                    .padding(.top, VitaTokens.Spacing.md)
+                    .padding(.bottom, VitaTokens.Spacing._2xl)
+                }
+            }
+        }
     }
 
     // MARK: - Mode selector — pills limpas (Pendentes · Filtros · Novos)
@@ -243,6 +256,15 @@ struct FlashcardBuilderScreen: View {
                 )
             }
             Spacer(minLength: 0)
+            Button { showSessionSettings = true } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 15, weight: .semibold))  // ds-allow: icone de ajustes (area de toque)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(VitaColors.glassBg))
+                    .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -331,24 +353,94 @@ struct FlashcardBuilderScreen: View {
 
     // Clean-up 2026-07-09 (Rafael): 2-col cards → lista seccionada estilo Ajustes.
     // "Sugeridos pelo Vita" (Biblioteca, userId==nil) + "Seus baralhos" (do aluno).
-    private func decksSection(vm: FlashcardBuilderViewModel) -> some View {
-        let visible = vm.visibleDecks()
-        let library = visible.filter { ($0.userId ?? "").isEmpty }
-        let mine = visible.filter { !($0.userId ?? "").isEmpty }
-        return VStack(alignment: .leading, spacing: VitaTokens.Spacing.xl) {
-            if vm.state.decksLoading && visible.isEmpty {
+    // Lista de baralhos estilo Anki: switcher Biblioteca (disciplinas canonicas,
+    // scope=library) vs Meus baralhos (do aluno). Mostra por ESCOPO, NAO filtrado
+    // pelo modo due — senao a Biblioteca (due=0) sumia. Rafael 2026-07-10.
+    private func decksSectionWithSwitcher(vm: FlashcardBuilderViewModel) -> some View {
+        let all = vm.state.decks
+        let byName: (FlashcardDeckEntry, FlashcardDeckEntry) -> Bool = {
+            cleanDeckTitle($0.title).localizedCaseInsensitiveCompare(cleanDeckTitle($1.title)) == .orderedAscending
+        }
+        let library = all.filter { ($0.userId ?? "").isEmpty }.sorted(by: byName)
+        let mine = all.filter { !($0.userId ?? "").isEmpty }.sorted(by: byName)
+        let base = deckTab == .biblioteca ? library : mine
+        let q = deckSearch.trimmingCharacters(in: .whitespaces).lowercased()
+        let shown = q.isEmpty ? base : base.filter { cleanDeckTitle($0.title).lowercased().contains(q) }
+        return VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
+            deckTabSwitcher(libraryCount: library.count, mineCount: mine.count)
+            GlassTextField(
+                placeholder: deckTab == .biblioteca ? "Buscar disciplina" : "Buscar baralho",
+                text: $deckSearch,
+                icon: "magnifyingglass"
+            )
+            if vm.state.decksLoading && all.isEmpty {
                 groupsSkeleton
-            } else if visible.isEmpty {
-                emptyDecksCard
+            } else if shown.isEmpty {
+                deckTabEmpty
             } else {
-                if !library.isEmpty {
-                    deckGroup(title: "Sugeridos pelo Vita", decks: library)
-                }
-                if !mine.isEmpty {
-                    deckGroup(title: "Seus baralhos", decks: mine)
+                VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(shown.enumerated()), id: \.element.id) { idx, deck in
+                            deckRow(deck)
+                            if idx < shown.count - 1 {
+                                Divider()
+                                    .overlay(VitaColors.glassBorder.opacity(0.5))
+                                    .padding(.leading, VitaTokens.Spacing.lg)
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private func deckTabSwitcher(libraryCount: Int, mineCount: Int) -> some View {
+        HStack(spacing: 4) {
+            ForEach(DeckTab.allCases) { tab in
+                let isSel = deckTab == tab
+                let count = tab == .biblioteca ? libraryCount : mineCount
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { deckTab = tab; deckSearch = "" }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(tab.label).font(VitaTypography.labelMedium)
+                        Text("\(count)")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(isSel ? VitaColors.surface.opacity(0.75) : VitaColors.textTertiary)
+                    }
+                    .foregroundStyle(isSel ? VitaColors.surface : VitaColors.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                            .fill(isSel ? VitaColors.accent : Color.clear)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous).fill(VitaColors.glassBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                .stroke(VitaColors.glassBorder, lineWidth: 0.75)
+        )
+    }
+
+    private var deckTabEmpty: some View {
+        VStack(spacing: VitaTokens.Spacing.sm) {
+            Image(systemName: deckTab == .biblioteca ? "books.vertical" : "rectangle.stack.badge.plus")
+                .font(.system(size: 30))  // ds-allow: icone empty state
+                .foregroundStyle(VitaColors.textTertiary)
+            Text(deckTab == .biblioteca ? "Nenhuma disciplina encontrada" : "Você ainda não criou baralhos")
+                .font(VitaTypography.bodyMedium)
+                .foregroundStyle(VitaColors.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, VitaTokens.Spacing._2xl)
     }
 
     /// Porta de entrada do Studio: teu PDF/slide vira baralho. Rafael 2026-07-10.
