@@ -24,6 +24,11 @@ struct SimuladoBuilderScreen: View {
     @State private var formatExpanded: Bool = false
     @State private var difficultyExpanded: Bool = false
     @State private var showStudioImport = false
+    /// Sessao QBank mode=simulado criada do material (Studio). Abre local via
+    /// cover porque .simuladoSession espera attempt de template (outra entidade)
+    /// e o AppRouter esta em WIP de outro agente.
+    /// TODO: rotear via .qbankSession(sessionId:mode:"simulado") no AppRouter.
+    @State private var studioQbankSessionId: String?
     let onBack: () -> Void
     let onSessionCreated: (String) -> Void
     let onOpenAttempt: (SimuladoAttemptEntry) -> Void
@@ -267,13 +272,26 @@ struct SimuladoBuilderScreen: View {
         }
         .background(Color.clear)
         .sheet(isPresented: $showStudioImport) {
-            StudyMaterialPicker(title: "Montar simulado", actionVerb: "Montar simulado", accent: .teal) { sourceIds in
+            StudyMaterialPicker(title: "Montar simulado", actionVerb: "Montar simulado") { sourceIds in
                 let pack = try await container.api.generateStudyPack(
-                    sourceIds: sourceIds, mode: "exam",
+                    sourceIds: sourceIds, mode: "simulado",
                     includeQuestions: true, includeFlashcards: false
                 )
                 let sid = pack.qbankSessionId ?? ""
-                return .init(label: "\(pack.counts.questions) questões no simulado", open: { onSessionCreated(sid) })
+                return .init(label: "\(pack.counts.questions) questões no simulado", open: { studioQbankSessionId = sid })
+            }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { studioQbankSessionId != nil },
+            set: { if !$0 { studioQbankSessionId = nil } }
+        )) {
+            if let sid = studioQbankSessionId {
+                QBankCoordinatorScreen(
+                    onBack: { studioQbankSessionId = nil },
+                    onHome: { studioQbankSessionId = nil },
+                    initialSessionId: sid,
+                    initialMode: .simulado
+                )
             }
         }
     }

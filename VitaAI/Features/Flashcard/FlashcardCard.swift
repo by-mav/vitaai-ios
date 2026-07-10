@@ -30,6 +30,21 @@ struct FlashcardCardView: View {
 
     @State private var rotationDegrees: Double = 0
 
+    /// Cards cloze do motor ({{c1::resposta}}): no front a resposta vira lacuna
+    /// estilo Anki; no back a marcacao some e o texto fica limpo. Cards basic
+    /// nao tem a sintaxe e passam intactos.
+    private var displayFront: String {
+        front.replacingOccurrences(
+            of: #"\{\{c\d+::[^}]+\}\}"#, with: "____", options: .regularExpression
+        )
+    }
+
+    private var displayBack: String {
+        back.replacingOccurrences(
+            of: #"\{\{c\d+::([^}]+)\}\}"#, with: "$1", options: .regularExpression
+        )
+    }
+
     var body: some View {
         ZStack {
             frontFace
@@ -43,8 +58,8 @@ struct FlashcardCardView: View {
         .contentShape(Rectangle())
         .onTapGesture { onFlip() }
         .accessibilityLabel(isFlipped
-            ? "Resposta: \(back). Toque para ver a pergunta."
-            : "Flashcard: \(front). Toque para revelar a resposta."
+            ? "Resposta: \(displayBack). Toque para ver a pergunta."
+            : "Flashcard: \(displayFront). Toque para revelar a resposta."
         )
         .onChange(of: isFlipped) { flipped in
             withAnimation(.easeInOut(duration: 0.5)) {
@@ -69,7 +84,7 @@ struct FlashcardCardView: View {
 
                 // Question — 20px semibold, rgba(255,252,248,0.95), vertically centered
                 FlashcardContentView(
-                    content: front,
+                    content: displayFront,
                     fontSize: 20,
                     textColor: VitaColors.white.opacity(0.95),
                     alignment: .center
@@ -112,7 +127,7 @@ struct FlashcardCardView: View {
 
                 // Answer text — 16px medium, rgba(255,252,248,0.88)
                 FlashcardContentView(
-                    content: back,
+                    content: displayBack,
                     fontSize: 16,
                     textColor: VitaColors.white.opacity(0.88),
                     alignment: .leading

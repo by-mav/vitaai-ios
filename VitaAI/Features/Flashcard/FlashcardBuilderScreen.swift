@@ -210,7 +210,7 @@ struct FlashcardBuilderScreen: View {
         }
         .background(Color.clear)
         .sheet(isPresented: $showStudioImport) {
-            StudyMaterialPicker(title: "Criar flashcards", actionVerb: "Gerar flashcards", accent: .purple) { sourceIds in
+            StudyMaterialPicker(title: "Criar flashcards", actionVerb: "Gerar flashcards") { sourceIds in
                 let pack = try await container.api.generateStudyPack(
                     sourceIds: sourceIds, mode: "practice",
                     includeQuestions: false, includeFlashcards: true

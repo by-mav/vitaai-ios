@@ -1,15 +1,19 @@
+import PDFKit
 import SwiftUI
 
-/// Popout COMPARTILHADO: gaveta glass pra escolher PDFs/materiais do aluno,
-/// organizados em PASTAS por disciplina (reusa `DisciplineFolderCard` — o MESMO
-/// card 3D da tela Faculdade), com multi-seleção, e gerar material de estudo.
-/// Reusado por Flashcards (roxo), Questões (ouro) e Simulados (teal).
+/// Popout COMPARTILHADO: gaveta glass OURO pra escolher PDFs/materiais do aluno
+/// e gerar material de estudo. Reusado por Flashcards, Questões e Simulados.
 ///
-/// Casca = `VitaSheet` (glass ouro `ultraThinMaterial`, drag indicator, corner 28).
-/// Navegação em 2 níveis DENTRO da gaveta: grid de pastas → toca a pasta →
-/// lista de docs daquela disciplina. Sem `List` stock, sem busca — as pastas
-/// SÃO a navegação. O miolo (`ensureDocumentStudySource` → `onGenerate`) é
-/// preservado 1:1. Rafael 2026-07-10.
+/// Layout (Rafael 2026-07-10): UMA tela só — grid de PASTAS por disciplina
+/// (reusa `DisciplineFolderCard`, com contagem de PDFs) que funciona como FILTRO
+/// (tap = liga/desliga, não navega), busca glass, e a lista de PDFs embaixo
+/// reagindo ao filtro. Multi-seleção nos PDFs. Tudo ouro (gold standard) — sem
+/// accent por ferramenta.
+///
+/// PDFs do Canvas têm URL externa e o servidor NÃO baixa (anti-sobrecarga):
+/// o app baixa o arquivo autenticado, extrai o texto com PDFKit no aparelho
+/// (mesmo algoritmo do PdfViewer) e manda `extractedText` pro
+/// `ensureDocumentStudySource`. Só segue pro `onGenerate` com source `ready`.
 struct StudyMaterialPicker: View {
     /// Resultado que o tool devolve depois de gerar: rótulo + ação de abrir o destino.
     struct Result {
@@ -19,20 +23,17 @@ struct StudyMaterialPicker: View {
 
     let title: String            // ex "Criar flashcards"
     let actionVerb: String       // ex "Gerar flashcards"
-    /// Cor da ferramenta: Flashcards `.purple`, Questões `.gold`, Simulados `.teal`.
-    /// Tinge só os elementos funcionais (check, badge, CTA, hero) — a moldura da
-    /// gaveta continua ouro.
-    var accent: ToolAccent = .gold
-    /// Recebe os sourceIds JÁ processados. O tool gera (generateStudyPack) e
-    /// devolve rótulo + ação de abrir. Throws em falha.
+    /// Recebe os sourceIds JÁ processados (todos `ready`). O tool gera
+    /// (generateStudyPack) e devolve rótulo + ação de abrir. Throws em falha.
     let onGenerate: ([String]) async throws -> Result
 
     @Environment(\.appContainer) private var container
     @Environment(\.dismiss) private var dismiss
 
     @State private var docs: [VitaDocument] = []
-    @State private var selected: Set<String> = []
-    @State private var openGroup: Group?          // nil = grid de pastas; senão drill nos docs
+    @State private var selected: Set<String> = []         // ids de docs marcados
+    @State private var activeSubjects: Set<String> = []   // pastas ligadas como filtro
+    @State private var searchText = ""
     @State private var isLoading = true
     @State private var loadError: String?
     @State private var phase: Phase = .picking
@@ -48,6 +49,12 @@ struct StudyMaterialPicker: View {
             default: return false
             }
         }
+    }
+
+    /// Erro com mensagem legível pro estudante (aparece no failedBody).
+    private struct PickerError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
     }
 
     var body: some View {
@@ -66,7 +73,7 @@ struct StudyMaterialPicker: View {
         .task { await load() }
     }
 
-    // MARK: - Picking (grid de pastas → drill de docs)
+    // MARK: - Picking (pastas-filtro + busca + lista)
 
     @ViewBuilder
     private var pickingBody: some View {
@@ -78,16 +85,14 @@ struct StudyMaterialPicker: View {
                 Spacer()
             } else if let err = loadError {
                 errorState(err)
-            } else if grouped.isEmpty {
+            } else if groups.isEmpty {
                 emptyState
-            } else if let group = openGroup {
-                folderDocsList(group)
             } else {
-                foldersGrid
+                content
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if !isLoading, loadError == nil, !grouped.isEmpty {
+            if !isLoading, loadError == nil, !groups.isEmpty {
                 selectionCTA
             }
         }
@@ -95,23 +100,9 @@ struct StudyMaterialPicker: View {
 
     private var header: some View {
         HStack(spacing: VitaTokens.Spacing.sm) {
-            if openGroup != nil {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.22)) { openGroup = nil }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")  // ds-allow: back da gaveta (área de toque)
-                            .font(.system(size: 15, weight: .semibold))  // ds-allow: área de toque
-                        Text("Disciplinas")
-                            .font(VitaTypography.titleMedium)
-                    }
-                    .foregroundStyle(accent.accent)
-                }
-            } else {
-                Text(title)
-                    .font(VitaTypography.headlineSmall)
-                    .foregroundStyle(VitaColors.textPrimary)
-            }
+            Text(title)
+                .font(VitaTypography.headlineSmall)
+                .foregroundStyle(VitaColors.textPrimary)
             Spacer(minLength: 0)
             Button { dismiss() } label: {
                 Image(systemName: "xmark")  // ds-allow: fechar a gaveta (área de toque)
@@ -126,31 +117,57 @@ struct StudyMaterialPicker: View {
         .padding(.bottom, VitaTokens.Spacing.sm)
     }
 
-    // NÍVEL 1 — grid de pastas por disciplina (mesmo padrão de FaculdadeHomeScreen)
-    private var foldersGrid: some View {
+    private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
-                SectionHeader(title: "Escolha as disciplinas")
-                LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                    spacing: 12
-                ) {
-                    ForEach(grouped) { group in
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.22)) { openGroup = group }
-                        } label: {
-                            DisciplineFolderCard(subjectName: group.subject, vitaScore: 0, onMenu: nil)
-                                .overlay(alignment: .topTrailing) { countBadge(group) }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, VitaTokens.Spacing.xl)
+                SectionHeader(title: "Disciplinas")
+                foldersGrid
+                GlassTextField(placeholder: "Buscar material", text: $searchText, icon: "magnifyingglass")
+                    .padding(.horizontal, VitaTokens.Spacing.xl)
+                SectionHeader(
+                    title: "Materiais",
+                    subtitle: selected.isEmpty ? nil : "\(selected.count) selecionados"
+                )
+                docsList
             }
             .padding(.vertical, VitaTokens.Spacing.md)
             .padding(.bottom, 96)  // respiro pro CTA flutuante
         }
-        .transition(.opacity)
+    }
+
+    // Grid de pastas — tap liga/desliga a disciplina como filtro da lista abaixo.
+    private var foldersGrid: some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
+            spacing: 12
+        ) {
+            ForEach(groups) { group in
+                let isActive = activeSubjects.contains(group.subject)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        if isActive { activeSubjects.remove(group.subject) }
+                        else { activeSubjects.insert(group.subject) }
+                    }
+                } label: {
+                    VStack(spacing: VitaTokens.Spacing.xs) {
+                        DisciplineFolderCard(subjectName: group.subject, vitaScore: 0, onMenu: nil)
+                            .overlay(alignment: .topTrailing) { countBadge(group) }
+                            .overlay {
+                                if isActive {
+                                    RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                                        .stroke(VitaColors.accent.opacity(0.9), lineWidth: 1.5)
+                                }
+                            }
+                        Text("\(group.docs.count) PDFs")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(isActive ? VitaColors.accentLight : VitaColors.textTertiary)
+                    }
+                    .opacity(activeSubjects.isEmpty || isActive ? 1 : 0.45)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, VitaTokens.Spacing.xl)
     }
 
     @ViewBuilder
@@ -161,31 +178,36 @@ struct StudyMaterialPicker: View {
                 .font(VitaTypography.labelSmall)
                 .foregroundStyle(VitaColors.surface)
                 .frame(minWidth: 20, minHeight: 20)
-                .background(Circle().fill(accent.accent))
+                .background(Circle().fill(VitaColors.accent))
                 .overlay(Circle().stroke(VitaColors.surface, lineWidth: 1.5))
                 .offset(x: 6, y: -6)
         }
     }
 
-    // NÍVEL 2 — docs da disciplina escolhida, com multi-seleção
-    private func folderDocsList(_ group: Group) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
-                SectionHeader(
-                    title: group.subject,
-                    subtitle: selectedCount(in: group) > 0 ? "\(selectedCount(in: group)) selecionados" : nil
-                )
-                ForEach(group.docs) { doc in
+    // Lista de PDFs filtrada pelas pastas ativas + busca.
+    @ViewBuilder
+    private var docsList: some View {
+        if visibleDocs.isEmpty {
+            VStack(spacing: VitaTokens.Spacing.sm) {
+                Image(systemName: "doc.text.magnifyingglass")  // ds-allow: ícone empty da lista
+                    .font(.system(size: 28))  // ds-allow: empty
+                    .foregroundStyle(VitaColors.textTertiary)
+                Text(searchText.isEmpty ? "Nenhum material nessas pastas" : "Nenhum resultado")
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, VitaTokens.Spacing._2xl)
+        } else {
+            LazyVStack(spacing: VitaTokens.Spacing.sm) {
+                ForEach(visibleDocs) { doc in
                     VitaCardRow(onTap: { toggle(doc.id) }) {
                         docRow(doc)
                     }
                     .padding(.horizontal, VitaTokens.Spacing.xl)
                 }
             }
-            .padding(.vertical, VitaTokens.Spacing.sm)
-            .padding(.bottom, 96)
         }
-        .transition(.move(edge: .trailing).combined(with: .opacity))
     }
 
     private func docRow(_ doc: VitaDocument) -> some View {
@@ -193,16 +215,22 @@ struct StudyMaterialPicker: View {
         return HStack(spacing: VitaTokens.Spacing.md) {
             Image(systemName: isOn ? "checkmark.circle.fill" : "circle")  // ds-allow: check de seleção (área de toque)
                 .font(.system(size: 22))  // ds-allow: área de toque
-                .foregroundStyle(isOn ? accent.accent : VitaColors.textTertiary.opacity(0.7))
+                .foregroundStyle(isOn ? VitaColors.accent : VitaColors.textTertiary.opacity(0.7))
             VStack(alignment: .leading, spacing: 2) {
                 Text(doc.title)
                     .font(VitaTypography.bodyMedium)
                     .foregroundStyle(VitaColors.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                Text(fileExt(doc))
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(VitaColors.textTertiary)
+                HStack(spacing: VitaTokens.Spacing.xs) {
+                    Text(fileExt(doc))
+                    if activeSubjects.isEmpty, let subject = doc.subjectName {
+                        Text("·")
+                        Text(subject).lineLimit(1)
+                    }
+                }
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.textTertiary)
             }
             Spacer(minLength: 0)
         }
@@ -220,7 +248,7 @@ struct StudyMaterialPicker: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, VitaTokens.Spacing.lg)
                 .background(
-                    Capsule().fill(selected.isEmpty ? VitaColors.textTertiary.opacity(0.4) : accent.accent)
+                    Capsule().fill(selected.isEmpty ? VitaColors.textTertiary.opacity(0.4) : VitaColors.accent)
                 )
         }
         .buttonStyle(.plain)
@@ -247,7 +275,7 @@ struct StudyMaterialPicker: View {
         VStack(spacing: VitaTokens.Spacing.lg) {
             Image(systemName: "checkmark.circle.fill")  // ds-allow: ícone hero do estado final
                 .font(.system(size: 48))  // ds-allow: hero
-                .foregroundStyle(accent.accent)
+                .foregroundStyle(VitaColors.accent)
             Text(result?.label ?? "Pronto")
                 .font(VitaTypography.titleLarge)
                 .foregroundStyle(VitaColors.textPrimary)
@@ -262,7 +290,7 @@ struct StudyMaterialPicker: View {
                     .foregroundStyle(VitaColors.surface)
                     .padding(.horizontal, VitaTokens.Spacing._2xl)
                     .padding(.vertical, VitaTokens.Spacing.md)
-                    .background(Capsule().fill(accent.accent))
+                    .background(Capsule().fill(VitaColors.accent))
             }
             .buttonStyle(.plain)
         }
@@ -286,7 +314,7 @@ struct StudyMaterialPicker: View {
                 .multilineTextAlignment(.center)
             Button("Tentar de novo") { phase = .picking }
                 .font(VitaTypography.labelMedium)
-                .foregroundStyle(accent.accent)
+                .foregroundStyle(VitaColors.accent)
         }
         .padding(.horizontal, VitaTokens.Spacing._3xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -317,7 +345,7 @@ struct StudyMaterialPicker: View {
                 .multilineTextAlignment(.center)
             Button("Tentar novamente") { Task { await load() } }
                 .font(VitaTypography.labelMedium)
-                .foregroundStyle(accent.accent)
+                .foregroundStyle(VitaColors.accent)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -332,11 +360,27 @@ struct StudyMaterialPicker: View {
         let docs: [VitaDocument]
     }
 
-    private var grouped: [Group] {
+    private var groups: [Group] {
         let buckets = Dictionary(grouping: docs) { $0.subjectName ?? "Sem matéria" }
         return buckets.keys.sorted().map { key in
             Group(subject: key, docs: buckets[key]!.sorted { $0.title < $1.title })
         }
+    }
+
+    /// Lista reage às pastas ligadas + busca. Nenhuma pasta ligada = todos os docs.
+    private var visibleDocs: [VitaDocument] {
+        let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        return docs
+            .filter { doc in
+                activeSubjects.isEmpty || activeSubjects.contains(doc.subjectName ?? "Sem matéria")
+            }
+            .filter { doc in
+                q.isEmpty || doc.title.lowercased().contains(q)
+                    || (doc.subjectName?.lowercased().contains(q) ?? false)
+            }
+            .sorted {
+                ($0.subjectName ?? "", $0.title) < ($1.subjectName ?? "", $1.title)
+            }
     }
 
     private func selectedCount(in g: Group) -> Int {
@@ -358,7 +402,7 @@ struct StudyMaterialPicker: View {
         isLoading = false
     }
 
-    // MARK: - Run (ensureSource -> onGenerate) — MIOLO PRESERVADO 1:1
+    // MARK: - Run (ensureSource com extração local -> onGenerate)
 
     private func run() async {
         let picked = docs.filter { selected.contains($0.id) }
@@ -368,7 +412,22 @@ struct StudyMaterialPicker: View {
             var sourceIds: [String] = []
             for (i, doc) in picked.enumerated() {
                 progressText = "Lendo o material \(i + 1)/\(picked.count)..."
-                let resp = try await container.api.ensureDocumentStudySource(documentId: doc.id)
+                // 1ª tentativa sem texto: se já existe source pronto, volta na hora.
+                var resp = try await container.api.ensureDocumentStudySource(documentId: doc.id)
+                if resp.status != "ready" {
+                    // PDF externo (Canvas): o servidor não baixa — extraímos aqui.
+                    guard let text = await extractPdfText(documentId: doc.id) else {
+                        throw PickerError(message: resp.errorMessage
+                            ?? "Não consegui ler \"\(doc.title)\". Tenta abrir o PDF uma vez e gerar de novo.")
+                    }
+                    resp = try await container.api.ensureDocumentStudySource(
+                        documentId: doc.id, extractedText: text
+                    )
+                }
+                guard resp.status == "ready" else {
+                    throw PickerError(message: resp.errorMessage
+                        ?? "\"\(doc.title)\" não pôde ser processado.")
+                }
                 sourceIds.append(resp.studioSourceId)
             }
             progressText = "Gerando..."
@@ -378,5 +437,50 @@ struct StudyMaterialPicker: View {
         } catch {
             phase = .failed(error.localizedDescription)
         }
+    }
+
+    // MARK: - Extração PDFKit no aparelho (mesmo algoritmo do PdfViewer)
+
+    /// Baixa o PDF autenticado (Cookie + X-Extension-Token, igual PdfViewer) e
+    /// extrai o texto com PDFKit fora da main thread. nil = não deu (aí o caller
+    /// mostra a errorMessage do servidor).
+    private func extractPdfText(documentId: String, maxCharacters: Int = 90_000) async -> String? {
+        guard let url = URL(string: "\(AppConfig.apiBaseURL)/documents/\(documentId)/file") else {
+            return nil
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 120
+        if let token = await container.tokenStore.token {
+            request.setValue("\(AppConfig.sessionCookieName)=\(token)", forHTTPHeaderField: "Cookie")
+            request.setValue(token, forHTTPHeaderField: "X-Extension-Token")
+        }
+        if let forwardedHost = AppConfig.localForwardedHostHeader {
+            request.setValue(forwardedHost, forHTTPHeaderField: "x-forwarded-host")
+        }
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              data.count >= 4, data[0] == 0x25, data[1] == 0x50, data[2] == 0x44, data[3] == 0x46
+        else { return nil }
+
+        return await Task.detached(priority: .userInitiated) {
+            Self.extractText(from: data, maxCharacters: maxCharacters)
+        }.value
+    }
+
+    private nonisolated static func extractText(from data: Data, maxCharacters: Int) -> String? {
+        guard let document = PDFDocument(data: data) else { return nil }
+        var remaining = maxCharacters
+        var parts: [String] = []
+        for pageIndex in 0..<document.pageCount where remaining > 0 {
+            guard let pageText = document.page(at: pageIndex)?.string?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                !pageText.isEmpty else { continue }
+            let clipped = String(pageText.prefix(remaining))
+            parts.append(clipped)
+            remaining -= clipped.count
+        }
+        let text = parts.joined(separator: "\n\n--- página ---\n\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.count >= 120 ? text : nil
     }
 }
