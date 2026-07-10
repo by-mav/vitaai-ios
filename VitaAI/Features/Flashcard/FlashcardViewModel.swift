@@ -101,9 +101,13 @@ final class FlashcardViewModel {
         sessionStartDate = Date()
         cardStartDate = Date()
 
+        // Multi-seleção: se o builder gravou vários ids, estuda todos juntos.
+        let handoff = FlashcardMultiDeckHandoff.shared.consume()
+        let deckIds = (handoff.count > 1 && handoff.contains(deckId)) ? handoff : [deckId]
+
         Task { @MainActor in
             do {
-                let deck = try await fetchDeck(deckId: deckId, tagFilter: tagFilter)
+                let deck = try await fetchDeck(deckIds: deckIds, tagFilter: tagFilter)
                 startSession(deck: deck)
             } catch {
                 phase = .error("Erro ao carregar flashcards: \(error.localizedDescription)")
@@ -434,28 +438,31 @@ final class FlashcardViewModel {
 
     // MARK: - API fetch with domain mapping
 
-    private func fetchDeck(deckId: String, tagFilter: String? = nil) async throws -> FlashcardDeck {
-        // When filtering by tag, request all matching cards (no server-side limit).
-        // deckLimit=1000 so we can find ANY user deck, not just the 100 most
-        // recently updated (Rafael had 534 decks; clicking an older FARMACOLOGIA
-        // deck threw URLError.resourceUnavailable because it was past the top 100).
+    /// Busca 1..N decks (deckLimit=1000 acha qualquer deck) e faz MERGE dos cards.
+    /// N>1 = "Estudar selecionados" (Cardiologia + Medicina de Família juntos, etc).
+    private func fetchDeck(deckIds: [String], tagFilter: String? = nil) async throws -> FlashcardDeck {
         let limit = tagFilter != nil ? 9999 : nil
         async let allTask = api.getFlashcardDecks(tag: tagFilter, cardsLimit: limit, deckLimit: 1000)
         async let dueTask = api.getFlashcardDecks(dueOnly: true, tag: tagFilter, cardsLimit: limit, deckLimit: 1000)
         let (allDecks, dueDecks) = try await (allTask, dueTask)
 
-        guard let deck = allDecks.first(where: { $0.id == deckId }) else {
-            throw URLError(.resourceUnavailable)
+        var mergedCards: [FlashcardEntry] = []
+        var firstTitle: String? = nil
+        for id in deckIds {
+            guard let deck = allDecks.first(where: { $0.id == id }) else { continue }
+            if firstTitle == nil { firstTitle = deck.title }
+            // Prefer due cards; fall back to all cards in the deck
+            let dueDeck = dueDecks.first(where: { $0.id == id })
+            let source = (dueDeck.map { !$0.cards.isEmpty } == true) ? dueDeck!.cards : deck.cards
+            mergedCards.append(contentsOf: source)
         }
+        guard !mergedCards.isEmpty else { throw URLError(.resourceUnavailable) }
 
-        // Prefer due cards; fall back to all cards in the deck
-        let dueDeck = dueDecks.first(where: { $0.id == deckId })
-        let sourceCards = (dueDeck.map { !$0.cards.isEmpty } == true) ? dueDeck!.cards : deck.cards
-
+        let title = deckIds.count > 1 ? "\(deckIds.count) baralhos" : (firstTitle ?? "Flashcards")
         return FlashcardDeck(
-            id: deck.id,
-            title: deck.title,
-            cards: sourceCards.map { $0.toDomain() }
+            id: deckIds.first ?? "",
+            title: title,
+            cards: mergedCards.map { $0.toDomain() }
         )
     }
 }

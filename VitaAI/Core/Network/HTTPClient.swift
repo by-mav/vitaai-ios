@@ -331,6 +331,51 @@ actor HTTPClient {
         }
     }
 
+    /// Uploads a single file as multipart/form-data (campo "file", sem extras).
+    /// Usado pelo Studio (PDF/slides -> flashcards). Mesmo padrao do uploadExamMultipart.
+    func uploadFileMultipart<T: Decodable>(
+        _ path: String,
+        fileData: Data,
+        fileName: String,
+        mimeType: String
+    ) async throws -> T {
+        guard let url = URL(string: AppConfig.apiBaseURL + "/" + path) else {
+            throw APIError.invalidURL
+        }
+        let boundary = "Boundary-\(UUID().uuidString)"
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        let (data, _) = try await performWithRetry {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+            if let token = await self.tokenStore.token {
+                req.setValue("\(AppConfig.sessionCookieName)=\(token)", forHTTPHeaderField: "Cookie")
+                req.setValue(token, forHTTPHeaderField: "X-Extension-Token")
+            }
+            if let forwardedHost = AppConfig.localForwardedHostHeader {
+                req.setValue(forwardedHost, forHTTPHeaderField: "x-forwarded-host")
+            }
+            req.httpBody = body
+            let traceId = UUID().uuidString.prefix(8).lowercased()
+            req.setValue(String(traceId), forHTTPHeaderField: "X-Trace-Id")
+            return req
+        }
+
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
     /// Uploads a single file (exam) with subjectId as multipart/form-data.
     /// Field names: "file" (the document) + "subjectId" (text field).
     func uploadExamMultipart<T: Decodable>(

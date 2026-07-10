@@ -20,6 +20,9 @@ struct FlashcardBuilderScreen: View {
     // (Instituições, Anos quando A7 publicar wrappers ficam colapsados também;
     // Avançadas (AdvancedSection) já é collapsible nativo com default false)
     @State private var originExpanded: Bool = false
+    /// Baralhos marcados pra estudar juntos (Cardiologia + Medicina de Família...). Rafael 2026-07-10.
+    @State private var selectedDeckIds: Set<String> = []
+    @State private var showStudioImport = false
     /// Quando vem de DisciplineDetailScreen → flashcardHome(subjectId), pré-seleciona
     /// essa disciplina e abre em mode `.specific`. nil = comportamento padrão (mode `.due`).
     var initialSubjectId: String? = nil
@@ -165,6 +168,10 @@ struct FlashcardBuilderScreen: View {
                 limitSection(vm: vm)
                     .padding(.horizontal, 16)
 
+                // 5.5 Criar do teu material (PDF/slides -> flashcards via Studio)
+                studioImportRow
+                    .padding(.horizontal, 16)
+
                 // 6. Decks Grid (sempre embaixo, 2 col, lente-aware via visibleDecks)
                 decksSection(vm: vm)
                     .padding(.horizontal, 16)
@@ -172,22 +179,43 @@ struct FlashcardBuilderScreen: View {
             .padding(.bottom, 16)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            StickyBottomCTA(
-                title: ctaTitle(vm: vm),
-                count: vm.state.displayCount,
-                isLoading: vm.state.statsLoading || vm.state.decksLoading,
-                isCreating: vm.state.creatingSession,
-                theme: .flashcards,
-                action: {
-                    Task {
-                        if let id = await vm.createSession() {
-                            onOpenDeck(id)
+            if !selectedDeckIds.isEmpty {
+                StickyBottomCTA(
+                    title: "Estudar selecionados",
+                    count: selectedCardsCount(vm: vm),
+                    isLoading: false,
+                    isCreating: false,
+                    theme: .flashcards,
+                    action: {
+                        FlashcardMultiDeckHandoff.shared.set(Array(selectedDeckIds))
+                        if let first = selectedDeckIds.first { onOpenDeck(first) }
+                    }
+                )
+            } else {
+                StickyBottomCTA(
+                    title: ctaTitle(vm: vm),
+                    count: vm.state.displayCount,
+                    isLoading: vm.state.statsLoading || vm.state.decksLoading,
+                    isCreating: vm.state.creatingSession,
+                    theme: .flashcards,
+                    action: {
+                        Task {
+                            if let id = await vm.createSession() {
+                                onOpenDeck(id)
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         }
         .background(Color.clear)
+        .sheet(isPresented: $showStudioImport) {
+            FlashcardStudioImportSheet { deckId, _ in
+                Task { await vm.refresh() }
+                onOpenDeck(deckId)
+            }
+            .presentationBackground(.ultraThinMaterial)
+        }
     }
 
     // MARK: - Mode selector — pills limpas (Pendentes · Filtros · Novos)
@@ -320,6 +348,42 @@ struct FlashcardBuilderScreen: View {
         }
     }
 
+    /// Porta de entrada do Studio: teu PDF/slide vira baralho. Rafael 2026-07-10.
+    private var studioImportRow: some View {
+        Button(action: { showStudioImport = true }) {
+            HStack(spacing: VitaTokens.Spacing.md) {
+                Image(systemName: "doc.badge.plus")
+                    .font(.system(size: 18))  // ds-allow: icone da row (mesmo tamanho do circulo de selecao)
+                    .foregroundStyle(VitaColors.accent)
+                    .frame(width: 44, height: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Criar do teu material")
+                        .font(VitaTypography.titleMedium)
+                        .foregroundStyle(VitaColors.textPrimary)
+                    Text("PDF, slides ou foto viram flashcards")
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                Spacer(minLength: VitaTokens.Spacing.sm)
+                Image(systemName: "chevron.right")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+            .padding(.trailing, VitaTokens.Spacing.lg)
+            .padding(.vertical, VitaTokens.Spacing.xs)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg)
+                .fill(VitaColors.glassBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg)
+                .stroke(VitaColors.glassBorder, lineWidth: 0.75)
+        )
+    }
+
     private func deckGroup(title: String, decks: [FlashcardDeckEntry]) -> some View {
         VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
             Text(title)
@@ -343,30 +407,52 @@ struct FlashcardBuilderScreen: View {
     }
 
     private func deckRow(_ deck: FlashcardDeckEntry) -> some View {
-        Button(action: { onOpenDeck(deck.id) }) {
-            HStack(spacing: VitaTokens.Spacing.md) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(cleanDeckTitle(deck.title))
-                        .font(VitaTypography.titleMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-                        .lineLimit(1)
-                    Text(deckSubtitle(deck))
-                        .font(VitaTypography.bodySmall)
-                        .foregroundStyle((deck.dueCount ?? 0) > 0 ? VitaColors.accent : VitaColors.textTertiary)
-                }
-                Spacer(minLength: VitaTokens.Spacing.sm)
-                Text("\(deck.cardCount)")
-                    .font(VitaTypography.bodyMedium)
-                    .foregroundStyle(VitaColors.textSecondary)
-                Image(systemName: "chevron.right")
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(VitaColors.textTertiary)
+        let isSelected = selectedDeckIds.contains(deck.id)
+        return HStack(spacing: 0) {
+            // Círculo de seleção (tap marca; tap na linha continua abrindo o deck).
+            Button(action: { toggleDeckSelection(deck.id) }) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18))  // ds-allow: ícone de seleção (área de toque 44pt)
+                    .foregroundStyle(isSelected ? VitaColors.accent : VitaColors.textTertiary.opacity(0.6))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .padding(.horizontal, VitaTokens.Spacing.lg)
-            .padding(.vertical, VitaTokens.Spacing.md)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            Button(action: { onOpenDeck(deck.id) }) {
+                HStack(spacing: VitaTokens.Spacing.md) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(cleanDeckTitle(deck.title))
+                            .font(VitaTypography.titleMedium)
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .lineLimit(1)
+                        Text(deckSubtitle(deck))
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle((deck.dueCount ?? 0) > 0 ? VitaColors.accent : VitaColors.textTertiary)
+                    }
+                    Spacer(minLength: VitaTokens.Spacing.sm)
+                    Text("\(deck.cardCount)")
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textSecondary)
+                    Image(systemName: "chevron.right")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.trailing, VitaTokens.Spacing.lg)
+                .padding(.vertical, VitaTokens.Spacing.md)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+    }
+
+    private func toggleDeckSelection(_ id: String) {
+        if selectedDeckIds.contains(id) { selectedDeckIds.remove(id) } else { selectedDeckIds.insert(id) }
+    }
+
+    /// Soma de cards dos baralhos marcados (pro CTA "Estudar selecionados").
+    private func selectedCardsCount(vm: FlashcardBuilderViewModel) -> Int {
+        vm.visibleDecks().filter { selectedDeckIds.contains($0.id) }.reduce(0) { $0 + $1.cardCount }
     }
 
     private func deckSubtitle(_ deck: FlashcardDeckEntry) -> String {

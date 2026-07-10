@@ -461,6 +461,39 @@ actor VitaAPI {
         let extractedText: String?
     }
 
+    // MARK: - Studio: upload + add-to-deck (PDF/slides -> flashcards, Rafael 2026-07-10)
+
+    struct StudioUploadResponse: Decodable {
+        let sourceId: String
+        let fileName: String?
+    }
+
+    /// POST /api/studio/upload (multipart "file"). Pipeline processa async —
+    /// poll getStudioSourceDetail ate status == "ready".
+    func uploadStudioSource(fileData: Data, fileName: String, mimeType: String) async throws -> StudioUploadResponse {
+        try await client.uploadFileMultipart("studio/upload", fileData: fileData, fileName: fileName, mimeType: mimeType)
+    }
+
+    struct AddToDeckResponse: Decodable {
+        let deckId: String
+        let addedCount: Int
+    }
+
+    /// POST /api/studio/outputs/add-to-deck — cria deck (nome do arquivo) com os cards gerados.
+    func addStudioFlashcardsToDeck(cards: [StudioFlashcard], deckTitle: String?) async throws -> AddToDeckResponse {
+        struct CardBody: Encodable { let front: String; let back: String }
+        struct Body: Encodable {
+            let deckId: String?
+            let deckTitle: String?
+            let flashcards: [CardBody]
+        }
+        return try await client.post("studio/outputs/add-to-deck", body: Body(
+            deckId: nil,
+            deckTitle: deckTitle,
+            flashcards: cards.map { CardBody(front: $0.front, back: $0.back) }
+        ))
+    }
+
     func generateStudioOutput(sourceId: String, outputType: String) async throws -> StudioOutput {
         // Backend expects sourceIds array and "type" field at POST /api/studio/generate
         let backendType = Self.mapOutputType(outputType)
