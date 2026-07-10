@@ -134,14 +134,7 @@ struct FlashcardSessionScreen: View {
             ratingSection(vm: vm)
                 .padding(.horizontal, 16)
 
-            Spacer().frame(height: 8)
-
-            if settings.showTimer {
-                timerLabel
-                    .padding(.bottom, 20)
-            } else {
-                Spacer().frame(height: 20)
-            }
+            Spacer().frame(height: 20)
         }
     }
 
@@ -175,6 +168,12 @@ struct FlashcardSessionScreen: View {
 
             // Right side: count + undo + gear
             HStack(spacing: 10) {
+                if settings.showTimer {
+                    Text(formattedTimer)
+                        .font(.system(size: 11, weight: .medium))  // ds-allow: fonte de sessao (padrao pre-existente do arquivo; tokenizar em refactor dedicado)
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                        .monospacedDigit()
+                }
                 Text(vm.progressLabel)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(VitaColors.accent.opacity(0.60))

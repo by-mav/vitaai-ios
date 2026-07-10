@@ -10,6 +10,7 @@ private struct RatingOption {
     let bgColor: Color
     let borderColor: Color
     var intervalLabel: String = ""
+    var isPrimary: Bool = false
 }
 
 // MARK: - RatingButtonsView
@@ -59,7 +60,8 @@ struct RatingButtonsView: View {
                 color: colorGood,
                 bgColor: VitaTokens.DarkColors.bgActive.opacity(0.88),
                 borderColor: VitaColors.accent.opacity(0.18),
-                intervalLabel: showIntervals ? fmt(intervalPreviews[.good] ?? 3) : ""
+                intervalLabel: showIntervals ? fmt(intervalPreviews[.good] ?? 3) : "",
+                isPrimary: true
             ),
             RatingOption(
                 rating: .easy,
@@ -100,28 +102,39 @@ private struct RatingButton: View {
             onTap()
         }) {
             VStack(spacing: 4) {
-                // Label (matches mockup .btn-label: 13px semibold)
+                // Label — primario (Bom) mais forte; demais em cor semantica.
                 Text(option.label)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(option.color.opacity(0.85))
+                    .font(.system(size: option.isPrimary ? 14 : 13, weight: .semibold))  // ds-allow: fonte de sessao (padrao pre-existente do arquivo; tokenizar em refactor dedicado)
+                    .foregroundStyle(option.isPrimary ? VitaColors.surface : option.color.opacity(0.92))
 
-                // Interval (matches mockup .btn-time: 10px)
+                // Interval preview — contraste maior que antes (0.35 era ilegivel).
                 if !option.intervalLabel.isEmpty {
                     Text(option.intervalLabel)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(option.color.opacity(0.35))
+                        .font(.system(size: 10, weight: .semibold))  // ds-allow: fonte de sessao (padrao pre-existente do arquivo; tokenizar em refactor dedicado)
+                        .foregroundStyle(option.isPrimary ? VitaColors.surface.opacity(0.65) : option.color.opacity(0.70))
                 }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .padding(.horizontal, 8)
-            .background(option.bgColor)
+            .background(
+                Group {
+                    if option.isPrimary {
+                        LinearGradient(
+                            colors: [VitaColors.accentHover, VitaColors.accent],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    } else {
+                        option.bgColor
+                    }
+                }
+            )
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(option.borderColor, lineWidth: 1)
+                    .stroke(option.isPrimary ? VitaColors.accentLight.opacity(0.55) : option.borderColor, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.30), radius: 12, x: 0, y: 5)
+            .shadow(color: option.isPrimary ? VitaColors.accent.opacity(0.35) : .black.opacity(0.30), radius: 12, x: 0, y: 5)
             .scaleEffect(isPressed ? 0.92 : 1.0)
             .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isPressed)
         }
