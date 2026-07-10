@@ -210,11 +210,14 @@ struct FlashcardBuilderScreen: View {
         }
         .background(Color.clear)
         .sheet(isPresented: $showStudioImport) {
-            FlashcardStudioImportSheet { deckId, _ in
-                Task { await vm.refresh() }
-                onOpenDeck(deckId)
+            StudyMaterialPicker(title: "Criar flashcards", actionVerb: "Gerar flashcards", accent: .purple) { sourceIds in
+                let pack = try await container.api.generateStudyPack(
+                    sourceIds: sourceIds, mode: "practice",
+                    includeQuestions: false, includeFlashcards: true
+                )
+                let deckId = pack.flashcardDeckId ?? ""
+                return .init(label: "\(pack.counts.flashcards) flashcards criados", open: { onOpenDeck(deckId) })
             }
-            .presentationBackground(.ultraThinMaterial)
         }
     }
 

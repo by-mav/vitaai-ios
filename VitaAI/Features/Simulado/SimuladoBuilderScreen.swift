@@ -23,6 +23,7 @@ struct SimuladoBuilderScreen: View {
     @State private var yearsExpanded: Bool = false
     @State private var formatExpanded: Bool = false
     @State private var difficultyExpanded: Bool = false
+    @State private var showStudioImport = false
     let onBack: () -> Void
     let onSessionCreated: (String) -> Void
     let onOpenAttempt: (SimuladoAttemptEntry) -> Void
@@ -237,6 +238,10 @@ struct SimuladoBuilderScreen: View {
                 quantitySection(vm: vm)
                     .padding(.horizontal, 16)
 
+                // 9b. Criar do teu material — importa PDF/slides/foto e monta simulado
+                studioImportRow
+                    .padding(.horizontal, 16)
+
                 // 10. Recents (sessões/tentativas)
                 if !vm.state.recentAttempts.isEmpty {
                     recentsSection(vm: vm)
@@ -261,6 +266,16 @@ struct SimuladoBuilderScreen: View {
             )
         }
         .background(Color.clear)
+        .sheet(isPresented: $showStudioImport) {
+            StudyMaterialPicker(title: "Montar simulado", actionVerb: "Montar simulado", accent: .teal) { sourceIds in
+                let pack = try await container.api.generateStudyPack(
+                    sourceIds: sourceIds, mode: "exam",
+                    includeQuestions: true, includeFlashcards: false
+                )
+                let sid = pack.qbankSessionId ?? ""
+                return .init(label: "\(pack.counts.questions) questões no simulado", open: { onSessionCreated(sid) })
+            }
+        }
     }
 
     // MARK: - Mode selector (Template ⇄ Custom)
@@ -461,6 +476,37 @@ struct SimuladoBuilderScreen: View {
             presets: [20, 30, 50, 100, 200],
             onChange: { vm.setQuestionCount($0) }
         )
+    }
+
+    // MARK: - Studio import row (Criar do teu material)
+
+    private var studioImportRow: some View {
+        Button(action: { showStudioImport = true }) {
+            HStack(spacing: VitaTokens.Spacing.md) {
+                Image(systemName: "doc.badge.plus")
+                    .font(.system(size: 18))  // ds-allow: icone da row
+                    .foregroundStyle(VitaColors.accent)
+                    .frame(width: 44, height: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Criar do teu material")
+                        .font(VitaTypography.titleMedium)
+                        .foregroundStyle(VitaColors.textPrimary)
+                    Text("PDF, slides ou foto viram um simulado")
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                Spacer(minLength: VitaTokens.Spacing.sm)
+                Image(systemName: "chevron.right")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+            .padding(.trailing, VitaTokens.Spacing.lg)
+            .padding(.vertical, VitaTokens.Spacing.xs)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).fill(VitaColors.glassBg))
+        .overlay(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).stroke(VitaColors.glassBorder, lineWidth: 0.75))
     }
 
     // MARK: - Difficulty content (sem card wrapper — usado dentro de collapsibleSection)

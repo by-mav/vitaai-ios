@@ -122,7 +122,9 @@ struct FlashcardBuilderState {
     var dueNow: Int { decks.reduce(0) { $0 + ($1.dueCount ?? 0) } }
     /// Cards NEW (nunca estudados): por deck (total - due), somado. Vao pro modo "Novos".
     var newNow: Int { decks.reduce(0) { $0 + max(0, ($1.totalCards ?? 0) - ($1.dueCount ?? 0)) } }
-    var totalCards: Int = 0
+    // totalCards (no baralho) DERIVADO dos decks (inclui Biblioteca), consistente com
+    // dueNow/newNow. Antes vinha do /stats (só do usuario) e ficava < novos. Rafael 2026-07-10.
+    var totalCards: Int { decks.reduce(0) { $0 + $1.cardCount } }
     var reviewedToday: Int = 0
     var streakDays: Int = 0
 
@@ -298,7 +300,7 @@ final class FlashcardBuilderViewModel {
         defer { state.statsLoading = false }
         do {
             let stats = try await api.getFlashcardStats()
-            state.totalCards = stats.totalCards
+            // totalCards agora e computed dos decks (nao atribui aqui)
             state.reviewedToday = stats.todayReviews
             state.streakDays = stats.streakDays
             // dueNow agora e computed (derivado de state.decks) — sem corrida.
