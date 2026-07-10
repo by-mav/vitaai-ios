@@ -33,16 +33,25 @@ struct FlashcardCardView: View {
     /// Cards cloze do motor ({{c1::resposta}}): no front a resposta vira lacuna
     /// estilo Anki; no back a marcacao some e o texto fica limpo. Cards basic
     /// nao tem a sintaxe e passam intactos.
+    private var isCloze: Bool {
+        front.range(of: #"\{\{c\d+::[^}]+\}\}"#, options: .regularExpression) != nil
+    }
+
     private var displayFront: String {
         front.replacingOccurrences(
             of: #"\{\{c\d+::[^}]+\}\}"#, with: "____", options: .regularExpression
         )
     }
 
+    /// Cloze: o verso revela a frase inteira com a peca preenchida (+ complemento
+    /// do back). Basic: verso = back normal.
     private var displayBack: String {
-        back.replacingOccurrences(
+        guard isCloze else { return back }
+        let revealed = front.replacingOccurrences(
             of: #"\{\{c\d+::([^}]+)\}\}"#, with: "$1", options: .regularExpression
         )
+        let complement = back.trimmingCharacters(in: .whitespacesAndNewlines)
+        return complement.isEmpty ? revealed : "\(revealed)\n\n\(complement)"
     }
 
     var body: some View {
