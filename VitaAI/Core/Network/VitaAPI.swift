@@ -195,6 +195,15 @@ actor VitaAPI {
         try await client.get("study/flashcards/stats")
     }
 
+    // Anki v2 — config de estudo (retencao, novos/dia, ordem, bury). Rafael 2026-07-10.
+    func getFlashcardSettings() async throws -> FlashcardStudySettings {
+        try await client.get("study/flashcards/settings")
+    }
+    @discardableResult
+    func updateFlashcardSettings(_ settings: FlashcardStudySettings) async throws -> FlashcardStudySettings {
+        try await client.patch("study/flashcards/settings", body: settings)
+    }
+
     func generateFlashcards(discipline: String, count: Int = 30) async throws -> [FlashcardDeckEntry] {
         struct Body: Encodable { let discipline: String; let count: Int }
         return try await client.post("study/flashcards/generate", body: Body(discipline: discipline, count: count))

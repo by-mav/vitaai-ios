@@ -125,17 +125,7 @@ struct FlashcardBuilderScreen: View {
             }
         }
         .sheet(isPresented: $showSessionSettings) {
-            VitaSheet(title: "Ajustes da sessão", detents: [.medium, .large]) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
-                        limitSection(vm: vm)
-                        AdvancedSection(items: advancedItems(vm: vm), theme: .flashcards)
-                    }
-                    .padding(.horizontal, VitaTokens.Spacing.xl)
-                    .padding(.top, VitaTokens.Spacing.md)
-                    .padding(.bottom, VitaTokens.Spacing._2xl)
-                }
-            }
+            FlashcardSettingsV2Sheet()
         }
     }
 
