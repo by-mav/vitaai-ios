@@ -103,7 +103,7 @@ struct FlashcardSettingsV2Sheet: View {
     // MARK: - Limites diários
 
     private var dailyLimitsSection: some View {
-        card(title: "Limites diários", subtitle: "Ritmo de estudo por dia, estilo Anki.") {
+        card(title: "Limites diários", subtitle: "Ritmo de estudo por dia.") {
             VStack(spacing: VitaTokens.Spacing.md) {
                 stepperRow(label: "Cartões novos por dia", value: $settings.newPerDay, range: 0...999, step: 5)
                 Divider().overlay(VitaColors.glassBorder.opacity(0.5))
