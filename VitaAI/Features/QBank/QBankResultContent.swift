@@ -8,6 +8,7 @@ struct QBankResultContent: View {
     let onNewSession: () -> Void
 
     @State private var animatedProgress: Double = 0
+    @State private var reviewQuestion: QBankQuestionDetail?
 
     private static let letters = ["A", "B", "C", "D", "E"]
 
@@ -143,8 +144,16 @@ struct QBankResultContent: View {
                         ForEach(Array(allIds.enumerated()), id: \.element) { idx, qId in
                             let answer = vm.state.sessionAnswers[qId]
                             let detail = vm.state.sessionDetails[qId]
-                            QBankResultReviewRow(index: idx + 1, questionId: qId, detail: detail, answer: answer)
-                                .padding(.horizontal, 24)
+                            // Tocar a questao abre a revisao completa dela (gabarito +
+                            // comentario), nao so acertou/errou (Rafael 2026-07-12, #189 T10).
+                            Button {
+                                if let detail { reviewQuestion = detail }
+                            } label: {
+                                QBankResultReviewRow(index: idx + 1, questionId: qId, detail: detail, answer: answer)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(detail == nil)
+                            .padding(.horizontal, 24)
                         }
                     }
                 }
@@ -160,7 +169,9 @@ struct QBankResultContent: View {
                 Spacer().frame(height: 80)
             }
         }
-
+        .sheet(item: $reviewQuestion) { q in
+            QBankExplanationSheet(question: q)
+        }
     }
 
     private func buildDiffBreakdown() -> [(String, Int, Int)] {
@@ -228,7 +239,9 @@ struct QBankResultReviewRow: View {
             Text("\(index)").font(.system(size: 11, weight: .semibold)).foregroundStyle(VitaColors.textTertiary).frame(width: 24)
             Text(statement).font(.system(size: 12)).foregroundStyle(VitaColors.textSecondary).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: statusIcon).font(.system(size: 16)).foregroundStyle(statusColor)
+            Image(systemName: "chevron.right").font(VitaTypography.labelMedium).foregroundStyle(VitaColors.textTertiary)
         }
+        .contentShape(Rectangle())
         .padding(.vertical, 8)
         .overlay(alignment: .bottom) { Rectangle().fill(VitaColors.glassBorder).frame(height: 0.5) }
     }
