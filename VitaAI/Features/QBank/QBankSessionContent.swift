@@ -410,11 +410,13 @@ private struct QBankExplanationPanel: View {
                     .font(PixioTypo.sectionLabel)
                     .foregroundStyle(VitaColors.sectionLabel)
             }
-            Text(explanation)
-                .font(PixioTypo.sans(size: 14, weight: .regular))
-                .foregroundStyle(VitaColors.textSecondary)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
+            // Markdown renderizado (nao asteriscos crus) — Rafael 2026-07-12.
+            VitaMarkdown(
+                content: explanation,
+                textColor: VitaColors.textSecondary,
+                fontSize: 14
+            )
+            .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

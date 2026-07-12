@@ -92,10 +92,13 @@ struct QBankExplanationSheet: View {
                             Text("Comentário")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(VitaColors.textPrimary)
-                            Text(explanation.qbankPlainText)
-                                .font(.system(size: 13))
-                                .foregroundStyle(VitaColors.textSecondary)
-                                .lineSpacing(3)
+                            // Renderiza markdown (**negrito**, listas) em vez de
+                            // mostrar os asteriscos crus — Rafael 2026-07-12.
+                            VitaMarkdown(
+                                content: explanation.qbankPlainText,
+                                textColor: VitaColors.textSecondary,
+                                fontSize: 13
+                            )
                         }
                     }
 
