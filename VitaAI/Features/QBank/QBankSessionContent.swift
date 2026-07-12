@@ -40,7 +40,10 @@ struct QBankSessionContent: View {
         .sheet(isPresented: $showExplanationSheet) {
             VitaSheet(title: "Explicação") {
                 if let question = vm.state.currentQuestionDetail {
-                    QBankExplanationSheet(question: question)
+                    QBankExplanationSheet(
+                        question: question,
+                        selectedAlternativeId: vm.state.selectedAlternativeId
+                    )
                 }
             }
         }

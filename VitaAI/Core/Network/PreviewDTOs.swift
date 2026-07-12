@@ -81,3 +81,13 @@ struct FlashcardSessionResp: Codable {
     let totalCards: Int
     let expectedMinutes: Int
 }
+
+// MARK: - Flashcard From Question (issue #188 I2)
+
+struct FlashcardFromQuestionResp: Codable {
+    let existing: Bool
+    let cardId: String
+    let deckId: String
+    /// Título do deck destino ("Questões erradas") — presente só no 201.
+    let deckTitle: String?
+}

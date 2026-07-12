@@ -303,6 +303,16 @@ actor VitaAPI {
         try await client.post("study/flashcards/session", body: body)
     }
 
+    /// POST /api/study/flashcards/from-question — converte questão errada do
+    /// QBank em flashcard determinístico no deck "Questões erradas" (dedup
+    /// server-side por sourceQuestionId → 200 existing=true; 422 = questão
+    /// discursiva). O encoder manda question_id (snake_case) e o backend
+    /// aceita os dois. Issue #188 (I2).
+    func createFlashcardFromQuestion(questionId: Int) async throws -> FlashcardFromQuestionResp {
+        struct Body: Encodable { let questionId: Int }
+        return try await client.post("study/flashcards/from-question", body: Body(questionId: questionId))
+    }
+
     // MARK: - Grades
 
     func getGrades(subjectId: String? = nil, limit: Int = 20) async throws -> [GradeEntry] {

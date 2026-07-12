@@ -4,8 +4,20 @@ import SwiftUI
 
 struct QBankExplanationSheet: View {
     let question: QBankQuestionDetail
+    /// Alternativa marcada na sessão (pra saber se o aluno errou).
+    var selectedAlternativeId: Int? = nil
 
     private static let letters = ["A", "B", "C", "D", "E"]
+
+    /// Errou? Sessão passa a alternativa marcada; histórico usa userAnswer.
+    /// Sem informação → mostra o botão mesmo assim (o backend deduplica).
+    private var answeredWrong: Bool {
+        if let sel = selectedAlternativeId {
+            return question.alternatives.first(where: { $0.id == sel })?.isCorrect != true
+        }
+        if let ua = question.userAnswer { return !ua.isCorrect }
+        return true
+    }
 
     var body: some View {
         VitaSheet(title: "Gabarito e Comentário") {
@@ -35,6 +47,11 @@ struct QBankExplanationSheet: View {
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(VitaColors.dataGreen.opacity(0.3), lineWidth: 1))
                             .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
+                    }
+
+                    // Virar flashcard (issue #188 I2) — só quando errou
+                    if answeredWrong {
+                        QBankFlashcardButton(questionId: question.id)
                     }
 
                     // Statistics

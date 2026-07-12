@@ -62,7 +62,7 @@ struct SimuladoSettingsSheet: View {
                                         vm.setTimerMinutes(mins)
                                     } label: {
                                         Text("\(mins) min")
-                                            .font(.system(size: 12, weight: .semibold))  // ds-allow: movido do builder (pre-existente)
+                                            .font(VitaTypography.labelMedium)
                                             .foregroundStyle(isSelected
                                                 ? StudyShellTheme.simulados.primaryLight
                                                 : VitaColors.textSecondary)
