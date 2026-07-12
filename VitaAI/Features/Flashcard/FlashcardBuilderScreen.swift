@@ -75,7 +75,6 @@ struct FlashcardBuilderScreen: View {
                 VStack(alignment: .leading, spacing: 14) {
                     heroCard(vm: vm)
                     statsCard(vm: vm)
-                    FlashcardQuickModesRow(vm: vm, onOpenDeck: onOpenDeck)
                     GlassTextField(
                         placeholder: deckTab == .biblioteca ? "Buscar disciplina" : "Buscar baralhos",
                         text: $deckSearch,
@@ -101,22 +100,9 @@ struct FlashcardBuilderScreen: View {
                         if let first = selectedDeckIds.first { onOpenDeck(first) }
                     }
                 )
-            } else {
-                StickyBottomCTA(
-                    title: ctaTitle(vm: vm),
-                    count: vm.state.displayCount,
-                    isLoading: vm.state.statsLoading || vm.state.decksLoading,
-                    isCreating: vm.state.creatingSession,
-                    theme: .flashcards,
-                    action: {
-                        Task {
-                            if let id = await vm.createSession() {
-                                onOpenDeck(id)
-                            }
-                        }
-                    }
-                )
             }
+            // Sem selecao nao ha sticky: o hero e o unico CTA primario da tela
+            // (havia dois "Estudar agora" competindo — Rafael 2026-07-12).
         }
         .background(Color.clear)
         .sheet(isPresented: $showStudioImport) {
@@ -278,6 +264,11 @@ struct FlashcardBuilderScreen: View {
             .buttonStyle(.plain)
             .disabled(count == 0)
             .opacity(count == 0 ? 0.5 : 1)
+
+            // Modos alternativos do MESMO ato (estudar) moram aqui no hero —
+            // soltos entre stats e busca liam como filtro da lista
+            // (Rafael 2026-07-12, review impeccable).
+            FlashcardQuickModesRow(vm: vm, onOpenDeck: onOpenDeck)
         }
         .padding(VitaTokens.Spacing._2xl)
         .glassCard(cornerRadius: VitaTokens.Radius.xl)

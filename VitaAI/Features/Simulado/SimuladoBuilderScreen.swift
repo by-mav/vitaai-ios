@@ -57,10 +57,30 @@ struct SimuladoBuilderScreen: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 12) {
 
+                // 0. Header: titulo + criar do material (padrao das 3
+                // ferramentas de estudo — Rafael 2026-07-12).
+                HStack(spacing: 12) {
+                    Text("Simulados")
+                        .font(PixioTypo.sans(size: 22, weight: .semibold))
+                        .foregroundStyle(VitaColors.textPrimary)
+                    Spacer()
+                    Button(action: { showStudioImport = true }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 16, weight: .semibold))  // ds-allow: icone SF do botao criar
+                            .foregroundStyle(VitaColors.surface)
+                            .frame(width: 38, height: 38)
+                            .background(Circle().fill(StudyShellTheme.simulados.primaryLight))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Montar simulado do meu material")
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
                 // 1. Hero — score médio + simulados completos + total questões
                 StudyImageHeroStat(
                     imageAsset: "hero-simulados-v2",
-                    eyebrow: "Simulados",
+                    eyebrow: "Modo prova",
                     primary: heroPrimary(avgScore: vm.state.statsAvgScore),
                     primaryCaption: "score médio",
                     stats: heroStats(vm: vm),

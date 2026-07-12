@@ -47,6 +47,7 @@ struct QBankBuilderScreen: View {
                     QBankBuilderHeader(
                         settingsCount: settingsActiveCount(vm: vm),
                         onBack: onBack,
+                        onCreate: { showStudioImport = true },
                         onSettings: { activeSheet = .settings }
                     )
                         .padding(.horizontal, 16)
@@ -940,6 +941,7 @@ private struct QBankRecentSessionsSheet: View {
 private struct QBankBuilderHeader: View {
     let settingsCount: Int
     let onBack: () -> Void
+    let onCreate: () -> Void
     let onSettings: () -> Void
 
     var body: some View {
@@ -962,6 +964,18 @@ private struct QBankBuilderHeader: View {
             }
 
             Spacer()
+
+            // "+" = criar questoes do material do aluno (padrao das 3
+            // ferramentas de estudo — Rafael 2026-07-12).
+            Button(action: onCreate) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .semibold))  // ds-allow: icone SF do botao criar
+                    .foregroundStyle(VitaColors.surface)
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(VitaColors.accent))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Criar questões do meu material")
 
             Button(action: onSettings) {
                 ZStack(alignment: .topTrailing) {
