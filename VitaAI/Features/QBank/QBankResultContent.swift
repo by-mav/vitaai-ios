@@ -101,7 +101,7 @@ struct QBankResultContent: View {
                     Spacer().frame(height: 20)
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Por Dificuldade")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(VitaTypography.labelLarge)
                             .foregroundStyle(VitaColors.textPrimary)
                         ForEach(diffBreakdown, id: \.0) { (diff, t, c) in
                             let rate = t > 0 ? Double(c) / Double(t) : 0
@@ -113,14 +113,51 @@ struct QBankResultContent: View {
                                     .frame(width: 50, alignment: .leading)
                                 GeometryReader { geo in
                                     ZStack(alignment: .leading) {
-                                        RoundedRectangle(cornerRadius: 3).fill(VitaColors.glassBorder)
-                                        RoundedRectangle(cornerRadius: 3).fill(col)
+                                        RoundedRectangle(cornerRadius: 3).fill(VitaColors.glassBorder)  // ds-allow: barra fina, raio=metade da altura
+                                        RoundedRectangle(cornerRadius: 3).fill(col)  // ds-allow: barra fina, raio=metade da altura
                                             .frame(width: geo.size.width * CGFloat(rate))
                                     }
                                 }
                                 .frame(height: 6)
                                 Text("\(c)/\(t)")
                                     .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(col)
+                                    .frame(width: 36, alignment: .trailing)
+                            }
+                        }
+                    }
+                    .padding(16)
+                    .glassCard(cornerRadius: 14)
+                    .padding(.horizontal, 24)
+                }
+
+                // Por disciplina — o que ensina o aluno (backend #189 T1/T5)
+                let byDisc = vm.state.byDiscipline.filter { $0.total > 0 }
+                if !byDisc.isEmpty {
+                    Spacer().frame(height: 12)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Por Disciplina")
+                            .font(VitaTypography.labelLarge)
+                            .foregroundStyle(VitaColors.textPrimary)
+                        ForEach(byDisc) { d in
+                            let rate = d.total > 0 ? Double(d.correct) / Double(d.total) : 0
+                            let col: Color = rate >= 0.7 ? VitaColors.dataGreen : rate >= 0.5 ? VitaColors.dataAmber : VitaColors.dataRed
+                            HStack(spacing: 10) {
+                                Text(d.name)
+                                    .font(VitaTypography.bodySmall)
+                                    .foregroundStyle(VitaColors.textPrimary)
+                                    .lineLimit(1)
+                                    .frame(width: 120, alignment: .leading)
+                                GeometryReader { geo in
+                                    ZStack(alignment: .leading) {
+                                        RoundedRectangle(cornerRadius: 3).fill(VitaColors.glassBorder)  // ds-allow: barra fina, raio=metade da altura
+                                        RoundedRectangle(cornerRadius: 3).fill(col)  // ds-allow: barra fina, raio=metade da altura
+                                            .frame(width: geo.size.width * CGFloat(rate))
+                                    }
+                                }
+                                .frame(height: 6)
+                                Text("\(d.correct)/\(d.total)")
+                                    .font(VitaTypography.labelSmall)
                                     .foregroundStyle(col)
                                     .frame(width: 36, alignment: .trailing)
                             }

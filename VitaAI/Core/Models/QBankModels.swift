@@ -480,6 +480,30 @@ struct QBankFinishSessionResponse: Decodable {
     var correctCount: Int = 0
     var totalQuestions: Int = 0
     var score: Int = 0
+    var byDiscipline: [QBankDisciplineBreakdown] = []
+    var avgTimeMs: Int? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case correctCount, totalQuestions, score, byDiscipline, avgTimeMs
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        correctCount = (try? c.decode(Int.self, forKey: .correctCount)) ?? 0
+        totalQuestions = (try? c.decode(Int.self, forKey: .totalQuestions)) ?? 0
+        score = (try? c.decode(Int.self, forKey: .score)) ?? 0
+        byDiscipline = (try? c.decode([QBankDisciplineBreakdown].self, forKey: .byDiscipline)) ?? []
+        avgTimeMs = try? c.decode(Int.self, forKey: .avgTimeMs)
+    }
+}
+
+/// Quebra de acertos por disciplina no resultado (backend #189 T1).
+struct QBankDisciplineBreakdown: Decodable, Identifiable {
+    var slug: String = ""
+    var name: String = ""
+    var total: Int = 0
+    var correct: Int = 0
+    var pct: Int = 0
+    var id: String { slug }
 }
 
 // MARK: - Session

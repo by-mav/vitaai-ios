@@ -123,6 +123,7 @@ struct QBankUiState {
     // Result
     var sessionAnswers: [Int: QBankAnswerResponse] = [:]   // questionId -> answer
     var sessionDetails: [Int: QBankQuestionDetail] = [:]   // questionId -> detail
+    var byDiscipline: [QBankDisciplineBreakdown] = []       // quebra por disciplina (resultado)
     var sessionXpAwarded = 0
     var sessionReward: GamificationEventManager.StudySessionXpSummary? = nil
     var sessionRewardLoading = false
@@ -1049,11 +1050,13 @@ final class QBankViewModel {
         state.sessionRewardLoading = true
         Task { [api, gamificationEvents] in
             // POST finish to backend
-            _ = try? await api.finishQBankSession(
+            if let finishResp = try? await api.finishQBankSession(
                 id: session.id,
                 correctCount: correctCount,
                 totalAnswered: totalAnswered
-            )
+            ) {
+                state.byDiscipline = finishResp.byDiscipline
+            }
             // Log activity for gamification
             if let result = try? await api.logActivity(
                 action: "qbank_session_complete",
