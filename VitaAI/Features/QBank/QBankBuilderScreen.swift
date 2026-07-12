@@ -82,10 +82,6 @@ struct QBankBuilderScreen: View {
                     quickAccessSection(vm: vm)
                         .padding(.horizontal, 16)
 
-                    // 5. Criar do teu material (PDF/slides/foto -> questões via Studio)
-                    studioImportRow
-                        .padding(.horizontal, 16)
-
                 }
                 .padding(.bottom, 148)
             }
@@ -141,35 +137,6 @@ struct QBankBuilderScreen: View {
     }
 
     // MARK: - Studio import row
-
-    private var studioImportRow: some View {
-        Button(action: { showStudioImport = true }) {
-            HStack(spacing: VitaTokens.Spacing.md) {
-                Image(systemName: "doc.badge.plus")
-                    .font(.system(size: 18))  // ds-allow: icone da row
-                    .foregroundStyle(VitaColors.accent)
-                    .frame(width: 44, height: 44)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Criar do teu material")
-                        .font(VitaTypography.titleMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text("PDF, slides ou foto viram questões")
-                        .font(VitaTypography.bodySmall)
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-                Spacer(minLength: VitaTokens.Spacing.sm)
-                Image(systemName: "chevron.right")
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(VitaColors.textTertiary)
-            }
-            .padding(.trailing, VitaTokens.Spacing.lg)
-            .padding(.vertical, VitaTokens.Spacing.xs)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).fill(VitaColors.glassBg))
-        .overlay(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).stroke(VitaColors.glassBorder, lineWidth: 0.75))
-    }
 
     // MARK: - Sections
 

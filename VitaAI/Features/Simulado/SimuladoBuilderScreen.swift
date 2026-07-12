@@ -24,6 +24,7 @@ struct SimuladoBuilderScreen: View {
     @State private var formatExpanded: Bool = false
     @State private var difficultyExpanded: Bool = false
     @State private var showStudioImport = false
+    @State private var showSettings = false
     /// Sessao QBank mode=simulado criada do material (Studio). Abre local via
     /// cover porque .simuladoSession espera attempt de template (outra entidade)
     /// e o AppRouter esta em WIP de outro agente.
@@ -73,6 +74,16 @@ struct SimuladoBuilderScreen: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Montar simulado do meu material")
+                    Button(action: { showSettings = true }) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 15, weight: .semibold))  // ds-allow: icone SF do header
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .frame(width: 38, height: 38)
+                            .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
+                            .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Ajustes do simulado")
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -255,18 +266,9 @@ struct SimuladoBuilderScreen: View {
                     }
                 }
 
-                // 8. Cronômetro — VISÍVEL sempre (decisão central simulado, spec §11.3)
-                timerSection(vm: vm)
-                    .padding(.horizontal, 16)
-
-                // 9. Quantidade — defaults [20,30,50,100]
-                quantitySection(vm: vm)
-                    .padding(.horizontal, 16)
-
-                // 9b. Criar do teu material — importa PDF/slides/foto e monta simulado
-                studioImportRow
-                    .padding(.horizontal, 16)
-
+                // Cronômetro + Quantidade moram na gaveta de ajustes (engrenagem);
+                // criar-do-material mora no "+" do header — corpo clean, espelho
+                // do Flashcards (Rafael 2026-07-12).
                 // 10. Recents (sessões/tentativas)
                 if !vm.state.recentAttempts.isEmpty {
                     recentsSection(vm: vm)
@@ -291,6 +293,9 @@ struct SimuladoBuilderScreen: View {
             )
         }
         .background(Color.clear)
+        .sheet(isPresented: $showSettings) {
+            SimuladoSettingsSheet(vm: vm)
+        }
         .sheet(isPresented: $showStudioImport) {
             StudyMaterialPicker(title: "Montar simulado", actionVerb: "Montar simulado") { sourceIds in
                 let pack = try await container.api.generateStudyPack(
@@ -440,114 +445,6 @@ struct SimuladoBuilderScreen: View {
     }
 
     // MARK: - Timer section (visível, não em Avançadas)
-
-    private func timerSection(vm: SimuladoBuilderViewModel) -> some View {
-        VitaGlassCard(cornerRadius: 14) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "timer")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(StudyShellTheme.simulados.primaryLight.opacity(0.9))
-                    Text("CRONÔMETRO")
-                        .font(.system(size: 11, weight: .bold))
-                        .tracking(0.8)
-                        .foregroundStyle(VitaColors.sectionLabel)
-                    Spacer()
-                    Toggle("", isOn: Binding(
-                        get: { vm.state.timerEnabled },
-                        set: { vm.setTimerEnabled($0) }
-                    ))
-                    .labelsHidden()
-                    .tint(StudyShellTheme.simulados.primaryLight)
-                }
-
-                if vm.state.timerEnabled {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach([15, 30, 60, 90, 120, 180], id: \.self) { mins in
-                                let isSelected = vm.state.timerMinutes == mins
-                                Button {
-                                    vm.setTimerMinutes(mins)
-                                } label: {
-                                    Text("\(mins) min")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(isSelected
-                                            ? StudyShellTheme.simulados.primaryLight
-                                            : VitaColors.textSecondary)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 7)
-                                        .background(
-                                            Capsule().fill(isSelected
-                                                ? StudyShellTheme.simulados.primary.opacity(0.22)
-                                                : Color.clear)
-                                        )
-                                        .overlay(
-                                            Capsule().stroke(isSelected
-                                                ? StudyShellTheme.simulados.primaryLight.opacity(0.32)
-                                                : VitaColors.glassBorder, lineWidth: 0.75)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                } else {
-                    Text("Sem limite de tempo — modo livre")
-                        .font(.system(size: 11))
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-            }
-            .padding(14)
-        }
-    }
-
-    // MARK: - Quantity section
-
-    private func quantitySection(vm: SimuladoBuilderViewModel) -> some View {
-        StudyAmountSliderCard(
-            title: "Quantidade",
-            value: vm.state.questionCount,
-            range: 10...200,
-            step: 10,
-            theme: .simulados,
-            valueSuffix: "questões",
-            presets: [20, 30, 50, 100, 200],
-            onChange: { vm.setQuestionCount($0) }
-        )
-    }
-
-    // MARK: - Studio import row (Criar do teu material)
-
-    private var studioImportRow: some View {
-        Button(action: { showStudioImport = true }) {
-            HStack(spacing: VitaTokens.Spacing.md) {
-                Image(systemName: "doc.badge.plus")
-                    .font(.system(size: 18))  // ds-allow: icone da row
-                    .foregroundStyle(VitaColors.accent)
-                    .frame(width: 44, height: 44)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Criar do teu material")
-                        .font(VitaTypography.titleMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text("PDF, slides ou foto viram um simulado")
-                        .font(VitaTypography.bodySmall)
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-                Spacer(minLength: VitaTokens.Spacing.sm)
-                Image(systemName: "chevron.right")
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(VitaColors.textTertiary)
-            }
-            .padding(.trailing, VitaTokens.Spacing.lg)
-            .padding(.vertical, VitaTokens.Spacing.xs)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .background(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).fill(VitaColors.glassBg))
-        .overlay(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).stroke(VitaColors.glassBorder, lineWidth: 0.75))
-    }
-
-    // MARK: - Difficulty content (sem card wrapper — usado dentro de collapsibleSection)
 
     private func difficultyContent(vm: SimuladoBuilderViewModel) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {

@@ -93,6 +93,7 @@
 		2840BF9C5DCE83E4F0F11BF8 /* TranscricaoFilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BBF0AB4655314F4784C8DC3 /* TranscricaoFilterSheet.swift */; };
 		286CA468DE9E5D2F486F92B2 /* RedeemReferralCodeRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAEF666EBEE81702A6F02BC /* RedeemReferralCodeRequest.swift */; };
 		28E2FA2F1ED48B82D36736B1 /* ActivityFeedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF12D5921A98D0BDABA0DCD3 /* ActivityFeedScreen.swift */; };
+		2905212E8FCEDFBEBF21C745 /* QBankFlashcardButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10EF26A8F7D8452A48B462C1 /* QBankFlashcardButton.swift */; };
 		293030CACD73997F2D07E775 /* SimuladoResultScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2D3EB80742D1C6FEBED532 /* SimuladoResultScreen.swift */; };
 		2963C9B8E4E9B4CC79CA91C1 /* NotebookModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20A68F955FFD87D1B3A1BE0 /* NotebookModels.swift */; };
 		2966520886D5E54486E731A7 /* PdfViewerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9998B44B0BDB981193E5EAF3 /* PdfViewerScreen.swift */; };
@@ -373,6 +374,7 @@
 		CBDB52325B789D01A697EBAE /* EmailAuthSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8FE94587B7F5721A573CFB /* EmailAuthSheet.swift */; };
 		CD764114E07D347F8DF2A44D /* OsceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A9EFD803AA3823BCDAB4F04 /* OsceScreen.swift */; };
 		CDC626FD70D21814D55D60EC /* VitaBreadcrumb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7032B7F8C0B61415B9E30313 /* VitaBreadcrumb.swift */; };
+		CF37CA3ECED22FEBBCC26662 /* SimuladoSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17FC3EC7E22029635B0791F /* SimuladoSettingsSheet.swift */; };
 		CF4DE67B9635CD50602C0B01 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF29D66014585DBCBD22EAE0 /* ChatViewModel.swift */; };
 		CFC1155AA5B1595B715975C4 /* ConnectStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F5D2349C35D3C9097489379 /* ConnectStep.swift */; };
 		CFC2B0D65DF8E6C231324A16 /* SSEEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87C9F93BF841CD13CA9136E4 /* SSEEvent.swift */; };
@@ -469,6 +471,7 @@
 		0FA8B37E247D62A4DC64032E /* FeedbackScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackScreen.swift; sourceTree = "<group>"; };
 		0FAEF666EBEE81702A6F02BC /* RedeemReferralCodeRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedeemReferralCodeRequest.swift; sourceTree = "<group>"; };
 		1070781C3ADCC296E31A5731 /* MindMapSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapSyncManager.swift; sourceTree = "<group>"; };
+		10EF26A8F7D8452A48B462C1 /* QBankFlashcardButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankFlashcardButton.swift; sourceTree = "<group>"; };
 		1101C648D56FC6189CCA6629 /* PixioAuroraBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixioAuroraBackground.swift; sourceTree = "<group>"; };
 		1130013BF0504A0F42C04360 /* VitaAmbientBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaAmbientBackground.swift; sourceTree = "<group>"; };
 		1130D9D84A3608728A01845E /* PdfStudyStatsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfStudyStatsSheet.swift; sourceTree = "<group>"; };
@@ -856,6 +859,7 @@
 		EEC63CEAFB878B94BBCE32D8 /* VitaNotificationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaNotificationSheet.swift; sourceTree = "<group>"; };
 		EECAE666C3ACDEA5004FA98B /* FlashcardBuilderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardBuilderViewModel.swift; sourceTree = "<group>"; };
 		EF8A54B9484818C1A97D4814 /* RegisterPushTokenRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterPushTokenRequest.swift; sourceTree = "<group>"; };
+		F17FC3EC7E22029635B0791F /* SimuladoSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimuladoSettingsSheet.swift; sourceTree = "<group>"; };
 		F1D1E6D867F79AAC73B53994 /* SpeechRecognitionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionManager.swift; sourceTree = "<group>"; };
 		F3A7D6C7912D855AB9D26042 /* CustomizeReferralCode200Response.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizeReferralCode200Response.swift; sourceTree = "<group>"; };
 		F4803A4E33C3222E0C7EE622 /* QBankBuilderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankBuilderViewModel.swift; sourceTree = "<group>"; };
@@ -1107,6 +1111,7 @@
 				564E8E7192471F3F1E0AD40A /* QBankCoordinatorScreen.swift */,
 				409712121A5E2B5A4828C9B8 /* QBankDisciplineContent.swift */,
 				48AF609190131E981412AE60 /* QBankExplanationSheet.swift */,
+				10EF26A8F7D8452A48B462C1 /* QBankFlashcardButton.swift */,
 				D431F9DA5C56FB16C57122FE /* QBankHomeContent.swift */,
 				5EE115A0772689E4DA94BD33 /* QBankResultContent.swift */,
 				9523F7AD4F0BF282057E2E97 /* QBankSessionContent.swift */,
@@ -1459,6 +1464,7 @@
 				8B2D3EB80742D1C6FEBED532 /* SimuladoResultScreen.swift */,
 				95EB6BC0C85E92AB27B4320C /* SimuladoReviewScreen.swift */,
 				2E56A26BE9510D582EC34800 /* SimuladoSessionScreen.swift */,
+				F17FC3EC7E22029635B0791F /* SimuladoSettingsSheet.swift */,
 				3557EFD9812981B1963CB519 /* SimuladoViewModel.swift */,
 			);
 			path = Simulado;
@@ -2262,6 +2268,7 @@
 				2CF5097B415D2FBDDF54AD33 /* QBankFiltersInstitutionsInner.swift in Sources */,
 				1B5EB6534ED2A4B98837E088 /* QBankFiltersTopicsInner.swift in Sources */,
 				8A7B2012A76D8CA644F8978C /* QBankFiltersYearsInner.swift in Sources */,
+				2905212E8FCEDFBEBF21C745 /* QBankFlashcardButton.swift in Sources */,
 				A01AFD8E7995AD999C2E44A5 /* QBankHomeContent.swift in Sources */,
 				703BF29ABD3889F1EC2E0E70 /* QBankModels.swift in Sources */,
 				114FD2F8BF1B210A49DFBCA5 /* QBankPreviewRequest.swift in Sources */,
@@ -2301,6 +2308,7 @@
 				293030CACD73997F2D07E775 /* SimuladoResultScreen.swift in Sources */,
 				98F8242BCDD2FADABD727705 /* SimuladoReviewScreen.swift in Sources */,
 				487EFBF97E3B04CEFCB27D47 /* SimuladoSessionScreen.swift in Sources */,
+				CF37CA3ECED22FEBBCC26662 /* SimuladoSettingsSheet.swift in Sources */,
 				57546517A6A1EA8B3C9EC265 /* SimuladoViewModel.swift in Sources */,
 				3DB8FA5F571CDAC78653759B /* SleepStep.swift in Sources */,
 				9378A302E67E0AE041E2EB39 /* SocialAuthButton.swift in Sources */,
