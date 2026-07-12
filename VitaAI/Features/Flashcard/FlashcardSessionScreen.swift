@@ -84,13 +84,26 @@ struct FlashcardSessionScreen: View {
             router.activeFlashcardVM = viewModel
             router.activeFlashcardSettings = settings
             timerCancellable = timer.connect()
+            // Cronômetro honra o toggle "Mostrar cronômetro" da gaveta de ajustes
+            // (GET /study/flashcards/settings). Sem esse fetch o default local
+            // deixava o timer SEMPRE visível, ignorando a escolha do aluno.
+            // Issue vitaai-web#188 (I2).
+            Task {
+                if let server = try? await container.api.getFlashcardSettings() {
+                    settings.showTimer = server.showTimer
+                }
+            }
         }
         .onDisappear {
             timerCancellable?.cancel()
             timerCancellable = nil
         }
         .onReceive(timer) { _ in
-            elapsedSeconds = viewModel?.elapsedSeconds ?? 0
+            guard let vm = viewModel else { return }
+            // Sessão terminou → congela o tempo exibido (o resumo usa o valor
+            // final em vez de continuar contando na tela de summary).
+            if case .finished = vm.phase { return }
+            elapsedSeconds = vm.elapsedSeconds
         }
         .navigationBarHidden(true)
         .onChange(of: viewModel != nil) {

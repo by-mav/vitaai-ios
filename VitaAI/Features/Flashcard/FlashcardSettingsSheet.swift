@@ -57,7 +57,9 @@ final class FlashcardSettings {
     var leechThreshold: Int = 8
 
     // Display
-    var showTimer: Bool = true
+    // Default alinhado ao server (FlashcardStudySettings.showTimer = false);
+    // FlashcardSessionScreen sincroniza com GET settings no load. Issue #188 (I2).
+    var showTimer: Bool = false
     var showIntervalPreview: Bool = true
     var autoAdvanceSeconds: Int = 0  // 0 = off
 
