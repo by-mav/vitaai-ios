@@ -443,6 +443,42 @@ final class FlashcardBuilderViewModel {
         }
     }
 
+    // MARK: - Sessão rápida (chips "Só os que errei" / "Véspera de prova" — issue #188 I1)
+
+    /// MESMO caminho do CTA (POST /api/study/flashcards/session), trocando só o
+    /// mode server-side: "lapsed" = só cards que o aluno errou (lapses >= 1);
+    /// "cram" = todo o escopo ignorando vencimento (véspera de prova; o
+    /// orçamento diário do backend limita a fila). A fila volta em cardIds e
+    /// vai pro FlashcardViewModel via FlashcardMultiDeckHandoff.setQuickSession
+    /// — a navegação continua deck-based (mesmo TODO do multi-deck: virar Route).
+    func createQuickSession(mode: String, title: String) async -> FlashcardQuickSessionOutcome {
+        state.creatingSession = true
+        defer { state.creatingSession = false }
+
+        let body = FlashcardSessionBody(
+            lens: state.lens.rawValue,
+            groupSlugs: nil,
+            mode: mode,
+            limit: nil,
+            showHints: state.showHints,
+            skipEasy: state.skipTooEasy
+        )
+        do {
+            let resp = try await api.createFlashcardSession(body: body)
+            guard resp.totalCards > 0, !resp.cardIds.isEmpty else { return .empty }
+            state.lastSessionId = resp.sessionId
+            state.lastSessionCardIds = resp.cardIds
+            // Deck âncora só pra rota (a fila real vem do handoff).
+            guard let deckId = state.decks.first(where: { $0.cardCount > 0 })?.id
+                    ?? state.decks.first?.id else { return .failed }
+            FlashcardMultiDeckHandoff.shared.setQuickSession(cardIds: resp.cardIds, title: title)
+            return .open(deckId: deckId)
+        } catch {
+            NSLog("[FlashcardBuilder] createQuickSession(%@) error: %@", mode, String(describing: error))
+            return .failed
+        }
+    }
+
     // MARK: - Decks filtering (pro grid embaixo)
 
     /// Decks visíveis no grid considerando mode + filtros.

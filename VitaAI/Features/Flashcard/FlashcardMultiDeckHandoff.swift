@@ -21,4 +21,26 @@ final class FlashcardMultiDeckHandoff {
         pending = []
         return ids
     }
+
+    // MARK: - Sessão rápida (issue #188 I1)
+    //
+    // Chips "Só os que errei"/"Véspera de prova": o backend calcula a fila
+    // (POST /api/study/flashcards/session) e devolve cardIds na ordem FSRS.
+    // O builder grava aqui e o FlashcardViewModel monta a sessão EXATA.
+
+    private var pendingQuickCardIds: [String] = []
+    private var pendingQuickTitle: String? = nil
+
+    func setQuickSession(cardIds: [String], title: String) {
+        pendingQuickCardIds = cardIds
+        pendingQuickTitle = title
+    }
+
+    /// Fila da sessão rápida e LIMPA. cardIds vazio = fluxo normal por deck.
+    func consumeQuickSession() -> (cardIds: [String], title: String?) {
+        let out = (pendingQuickCardIds, pendingQuickTitle)
+        pendingQuickCardIds = []
+        pendingQuickTitle = nil
+        return out
+    }
 }

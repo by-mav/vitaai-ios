@@ -75,6 +75,7 @@ struct FlashcardBuilderScreen: View {
                 VStack(alignment: .leading, spacing: 14) {
                     heroCard(vm: vm)
                     statsCard(vm: vm)
+                    FlashcardQuickModesRow(vm: vm, onOpenDeck: onOpenDeck)
                     GlassTextField(
                         placeholder: deckTab == .biblioteca ? "Buscar disciplina" : "Buscar baralhos",
                         text: $deckSearch,

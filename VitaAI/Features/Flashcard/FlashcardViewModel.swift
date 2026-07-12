@@ -104,10 +104,16 @@ final class FlashcardViewModel {
         // Multi-seleção: se o builder gravou vários ids, estuda todos juntos.
         let handoff = FlashcardMultiDeckHandoff.shared.consume()
         let deckIds = (handoff.count > 1 && handoff.contains(deckId)) ? handoff : [deckId]
+        // Sessão rápida (issue #188 I1): fila EXATA calculada pelo servidor.
+        let quick = FlashcardMultiDeckHandoff.shared.consumeQuickSession()
 
         Task { @MainActor in
             do {
-                let deck = try await fetchDeck(deckIds: deckIds, tagFilter: tagFilter)
+                let deck = try await fetchDeck(
+                    deckIds: deckIds,
+                    tagFilter: tagFilter,
+                    quickSession: quick.cardIds.isEmpty ? nil : quick
+                )
                 startSession(deck: deck)
             } catch {
                 phase = .error("Erro ao carregar flashcards: \(error.localizedDescription)")
@@ -440,11 +446,31 @@ final class FlashcardViewModel {
 
     /// Busca 1..N decks (deckLimit=1000 acha qualquer deck) e faz MERGE dos cards.
     /// N>1 = "Estudar selecionados" (Cardiologia + Medicina de Família juntos, etc).
-    private func fetchDeck(deckIds: [String], tagFilter: String? = nil) async throws -> FlashcardDeck {
+    private func fetchDeck(
+        deckIds: [String],
+        tagFilter: String? = nil,
+        quickSession: (cardIds: [String], title: String?)? = nil
+    ) async throws -> FlashcardDeck {
         let limit = tagFilter != nil ? 9999 : nil
         async let allTask = api.getFlashcardDecks(tag: tagFilter, cardsLimit: limit, deckLimit: 1000)
         async let dueTask = api.getFlashcardDecks(dueOnly: true, tag: tagFilter, cardsLimit: limit, deckLimit: 1000)
         let (allDecks, dueDecks) = try await (allTask, dueTask)
+
+        // Sessão rápida (issue #188 I1): monta a fila pelos cardIds que o
+        // servidor devolveu, preservando a ordem FSRS (mais atrasado primeiro).
+        if let quick = quickSession {
+            var byId: [String: FlashcardEntry] = [:]
+            for deck in allDecks {
+                for card in deck.cards { byId[card.id] = card }
+            }
+            let queue = quick.cardIds.compactMap { byId[$0] }
+            guard !queue.isEmpty else { throw URLError(.resourceUnavailable) }
+            return FlashcardDeck(
+                id: deckIds.first ?? "",
+                title: quick.title ?? "Sessão rápida",
+                cards: queue.map { $0.toDomain() }
+            )
+        }
 
         var mergedCards: [FlashcardEntry] = []
         var firstTitle: String? = nil

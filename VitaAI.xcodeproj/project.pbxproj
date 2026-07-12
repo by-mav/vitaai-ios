@@ -136,6 +136,7 @@
 		3DEF0CCEDB2734FE8B6A366C /* PortalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA730BECE2B8FE7A6FDC0218 /* PortalModels.swift */; };
 		3F762321E8BA2481A3EE5BE9 /* DashboardHeroCardAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9382A5EB9DE82A34485A167A /* DashboardHeroCardAction.swift */; };
 		3F8C8E52B328962403D82247 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C749E050E8D8D8822CB816D /* AppConfig.swift */; };
+		3FAB9EFE0EC3D4C54BF67015 /* FlashcardQuickModesRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C69F4FAF8F76E18A81A7E795 /* FlashcardQuickModesRow.swift */; };
 		3FDB705B03C39389AC9B4604 /* SpeechRecognitionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1D1E6D867F79AAC73B53994 /* SpeechRecognitionManager.swift */; };
 		401ABC9E3A8704BB455F5566 /* ReferralCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30F475603BEE5DD42020C1E /* ReferralCaptureService.swift */; };
 		40A3ECC21F1485E4CD64447E /* VitaToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78C90E33A5261C25C9E8957 /* VitaToast.swift */; };
@@ -789,6 +790,7 @@
 		C54CA1265460CA7509625A93 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		C5526CA65D05956D67A4DB27 /* GamificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamificationModels.swift; sourceTree = "<group>"; };
 		C64F17D9E572284984FE6451 /* StrokeFileStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrokeFileStorage.swift; sourceTree = "<group>"; };
+		C69F4FAF8F76E18A81A7E795 /* FlashcardQuickModesRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardQuickModesRow.swift; sourceTree = "<group>"; };
 		C6F3353FAFB83C3E4361EDAF /* EstudosBuilderComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EstudosBuilderComponents.swift; sourceTree = "<group>"; };
 		C84201C4AE38526C62B3DFD1 /* VitaMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaMarkdown.swift; sourceTree = "<group>"; };
 		C8E084DA771ADE8DA5F560EE /* PdfBookmarksList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfBookmarksList.swift; sourceTree = "<group>"; };
@@ -941,6 +943,7 @@
 				D5927902FF9A582D530AC326 /* FlashcardCard.swift */,
 				BD0378CC209283D82A5B4FFC /* FlashcardContentView.swift */,
 				ADD5AA77002B1D39477A7C2C /* FlashcardMultiDeckHandoff.swift */,
+				C69F4FAF8F76E18A81A7E795 /* FlashcardQuickModesRow.swift */,
 				ED8EF772B3F18F7D47F42DB0 /* FlashcardSessionScreen.swift */,
 				1D7C5FABC907005EE5C43240 /* FlashcardSettingsSheet.swift */,
 				A6C22B540583A1014AAC2632 /* FlashcardSettingsV2Sheet.swift */,
@@ -2104,6 +2107,7 @@
 				18BBEF0316C9D438575EE7E8 /* FlashcardContentView.swift in Sources */,
 				8DAB61FBB197AC29828DE194 /* FlashcardModels.swift in Sources */,
 				B69D546E432722BD3D86CE6B /* FlashcardMultiDeckHandoff.swift in Sources */,
+				3FAB9EFE0EC3D4C54BF67015 /* FlashcardQuickModesRow.swift in Sources */,
 				61C8EF7B5837129A65124B20 /* FlashcardSessionScreen.swift in Sources */,
 				4D6C6A1397F3362C08C5DBD0 /* FlashcardSettingsSheet.swift in Sources */,
 				D204B17EB83336B79C0FB036 /* FlashcardSettingsV2Sheet.swift in Sources */,
