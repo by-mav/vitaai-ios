@@ -288,7 +288,9 @@ final class FlashcardBuilderViewModel {
             // deckLimit alto: o aluno pode ter centenas de baralhos; default 100
             // cortava a conta (Rafael 2026-07-09: heroi somava so 100 de 621 decks).
             let decks = try await api.getFlashcardDecks(deckLimit: 2000, summary: true)
-            state.decks = decks.filter { $0.cardCount > 0 }
+            // Baralho VAZIO criado pelo aluno fica visível (acabou de criar no "+"
+            // e precisa aparecer em "Meus baralhos"). Só a Biblioteca esconde vazios.
+            state.decks = decks.filter { $0.cardCount > 0 || !($0.userId ?? "").isEmpty }
         } catch {
             NSLog("[FlashcardBuilder] loadDecks error: %@", String(describing: error))
             state.error = "Não foi possível carregar baralhos"

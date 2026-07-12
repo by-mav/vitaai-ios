@@ -219,21 +219,40 @@ actor VitaAPI {
         deckTitle: String? = nil,
         subjectId: String? = nil
     ) async throws -> CreateFlashcardResponse {
-        struct Body: Encodable {
-            let front: String
-            let back: String
-            let deckTitle: String?
-            let subjectId: String?
-        }
-        return try await client.post(
-            "study/flashcards",
-            body: Body(front: front, back: back, deckTitle: deckTitle, subjectId: subjectId)
-        )
+        // POST /study/flashcards espera camelCase (deckTitle/subjectId). O encoder
+        // padrão converte pra snake_case e o zod do server (camelCase-only) DROPA
+        // deck_title → o card caía no deck fallback "Meus Flashcards" em vez do
+        // baralho escolhido. postRaw preserva as chaves. E2E 2026-07-12, issue #188.
+        var payload: [String: Any] = ["front": front, "back": back]
+        if let deckTitle { payload["deckTitle"] = deckTitle }
+        if let subjectId { payload["subjectId"] = subjectId }
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        return try await client.postRaw("study/flashcards", body: data)
     }
 
     struct CreateFlashcardResponse: Decodable {
         var id: String?
         var deckId: String?
+    }
+
+    /// POST /api/study/flashcards/decks — cria baralho VAZIO, idempotente por
+    /// título (server reusa se já existe). Criação manual pelo menu "+" do
+    /// builder (issue vitaai-web#188). Encoder converte pra {title, discipline_slug?}.
+    @discardableResult
+    func createDeck(title: String, disciplineSlug: String? = nil) async throws -> CreateDeckResponse {
+        struct Body: Encodable {
+            let title: String
+            let disciplineSlug: String?
+        }
+        return try await client.post(
+            "study/flashcards/decks",
+            body: Body(title: title, disciplineSlug: disciplineSlug)
+        )
+    }
+
+    struct CreateDeckResponse: Decodable {
+        var id: String?
+        var title: String?
     }
 
     @discardableResult

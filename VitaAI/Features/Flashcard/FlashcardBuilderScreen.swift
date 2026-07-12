@@ -23,6 +23,10 @@ struct FlashcardBuilderScreen: View {
     /// Baralhos marcados pra estudar juntos (Cardiologia + Medicina de Família...). Rafael 2026-07-10.
     @State private var selectedDeckIds: Set<String> = []
     @State private var showStudioImport = false
+    /// Menu do "+" (criar flashcard / criar baralho / gerar do material) — issue #188.
+    @State private var showCreateMenu = false
+    @State private var showCreateDeck = false
+    @State private var showCreateCard = false
     /// Aba da lista de baralhos: Biblioteca (disciplinas canonicas) vs os que o aluno criou.
     @State private var deckTab: DeckTab = .mine
     @State private var deckSearch: String = ""
@@ -127,6 +131,12 @@ struct FlashcardBuilderScreen: View {
         .sheet(isPresented: $showSessionSettings) {
             FlashcardSettingsV2Sheet()
         }
+        .sheet(isPresented: $showCreateDeck) {
+            CreateDeckSheet(onCreated: { Task { await vm.refresh() } })
+        }
+        .sheet(isPresented: $showCreateCard) {
+            CreateCardSheet(onCreated: { Task { await vm.refresh() } })
+        }
     }
 
     // MARK: - App bar (titulo + criar + ajustes) — mockup Rafael 2026-07-10
@@ -137,7 +147,8 @@ struct FlashcardBuilderScreen: View {
                 .font(VitaTypography.headlineLarge)
                 .foregroundStyle(VitaColors.textPrimary)
             Spacer(minLength: 0)
-            appBarButton(icon: "plus") { showStudioImport = true }
+            appBarButton(icon: "plus") { showCreateMenu = true }
+                .vitaBubble(isPresented: $showCreateMenu, arrowEdge: .top) { createMenu }
             appBarButton(icon: "slider.horizontal.3") { showSessionSettings = true }
         }
         .padding(.horizontal, VitaTokens.Spacing.xl)
@@ -157,6 +168,66 @@ struct FlashcardBuilderScreen: View {
                 .overlay(
                     Circle().stroke(icon == "plus" ? Color.clear : VitaColors.glassBorder, lineWidth: 0.75)
                 )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Menu do "+" — criar flashcard / baralho / gerar do material (issue #188)
+
+    private var createMenu: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            createMenuRow(
+                icon: "square.and.pencil",
+                title: "Criar flashcard",
+                subtitle: "Escreva frente e verso"
+            ) { openFromMenu { showCreateCard = true } }
+            Divider().overlay(VitaColors.glassBorder.opacity(0.5))
+            createMenuRow(
+                icon: "rectangle.stack.badge.plus",
+                title: "Criar baralho",
+                subtitle: "Organize seus cards por tema"
+            ) { openFromMenu { showCreateDeck = true } }
+            Divider().overlay(VitaColors.glassBorder.opacity(0.5))
+            createMenuRow(
+                icon: "doc.badge.plus",
+                title: "Gerar do meu material",
+                subtitle: "PDF, slides ou foto viram cards"
+            ) { openFromMenu { showStudioImport = true } }
+        }
+        .frame(width: 272)
+    }
+
+    /// Fecha o bubble e abre a sheet DEPOIS do dismiss — apresentar sheet com o
+    /// popover ainda vivo faz o UIKit cancelar a apresentação silenciosamente.
+    private func openFromMenu(_ open: @escaping () -> Void) {
+        showCreateMenu = false
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            open()
+        }
+    }
+
+    private func createMenuRow(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: VitaTokens.Spacing.md) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone do menu (área de toque)
+                    .foregroundStyle(VitaColors.accent)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(VitaColors.glassBg))
+                    .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(VitaTypography.titleSmall)
+                        .foregroundStyle(VitaColors.textPrimary)
+                    Text(subtitle)
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, VitaTokens.Spacing.md)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
