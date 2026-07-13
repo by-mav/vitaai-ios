@@ -2,10 +2,12 @@ import SwiftUI
 
 // MARK: - JornadaWeekAgenda
 //
-// AGENDA DA SEMANA (Minha Faculdade) — faixa Seg→Dom + lista dos eventos do dia
-// (aula / prova / trabalho), no lugar do calendario mensal como PADRAO.
-// Switcher Semana/Mes (o Mes reusa o MonthlyCalendarView, sem duplicar).
-// Convencao de dados IDENTICA ao mensal: dayOfWeek 1=Mon..7=Sun;
+// AGENDA (Minha Faculdade) — SEMANA (padrao) ou MÊS, no MESMO design:
+//  · nav ‹ › (semana/mes conforme o modo)
+//  · faixa/grid com hoje destacado + bolinhas COLORIDAS por tipo
+//    (aula=ouro, prova=roxo, trabalho=verde-agua)
+//  · lista dos eventos do dia selecionado (cor+icone+label por tipo)
+// Convencao de dados IDENTICA ao antigo calendario: dayOfWeek 1=Mon..7=Sun;
 // parseDate ISO/yyyyMMdd; isDate inSameDayAs. Rafael 2026-07-13 (mockup).
 
 struct JornadaWeekAgenda: View {
@@ -27,11 +29,7 @@ struct JornadaWeekAgenda: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            if mode == .week {
-                weekCard
-            } else {
-                MonthlyCalendarView(schedule: schedule, evaluations: evaluations)
-            }
+            card
         }
     }
 
@@ -68,17 +66,53 @@ struct JornadaWeekAgenda: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: Week card (faixa + lista)
+    // MARK: Card (nav + faixa/grid + lista)
 
-    private var weekCard: some View {
+    private var card: some View {
         VStack(alignment: .leading, spacing: 12) {
-            weekStrip
+            navRow
+            if mode == .week { weekStrip } else { monthGrid }
             Rectangle().fill(VitaColors.glassBorder).frame(height: 0.6)
             eventsList
         }
         .padding(14)
         .glassCard(cornerRadius: 16)
     }
+
+    private var navRow: some View {
+        HStack {
+            navButton("chevron.left") { shift(-1) }
+            Spacer()
+            Text(monthYearLabel(selected))
+                .font(VitaTypography.titleSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(VitaColors.textPrimary)
+            Spacer()
+            navButton("chevron.right") { shift(1) }
+        }
+    }
+
+    private func navButton(_ icon: String, _ tap: @escaping () -> Void) -> some View {
+        Button(action: tap) {
+            Image(systemName: icon)
+                .font(VitaTypography.labelMedium)
+                .fontWeight(.semibold)
+                .foregroundStyle(VitaColors.textSecondary)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(VitaColors.glassBg))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func shift(_ dir: Int) {
+        let unit: Calendar.Component = mode == .week ? .weekOfYear : .month
+        if let d = cal.date(byAdding: unit, value: dir, to: selected) {
+            withAnimation(.easeInOut(duration: 0.15)) { selected = d }
+        }
+    }
+
+    // MARK: Faixa da semana
 
     private var weekDays: [Date] {
         guard let interval = cal.dateInterval(of: .weekOfYear, for: selected) else { return [] }
@@ -88,37 +122,101 @@ struct JornadaWeekAgenda: View {
     private var weekStrip: some View {
         HStack(spacing: 0) {
             ForEach(weekDays, id: \.self) { day in
-                let isSel = cal.isDate(day, inSameDayAs: selected)
-                Button { withAnimation(.easeInOut(duration: 0.15)) { selected = day } } label: {
-                    VStack(spacing: 5) {
-                        Text(weekdayShort(day))
-                            .font(VitaTypography.labelSmall)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(VitaColors.textSecondary)
-                        Text("\(cal.component(.day, from: day))")
-                            .font(VitaTypography.titleSmall)
-                            .fontWeight(.bold)
-                            .foregroundStyle(isSel ? VitaColors.accentHover : VitaColors.textPrimary)
-                            .frame(width: 32, height: 32)
-                            .background(
-                                Circle()
-                                    .fill(isSel ? VitaColors.accent.opacity(0.14) : Color.clear)
-                                    .overlay(Circle().stroke(isSel ? VitaColors.accent : Color.clear, lineWidth: 1.5))
-                            )
-                            .overlay(alignment: .bottom) {
-                                if !isSel && hasEvents(day) {
-                                    Circle().fill(VitaColors.accent).frame(width: 3.5, height: 3.5).offset(y: 5)
-                                }
-                            }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
+                dayCell(day, showWeekday: true)
             }
         }
     }
 
-    // MARK: Events list
+    // MARK: Grid do mes (mesmo estilo)
+
+    private var monthCells: [Date?] {
+        guard let interval = cal.dateInterval(of: .month, for: selected) else { return [] }
+        let first = interval.start
+        let firstWd = cal.component(.weekday, from: first)
+        let leading = (firstWd - cal.firstWeekday + 7) % 7
+        let count = cal.range(of: .day, in: .month, for: first)?.count ?? 30
+        var cells: [Date?] = Array(repeating: nil, count: leading)
+        for d in 0..<count { cells.append(cal.date(byAdding: .day, value: d, to: first)) }
+        while cells.count % 7 != 0 { cells.append(nil) }
+        return cells
+    }
+
+    private var monthGrid: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 0) {
+                ForEach(["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"], id: \.self) { wd in
+                    Text(wd)
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            let cells = monthCells
+            let weeks = stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<min($0 + 7, cells.count)]) }
+            ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
+                HStack(spacing: 0) {
+                    ForEach(Array(week.enumerated()), id: \.offset) { _, day in
+                        if let day {
+                            dayCell(day, showWeekday: false)
+                        } else {
+                            Color.clear.frame(maxWidth: .infinity, minHeight: 42)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Celula de dia (compartilhada por semana e mes)
+
+    private func dayCell(_ day: Date, showWeekday: Bool) -> some View {
+        let isSel = cal.isDate(day, inSameDayAs: selected)
+        return Button { withAnimation(.easeInOut(duration: 0.15)) { selected = day } } label: {
+            VStack(spacing: 4) {
+                if showWeekday {
+                    Text(weekdayShort(day))
+                        .font(VitaTypography.labelSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(VitaColors.textSecondary)
+                }
+                Text("\(cal.component(.day, from: day))")
+                    .font(showWeekday ? VitaTypography.titleSmall : VitaTypography.labelMedium)
+                    .fontWeight(isSel ? .bold : .medium)
+                    .foregroundStyle(isSel ? VitaColors.accentHover : VitaColors.textPrimary)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        Circle()
+                            .fill(isSel ? VitaColors.accent.opacity(0.14) : Color.clear)
+                            .overlay(Circle().stroke(isSel ? VitaColors.accent : Color.clear, lineWidth: 1.5))
+                    )
+                typeDots(day)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, showWeekday ? 0 : 2)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func typeDots(_ day: Date) -> some View {
+        let colors = typesFor(day)
+        return HStack(spacing: 2.5) {
+            ForEach(Array(colors.enumerated()), id: \.offset) { _, c in
+                Circle().fill(c).frame(width: 4, height: 4)
+            }
+        }
+        .frame(height: 5)
+    }
+
+    private func typesFor(_ date: Date) -> [Color] {
+        var out: [Color] = []
+        if !aulasFor(date).isEmpty { out.append(VitaColors.accent) }
+        let evals = evalsFor(date)
+        if evals.contains(where: { $0.calendarKind == .exam }) { out.append(VitaColors.dataIndigo) }
+        if evals.contains(where: { $0.calendarKind != .exam }) { out.append(VitaColors.dataTeal) }
+        return out
+    }
+
+    // MARK: Lista de eventos do dia
 
     private struct AgendaRow: Identifiable {
         enum Kind { case aula, prova, trabalho }
@@ -171,7 +269,7 @@ struct JornadaWeekAgenda: View {
         let color = colorFor(r.kind)
         return HStack(spacing: 10) {
             ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)  // ds-allow: raio do quadradinho do icone do evento
+                RoundedRectangle(cornerRadius: 9, style: .continuous)  // ds-allow: quadradinho do icone do evento
                     .fill(color.opacity(0.14))
                     .frame(width: 36, height: 36)
                 Image(systemName: iconFor(r.kind))
@@ -217,8 +315,6 @@ struct JornadaWeekAgenda: View {
         .contentShape(Rectangle())
     }
 
-    // MARK: Type styling
-
     private func colorFor(_ k: AgendaRow.Kind) -> Color {
         switch k {
         case .aula: return VitaColors.accent
@@ -241,12 +337,11 @@ struct JornadaWeekAgenda: View {
         }
     }
 
-    // MARK: Data (mesma convencao do MonthlyCalendarView — 1 cerebro de logica)
+    // MARK: Data (mesma convencao do calendario — 1 cerebro)
 
     private func aulasFor(_ date: Date) -> [AgendaClassBlock] {
         let weekday = cal.component(.weekday, from: date)
-        // Foundation: 1=Sun..7=Sat. API dayOfWeek: 1=Mon..7=Sun.
-        let apiWeekday = ((weekday + 5) % 7) + 1
+        let apiWeekday = ((weekday + 5) % 7) + 1  // Foundation 1=Sun..7=Sat -> API 1=Mon..7=Sun
         return schedule.filter { $0.dayOfWeek == apiWeekday }.sorted { $0.startTime < $1.startTime }
     }
     private func evalsFor(_ date: Date) -> [AgendaEvaluation] {
@@ -254,9 +349,6 @@ struct JornadaWeekAgenda: View {
             guard let s = e.date, let d = parseDate(s) else { return false }
             return cal.isDate(d, inSameDayAs: date)
         }
-    }
-    private func hasEvents(_ date: Date) -> Bool {
-        !aulasFor(date).isEmpty || !evalsFor(date).isEmpty
     }
 
     private func parseDate(_ s: String) -> Date? {
@@ -283,4 +375,10 @@ struct JornadaWeekAgenda: View {
     private func weekdayLong(_ date: Date) -> String {
         ["—", "domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"][cal.component(.weekday, from: date)]
     }
+    private func monthYearLabel(_ date: Date) -> String {
+        Self.monthYear.string(from: date).capitalized
+    }
+    private static let monthYear: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale(identifier: "pt_BR"); f.dateFormat = "MMMM yyyy"; return f
+    }()
 }
