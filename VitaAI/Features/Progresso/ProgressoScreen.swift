@@ -195,6 +195,15 @@ struct ProgressoScreen: View {
                     MedicalWorldLandmark(kind: landmark.kind)
                         .scaleEffect(landmark.scale)
                         .opacity(landmark.opacity)
+                        // Cada prédio é a LOJA daquela fase (Rafael 2026-07-09): tocar
+                        // abre o guarda-roupa filtrado nos níveis do tier. Os prédios
+                        // ficam nas laterais (15%/85%) — não conflitam com os nós da trilha.
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if let tier = landmark.shopTier {
+                                router.navigate(to: .skinAppearance(shopTier: tier))
+                            }
+                        }
                         .position(
                             x: landmark.side == .leading
                                 ? geo.size.width * 0.15
@@ -205,7 +214,6 @@ struct ProgressoScreen: View {
             }
         }
         .frame(height: h)
-        .allowsHitTesting(false)
     }
 
     // MARK: - Body
@@ -357,16 +365,13 @@ struct ProgressoScreen: View {
     private var skinTryOn: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            VStack(spacing: 0) {
-                // PREVIEW — 1 Vita PARADO (sem bob) montando o look. É aqui que a
-                // pessoa vê como fica ao tocar nos itens.
-                ZStack(alignment: .bottomTrailing) {
+            HStack(alignment: .center, spacing: 6) {
+                // ESQUERDA — o Vita grande, INTEIRO e centralizado, montando o look.
+                VStack(spacing: 12) {
                     OrbMascot(palette: equipPalette,
-                              size: 120,
+                              size: 116,
                               accessories: [equipNeck, equipHead, equipFace].compactMap { $0 },
                               animated: true, nameTag: "Rafael", bounceEnabled: false, bob: false)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 208)
                     if equipHead != nil || equipFace != nil || equipNeck != nil || equipPalette != .vita {
                         Button {
                             equipHead = nil; equipFace = nil; equipNeck = nil; equipPalette = .vita
@@ -377,23 +382,25 @@ struct ProgressoScreen: View {
                                 .padding(.horizontal, 16).padding(.vertical, 7)
                                 .background(Capsule().fill(Color.white.opacity(0.10)))
                         }
-                        .padding(.trailing, 22).padding(.bottom, 6)
                     }
                 }
-                .padding(.top, 66)
+                .frame(width: 158)
+                .frame(maxHeight: .infinity)
 
-                // GALERIA — só os itens, por categoria, largura toda.
+                // DIREITA — os itens pra provar, em coluna rolável (2 colunas).
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 18) {
                         tryOnCategory("Cabeça", MascotAccessory.allCases.filter { $0.slot == "Cabeça" }, equipHead) { tapEquip(&equipHead, $0) }
                         tryOnCategory("Rosto",  MascotAccessory.allCases.filter { $0.slot == "Rosto" }, equipFace) { tapEquip(&equipFace, $0) }
                         tryOnCategory("Pescoço", MascotAccessory.allCases.filter { $0.slot == "Pescoço" }, equipNeck) { tapEquip(&equipNeck, $0) }
                         tryOnColors()
-                        Spacer(minLength: 40)
+                        Spacer(minLength: 24)
                     }
-                    .padding(.horizontal, 16).padding(.top, 14)
+                    .padding(.horizontal, 12).padding(.top, 4)
                 }
             }
+            .padding(.top, 96)
+            .padding(.bottom, 128)
         }
     }
 
@@ -406,7 +413,7 @@ struct ProgressoScreen: View {
             Text(title.uppercased())
                 .font(.system(size: 11, weight: .heavy))  // ds-allow: QA
                 .foregroundColor(.white.opacity(0.5))
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 14) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 14) {
                 ForEach(items, id: \.self) { item in
                     tryOnCell(AnyView(OrbMascot(palette: .vita, size: 30, accessories: [item], animated: false)),
                               item.label, selected == item) { tap(item) }
@@ -424,7 +431,7 @@ struct ProgressoScreen: View {
             Text("CORES")
                 .font(.system(size: 11, weight: .heavy))  // ds-allow: QA
                 .foregroundColor(.white.opacity(0.5))
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 14) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 14) {
                 ForEach(0..<colors.count, id: \.self) { i in
                     tryOnCell(AnyView(OrbMascot(palette: colors[i].0, size: 30, accessories: [], animated: false)),
                               colors[i].1, equipPalette == colors[i].0) { equipPalette = colors[i].0 }
@@ -436,7 +443,7 @@ struct ProgressoScreen: View {
     private func tryOnCell(_ orb: AnyView, _ label: String, _ selected: Bool, _ tap: @escaping () -> Void) -> some View {
         Button(action: tap) {
             VStack(spacing: 6) {
-                orb.frame(width: 46, height: 46)
+                orb.frame(width: 46, height: 46).drawingGroup().drawingGroup()
                 Text(label)
                     .font(.system(size: 8, weight: .semibold))  // ds-allow: QA
                     .foregroundColor(.white.opacity(selected ? 0.95 : 0.5)).lineLimit(1)
@@ -530,6 +537,10 @@ struct ProgressoScreen: View {
                     .scaleEffect(x: 2 - jumpStretch, y: jumpStretch, anchor: .bottom)
                     .offset(y: -64 + (hop ? -5 : 0) + jumpArc)
                     .zIndex(4)
+                    // Tocar no Vita da home abre o guarda-roupa COMPLETO (inventário +
+                    // tudo comprável). Os prédios abrem a loja filtrada por fase (Rafael 2026-07-09).
+                    .contentShape(Circle())
+                    .onTapGesture { router.navigate(to: .skinAppearance(shopTier: nil)) }
             }
         }
         .zIndex(state == .current ? 3 : 1)
@@ -539,11 +550,11 @@ struct ProgressoScreen: View {
     private func stageCaption(_ stage: Stage, state: StageState) -> some View {
         VStack(spacing: 0) {
             Text(levelCaption(for: stage, state: state))
-                .font(.system(size: 11, weight: .heavy))
+                .font(.system(size: 11, weight: .heavy))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                 .foregroundStyle(state == .locked ? Color.white.opacity(0.62) : Color.white.opacity(0.92))
                 .lineLimit(1)
             Text(stage.name)
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: 9, weight: .semibold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                 .foregroundStyle(state == .locked ? Color.white.opacity(0.44) : Color.white.opacity(0.74))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -589,12 +600,12 @@ struct ProgressoScreen: View {
                 )
             // glifo branco flat (ref Duolingo)
             Image(systemName: locked ? "lock.fill" : stage.icon)
-                .font(.system(size: size * 0.40, weight: .bold))
+                .font(.system(size: size * 0.40, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                 .foregroundStyle(locked ? Color.white.opacity(0.85) : .white)
             // selo de concluído (check branco em disco escuro)
             if state == .completed {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 13, weight: .black))
+                    .font(.system(size: 13, weight: .black))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .foregroundStyle(tier.dark)
                     .padding(5)
                     .background(Circle().fill(.white))
@@ -775,6 +786,8 @@ struct ProgressoScreen: View {
         let row: CGFloat
         let scale: CGFloat
         let opacity: Double
+        // Fase (tier 0-4) cuja LOJA este prédio abre ao ser tocado. nil = só decoração.
+        var shopTier: Int? = nil
     }
 
     private struct TrailXpCelebrationPill: View {
@@ -800,7 +813,7 @@ struct ProgressoScreen: View {
                             )
                         )
                     Image(systemName: event.toLevel > event.fromLevel ? "sparkles" : "bolt.fill")
-                        .font(.system(size: 16, weight: .black))
+                        .font(.system(size: 16, weight: .black))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .foregroundStyle(.white)
                 }
                 .frame(width: 42, height: 42)
@@ -808,11 +821,11 @@ struct ProgressoScreen: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("+\(event.xpAwarded) XP")
-                        .font(.system(size: 19, weight: .black, design: .rounded))
+                        .font(.system(size: 19, weight: .black, design: .rounded))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .foregroundStyle(VitaColors.accentLight)
                         .monospacedDigit()
                     Text(event.toLevel > event.fromLevel ? "Vita avançou para o nível \(event.toLevel)" : "\(event.source.label) concluído")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .foregroundStyle(Color.white.opacity(0.78))
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
@@ -908,7 +921,7 @@ struct ProgressoScreen: View {
                     .frame(width: 96, height: 34)
                     .offset(y: -38)
 
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(
                         LinearGradient(
                             colors: [
@@ -921,7 +934,7 @@ struct ProgressoScreen: View {
                     )
                     .frame(width: 88, height: 58)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .stroke(Color.white.opacity(0.48), lineWidth: 1)
                     )
                     .offset(y: 3)
@@ -931,29 +944,29 @@ struct ProgressoScreen: View {
                     .frame(width: 18, height: 18)
                     .overlay(
                         Image(systemName: "book.closed.fill")
-                            .font(.system(size: 8, weight: .black))
+                            .font(.system(size: 8, weight: .black))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .foregroundStyle(TrailWorld.signTint)
                     )
                     .offset(y: -17)
 
                 HStack(spacing: 7) {
                     ForEach(0..<3, id: \.self) { idx in
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .fill(idx == 1 ? Color.white.opacity(0.68) : TrailWorld.windowGlow.opacity(0.74))
                             .frame(width: 12, height: 14)
                     }
                 }
                 .offset(y: 7)
 
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                RoundedRectangle(cornerRadius: 4, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(TrailWorld.wood.opacity(0.78))
                     .frame(width: 18, height: 24)
                     .offset(y: 25)
 
                 VStack(spacing: 2) {
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .frame(width: 86, height: 5)
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .frame(width: 74, height: 5)
                 }
                 .foregroundStyle(TrailWorld.wood.opacity(0.72))
@@ -986,7 +999,7 @@ struct ProgressoScreen: View {
                     .frame(width: 106, height: 32)
                     .offset(y: -40)
 
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: 9, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(
                         LinearGradient(
                             colors: [
@@ -1006,7 +1019,7 @@ struct ProgressoScreen: View {
                             Capsule()
                                 .fill(Color.white.opacity(0.74))
                                 .frame(width: 8, height: 37)
-                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                                 .fill(TrailWorld.wood.opacity(0.58))
                                 .frame(width: 12, height: 5)
                         }
@@ -1015,12 +1028,12 @@ struct ProgressoScreen: View {
                 }
                 .offset(y: 3)
 
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                RoundedRectangle(cornerRadius: 3, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(TrailWorld.wood.opacity(0.80))
                     .frame(width: 22, height: 25)
                     .offset(y: 24)
 
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                RoundedRectangle(cornerRadius: 4, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(TrailWorld.wood.opacity(0.78))
                     .frame(width: 108, height: 8)
                     .offset(y: 39)
@@ -1030,7 +1043,7 @@ struct ProgressoScreen: View {
                     .frame(width: 24, height: 24)
                     .overlay(
                         Image(systemName: "cross.case.fill")
-                            .font(.system(size: 11, weight: .black))
+                            .font(.system(size: 11, weight: .black))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .foregroundStyle(TrailWorld.signTint)
                     )
                     .offset(y: -36)
@@ -1039,7 +1052,7 @@ struct ProgressoScreen: View {
 
         private var healthPost: some View {
             ZStack {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                RoundedRectangle(cornerRadius: 13, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(
                         LinearGradient(
                             colors: [
@@ -1052,11 +1065,11 @@ struct ProgressoScreen: View {
                     )
                     .frame(width: 88, height: 58)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .stroke(Color.white.opacity(0.50), lineWidth: 1)
                     )
 
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(
                         LinearGradient(
                             colors: [
@@ -1080,24 +1093,24 @@ struct ProgressoScreen: View {
                 .offset(y: -31)
 
                 HStack(spacing: 8) {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .fill(TrailWorld.windowGlow.opacity(0.62))
                         .frame(width: 18, height: 18)
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .fill(TrailWorld.windowDim.opacity(0.62))
                         .frame(width: 20, height: 26)
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .fill(TrailWorld.windowGlow.opacity(0.62))
                         .frame(width: 18, height: 18)
                 }
                 .offset(y: 10)
 
                 Image(systemName: "cross.fill")
-                    .font(.system(size: 18, weight: .black))
+                    .font(.system(size: 18, weight: .black))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .foregroundStyle(TrailWorld.crossRed)
                     .offset(y: -5)
 
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                RoundedRectangle(cornerRadius: 3, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(TrailWorld.wood.opacity(0.66))
                     .frame(width: 96, height: 7)
                     .offset(y: 34)
@@ -1106,16 +1119,16 @@ struct ProgressoScreen: View {
 
         private var majorHospital: some View {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(TrailWorld.stoneWing)
                     .frame(width: 38, height: 62)
                     .offset(x: -42, y: 10)
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(TrailWorld.stoneWing)
                     .frame(width: 38, height: 62)
                     .offset(x: 42, y: 10)
 
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(
                         LinearGradient(
                             colors: [
@@ -1128,7 +1141,7 @@ struct ProgressoScreen: View {
                     )
                     .frame(width: 68, height: 84)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .stroke(Color.white.opacity(0.52), lineWidth: 1)
                     )
 
@@ -1140,9 +1153,9 @@ struct ProgressoScreen: View {
                         ForEach(0..<3, id: \.self) { _ in hospitalWindow }
                     }
                     Image(systemName: "cross.fill")
-                        .font(.system(size: 23, weight: .black))
+                        .font(.system(size: 23, weight: .black))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .foregroundStyle(TrailWorld.crossRed)
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .fill(TrailWorld.wood.opacity(0.64))
                         .frame(width: 24, height: 20)
                 }
@@ -1158,7 +1171,7 @@ struct ProgressoScreen: View {
                 }
                 .offset(y: 6)
 
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: 5, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(TrailWorld.wood.opacity(0.76))
                     .frame(width: 122, height: 9)
                     .offset(y: 53)
@@ -1168,7 +1181,7 @@ struct ProgressoScreen: View {
                     .frame(width: 28, height: 28)
                     .overlay(
                         Text("H")
-                            .font(.system(size: 15, weight: .black))
+                            .font(.system(size: 15, weight: .black))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .foregroundStyle(TrailWorld.signTint)
                     )
                     .offset(y: -50)
@@ -1176,18 +1189,18 @@ struct ProgressoScreen: View {
         }
 
         private var hospitalWindow: some View {
-            RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+            RoundedRectangle(cornerRadius: 2.5, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                 .fill(TrailWorld.windowGlow.opacity(0.52))
                 .frame(width: 10, height: 8)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                         .stroke(Color.white.opacity(0.24), lineWidth: 0.5)
                 )
         }
 
         private var ambulance: some View {
             ZStack {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                RoundedRectangle(cornerRadius: 11, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(
                         LinearGradient(
                             colors: [
@@ -1200,15 +1213,15 @@ struct ProgressoScreen: View {
                     )
                     .frame(width: 76, height: 34)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .stroke(Color.white.opacity(0.54), lineWidth: 1)
                     )
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: 5, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(TrailWorld.windowGlow.opacity(0.62))
                     .frame(width: 22, height: 13)
                     .offset(x: 18, y: -5)
                 Image(systemName: "cross.fill")
-                    .font(.system(size: 13, weight: .black))
+                    .font(.system(size: 13, weight: .black))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .foregroundStyle(TrailWorld.crossRed)
                     .offset(x: -16, y: -4)
                 HStack(spacing: 39) {
@@ -1222,7 +1235,7 @@ struct ProgressoScreen: View {
 
         private var lab: some View {
             ZStack {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                RoundedRectangle(cornerRadius: 13, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(
                         LinearGradient(
                             colors: [
@@ -1235,11 +1248,11 @@ struct ProgressoScreen: View {
                     )
                     .frame(width: 66, height: 56)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .stroke(Color.white.opacity(0.46), lineWidth: 1)
                     )
                 Image(systemName: "testtube.2")
-                    .font(.system(size: 25, weight: .bold))
+                    .font(.system(size: 25, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .foregroundStyle(Color.white.opacity(0.94))
                     .offset(y: -4)
                 HStack(spacing: 5) {
@@ -1253,7 +1266,7 @@ struct ProgressoScreen: View {
 
         private var clinic: some View {
             ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .fill(
                         LinearGradient(
                             colors: [
@@ -1266,15 +1279,15 @@ struct ProgressoScreen: View {
                     )
                     .frame(width: 64, height: 52)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                             .stroke(Color.white.opacity(0.44), lineWidth: 1)
                     )
                 Image(systemName: "stethoscope")
-                    .font(.system(size: 25, weight: .bold))
+                    .font(.system(size: 25, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .foregroundStyle(Color.white.opacity(0.92))
                     .offset(y: -2)
                 Image(systemName: "heart.fill")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .foregroundStyle(TrailWorld.crossRed)
                     .offset(x: 18, y: -18)
             }
@@ -1346,11 +1359,12 @@ struct ProgressoScreen: View {
         // 1 casa por SEÇÃO, no MEIO dela (linha k*4+2) — longe do banner (em k*4)
         // e do próximo (k*4+4). Antes: 8 casas, 2 na seção 1 e algumas ATRÁS do
         // banner (Rafael 2026-07-05). Temática por fase da carreira.
-        Landmark(id: "sec1-school",     kind: .school,        side: .leading,  row: 2,  scale: 1.02, opacity: 0.95),
-        Landmark(id: "sec2-university", kind: .university,    side: .trailing, row: 6,  scale: 1.02, opacity: 0.93),
-        Landmark(id: "sec3-healthpost", kind: .healthPost,    side: .leading,  row: 10, scale: 1.00, opacity: 0.92),
-        Landmark(id: "sec4-hospital",   kind: .majorHospital, side: .trailing, row: 14, scale: 1.00, opacity: 0.92),
-        Landmark(id: "sec5-clinic",     kind: .clinic,        side: .leading,  row: 18, scale: 0.98, opacity: 0.90),
+        // shopTier 0-4 = a loja da fase (Calouro/Acadêmico/Residente/Especialista/Lenda).
+        Landmark(id: "sec1-school",     kind: .school,        side: .leading,  row: 2,  scale: 1.02, opacity: 0.95, shopTier: 0),
+        Landmark(id: "sec2-university", kind: .university,    side: .trailing, row: 6,  scale: 1.02, opacity: 0.93, shopTier: 1),
+        Landmark(id: "sec3-healthpost", kind: .healthPost,    side: .leading,  row: 10, scale: 1.00, opacity: 0.92, shopTier: 2),
+        Landmark(id: "sec4-hospital",   kind: .majorHospital, side: .trailing, row: 14, scale: 1.00, opacity: 0.92, shopTier: 3),
+        Landmark(id: "sec5-clinic",     kind: .clinic,        side: .leading,  row: 18, scale: 0.98, opacity: 0.90, shopTier: 4),
     ]
 
     private var trailItems: [TrailItem] {
@@ -1375,7 +1389,7 @@ private struct GrassField: View {
                 let lightLeaf = TrailWorld.canopyLight
 
                 ctx.fill(Path(ellipseIn: shadow), with: .color(.black.opacity(0.16)))
-                ctx.fill(Path(roundedRect: trunk, cornerRadius: 3 * scale),
+                ctx.fill(Path(roundedRect: trunk, cornerRadius: 3 * scale),  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                          with: .linearGradient(
                             Gradient(colors: [TrailWorld.trunkTop,
                                               TrailWorld.trunkBottom]),
@@ -1744,5 +1758,524 @@ private struct TrailPressStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+// MARK: - SkinAppearanceScreen — tela "Aparência" (guarda-roupa de skins).
+// Modelo HÍBRIDO (Rafael 2026-07-09), server-authoritative via SkinStore (/api/skins):
+// acessório = nível ABRE + moeda COMPRA; cor = grátis por JORNADA (desbloqueia por
+// nível). Reproduz o mock aprovado: Vita + pedestal de luz à esquerda; itens em cards
+// à direita (check no equipado, cadeado+"Nível X" no travado, preço no comprável);
+// ficha (nome · raridade · descrição) + botões Remover/Equipar/Comprar. 4 abas.
+// O backend é a verdade: nível/preço/posse/trava vêm de lá; a UI só reflete e obedece.
+struct SkinAppearanceScreen: View {
+    /// nil = guarda-roupa COMPLETO (aberto tocando no Vita: inventário + tudo comprável).
+    /// 0-4 = LOJA de uma fase (aberta tocando num prédio da trilha): mostra só os itens
+    /// cujo nível de desbloqueio cai na faixa daquele tier.
+    var shopTier: Int? = nil
+
+    @Environment(\.appContainer) private var container
+    @Environment(Router.self) private var router
+    @StateObject private var store = SkinStore()
+
+    // Fase (tier) da loja: nome + faixa de nível + ambiente (arte de fundo) + atendente
+    // (um Vita temático que "atende" a loja) + fala roteirizada. Índice = shopTier.
+    // Espelha os TIERS do gamification e os 5 prédios da trilha.
+    private struct TierShop {
+        let name: String
+        let range: ClosedRange<Int>
+        let asset: String            // arte de fundo do ambiente (Assets.xcassets)
+        let greeting: String         // fala do atendente
+        let attendant: [MascotAccessory] // como o Vita-atendente se veste
+    }
+    private static let tiers: [TierShop] = [
+        .init(name: "Calouro", range: 1...20, asset: "loja-escola",
+              greeting: "E aí, calouro! Bora te montar pro primeiro dia. Dá uma olhada 👀",
+              attendant: [.bouffantCap, .glassesRound]),
+        .init(name: "Acadêmico", range: 21...40, asset: "loja-faculdade",
+              greeting: "Subiu de nível, hein? Chegou coisa nova na faculdade.",
+              attendant: [.labCoat]),
+        .init(name: "Residente", range: 41...60, asset: "loja-posto",
+              greeting: "Plantonista raiz merece um visual à altura. Escolhe aí.",
+              attendant: [.stethoscope]),
+        .init(name: "Especialista", range: 61...80, asset: "loja-hospital",
+              greeting: "Especialista na área… temos peças à altura do seu nome.",
+              attendant: [.headMirror]),
+        .init(name: "Lenda", range: 81...99, asset: "loja-clinica",
+              greeting: "Poucos chegam aqui. Vista-se como a lenda que você é.",
+              attendant: [.laurel]),
+    ]
+    private var shopTierInfo: TierShop? {
+        guard let t = shopTier, Self.tiers.indices.contains(t) else { return nil }
+        return Self.tiers[t]
+    }
+
+    // Aba da UI (PT-BR) ↔ slot do backend (EN).
+    private enum Slot: String, CaseIterable, Identifiable {
+        case head = "Cabeça", face = "Rosto", neck = "Pescoço", color = "Cor"
+        var id: String { rawValue }
+        var api: String {
+            switch self {
+            case .head: return "head"
+            case .face: return "face"
+            case .neck: return "neck"
+            case .color: return "palette"
+            }
+        }
+        var icon: String {
+            switch self {
+            case .head: return "crown.fill"
+            case .face: return "eyeglasses"
+            case .neck: return "stethoscope"
+            case .color: return "paintpalette.fill"
+            }
+        }
+    }
+
+    // Flavor text local por id (o backend só manda nome/raridade/nível — a descrição
+    // é charme da UI). Sem entrada = sem descrição (degrada limpo).
+    private static let descById: [String: String] = [
+        "bouffantCap": "Confortável e charmosa.\nPerfeita para dias tranquilos.",
+        "beanie": "Gorro quentinho de inverno.\nPra virar a noite estudando.",
+        "gradCap": "Capelo de formatura.\nO sonho tá logo ali.",
+        "headMirror": "Refletor de testa.\nModo investigação clínica.",
+        "laurel": "Coroa de louros.\nHonra acadêmica.",
+        "capybaraHat": "Chapéu de capivara.\nO easter egg dourado.",
+        "crown": "Coroa.\nTopo do ranking: Lenda.",
+        "glassesRound": "Óculos redondos discretos.\nAr de quem lê muito.",
+        "glassesRect": "Armação reta e séria.\nModo foco total.",
+        "surgicalMask": "Máscara cirúrgica.\nPronto pro plantão.",
+        "monocle": "Monóculo refinado.\nUm toque de nobreza.",
+        "sunglasses": "Óculos de sol aviador.\nEstilo de quem já rodou.",
+        "stethoscope": "Estetoscópio no pescoço.\nO clássico da medicina.",
+        "labCoat": "Gola de jaleco branco.\nDr(a). Vita a postos.",
+        "scarf": "Cachecol aconchegante.\nEstilo sem esforço.",
+        "bowTie": "Gravata-borboleta.\nDefenda a tese com classe.",
+        "goldMedal": "Medalha de ouro.\nCampeão dos estudos.",
+        "vita": "A cor inicial do Vita.\nO ouro de todo começo.",
+        "emerald": "Verde de quem avançou.\nRecompensa de jornada.",
+        "sapphire": "Azul de quem persiste.\nRecompensa de jornada.",
+        "amethyst": "Roxo de quem domina.\nRecompensa de jornada.",
+        "ruby": "Vermelho de lenda.\nRecompensa de jornada.",
+    ]
+
+    private let gold = Color(red: 0.91, green: 0.72, blue: 0.29)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+    private let inkOnGold = Color(red: 0.20, green: 0.15, blue: 0.03)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+
+    @State private var slot: Slot = .head
+    // Preview (o que o usuário selecionou mas ainda não equipou): slotApi -> id.
+    @State private var selectedId: [String: String] = [:]
+
+    // MARK: - Derivados do store
+
+    private var itemsForSlot: [SkinStoreItem] {
+        let all = store.items(slot: slot.api)
+        // Loja de fase: só os itens cujo nível cai na faixa do tier.
+        guard let range = shopTierInfo?.range else { return all }
+        return all.filter { range.contains($0.unlockLevel) }
+    }
+
+    /// Item em foco no slot atual (dentro do que está VISÍVEL na aba/fase): o selecionado,
+    /// senão o equipado se ele pertence à fase, senão o primeiro item da aba.
+    private var focusItem: SkinStoreItem? {
+        let pool = itemsForSlot
+        if let sel = selectedId[slot.api], let it = pool.first(where: { $0.id == sel }) { return it }
+        if let eqId = store.equippedId(slot: slot.api), let it = pool.first(where: { $0.id == eqId }) { return it }
+        return pool.first
+    }
+
+    private func chosenId(_ slotApi: String) -> String? {
+        selectedId[slotApi] ?? store.equippedId(slot: slotApi)
+    }
+
+    private func isEquipped(_ it: SkinStoreItem) -> Bool {
+        store.equippedId(slot: it.slot) == it.id
+    }
+
+    private var previewAccessories: [MascotAccessory] {
+        ["neck", "head", "face"].compactMap { s in
+            guard let id = chosenId(s) else { return nil }
+            return MascotAccessory(rawValue: id)
+        }
+    }
+
+    private var previewPalette: MascotPalette { palette(for: chosenId("palette")) }
+
+    private func palette(for id: String?) -> MascotPalette {
+        switch id {
+        case "emerald": return .emerald
+        case "sapphire": return .sapphire
+        case "ruby": return .ruby
+        case "amethyst": return .amethyst
+        default: return .vita
+        }
+    }
+
+    private func rarityLabel(_ r: String) -> String {
+        switch r {
+        case "rare": return "Rara"
+        case "epic": return "Épica"
+        default: return "Comum"
+        }
+    }
+    private func rarityColor(_ r: String) -> Color {
+        switch r {
+        case "rare": return Color(red: 0.42, green: 0.68, blue: 0.98)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+        case "epic": return Color(red: 0.80, green: 0.56, blue: 0.98)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+        default: return Color(red: 0.36, green: 0.84, blue: 0.64)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+        }
+    }
+
+    // MARK: - Body
+
+    var body: some View {
+        ZStack {
+            background
+
+            if store.catalog.isEmpty {
+                ProgressView().tint(gold)
+            } else {
+                VStack(spacing: 0) {
+                    header
+                    if let shop = shopTierInfo { attendantBubble(shop) }
+                    tabsBar
+                    HStack(alignment: .top, spacing: 12) {
+                        leftPane
+                        rightList.frame(width: 108)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 6)
+                }
+            }
+        }
+        .task { await store.load(api: container.api) }
+        .alert("Ops", isPresented: Binding(
+            get: { store.errorMessage != nil },
+            set: { if !$0 { store.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { store.errorMessage = nil }
+        } message: {
+            Text(store.errorMessage ?? "")
+        }
+    }
+
+    // Fundo: ambiente imersivo na loja (arte + escurecimento pra UI ler), ou o
+    // palco preto+dourado no guarda-roupa completo.
+    @ViewBuilder private var background: some View {
+        if let shop = shopTierInfo {
+            Image(shop.asset)
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+            LinearGradient(
+                colors: [.black.opacity(0.12), .black.opacity(0.5), .black.opacity(0.9)],
+                startPoint: .top, endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        } else {
+            Color.black.ignoresSafeArea()
+            RadialGradient(colors: [gold.opacity(0.26), .clear],
+                           center: UnitPoint(x: 0.32, y: 0.46),
+                           startRadius: 6, endRadius: 330)
+                .ignoresSafeArea()
+        }
+    }
+
+    // Atendente da loja: um Vita temático + balão com a fala roteirizada da fase.
+    private func attendantBubble(_ shop: TierShop) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            OrbMascot(palette: .vita, size: 46, accessories: shop.attendant,
+                      animated: false, bounceEnabled: false, bob: false)
+            Text(shop.greeting)
+                .font(.system(size: 13, weight: .medium))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                .foregroundColor(.white.opacity(0.95))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: 16).fill(.black.opacity(0.5)))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(gold.opacity(0.3), lineWidth: 1))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Header (voltar · título · saldo)
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Button { router.goBack() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 16, weight: .semibold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .foregroundColor(.white)
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(Color.white.opacity(0.08)))
+            }
+            Text(shopTierInfo.map { "Loja · \($0.name)" } ?? "Aparência")
+                .font(.system(size: 22, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                .foregroundColor(.white)
+            Spacer()
+            // Na loja: atalho pro guarda-roupa completo (o inventário junto).
+            if shopTier != nil {
+                Button { router.navigate(to: .skinAppearance(shopTier: nil)) } label: {
+                    Image(systemName: "tshirt.fill")
+                        .font(.system(size: 14, weight: .semibold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                        .foregroundColor(.white)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Color.white.opacity(0.12)))
+                }
+            }
+            // Saldo de moeda (mérito).
+            HStack(spacing: 5) {
+                Image(systemName: "seal.fill").font(.system(size: 13)).foregroundColor(gold)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                Text("\(store.balance)")
+                    .font(.system(size: 15, weight: .bold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(Capsule().fill(Color.black.opacity(0.4)))
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 10)
+    }
+
+    // MARK: - Abas
+
+    private var tabsBar: some View {
+        HStack(spacing: 10) {
+            ForEach(Slot.allCases) { s in
+                Button { withAnimation(.easeInOut(duration: 0.18)) { slot = s } } label: {
+                    VStack(spacing: 7) {
+                        HStack(spacing: 6) {
+                            Image(systemName: s.icon).font(.system(size: 13, weight: .semibold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                            Text(s.rawValue).font(.system(size: 14, weight: slot == s ? .semibold : .regular))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                                .lineLimit(1).fixedSize()
+                        }
+                        .foregroundColor(slot == s ? gold : Color.white.opacity(0.45))
+                        Rectangle()
+                            .fill(slot == s ? gold : Color.clear)
+                            .frame(height: 2)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 16)
+    }
+
+    // MARK: - Painel esquerdo (Vita no pedestal + ficha/botões)
+
+    private var leftPane: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 6)
+            ZStack {
+                Ellipse()
+                    .fill(RadialGradient(colors: [gold.opacity(0.5), .clear], center: .center, startRadius: 2, endRadius: 90))
+                    .frame(width: 200, height: 72).blur(radius: 8).offset(y: 98)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                Ellipse()
+                    .stroke(gold.opacity(0.85), lineWidth: 3)
+                    .frame(width: 168, height: 46).blur(radius: 0.6).offset(y: 98)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                OrbMascot(palette: previewPalette, size: 170, accessories: previewAccessories, animated: false, bounceEnabled: false, bob: false)
+            }
+            .frame(maxWidth: .infinity)
+            Spacer(minLength: 12)
+            fichaAndButtons
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    @ViewBuilder private var fichaAndButtons: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            if let it = focusItem {
+                Text(it.name)
+                    .font(.system(size: 24, weight: .bold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                HStack(spacing: 6) {
+                    Text(slot == .color ? "Cor" : rarityLabel(it.rarity))
+                        .foregroundColor(slot == .color ? Color.white.opacity(0.5) : rarityColor(it.rarity))
+                    Text("·").foregroundColor(Color.white.opacity(0.35))
+                    Text(slot == .color ? "Jornada" : "Nível \(it.unlockLevel)")
+                        .foregroundColor(gold)
+                }
+                .font(.system(size: 14, weight: .medium))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                if let d = Self.descById[it.id] {
+                    Text(d)
+                        .font(.system(size: 14)).foregroundColor(Color.white.opacity(0.55))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Text("Escolha um item")
+                    .font(.system(size: 20, weight: .bold)).foregroundColor(.white.opacity(0.6))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+            }
+
+            actionButtons
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 10)
+    }
+
+    @ViewBuilder private var actionButtons: some View {
+        HStack(spacing: 12) {
+            // Remover (desequipa o slot atual) — só faz sentido se há algo equipado nele.
+            Button { removeSlot() } label: {
+                Text("Remover")
+                    .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.08)))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+            }
+            .disabled(store.equippedId(slot: slot.api) == nil || store.isMutating)
+            .opacity(store.equippedId(slot: slot.api) == nil ? 0.4 : 1)
+
+            primaryButton
+        }
+    }
+
+    /// Botão principal muda conforme o estado do item em foco:
+    /// equipado → "Equipado ✓" · possuído → "Equipar" · travado → "Nível X" (cadeado)
+    /// · comprável → "Comprar 💰preço".
+    @ViewBuilder private var primaryButton: some View {
+        let it = focusItem
+        let equippedNow = it.map(isEquipped) ?? false
+        let canEquip = (it?.owned ?? false) && !equippedNow
+        let canBuy = it != nil && !it!.owned && !it!.locked && it!.slot != "palette"
+        let locked = it?.locked ?? false && !(it?.owned ?? false)
+
+        Button {
+            if canBuy { buySelected() } else if canEquip { equipSelected() }
+        } label: {
+            HStack(spacing: 6) {
+                if locked && !(it?.owned ?? false) {
+                    Image(systemName: "lock.fill").font(.system(size: 13, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    Text("Nível \(it?.unlockLevel ?? 0)")
+                } else if canBuy {
+                    Image(systemName: "seal.fill").font(.system(size: 13))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    Text("Comprar \(it?.price ?? 0)")
+                } else if equippedNow {
+                    Text("Equipado ✓")
+                } else {
+                    Text("Equipar")
+                }
+            }
+            .font(.system(size: 16, weight: .bold)).foregroundColor(inkOnGold)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+            .frame(maxWidth: .infinity).padding(.vertical, 14)
+            .background(RoundedRectangle(cornerRadius: 14).fill(gold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+        }
+        .disabled((!canBuy && !canEquip) || store.isMutating)
+        .opacity((!canBuy && !canEquip) ? 0.5 : 1)
+    }
+
+    // MARK: - Lista de cards (direita)
+
+    private var rightList: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 12) {
+                if itemsForSlot.isEmpty {
+                    // Loja de fase sem itens deste slot (conteúdo por época — faltam desenhar).
+                    Text("Nada nesta\nfase ainda")
+                        .font(.system(size: 12, weight: .medium))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.white.opacity(0.4))
+                        .padding(.top, 40)
+                } else {
+                    ForEach(itemsForSlot) { item in itemCard(item) }
+                }
+            }
+            .padding(.vertical, 2).padding(.bottom, 24)
+        }
+    }
+
+    private func itemCard(_ item: SkinStoreItem) -> some View {
+        let isSel = chosenId(slot.api) == item.id
+        let showLock = item.locked && !item.owned
+        let orb: OrbMascot = slot == .color
+            ? OrbMascot(palette: palette(for: item.id), size: 40, accessories: [], animated: false)
+            : OrbMascot(palette: .vita, size: 40, accessories: MascotAccessory(rawValue: item.id).map { [$0] } ?? [], animated: false)
+        return Button {
+            // Não deixa selecionar o que está travado (nada a fazer com ele).
+            guard !showLock else { return }
+            selectedId[slot.api] = item.id
+        } label: {
+            cardBody(orb: orb, item: item, isSel: isSel, showLock: showLock)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func cardBody(orb: OrbMascot, item: SkinStoreItem, isSel: Bool, showLock: Bool) -> some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 18).fill(Color.black.opacity(0.4))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                .overlay(RoundedRectangle(cornerRadius: 18)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .stroke(isSel ? gold : Color.white.opacity(0.12), lineWidth: isSel ? 2 : 1))
+            VStack(spacing: 4) {
+                orb.frame(width: 60, height: 60).drawingGroup().opacity(showLock ? 0.4 : 1)
+                if showLock {
+                    Text("Nível \(item.unlockLevel)")
+                        .font(.system(size: 10, weight: .semibold)).foregroundColor(gold.opacity(0.85))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                } else if !item.owned && item.slot != "palette" {
+                    // Comprável: mostra o preço.
+                    HStack(spacing: 3) {
+                        Image(systemName: "seal.fill").font(.system(size: 8))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                        Text("\(item.price)").font(.system(size: 10, weight: .semibold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    }
+                    .foregroundColor(gold.opacity(0.9))
+                }
+            }
+            .padding(.vertical, 10).frame(maxWidth: .infinity)
+
+            if showLock {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 12, weight: .bold)).foregroundColor(.white.opacity(0.8))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .padding(6).background(Circle().fill(Color.black.opacity(0.55))).padding(8)
+            } else if isEquipped(item) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .heavy)).foregroundColor(inkOnGold)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .padding(5).background(Circle().fill(gold)).padding(8)
+            } else if item.owned {
+                // Possuído (equipável) mas não equipado agora — selinho discreto.
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 7)).foregroundColor(gold.opacity(0.5))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .padding(9)
+            }
+        }
+        .frame(height: 96)
+    }
+
+    // MARK: - Ações (server-authoritative via store)
+
+    /// Monta o estado COMPLETO equipado trocando só o slot atual pelo id dado (nil = tira).
+    private func equipState(setting id: String?) -> (String?, String?, String?, String?) {
+        var head = store.equipped.head
+        var face = store.equipped.face
+        var neck = store.equipped.neck
+        var palette = store.equipped.palette
+        switch slot.api {
+        case "head": head = id
+        case "face": face = id
+        case "neck": neck = id
+        case "palette": palette = id
+        default: break
+        }
+        return (head, face, neck, palette)
+    }
+
+    private func equipSelected() {
+        guard let it = focusItem, it.owned else { return }
+        let (h, f, n, p) = equipState(setting: it.id)
+        Task {
+            let ok = await store.equip(head: h, face: f, neck: n, palette: p, api: container.api)
+            if ok { selectedId[slot.api] = nil }
+        }
+    }
+
+    private func removeSlot() {
+        let (h, f, n, p) = equipState(setting: nil)
+        Task {
+            let ok = await store.equip(head: h, face: f, neck: n, palette: p, api: container.api)
+            if ok { selectedId[slot.api] = nil }
+        }
+    }
+
+    private func buySelected() {
+        guard let it = focusItem, !it.owned, !it.locked else { return }
+        Task { await store.buy(id: it.id, api: container.api) }
     }
 }

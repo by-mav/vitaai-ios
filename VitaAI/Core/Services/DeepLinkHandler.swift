@@ -160,6 +160,17 @@ final class DeepLinkHandler {
             guard let codeRaw = pathSegments.first else { return .navigate(.referral) }
             return .referralCode(code: codeRaw.uppercased(), source: "universal_link")
 
+        // Guarda-roupa de skins (Vita) — completo (sem tier) ou loja de uma fase.
+        //   vitaai://guarda-roupa        → guarda-roupa completo (inventário + tudo)
+        //   vitaai://loja/0 … /4         → loja da fase 0-4 (Calouro…Lenda)
+        case "guarda-roupa", "wardrobe", "skins":
+            return .navigate(.skinAppearance(shopTier: nil))
+        case "loja", "shop":
+            if let seg = pathSegments.first, let tier = Int(seg) {
+                return .navigate(.skinAppearance(shopTier: tier))
+            }
+            return .navigate(.skinAppearance(shopTier: nil))
+
         // Settings sub-screens
         case "settings":
             switch pathSegments.first {

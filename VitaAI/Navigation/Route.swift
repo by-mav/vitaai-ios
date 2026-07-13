@@ -44,6 +44,7 @@ enum Route: Hashable {
     // MARK: - Settings sub-screens
     case about
     case appearance
+    case skinAppearance(shopTier: Int?)   // guarda-roupa. nil = completo (Vita); 0-4 = loja da fase (prédio)
     case notifications
     case connections
     case configuracoes

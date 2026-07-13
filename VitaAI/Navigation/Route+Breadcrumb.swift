@@ -63,6 +63,7 @@ extension Route {
         case .paywall:             return "Assinatura"
         case .about:               return "Sobre"
         case .appearance:          return "Aparência"
+        case .skinAppearance(let tier): return tier == nil ? "Guarda-roupa" : "Loja"
         case .notifications:       return "Notificações"
         case .connections:         return "Conexões"
         case .configuracoes:       return "Configurações"

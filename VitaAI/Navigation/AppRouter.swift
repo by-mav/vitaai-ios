@@ -242,6 +242,14 @@ struct MainTabView: View {
     @State private var navVisibility = NavVisibility()
 
     var body: some View {
+        if ProcessInfo.processInfo.arguments.contains("--vita-skin-demo") {
+            SkinAppearanceScreen()
+        } else {
+            mainShell
+        }
+    }
+
+    private var mainShell: some View {
         GeometryReader { shellGeo in
         // Shell OUTSIDE NavigationStack
         ZStack {
@@ -777,6 +785,8 @@ struct MainTabView: View {
             AgendaScreen()
         case .appearance:
             AppearanceScreen()
+        case .skinAppearance(let shopTier):
+            SkinAppearanceScreen(shopTier: shopTier)
         case .notifications:
             NotificationSettingsScreen()
         case .connections:
