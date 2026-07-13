@@ -365,7 +365,9 @@ struct SimuladoSessionScreen: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+                // Limpa a VitaTabBar (overlay global ~90pt) pra o CTA nao ficar
+                // escondido atras da barra de navegacao. Rafael 2026-07-12.
+                .padding(.bottom, 92)
                 .animation(.easeInOut(duration: 0.3), value: isAnswered)
             }
         }
