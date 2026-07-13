@@ -605,7 +605,9 @@ private struct SimuladoBuilderAttemptCard: View {
     let attempt: SimuladoAttemptEntry
     let onTap: () -> Void
 
-    private var isFinished: Bool { attempt.status == "finished" }
+    // Backend manda finishedAt, nao 'status'. Usar status deixava simulado
+    // concluido como "Em andamento". Rafael 2026-07-12 (#189).
+    private var isFinished: Bool { attempt.finishedAt != nil }
     private var scoreDisplay: String {
         if isFinished { return "\(Int(attempt.score * 100))%" }
         return "\(attempt.correctQ)/\(attempt.totalQ)"

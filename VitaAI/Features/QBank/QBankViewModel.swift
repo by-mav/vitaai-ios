@@ -1180,7 +1180,9 @@ final class QBankViewModel {
 
     func startNewSession() {
         clearFilters()
-        state.activeScreen = .disciplines
+        // Volta pro Builder gold (home), nao pra tela legada de disciplinas
+        // (visual antigo + passo que descartava a selecao). Rafael 2026-07-12 (#189).
+        state.activeScreen = .home
         state.disciplinePath = []
         state.selectedDisciplineIds = []
         state.session = nil

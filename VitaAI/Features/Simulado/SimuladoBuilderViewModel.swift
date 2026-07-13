@@ -242,6 +242,12 @@ final class SimuladoBuilderViewModel {
             if state.selectedTemplateSlug == nil, let first = resp.templates.first {
                 state.selectedTemplateSlug = first.slug
             }
+            // O BFF /screen pode nao trazer templates (decode nao falha -> catch
+            // nunca roda). Se veio vazio, busca /templates direto pra Template mode
+            // nao abrir num beco sem saida. Rafael 2026-07-12 (#189 P0).
+            if state.templates.isEmpty {
+                await loadTemplatesFallback()
+            }
         } catch {
             NSLog("[SimuladoBuilder] loadScreen ERROR: %@", String(describing: error))
             // Fallback: tenta /api/simulados/templates direto + listSimulados pra recents.

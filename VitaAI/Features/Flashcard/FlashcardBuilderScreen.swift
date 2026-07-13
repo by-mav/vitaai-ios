@@ -223,7 +223,11 @@ struct FlashcardBuilderScreen: View {
 
     private func heroCard(vm: FlashcardBuilderViewModel) -> some View {
         let hasDue = vm.state.dueNow > 0
-        let count = hasDue ? vm.state.dueNow : vm.state.newNow
+        // "para aprender" honesto: /preview.new (cards realmente novos) quando o
+        // preview ja carregou, em vez de total-due (que inflava contando cards em
+        // revisao como novos). Rafael 2026-07-12 (#189 hero honesto).
+        let newCount = vm.state.previewLoaded ? vm.state.previewNew : vm.state.newNow
+        let count = hasDue ? vm.state.dueNow : newCount
         let caption = hasDue ? "para revisar" : "para aprender"
         let est = max(1, Int((Double(count) * 1.6).rounded(.up)))
         return VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
@@ -250,7 +254,21 @@ struct FlashcardBuilderScreen: View {
                 cardsIllustration
             }
             Button {
-                Task { if let id = await vm.createSession() { onOpenDeck(id) } }
+                Task {
+                    if let id = await vm.createSession() {
+                        // Consome a fila FSRS cross-deck do servidor (POST /session)
+                        // em vez de abrir um baralho arbitrario. Isso tambem faz a
+                        // gaveta valer: o server ja aplica novos/dia, max revisoes e
+                        // retencao ao montar a fila. Rafael 2026-07-12 (#189).
+                        if !vm.state.lastSessionCardIds.isEmpty {
+                            FlashcardMultiDeckHandoff.shared.setQuickSession(
+                                cardIds: vm.state.lastSessionCardIds,
+                                title: vm.lastSessionTitle
+                            )
+                        }
+                        onOpenDeck(id)
+                    }
+                }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "play.fill").font(.system(size: 13, weight: .bold))  // ds-allow: icone play

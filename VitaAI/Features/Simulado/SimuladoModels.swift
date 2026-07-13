@@ -61,11 +61,13 @@ struct SimuladoAttemptEntry: Decodable, Identifiable {
     var startedAt: String? = nil
     var finishedAt: String? = nil
     var timeTakenMs: Int64? = nil
+    var timed: Bool = false
+    var timeLimitMinutes: Int? = nil
     var questions: [SimuladoQuestionEntry] = []
 
     private enum CodingKeys: String, CodingKey {
         case id, title, subject, difficulty, mode, totalQ, correctQ, score, status
-        case startedAt, finishedAt, timeTakenMs, questions
+        case startedAt, finishedAt, timeTakenMs, questions, timed, timeLimitMinutes
     }
 
     init(from decoder: Decoder) throws {
@@ -82,6 +84,8 @@ struct SimuladoAttemptEntry: Decodable, Identifiable {
         startedAt = try? c.decode(String.self, forKey: .startedAt)
         finishedAt = try? c.decode(String.self, forKey: .finishedAt)
         timeTakenMs = try? c.decode(Int64.self, forKey: .timeTakenMs)
+        timed = (try? c.decode(Bool.self, forKey: .timed)) ?? false
+        timeLimitMinutes = try? c.decode(Int.self, forKey: .timeLimitMinutes)
         questions = (try? c.decode([SimuladoQuestionEntry].self, forKey: .questions)) ?? []
     }
 }

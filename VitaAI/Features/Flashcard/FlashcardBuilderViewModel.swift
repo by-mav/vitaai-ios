@@ -134,6 +134,7 @@ struct FlashcardBuilderState {
     var previewNew: Int = 0
     var previewProjectedMinutes: Int = 0
     var previewLoading: Bool = false
+    var previewLoaded: Bool = false
 
     // Sessão criada (POST /api/study/flashcards/session)
     var lastSessionId: String? = nil
@@ -274,6 +275,7 @@ final class FlashcardBuilderViewModel {
             state.previewLearning = resp.learning
             state.previewNew = resp.new
             state.previewProjectedMinutes = resp.projectedSessionTime
+            state.previewLoaded = true
         } catch {
             NSLog("[FlashcardBuilder] previewFlashcards error: %@", String(describing: error))
         }
@@ -389,6 +391,15 @@ final class FlashcardBuilderViewModel {
     /// atual (`FlashcardSessionScreen(deckId:)`); refactor pra cardIds[]/sessionId
     /// é trabalho do A2/A3 quando reescrevem a Session screen.
     /// Spec: openapi.yaml linha 5169.
+    /// Titulo da sessao do hero conforme o modo (usado no handoff da fila FSRS).
+    var lastSessionTitle: String {
+        switch state.mode {
+        case .due: return "Revisão de hoje"
+        case .newCards: return "Cards novos"
+        case .specific: return "Estudo"
+        }
+    }
+
     func createSession() async -> String? {
         state.creatingSession = true
         defer { state.creatingSession = false }

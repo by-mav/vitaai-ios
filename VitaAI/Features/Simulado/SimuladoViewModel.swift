@@ -29,6 +29,7 @@ struct SimuladoUiState {
     var disciplinesLoading = false
     var selectedDisciplineName: String? = nil
     var timedMode = true
+    var timeLimitMinutes: Int? = nil
     // Session
     var currentAttemptId: String? = nil
     var questions: [SimuladoQuestionEntry] = []
@@ -282,12 +283,18 @@ final class SimuladoViewModel {
                     let now = Date()
                     state.currentAttemptId = attemptId
                     state.questions = attempt.questions
+                    // Cronometro real: prova cronometrada (template com limite) conta
+                    // regressivo e auto-finaliza; custom (timed=false) conta pra cima
+                    // sem auto-finalizar. Antes forcava timedMode=false pra todo
+                    // attempt (band-aid), matando o modo prova. #189 Rafael 2026-07-12.
+                    state.timedMode = attempt.timed
+                    state.timeLimitMinutes = attempt.timeLimitMinutes
                     state.answers = answered
                     state.currentQuestionIndex = 0
                     state.sessionStartDate = now
                     state.questionStartDate = now
                     // Restore result for finished attempts
-                    if attempt.status == "finished" {
+                    if attempt.finishedAt != nil {
                         state.result = FinishSimuladoResponse(
                             id: attempt.id,
                             correctQ: attempt.correctQ,

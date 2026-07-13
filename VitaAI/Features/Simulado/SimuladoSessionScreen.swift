@@ -23,6 +23,8 @@ struct SimuladoSessionScreen: View {
 
     private var totalSeconds: Int {
         guard let vm else { return 1 }
+        // Limite real da prova cronometrada (template); fallback 2min/questao.
+        if let mins = vm.state.timeLimitMinutes, mins > 0 { return mins * 60 }
         return max(1, vm.state.questions.count * 120)
     }
 
