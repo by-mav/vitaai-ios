@@ -9,7 +9,7 @@ import SwiftUI
 // com janelas ACESAS. A mecânica (trilha/nós/tiers/mascote) não muda — só a
 // luz. Tons de joia por tier mantêm a legibilidade de progressão do jogo.
 //
-// FONTE ÚNICA das cores do mundo: ProgressoScreen (e o dock da Home) consomem
+// FONTE ÚNICA das cores do mundo: HomeScreen (e o dock da Home) consomem
 // daqui. Mudar o clima do mundo inteiro = mudar este arquivo.
 
 enum TrailWorld {

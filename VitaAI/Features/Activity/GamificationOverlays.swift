@@ -266,7 +266,7 @@ struct VitaSessionXpSummaryCard: View {
 }
 
 // MARK: - Cores por capítulo (mirror de gamification.ts — 5 seções de 20 níveis).
-// SOT real = backend; ProgressoScreen.tiers carrega os MESMOS valores. Usado aqui
+// SOT real = backend; HomeScreen.tiers carrega os MESMOS valores. Usado aqui
 // pra a celebração herdar a cor do "mundo" onde o user upou.
 enum VitaSectionColors {
     static let palette: [(bright: Color, mid: Color, dark: Color)] = [

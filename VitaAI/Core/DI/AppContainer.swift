@@ -36,7 +36,7 @@ final class AppContainer: ObservableObject {
         DashboardViewModel(api: api, dataManager: dataManager)
     }()
 
-    // Mesma motivação do dashboardViewModel: ProgressoScreen tinha
+    // Mesma motivação do dashboardViewModel: HomeScreen tinha
     // @State var vm que sumia ao trocar de tab — render do "Progresso"
     // refazia 5 chamadas API em paralelo a cada retorno (3-5s de
     // spinner). Singleton no container + SWR (60s TTL) no VM = retorno

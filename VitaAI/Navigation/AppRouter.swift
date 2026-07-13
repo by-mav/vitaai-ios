@@ -580,7 +580,7 @@ struct MainTabView: View {
             // A trilha gamificada é o daily driver da Home; a aba Progresso vira
             // Estatísticas/Conquistas. DashboardScreen segue no codebase (não
             // deletado) caso a gente queira fundir alguns cards depois.
-            ProgressoScreen()
+            HomeScreen()
         case .estudos:
             EstudosScreen(
                 onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) },
@@ -606,7 +606,7 @@ struct MainTabView: View {
         case .progresso:
             // Aba Progresso = Estatísticas/Conquistas (decisão Rafael 2026-06-17).
             // A trilha gamificada virou a Home (ver case .home).
-            EstatisticasScreen()
+            ProgressoScreen()
         }
     }
 
