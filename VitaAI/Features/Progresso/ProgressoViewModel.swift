@@ -30,6 +30,9 @@ final class ProgressoViewModel {
     // Subjects for "onde melhorar"
     var subjects: [SubjectProgress] = []
 
+    // Desempenho por tema (QBank) — acerto real por tema/dificuldade.
+    var qbankProgress: QBankProgressResponse?
+
     // Leaderboard
     var leaderboard: [LeaderboardEntry] = []
 
@@ -77,6 +80,7 @@ final class ProgressoViewModel {
         async let leaderboardResult = api.getLeaderboard(scope: leaderboardScope, period: leaderboardPeriod, limit: 10)
         async let achievementsResult = api.getAchievements()
         async let activityResult = api.getActivityFeed(limit: 8, offset: 0)
+        async let qbankResult = api.getQBankProgress()
 
         // Progress
         do {
@@ -93,6 +97,29 @@ final class ProgressoViewModel {
             anySuccess = true
         } catch {
             print("[PROGRESSO] getProgress failed: \(error)")
+        }
+
+        // Desempenho por tema (QBank): alimenta "Onde melhorar" com acerto real
+        // por tema quando o /progress nao traz subjects. #33.
+        do {
+            let qb = try await qbankResult
+            qbankProgress = qb
+            if subjects.isEmpty {
+                subjects = qb.byTopic
+                    .filter { $0.answered > 0 }
+                    .map { t in
+                        SubjectProgress(
+                            subjectId: t.topicTitle, name: t.topicTitle,
+                            accuracy: t.accuracy, hoursSpent: 0,
+                            cardsDue: 0, questionCount: t.answered
+                        )
+                    }
+            }
+            if totalQuestions == 0 { totalQuestions = qb.totalAnswered }
+            if avgAccuracy == 0 { avgAccuracy = qb.normalizedAccuracy }
+            if !qb.byTopic.isEmpty { anySuccess = true }
+        } catch {
+            print("[PROGRESSO] getQBankProgress failed: \(error)")
         }
 
         // Load XP/level from gamification stats endpoint (server is source of truth)
