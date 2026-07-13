@@ -32,6 +32,35 @@ struct DisciplineFolderCard: View {
             .trimmingCharacters(in: .whitespaces)
     }
 
+    // Nome curto e bonito pra pastinha (SaaS): abrevia conhecidos, trunca o resto
+    // no limite de palavra. MEDICINA LEGAL -> MED. LEGAL, familia e comunidade ->
+    // MFC, praticas... -> PRATICAS, longo -> "SOCIEDADE E…".
+    // Nome curto e bonito pra pastinha (SaaS): abrevia conhecidos, trunca o
+    // resto no limite de palavra. MEDICINA LEGAL -> MED. LEGAL, familia e
+    // comunidade -> MFC, praticas... -> PRATICAS, longo -> "SOCIEDADE E…".
+    static func folderLabel(_ raw: String) -> String {
+        var s = (raw.uppercased().components(separatedBy: ",").first ?? raw.uppercased())
+            .trimmingCharacters(in: .whitespaces)
+        let noise: Set<String> = ["MÉDICA", "MÉDICO", "MEDICA", "MEDICO", "I", "II", "III", "IV", "V"]
+        s = s.split(separator: " ").map(String.init)
+            .filter { !noise.contains($0) }
+            .joined(separator: " ")
+        if s.contains("FAMÍLIA") || s.contains("FAMILIA") { return "MFC" }
+        if s.hasPrefix("PRÁTICAS") || s.hasPrefix("PRATICAS") { return "PRÁTICAS" }
+        if s.hasPrefix("MEDICINA ") {
+            s = "MED. " + s.dropFirst(9).trimmingCharacters(in: .whitespaces)
+        }
+        if s.count <= 15 { return s }
+        var out = ""
+        for w in s.split(separator: " ") {
+            let cand = out.isEmpty ? String(w) : out + " " + w
+            if cand.count > 13 { break }
+            out = cand
+        }
+        if out.isEmpty { out = String(s.prefix(13)) }
+        return out + "…"
+    }
+
     var body: some View {
         folderIcon
             .frame(height: 88)
@@ -220,33 +249,22 @@ struct DisciplineFolderCard: View {
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
 
-                // Filing label — etiqueta creme "impressa" com o nome (parte da pasta)
-                Text(shortName)
-                    .font(.system(size: 8, weight: .semibold))  // ds-allow: etiqueta de arquivo da pasta
-                    .tracking(0.2)
-                    .foregroundStyle(Color(white: 0.18))  // ds-allow: tinta escura sobre etiqueta creme
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.6)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 3.5)
-                    .padding(.horizontal, 5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(white: 0.96), Color(white: 0.88)],  // ds-allow: papel creme da etiqueta
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                                    .stroke(Color.black.opacity(0.10), lineWidth: 0.5)
-                            )
-                            .shadow(color: .black.opacity(0.28), radius: 1.5, y: 1)
-                    )
-                    .padding(.horizontal, 9)
+                // Nome COSTURADO na pasta: texto branco gravado no material +
+                // fio de pontos na cor da disciplina (detalhe artesanal). Sem box.
+                VStack(spacing: 3) {
+                    Text(Self.folderLabel(subjectName))
+                        .font(.system(size: 9.5, weight: .bold))  // ds-allow: nome gravado na pasta
+                        .tracking(0.6)
+                        .foregroundStyle(Color.white.opacity(0.92))  // ds-allow: texto branco gravado
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.55)
+                        .shadow(color: .black.opacity(0.55), radius: 0.5, x: 0, y: 1)
+                    StitchLine()
+                        .stroke(color.opacity(0.8), style: StrokeStyle(lineWidth: 1.1, lineCap: .round, dash: [2.5, 2.5]))
+                        .frame(width: 50, height: 1.1)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 6)
 
                 Spacer(minLength: 0)
 
@@ -311,6 +329,17 @@ struct DisciplineFolderCard: View {
 
     static func favorites() -> [String] {
         UserDefaults.standard.stringArray(forKey: favKey) ?? []
+    }
+}
+
+// MARK: - StitchLine (fio de costura sob o nome)
+
+private struct StitchLine: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: 0, y: rect.midY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return p
     }
 }
 
