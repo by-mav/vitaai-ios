@@ -38,27 +38,27 @@ struct DisciplineFolderCard: View {
     // Nome curto e bonito pra pastinha (SaaS): abrevia conhecidos, trunca o
     // resto no limite de palavra. MEDICINA LEGAL -> MED. LEGAL, familia e
     // comunidade -> MFC, praticas... -> PRATICAS, longo -> "SOCIEDADE E…".
+    // Nome pra pastinha (SaaS, ZERO abreviacao por-disciplina): so limite de
+    // caracteres pro olho humano. FARMACOLOGIA (12) cabe; longos cortam com "…"
+    // (ex: PRATICAS INTER…, SOCIEDADE E…). Serve pra qualquer disciplina.
     static func folderLabel(_ raw: String) -> String {
-        var s = (raw.uppercased().components(separatedBy: ",").first ?? raw.uppercased())
-            .trimmingCharacters(in: .whitespaces)
+        // limpeza generica: uppercase, corta apos virgula, tira MEDICA/MEDICO
+        // e romanos finais (nivel do curso). Nada especifico de materia.
+        var s = raw.uppercased().components(separatedBy: ",").first ?? raw.uppercased()
         let noise: Set<String> = ["MÉDICA", "MÉDICO", "MEDICA", "MEDICO", "I", "II", "III", "IV", "V"]
         s = s.split(separator: " ").map(String.init)
             .filter { !noise.contains($0) }
             .joined(separator: " ")
-        if s.contains("FAMÍLIA") || s.contains("FAMILIA") { return "MFC" }
-        if s.hasPrefix("PRÁTICAS") || s.hasPrefix("PRATICAS") { return "PRÁTICAS" }
-        if s.hasPrefix("MEDICINA ") {
-            s = "MED. " + s.dropFirst(9).trimmingCharacters(in: .whitespaces)
+        let maxChars = 15
+        if s.count <= maxChars { return s }
+        var cut = String(s.prefix(maxChars - 1)).trimmingCharacters(in: .whitespaces)
+        if let sp = cut.lastIndex(of: " ") {
+            let lastWord = cut[cut.index(after: sp)...]
+            if lastWord.count < 3 {
+                cut = String(cut[..<sp]).trimmingCharacters(in: .whitespaces)
+            }
         }
-        if s.count <= 15 { return s }
-        var out = ""
-        for w in s.split(separator: " ") {
-            let cand = out.isEmpty ? String(w) : out + " " + w
-            if cand.count > 13 { break }
-            out = cand
-        }
-        if out.isEmpty { out = String(s.prefix(13)) }
-        return out + "…"
+        return cut + "…"
     }
 
     var body: some View {
