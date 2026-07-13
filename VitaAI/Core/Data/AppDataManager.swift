@@ -65,6 +65,16 @@ final class AppDataManager {
         if let resp = try? await api.getSubjects() { allDisciplines = resp.subjects }
     }
 
+    // Faculdade: lista canonica + salvar a escolha (reusa api + refreshProfile).
+    func loadUniversities(_ query: String) async -> [University] {
+        (try? await api.getUniversities(query: query.isEmpty ? nil : query))?.universities ?? []
+    }
+    func selectUniversity(_ uni: University) async {
+        let req = UpdateProfileRequest(university: uni.name, universityState: uni.state, universityId: uni.id)
+        _ = try? await api.updateProfile(req)
+        await refreshProfile()
+    }
+
     /// Prefetched secondary data — loaded in background on launch so tapping
     /// Flashcards/QBank/Simulados/Transcrição/Trabalhos in Estudos opens
     /// instantly with cache (SWR pattern). Each screen refetches silently on

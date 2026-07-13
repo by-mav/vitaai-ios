@@ -211,8 +211,8 @@ struct JornadaWeekAgenda: View {
         var out: [Color] = []
         if !aulasFor(date).isEmpty { out.append(VitaColors.accent) }
         let evals = evalsFor(date)
-        if evals.contains(where: { $0.calendarKind == .exam }) { out.append(VitaColors.dataIndigo) }
-        if evals.contains(where: { $0.calendarKind != .exam }) { out.append(VitaColors.dataTeal) }
+        if evals.contains(where: { $0.calendarKind == .exam }) { out.append(VitaColors.dataRed) }
+        if evals.contains(where: { $0.calendarKind != .exam }) { out.append(VitaColors.dataBlue) }
         return out
     }
 
@@ -318,8 +318,8 @@ struct JornadaWeekAgenda: View {
     private func colorFor(_ k: AgendaRow.Kind) -> Color {
         switch k {
         case .aula: return VitaColors.accent
-        case .prova: return VitaColors.dataIndigo
-        case .trabalho: return VitaColors.dataTeal
+        case .prova: return VitaColors.dataRed
+        case .trabalho: return VitaColors.dataBlue
         }
     }
     private func iconFor(_ k: AgendaRow.Kind) -> String {

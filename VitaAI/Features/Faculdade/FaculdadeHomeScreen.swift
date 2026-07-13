@@ -42,7 +42,9 @@ struct FaculdadeHomeScreen: View {
     private var glassBorder: Color { VitaColors.textWarm.opacity(0.06) }
 
     // Institution info from user profile (via onboarding)
-    private var institutionName: String { appData.profile?.university ?? "Minha Faculdade" }
+    private var institutionName: String { appData.profile?.university ?? "" }
+    private var hasFaculdade: Bool { !(appData.profile?.university ?? "").isEmpty }
+    @State private var showFaculdadePicker = false
     private var courseName: String { variant == .internato ? "Medicina · Internato" : "Medicina" }
     private var currentSemester: Int { appData.profile?.semester ?? 0 }
 
@@ -173,21 +175,37 @@ struct FaculdadeHomeScreen: View {
 
     private var heroCard: some View {
         ZStack(alignment: .topLeading) {
-            heroBuildingMotif
+            heroBackground
             heroContent
         }
         .frame(height: 162)
         .glassCard(cornerRadius: 18)
+        .sheet(isPresented: $showFaculdadePicker) {
+            VitaSheet(detents: [.large]) {
+                FaculdadePickerSheet()
+            }
+        }
     }
 
     // Motif generalizado: ícone de prédio discreto no canto superior direito.
-    private var heroBuildingMotif: some View {
-        Image(systemName: "building.columns.fill")
-            .font(.system(size: 64, weight: .ultraLight))
-            .foregroundStyle(goldPrimary.opacity(0.10))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            .padding(.top, 14)
-            .padding(.trailing, 16)
+    private var heroBackground: some View {
+        ZStack(alignment: .topTrailing) {
+            RadialGradient(
+                colors: [goldPrimary.opacity(0.16), Color.clear],
+                center: .topTrailing, startRadius: 6, endRadius: 200
+            )
+            Image(systemName: "building.columns.fill")
+                .font(.system(size: 74, weight: .thin))  // ds-allow: motivo do hero
+                .foregroundStyle(
+                    LinearGradient(colors: [goldMuted.opacity(0.5), goldPrimary.opacity(0.14)],
+                                   startPoint: .top, endPoint: .bottom)
+                )
+                .shadow(color: goldPrimary.opacity(0.3), radius: 12)
+                .padding(.top, 12)
+                .padding(.trailing, 16)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
     }
 
     private var heroContent: some View {
@@ -219,13 +237,17 @@ struct FaculdadeHomeScreen: View {
                 .padding(.bottom, 6)
             }
 
-            // Zona 2: título agrupado (institution + curso)
-            Text(institutionName)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color.white)
-                .kerning(-0.4)
-                .lineLimit(2)
-                .minimumScaleFactor(0.75)
+            // Zona 2: título agrupado (institution CLICAVEL + curso)
+            Button { showFaculdadePicker = true } label: {
+                Text(hasFaculdade ? institutionName : "Selecionar faculdade")
+                    .font(.system(size: 22, weight: .bold))  // ds-allow: titulo do hero
+                    .foregroundStyle(hasFaculdade ? Color.white : goldMuted)
+                    .kerning(-0.4)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+                    .multilineTextAlignment(.leading)
+            }
+            .buttonStyle(.plain)
 
             HStack(spacing: 6) {
                 Image(systemName: "graduationcap.fill")

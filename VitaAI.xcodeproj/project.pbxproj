@@ -422,6 +422,7 @@
 		EA369AAC6B59C5AE7B5607CB /* Tracked.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0016723BD79953A759AA2A /* Tracked.swift */; };
 		EA730842FB7C3E9FB8F4065E /* JourneyType+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9908A582A7C0FF45AB9F61F /* JourneyType+Helpers.swift */; };
 		EBD32F8B6FC327034ED9A70E /* PdfTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D76BE069C1F75FD8C95A138A /* PdfTabBar.swift */; };
+		EC35DE1E5F03F8DAACBA8223 /* FaculdadePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B321C8C944B12BFA60254634 /* FaculdadePickerSheet.swift */; };
 		ED4FCA6A681400D2B2E82598 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E96A2F8EC619718B744BFD6 /* APIError.swift */; };
 		ED940D904DE51599BECDDBF3 /* TranscricaoProfessorSignals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 195A69CD6776A957B920D6E0 /* TranscricaoProfessorSignals.swift */; };
 		EDD8F6E728065C3FF6BDE691 /* VitaMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = C84201C4AE38526C62B3DFD1 /* VitaMarkdown.swift */; };
@@ -761,6 +762,7 @@
 		B1B869512A09C99A6DCF4177 /* DeepLinkHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkHandler.swift; sourceTree = "<group>"; };
 		B26F29C8F6797062934D4D8F /* NotebookListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotebookListViewModel.swift; sourceTree = "<group>"; };
 		B30F475603BEE5DD42020C1E /* ReferralCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferralCaptureService.swift; sourceTree = "<group>"; };
+		B321C8C944B12BFA60254634 /* FaculdadePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaculdadePickerSheet.swift; sourceTree = "<group>"; };
 		B39730C4459D428670423B22 /* CrowdModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrowdModels.swift; sourceTree = "<group>"; };
 		B3E9812C67CBB8FA05BFEEDE /* StoreKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitManager.swift; sourceTree = "<group>"; };
 		B3EA4225C0D0DC9A0A495001 /* ReferralScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferralScreen.swift; sourceTree = "<group>"; };
@@ -1824,6 +1826,7 @@
 				7B354B45703FC01F5DBB4D68 /* FaculdadeDocumentosScreen.swift */,
 				4B2FF894ECCB56BF0B38F9FB /* FaculdadeHomeScreen.swift */,
 				5D545B4D23872BE2BD3194EF /* FaculdadeMateriasScreen.swift */,
+				B321C8C944B12BFA60254634 /* FaculdadePickerSheet.swift */,
 				969CC09E6ADAE216B40E2DD3 /* FaculdadeProfessoresScreen.swift */,
 				D0B6EADF2E8729CDC0143163 /* JornadaWeekAgenda.swift */,
 				DA88B383AB1A6C7CDD0DAD1F /* MonthlyCalendarView.swift */,
@@ -2114,6 +2117,7 @@
 				81B66187877A6E96C341E66C /* FaculdadeDocumentosScreen.swift in Sources */,
 				823D5C5A43B0CE111F2B2A87 /* FaculdadeHomeScreen.swift in Sources */,
 				02FCC10076AAF78BFBFC3B8E /* FaculdadeMateriasScreen.swift in Sources */,
+				EC35DE1E5F03F8DAACBA8223 /* FaculdadePickerSheet.swift in Sources */,
 				4857C5FF52A84F5942D119DD /* FaculdadeProfessoresScreen.swift in Sources */,
 				1A2B6BBC2912EBBA84B727D5 /* FeedbackScreen.swift in Sources */,
 				AAC054F994903A261B75890B /* FlashcardBuilderScreen.swift in Sources */,
