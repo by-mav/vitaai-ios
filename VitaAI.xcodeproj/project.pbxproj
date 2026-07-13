@@ -361,6 +361,7 @@
 		C4FE5801DC924D28D9EDCF15 /* TranscricaoLocalDraftsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE5BEA4B75E6F09D49B33A81 /* TranscricaoLocalDraftsSection.swift */; };
 		C52494A58E7D648228BB0136 /* QBankShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18071D7DB89A34DE11E9EE5E /* QBankShared.swift */; };
 		C69655D848D9D73894AB57E5 /* RatingButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 443BC23869204129FA12AD43 /* RatingButtons.swift */; };
+		C6E7523BC9A47E7CCAA42DFB /* DesempenhoScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00BC9F41EF993F80BAF55655 /* DesempenhoScreen.swift */; };
 		C7D54158E4BD8D03FC9E5CAB /* TranscricaoRecorderContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06A39AB6561313018C22261 /* TranscricaoRecorderContent.swift */; };
 		C897B6268A3FC77740999D85 /* VitaAPI+Skins.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0AD3E3285EB79D01010561 /* VitaAPI+Skins.swift */; };
 		C8BB85A173F3A4B542DD455B /* PixioMaterial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F5413BDC75D9091DC6D9D3 /* PixioMaterial.swift */; };
@@ -450,6 +451,7 @@
 
 /* Begin PBXFileReference section */
 		003EC5B74A9D7668B19B831B /* MaterialFolderModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialFolderModels.swift; sourceTree = "<group>"; };
+		00BC9F41EF993F80BAF55655 /* DesempenhoScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesempenhoScreen.swift; sourceTree = "<group>"; };
 		01DFDA50B201CA706265F2EB /* GreetingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingCard.swift; sourceTree = "<group>"; };
 		024B58C1B155077488B4F39B /* VitaXpBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaXpBar.swift; sourceTree = "<group>"; };
 		048A3804D263AE9EECDA3084 /* TrabalhoEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrabalhoEditorViewModel.swift; sourceTree = "<group>"; };
@@ -1640,6 +1642,7 @@
 		BF075C4FA8D29B17090241DC /* Progresso */ = {
 			isa = PBXGroup;
 			children = (
+				00BC9F41EF993F80BAF55655 /* DesempenhoScreen.swift */,
 				3CBBBFC9B58E9F7552AF6C9C /* HomeScreen.swift */,
 				7993D339523EA36C4CC8B25C /* ProgressoScreen.swift */,
 				54C5921B1E7D6773BE496440 /* ProgressoViewModel.swift */,
@@ -2075,6 +2078,7 @@
 				121FE0E771F45319232ABC3D /* Date+Helpers.swift in Sources */,
 				1A1850D9E459E7057DAE1755 /* DeepLinkHandler.swift in Sources */,
 				AA841E39A8258C18E7E3B0BA /* DeleteAccountSection.swift in Sources */,
+				C6E7523BC9A47E7CCAA42DFB /* DesempenhoScreen.swift in Sources */,
 				6F7810541D6057351972B7EE /* DisciplinasConfigScreen.swift in Sources */,
 				4EC22DBEB710EFC14A84DF7D /* DisciplineCircleButton.swift in Sources */,
 				152C448FBAF7D17BB14C6F9E /* DisciplineDetailScreen.swift in Sources */,

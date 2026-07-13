@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ProgressoScreen: View {
     @Environment(\.appContainer) private var container
+    @Environment(Router.self) private var router
 
     // Gold palette from VitaColors
     private let goldPrimary = VitaColors.accentHover
@@ -66,8 +67,8 @@ struct ProgressoScreen: View {
                 if hasWeeklyData(vm: vm) {
                     weeklyChart(vm: vm)
                 }
-                if !vm.subjects.isEmpty {
-                    weakAreasSection(vm: vm)
+                if vm.totalQuestions > 0 {
+                    desempenhoButton
                 }
                 if !vm.badges.isEmpty {
                     achievementsSection(vm: vm)
@@ -361,6 +362,34 @@ struct ProgressoScreen: View {
     }
 
     // MARK: - Weak Areas ("Onde melhorar")
+
+    private var desempenhoButton: some View {
+        Button {
+            router.navigate(to: .desempenho)
+        } label: {
+            glassCard {
+                HStack(spacing: 12) {
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 18, weight: .semibold))  // ds-allow: icone do card
+                        .foregroundStyle(VitaColors.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Meu desempenho")
+                            .font(.system(size: 14, weight: .semibold))  // ds-allow: card compacto
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Text("Onde você está forte e fraco")
+                            .font(.system(size: 11))  // ds-allow: card compacto
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))  // ds-allow: chevron
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(14)
+            }
+        }
+        .buttonStyle(.plain)
+    }
 
     private func weakAreasSection(vm: ProgressoViewModel) -> some View {
         VStack(alignment: .leading, spacing: 10) {

@@ -25,6 +25,7 @@ enum Route: Hashable {
     case flashcardSession(deckId: String, tagFilter: String? = nil)
     case flashcardSettings
     case flashcardStats
+    case desempenho
     case pdfViewer(url: String, title: String? = nil, documentId: String? = nil, studioSourceId: String? = nil)
 
     // MARK: - Atlas 3D

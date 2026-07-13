@@ -695,6 +695,8 @@ struct MainTabView: View {
             )
         case .flashcardStats:
             FlashcardStatsView(onBack: { router.goBack() })
+        case .desempenho:
+            DesempenhoScreen(onBack: { router.goBack() })
         case .simuladoHome:
             // Fase 4 (2026-04-29): SimuladoBuilderScreen reescrito substitui
             // SimuladoHomeScreen + SimuladoConfigScreen. Tela única com toggle
