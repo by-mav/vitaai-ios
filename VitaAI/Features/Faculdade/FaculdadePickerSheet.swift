@@ -74,7 +74,7 @@ struct FaculdadePickerSheet: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(VitaColors.glassBg))  // ds-allow: campo de busca
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(VitaColors.glassBorder, lineWidth: 0.5))  // ds-allow: contorno do campo de busca
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(VitaColors.glassBorder, lineWidth: 0.5))  // ds-allow: campo de busca
     }
 
     private func row(_ uni: University) -> some View {
@@ -86,13 +86,6 @@ struct FaculdadePickerSheet: View {
             }
         } label: {
             HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(VitaColors.accent.opacity(0.14)).frame(width: 38, height: 38)
-                    Text(uni.letter)
-                        .font(VitaTypography.titleSmall)
-                        .fontWeight(.bold)
-                        .foregroundStyle(VitaColors.accent)
-                }
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(uni.displayName)
