@@ -93,12 +93,6 @@ struct DisciplineFolderCard: View {
                     )
                     .frame(width: w - 4, height: h * 0.78)
                     .offset(y: -h * 0.02)
-                    .overlay(
-                        // Aba = ÚNICO lugar com a cor da disciplina (acento funcional)
-                        BackTab(color: color.opacity(0.92))
-                            .frame(width: w * 0.38, height: 10)
-                            .offset(x: -(w - 4) / 2 + w * 0.19 + 2, y: -h * 0.02 - h * 0.39 + 1)
-                    )
 
                 // ── Layer 2: Documents peeking out (just tips above front panel)
                 documentSheets(width: w, height: h)
@@ -118,7 +112,8 @@ struct DisciplineFolderCard: View {
         ZStack {
             // Sheet 1 — left-center, "text document"
             RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(white: 0.94))
+                .fill(Color(white: 0.95))
+                .overlay { RoundedRectangle(cornerRadius: 2.5).fill(color.opacity(0.34)) }  // folha na cor da disciplina
                 .frame(width: w * 0.28, height: h * 0.34)
                 .overlay(alignment: .top) {
                     VStack(alignment: .leading, spacing: 1.5) {
@@ -142,7 +137,8 @@ struct DisciplineFolderCard: View {
 
             // Sheet 2 — center-right, "image document"
             RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(white: 0.97))
+                .fill(Color(white: 0.96))
+                .overlay { RoundedRectangle(cornerRadius: 2.5).fill(color.opacity(0.26)) }  // folha na cor da disciplina
                 .frame(width: w * 0.26, height: h * 0.38)
                 .overlay(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -171,7 +167,8 @@ struct DisciplineFolderCard: View {
 
             // Sheet 3 — far right, "chart" feel
             RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color(white: 0.91))
+                .fill(Color(white: 0.94))
+                .overlay { RoundedRectangle(cornerRadius: 2.5).fill(color.opacity(0.40)) }  // folha na cor da disciplina
                 .frame(width: w * 0.22, height: h * 0.30)
                 .overlay(alignment: .top) {
                     VStack(alignment: .leading, spacing: 1.5) {
@@ -251,20 +248,15 @@ struct DisciplineFolderCard: View {
 
                 // Nome COSTURADO na pasta: texto branco gravado no material +
                 // fio de pontos na cor da disciplina (detalhe artesanal). Sem box.
-                VStack(spacing: 3) {
-                    Text(Self.folderLabel(subjectName))
-                        .font(.system(size: 9.5, weight: .bold))  // ds-allow: nome gravado na pasta
-                        .tracking(0.6)
-                        .foregroundStyle(Color.white.opacity(0.92))  // ds-allow: texto branco gravado
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.55)
-                        .shadow(color: .black.opacity(0.55), radius: 0.5, x: 0, y: 1)
-                    StitchLine()
-                        .stroke(color.opacity(0.8), style: StrokeStyle(lineWidth: 1.1, lineCap: .round, dash: [2.5, 2.5]))
-                        .frame(width: 50, height: 1.1)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 6)
+                Text(Self.folderLabel(subjectName))
+                    .font(.system(size: 9.5, weight: .bold))  // ds-allow: nome gravado na pasta
+                    .tracking(0.6)
+                    .foregroundStyle(Color.white.opacity(0.92))  // ds-allow: texto branco gravado
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .shadow(color: .black.opacity(0.55), radius: 0.5, x: 0, y: 1)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 6)
 
                 Spacer(minLength: 0)
 
