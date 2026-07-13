@@ -1945,6 +1945,9 @@ struct SkinAppearanceScreen: View {
                     }
                     .padding(.horizontal, 18)
                     .padding(.top, 6)
+                    // Limpa a TabBar (overlay ~92pt): ficha (descricao) e os cards
+                    // de baixo nao ficam mais escondidos atras da barra. Rafael 2026-07-13.
+                    .padding(.bottom, 92)
                 }
             }
         }
