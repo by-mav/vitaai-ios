@@ -14,6 +14,7 @@ final class AppDataManager {
     var gradesResponse: GradesCurrentResponse?
     var classSchedule: [AgendaClassBlock] = []
     var academicEvaluations: [AgendaEvaluation] = []
+    var subjectsOverview: [SubjectOverview] = []
     var dashboardSubjects: [DashboardSubject] = []
     /// FONTE ÚNICA de matérias do aluno — TODAS (cursando + aprovadas +
     /// reprovadas/trancadas), vindas de `GET /api/subjects` (sem filtro), já com
@@ -140,7 +141,10 @@ final class AppDataManager {
             switch event.domain {
             case "subjects":
                 await self.refreshEnrolled()
+                await self.refreshSubjectsOverview()
                 await self.refreshDashboard()  // hero cards depend on subjects
+            case "documents":
+                await self.refreshSubjectsOverview()
             case "evaluations", "schedule":
                 await self.refreshSchedule()
                 await self.refreshDashboard()
@@ -162,7 +166,7 @@ final class AppDataManager {
                 await self.refreshProfile()
             case "calendar":
                 await self.refreshSchedule()
-            case "achievements", "notifications", "portal_status", "vita_chat", "mindmaps", "voice", "documents":
+            case "achievements", "notifications", "portal_status", "vita_chat", "mindmaps", "voice":
                 // Sem refresh dedicado em AppDataManager hoje — telas owners
                 // (NotificationsScreen, AchievementsScreen, etc) refetcham on-appear.
                 // No-op aqui: log ja foi emitido acima, telas pegam quando abrir.
@@ -236,6 +240,7 @@ final class AppDataManager {
         async let s: () = refreshSchedule()
         async let d: () = refreshDashboard()
         async let en: () = refreshEnrolled()
+        async let so: () = refreshSubjectsOverview()
         // Secondary prefetch — Estudos tabs abrem instant
         async let fc: () = refreshFlashcards()
         async let qb: () = refreshQBankProgress()
@@ -244,7 +249,7 @@ final class AppDataManager {
         async let tb: () = refreshTrabalhos()
         async let pr: () = refreshProgress()
         async let qs: () = refreshQBankSessions()
-        _ = await (p, g, s, d, en, fc, qb, si, tr, tb, pr, qs)
+        _ = await (p, g, s, d, en, so, fc, qb, si, tr, tb, pr, qs)
         // Tertiary prefetch — disciplinas individuais. Depende de enrolled
         // já estar populado, daí roda DEPOIS do gather acima.
         await prewarmDisciplines(ids: enrolledDisciplines.map { $0.id })
@@ -315,6 +320,15 @@ final class AppDataManager {
 
     private func refreshEnrolled() async {
         if let resp = try? await api.getSubjects() { allDisciplines = resp.subjects }
+    }
+
+    private func refreshSubjectsOverview() async {
+        if let resp = try? await api.getSubjectsOverview() { subjectsOverview = resp.subjects }
+    }
+
+    /// Total de materiais da disciplina (mesma origem do MCP overview).
+    func materialsTotal(forSubjectId id: String) -> Int {
+        subjectsOverview.first(where: { $0.id == id })?.materials.total ?? 0
     }
 
     private func refreshProfile() async {

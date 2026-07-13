@@ -1033,6 +1033,10 @@ actor VitaAPI {
         return try await client.get("subjects", queryItems: items.isEmpty ? nil : items)
     }
 
+    func getSubjectsOverview() async throws -> SubjectsOverviewResponse {
+        return try await client.get("subjects/overview")
+    }
+
     func createManualSubject(name: String, difficulty: String? = nil) async throws -> AcademicSubject {
         struct Body: Encodable { let name: String; let difficulty: String? }
         return try await client.post("subjects/manual", body: Body(name: name, difficulty: difficulty))

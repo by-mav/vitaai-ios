@@ -15,7 +15,7 @@ import SwiftUI
 
 struct DisciplineFolderCard: View {
     let subjectName: String
-    var vitaScore: Int = 0
+    var itemCount: Int = 0
     var onMenu: (() -> Void)?
 
     @State private var starred = false
@@ -218,15 +218,35 @@ struct DisciplineFolderCard: View {
 
             // Content on front panel: name + star + vitaScore
             VStack(spacing: 0) {
-                // Discipline name — centered on the folder face
+                Spacer(minLength: 0)
+
+                // Filing label — etiqueta creme "impressa" com o nome (parte da pasta)
                 Text(shortName)
-                    .font(.system(size: 9.5, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
+                    .font(.system(size: 8, weight: .semibold))  // ds-allow: etiqueta de arquivo da pasta
+                    .tracking(0.2)
+                    .foregroundStyle(Color(white: 0.18))  // ds-allow: tinta escura sobre etiqueta creme
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.6)
                     .frame(maxWidth: .infinity)
+                    .padding(.vertical, 3.5)
                     .padding(.horizontal, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(white: 0.96), Color(white: 0.88)],  // ds-allow: papel creme da etiqueta
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                                    .stroke(Color.black.opacity(0.10), lineWidth: 0.5)
+                            )
+                            .shadow(color: .black.opacity(0.28), radius: 1.5, y: 1)
+                    )
+                    .padding(.horizontal, 9)
 
                 Spacer(minLength: 0)
 
@@ -244,10 +264,14 @@ struct DisciplineFolderCard: View {
 
                     Spacer()
 
-                    if vitaScore > 0 {
-                        Text("\(vitaScore)")
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .foregroundStyle(VitaColors.goldText.opacity(0.75))
+                    if itemCount > 0 {
+                        HStack(spacing: 2) {
+                            Image(systemName: "doc.on.doc.fill")
+                                .font(.system(size: 6.5, weight: .semibold))  // ds-allow: contador de materiais da pasta
+                            Text("\(itemCount)")
+                                .font(.system(size: 8, weight: .bold, design: .rounded))  // ds-allow: contador de materiais
+                        }
+                        .foregroundStyle(VitaColors.goldText.opacity(0.75))
                     }
 
                     if onMenu != nil {
@@ -263,7 +287,6 @@ struct DisciplineFolderCard: View {
                 .padding(.bottom, 5)
             }
             .frame(width: w - 2, height: h * 0.62)
-            .padding(.top, 6)
         }
         .offset(y: h * 0.19)
     }

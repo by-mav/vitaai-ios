@@ -150,7 +150,7 @@ struct StudyMaterialPicker: View {
                     }
                 } label: {
                     VStack(spacing: VitaTokens.Spacing.xs) {
-                        DisciplineFolderCard(subjectName: group.subject, vitaScore: 0, onMenu: nil)
+                        DisciplineFolderCard(subjectName: group.subject, itemCount: 0, onMenu: nil)
                             .overlay(alignment: .topTrailing) { countBadge(group) }
                             .overlay {
                                 if isActive {

@@ -291,7 +291,7 @@ struct FaculdadeHomeScreen: View {
                         } label: {
                             DisciplineFolderCard(
                                 subjectName: subject.preferredName,
-                                vitaScore: Int(appData.vitaScore(for: subject.preferredName))
+                                itemCount: appData.materialsTotal(forSubjectId: subject.id)
                             )
                         }
                         .buttonStyle(.plain)
