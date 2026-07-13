@@ -417,6 +417,7 @@
 		E498180A7AF2942286123C91 /* GamificationOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B6383885FE4CA9D45C9592 /* GamificationOverlays.swift */; };
 		E529109D0803E34CB4DC0B2D /* MindMapListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6487870DA0185F897228C92 /* MindMapListViewModel.swift */; };
 		E67209EEF1E9AE724E3BF80E /* PortalIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF7D0E3B2FB0CC1C188ADB6 /* PortalIcon.swift */; };
+		E781791AD00268B0480F7F50 /* JornadaWeekAgenda.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B6EADF2E8729CDC0143163 /* JornadaWeekAgenda.swift */; };
 		E9CB954DF22CC9B832B690FD /* ConnectorsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C06511C1120C3D564023F3 /* ConnectorsViewModel.swift */; };
 		EA369AAC6B59C5AE7B5607CB /* Tracked.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0016723BD79953A759AA2A /* Tracked.swift */; };
 		EA730842FB7C3E9FB8F4065E /* JourneyType+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9908A582A7C0FF45AB9F61F /* JourneyType+Helpers.swift */; };
@@ -813,6 +814,7 @@
 		CFB516FEEE3F8C5A3FB28626 /* ConfiguracoesScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfiguracoesScreen.swift; sourceTree = "<group>"; };
 		D08D6E184B50BFEE6FF44E77 /* TranscricaoDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoDetailSheet.swift; sourceTree = "<group>"; };
 		D0AA34DA1F2E5FE7046BB9C1 /* ProfileScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileScreen.swift; sourceTree = "<group>"; };
+		D0B6EADF2E8729CDC0143163 /* JornadaWeekAgenda.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JornadaWeekAgenda.swift; sourceTree = "<group>"; };
 		D1DCBDFFA9AF803B4B4E56E7 /* DashboardModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardModels.swift; sourceTree = "<group>"; };
 		D22584DB23356B862FEDC41E /* DisciplinasConfigScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisciplinasConfigScreen.swift; sourceTree = "<group>"; };
 		D265709C54942750A3E2521E /* VitaEmblem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaEmblem.swift; sourceTree = "<group>"; };
@@ -1823,6 +1825,7 @@
 				4B2FF894ECCB56BF0B38F9FB /* FaculdadeHomeScreen.swift */,
 				5D545B4D23872BE2BD3194EF /* FaculdadeMateriasScreen.swift */,
 				969CC09E6ADAE216B40E2DD3 /* FaculdadeProfessoresScreen.swift */,
+				D0B6EADF2E8729CDC0143163 /* JornadaWeekAgenda.swift */,
 				DA88B383AB1A6C7CDD0DAD1F /* MonthlyCalendarView.swift */,
 				407A64F295C1E3F98A7BF4BD /* RenameSubjectSheet.swift */,
 			);
@@ -2157,6 +2160,7 @@
 				D28E025AFBFBCC5901DF509E /* IntegrationModels.swift in Sources */,
 				BB04EB4F4D6A06C05F7492E3 /* JSONValue.swift in Sources */,
 				1B20A47302996ECEA3DFD7A8 /* JornadaScreen.swift in Sources */,
+				E781791AD00268B0480F7F50 /* JornadaWeekAgenda.swift in Sources */,
 				E24727E55B3213CD1BCCDAE2 /* JourneyConfig.swift in Sources */,
 				EA730842FB7C3E9FB8F4065E /* JourneyType+Helpers.swift in Sources */,
 				A3094421C736C77649A00DF9 /* JourneyType.swift in Sources */,

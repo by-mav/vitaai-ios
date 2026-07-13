@@ -56,7 +56,7 @@ struct FaculdadeHomeScreen: View {
                     disciplinesSection
                         .id(colorRefreshTrigger)
                 }
-                MateriasAgendaWidget(
+                JornadaWeekAgenda(
                     schedule: appData.classSchedule,
                     evaluations: appData.academicEvaluations
                 )
