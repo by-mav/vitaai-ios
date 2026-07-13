@@ -622,6 +622,13 @@ actor VitaAPI {
         try await client.get("simulados")
     }
 
+    /// GET /api/simulados/{id} — 1 attempt com suas questoes. Evita baixar a
+    /// lista INTEIRA so pra achar um (N+1 que travava a abertura da prova).
+    /// #189 Rafael 2026-07-12.
+    func getSimulado(id: String) async throws -> SimuladoAttemptEntry {
+        try await client.get("simulados/\(id)")
+    }
+
     /// BFF aggregator per-screen pra Simulado Home.
     /// 1 RTT em vez de listSimulados + getSimuladoDiagnostics separado.
     /// PadrÃ£o 2026 (memory: feedback_aggregator_per_screen_2026.md).

@@ -103,6 +103,31 @@ struct SimuladoQuestionEntry: Decodable, Identifiable {
     var explanation: String? = nil
     var difficulty: String? = nil
 
+    enum CodingKeys: String, CodingKey {
+        case id, questionNo, statement, options, correctIdx, chosenIdx, isCorrect, subject, topic, explanation, difficulty
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? ""
+        questionNo = (try? c.decode(Int.self, forKey: .questionNo)) ?? 0
+        statement = (try? c.decode(String.self, forKey: .statement)) ?? ""
+        options = (try? c.decode(String.self, forKey: .options)) ?? "[]"
+        correctIdx = (try? c.decode(Int.self, forKey: .correctIdx)) ?? 0
+        chosenIdx = try? c.decode(Int.self, forKey: .chosenIdx)
+        isCorrect = (try? c.decode(Bool.self, forKey: .isCorrect)) ?? false
+        subject = try? c.decode(String.self, forKey: .subject)
+        topic = try? c.decode(String.self, forKey: .topic)
+        explanation = try? c.decode(String.self, forKey: .explanation)
+        // difficulty pode vir texto ("medium") OU numero (1/2/3) — prod manda int.
+        // Antes: String? sintetizado -> typeMismatch derrubava a lista INTEIRA de
+        // questoes (try? engolia) -> prova travava em "Carregando". #189 Rafael 2026-07-12.
+        if let d = try? c.decode(String.self, forKey: .difficulty) {
+            difficulty = d
+        } else if let n = try? c.decode(Int.self, forKey: .difficulty) {
+            difficulty = n >= 3 ? "hard" : n == 2 ? "medium" : "easy"
+        }
+    }
+
     var parsedOptions: [String] {
         (try? JSONDecoder().decode([String].self, from: Data(options.utf8))) ?? []
     }

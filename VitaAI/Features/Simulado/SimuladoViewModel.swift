@@ -271,8 +271,8 @@ final class SimuladoViewModel {
         Task {
             state.isLoading = true
             do {
-                let response = try await api.listSimulados()
-                if let attempt = response.attempts.first(where: { $0.id == attemptId }) {
+                let attempt = try await api.getSimulado(id: attemptId)
+                if !attempt.id.isEmpty {
                     let answered = Dictionary(
                         uniqueKeysWithValues: attempt.questions
                             .compactMap { q -> (String, Int)? in
