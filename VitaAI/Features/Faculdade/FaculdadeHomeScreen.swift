@@ -20,6 +20,18 @@ struct FaculdadeHomeScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(Router.self) private var router
 
+    // Long-press na pasta: renomear/trocar cor/excluir — REUSA os componentes
+    // que ja existem (RenameSubjectSheet, SubjectColorPicker, deleteSubject).
+    @State private var renameTarget: SubjectActionTarget?
+    @State private var colorTarget: SubjectActionTarget?
+    @State private var deleteTarget: SubjectActionTarget?
+    @State private var colorRefreshTrigger = UUID()
+
+    private struct SubjectActionTarget: Identifiable {
+        let id: String
+        let name: String
+    }
+
     // Tokens
     private var goldPrimary: Color { VitaColors.accentHover }
     private var goldMuted: Color { VitaColors.accentLight }
@@ -42,6 +54,7 @@ struct FaculdadeHomeScreen: View {
                 heroCard
                 if !isInternato {
                     disciplinesSection
+                        .id(colorRefreshTrigger)
                 }
                 MateriasAgendaWidget(
                     schedule: appData.classSchedule,
@@ -67,6 +80,38 @@ struct FaculdadeHomeScreen: View {
             }
         }
         .trackScreen("Faculdade")
+        .sheet(item: $renameTarget) { t in
+            VitaSheet(detents: [.height(260)]) {
+                RenameSubjectSheet(
+                    subjectId: t.id,
+                    currentName: t.name,
+                    initialDisplayName: appData.enrolledDisciplines.first(where: { $0.id == t.id })?.displayName
+                )
+            }
+        }
+        .sheet(item: $colorTarget) { t in
+            VitaSheet(detents: [.height(380)]) {
+                SubjectColorPicker(subjectName: t.name) { _ in
+                    colorRefreshTrigger = UUID()
+                }
+                .padding(20)
+            }
+        }
+        .confirmationDialog(
+            "Excluir disciplina?",
+            isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }),
+            titleVisibility: .visible,
+            presenting: deleteTarget
+        ) { t in
+            Button("Excluir", role: .destructive) {
+                let id = t.id
+                Task { try? await appData.removeDiscipline(id: id) }
+                deleteTarget = nil
+            }
+            Button("Cancelar", role: .cancel) { deleteTarget = nil }
+        } message: { t in
+            Text("Isso remove \(t.name) e o que esta ligado a ela.")
+        }
     }
 
     // MARK: - In-page actions
@@ -295,6 +340,17 @@ struct FaculdadeHomeScreen: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                renameTarget = SubjectActionTarget(id: subject.id, name: subject.preferredName)
+                            } label: { Label("Renomear", systemImage: "pencil") }
+                            Button {
+                                colorTarget = SubjectActionTarget(id: subject.id, name: subject.preferredName)
+                            } label: { Label("Trocar cor", systemImage: "paintpalette") }
+                            Button(role: .destructive) {
+                                deleteTarget = SubjectActionTarget(id: subject.id, name: subject.preferredName)
+                            } label: { Label("Excluir", systemImage: "trash") }
+                        }
                     }
                 }
             }
