@@ -915,7 +915,9 @@ struct MainTabView: View {
                 onBack: { router.goBack() },
                 onNavigateToFlashcards: { slug in router.navigate(to: .flashcardHome(subjectId: slug.isEmpty ? nil : slug)) },
                 onNavigateToQBank: { router.navigate(to: .qbank) },
-                onNavigateToSimulado: { router.navigate(to: .simuladoHome) }
+                onNavigateToSimulado: { router.navigate(to: .simuladoHome) },
+                onOpenFlashcardDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
+                onOpenQbankSession: { sid in router.navigate(to: .qbankSession(sessionId: sid)) }
             )
         case .faculdadeDisciplinas:
             FaculdadeDisciplinasScreen()

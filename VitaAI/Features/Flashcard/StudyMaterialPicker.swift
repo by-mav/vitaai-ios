@@ -26,6 +26,9 @@ struct StudyMaterialPicker: View {
     /// Recebe os sourceIds JÁ processados (todos `ready`). O tool gera
     /// (generateStudyPack) e devolve rótulo + ação de abrir. Throws em falha.
     let onGenerate: ([String]) async throws -> Result
+    /// Nome da disciplina pra JÁ ligar a pasta dela como filtro ao abrir (vem
+    /// da tela da disciplina). nil = nenhuma pasta ligada, mostra tudo.
+    var initialSubjectName: String? = nil
 
     @Environment(\.appContainer) private var container
     @Environment(\.dismiss) private var dismiss
@@ -397,7 +400,15 @@ struct StudyMaterialPicker: View {
 
     private func load() async {
         isLoading = true; loadError = nil
-        do { docs = try await container.api.getDocuments() }
+        do {
+            docs = try await container.api.getDocuments()
+            // Veio de uma disciplina → já abre com a pasta dela ligada (o aluno
+            // vê primeiro o material daquela matéria, não tudo).
+            if activeSubjects.isEmpty, let s = initialSubjectName,
+               docs.contains(where: { $0.subjectName == s }) {
+                activeSubjects = [s]
+            }
+        }
         catch { loadError = "Não foi possível carregar teus materiais." }
         isLoading = false
     }

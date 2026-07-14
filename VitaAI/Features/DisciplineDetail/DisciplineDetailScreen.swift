@@ -15,6 +15,10 @@ struct DisciplineDetailScreen: View {
     var onNavigateToFlashcards: ((String) -> Void)?
     var onNavigateToQBank: (() -> Void)?
     var onNavigateToSimulado: (() -> Void)?
+    /// Abre a sessão RECÉM-GERADA pelo Vita (deck de flashcards / sessão de
+    /// questões) a partir do material da disciplina. Rafael 2026-07-14.
+    var onOpenFlashcardDeck: ((String) -> Void)?
+    var onOpenQbankSession: ((String) -> Void)?
 
     @State private var vm: DisciplineDetailViewModel?
     @State private var showColorPicker = false
@@ -38,6 +42,8 @@ struct DisciplineDetailScreen: View {
     @State private var renameDocText = ""
     @State private var deleteDocTarget: VitaDocument?
     @State private var studyToast: String?
+    /// Qual estudo o Vita vai GERAR do material da disciplina (abre o picker).
+    @State private var generateKind: GenerateStudyKind?
 
     private var displayName: String { currentName.isEmpty ? disciplineName : currentName }
     @Environment(\.appContainer) private var container
@@ -50,6 +56,12 @@ struct DisciplineDetailScreen: View {
     private var textDim: Color { VitaColors.textWarm.opacity(0.30) }
     private var cardBg: Color { VitaColors.surfaceCard.opacity(0.55) }
     private var glassBorder: Color { VitaColors.textWarm.opacity(0.06) }
+
+    /// O que o Vita gera do material escolhido na disciplina.
+    private enum GenerateStudyKind: String, Identifiable {
+        case flashcards, questoes
+        var id: String { rawValue }
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -140,6 +152,37 @@ struct DisciplineDetailScreen: View {
                 showDocPicker = false
                 uploadPickedPdf(url)
             }
+        }
+        .sheet(item: $generateKind) { kind in
+            // O aluno escolhe o material da disciplina e o Vita GERA na hora
+            // (flashcards ou questões) — igual o Treinar, acessível pela disciplina.
+            // Abre já com a pasta desta disciplina ligada.
+            StudyMaterialPicker(
+                title: kind == .flashcards ? "Criar flashcards" : "Criar questões",
+                actionVerb: kind == .flashcards ? "Gerar flashcards" : "Gerar questões",
+                onGenerate: { sourceIds in
+                    let pack = try await container.api.generateStudyPack(
+                        sourceIds: sourceIds,
+                        mode: "practice",
+                        includeQuestions: kind == .questoes,
+                        includeFlashcards: kind == .flashcards
+                    )
+                    if kind == .flashcards {
+                        let deckId = pack.flashcardDeckId ?? ""
+                        return .init(
+                            label: "\(pack.counts.flashcards) flashcards criados",
+                            open: { onOpenFlashcardDeck?(deckId) }
+                        )
+                    } else {
+                        let sid = pack.qbankSessionId ?? ""
+                        return .init(
+                            label: "\(pack.counts.questions) questões criadas",
+                            open: { onOpenQbankSession?(sid) }
+                        )
+                    }
+                },
+                initialSubjectName: displayName
+            )
         }
         .confirmationDialog("Criar estudo deste arquivo", isPresented: Binding(get: { studyDocTarget != nil }, set: { if !$0 { studyDocTarget = nil } }), titleVisibility: .visible) {
             Button("Flashcards") { if let d = studyDocTarget { studyFromDoc(d, wantFlashcards: true) }; studyDocTarget = nil }
@@ -1019,13 +1062,13 @@ struct DisciplineDetailScreen: View {
                 studyRow(
                     icon: "rectangle.on.rectangle.angled",
                     title: "Flashcards",
-                    detail: flashcardDetail(vm),
-                    badge: vm.flashcardsDue > 0 ? "\(vm.flashcardsDue)" : nil,
-                    badgeColor: VitaColors.dataAmber
+                    detail: "O Vita monta do seu material",
+                    badge: nil,
+                    badgeColor: .clear
                 ) {
-                    // Passa o SLUG da disciplina (não o id nem o deck) pra abrir
-                    // os flashcards escopados nela — senão mostrava todos os cards.
-                    onNavigateToFlashcards?(vm.subjectSlug ?? "")
+                    // O Vita GERA flashcards do material que o aluno escolher
+                    // (slide/prova da disciplina) — não lista prateleira. Rafael 2026-07-14.
+                    generateKind = .flashcards
                 }
 
                 Rectangle().fill(glassBorder).frame(height: 0.5)
@@ -1033,11 +1076,11 @@ struct DisciplineDetailScreen: View {
                 studyRow(
                     icon: "list.bullet.clipboard",
                     title: "Questões",
-                    detail: questoesDetail(vm),
+                    detail: "O Vita cria do seu material",
                     badge: nil,
                     badgeColor: .clear
                 ) {
-                    onNavigateToQBank?()
+                    generateKind = .questoes
                 }
 
                 Rectangle().fill(glassBorder).frame(height: 0.5)
