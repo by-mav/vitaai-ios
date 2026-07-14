@@ -29,6 +29,10 @@ struct DisciplineDetailScreen: View {
     @State private var renameText = ""
     @State private var showRenameProfessor = false
     @State private var renameProfText = ""
+    @State private var docSearch = ""
+    @State private var showAddSheet = false
+    @State private var showDocPicker = false
+    @State private var uploading = false
 
     private var displayName: String { currentName.isEmpty ? disciplineName : currentName }
     @Environment(\.appContainer) private var container
@@ -112,6 +116,45 @@ struct DisciplineDetailScreen: View {
                     await vm?.load()
                 }
             }
+        }
+        .sheet(isPresented: $showAddSheet) {
+            VitaSheet {
+                VitaAddSheet(onSelect: { kind in
+                    showAddSheet = false
+                    handleAddKind(kind)
+                })
+            }
+        }
+        .sheet(isPresented: $showDocPicker) {
+            PdfTabDocumentPicker { url in
+                showDocPicker = false
+                uploadPickedPdf(url)
+            }
+        }
+    }
+
+    // "+" da disciplina: gaveta canônica escopada. Documento/Prova sobem um PDF
+    // direto pra ESTA disciplina (aparece em Arquivos). Transcrição/Nota abrem
+    // os fluxos existentes. Rafael 2026-07-13.
+    private func handleAddKind(_ kind: VitaAddSheet.Kind) {
+        switch kind {
+        case .documento, .prova: showDocPicker = true
+        case .transcricao: router.navigate(to: .transcricao)
+        case .nota: router.navigate(to: .transcricao)
+        }
+    }
+
+    private func uploadPickedPdf(_ url: URL) {
+        let didAccess = url.startAccessingSecurityScopedResource()
+        let data = try? Data(contentsOf: url)
+        if didAccess { url.stopAccessingSecurityScopedResource() }
+        guard let data else { return }
+        let name = url.lastPathComponent
+        uploading = true
+        Task {
+            _ = try? await container.api.uploadDocument(fileData: data, fileName: name, subjectId: disciplineId)
+            await vm?.load()
+            uploading = false
         }
     }
 
@@ -356,9 +399,21 @@ struct DisciplineDetailScreen: View {
     private func unifiedCard(vm: DisciplineDetailViewModel) -> some View {
         VitaGlassCard {
             VStack(alignment: .leading, spacing: 0) {
-                VitaSubTabBar(titles: ["Arquivos", "Trabalhos", "Provas"], selected: $activeTab)
-                    .padding(.top, 14)
-                    .padding(.bottom, 8)
+                HStack(spacing: 4) {
+                    VitaSubTabBar(titles: ["Arquivos", "Trabalhos", "Provas"], selected: $activeTab)
+                    Button { showAddSheet = true } label: {
+                        Image(systemName: uploading ? "arrow.up.circle" : "plus")
+                            .font(.system(size: 15, weight: .semibold))  // ds-allow: fontes cruas — padrão desta tela
+                            .foregroundStyle(goldPrimary)
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(VitaColors.accent.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(uploading)
+                    .padding(.trailing, 14)
+                }
+                .padding(.top, 14)
+                .padding(.bottom, 8)
 
                 Rectangle().fill(glassBorder).frame(height: 0.5)
 
@@ -380,20 +435,56 @@ struct DisciplineDetailScreen: View {
         if allDocs.isEmpty {
             emptyTab(icon: "folder", text: "Nenhum arquivo ainda")
         } else {
-            let cats = categorizedDocs(allDocs)
-            let shown = showAllArquivos ? cats : capCategories(cats, limit: tabPreviewLimit)
+            let q = docSearch.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+                .trimmingCharacters(in: .whitespaces)
+            let filtered = q.isEmpty ? allDocs : allDocs.filter {
+                ($0.title.isEmpty ? $0.fileName : $0.title)
+                    .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).contains(q)
+            }
             VStack(alignment: .leading, spacing: 0) {
-                tabCount(allDocs.count, singular: "arquivo", plural: "arquivos")
-                ForEach(shown) { cat in
-                    docCategorySection(cat)
-                }
-                if allDocs.count > tabPreviewLimit {
-                    verMaisRow(total: allDocs.count, expanded: showAllArquivos) {
-                        showAllArquivos.toggle()
+                if allDocs.count > 6 { docSearchField }
+                if q.isEmpty {
+                    let cats = categorizedDocs(allDocs)
+                    let shown = showAllArquivos ? cats : capCategories(cats, limit: tabPreviewLimit)
+                    tabCount(allDocs.count, singular: "arquivo", plural: "arquivos")
+                    ForEach(shown) { cat in docCategorySection(cat) }
+                    if allDocs.count > tabPreviewLimit {
+                        verMaisRow(total: allDocs.count, expanded: showAllArquivos) { showAllArquivos.toggle() }
                     }
+                } else if filtered.isEmpty {
+                    emptyTab(icon: "magnifyingglass", text: "Nada encontrado")
+                } else {
+                    tabCount(filtered.count, singular: "resultado", plural: "resultados")
+                    ForEach(categorizedDocs(filtered)) { cat in docCategorySection(cat) }
                 }
             }
         }
+    }
+
+    private var docSearchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12))  // ds-allow: fontes cruas — padrão desta tela
+                .foregroundStyle(textDim)
+            TextField("Buscar arquivo...", text: $docSearch)
+                .font(.system(size: 13))  // ds-allow: fontes cruas — padrão desta tela
+                .foregroundStyle(textPrimary)
+                .autocorrectionDisabled()
+            if !docSearch.isEmpty {
+                Button { docSearch = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 13))  // ds-allow: fontes cruas — padrão desta tela
+                        .foregroundStyle(textDim)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(VitaColors.glassBg))  // ds-allow: campo de busca
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(glassBorder, lineWidth: 0.5))  // ds-allow: campo de busca
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
     }
 
     @ViewBuilder

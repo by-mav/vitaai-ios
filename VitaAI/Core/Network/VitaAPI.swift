@@ -512,6 +512,12 @@ actor VitaAPI {
         try await client.uploadFileMultipart("studio/upload", fileData: fileData, fileName: fileName, mimeType: mimeType)
     }
 
+    /// Sobe um PDF direto pra disciplina (POST /api/documents/upload, multipart
+    /// file+subjectId). Aparece na aba Arquivos. Rafael 2026-07-13.
+    func uploadDocument(fileData: Data, fileName: String, subjectId: String) async throws -> VitaDocument {
+        try await client.uploadExamMultipart("documents/upload", fileData: fileData, fileName: fileName, mimeType: "application/pdf", subjectId: subjectId)
+    }
+
     struct AddToDeckResponse: Decodable {
         let deckId: String
         let addedCount: Int
