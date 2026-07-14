@@ -518,6 +518,19 @@ actor VitaAPI {
         try await client.uploadExamMultipart("documents/upload", fileData: fileData, fileName: fileName, mimeType: "application/pdf", subjectId: subjectId)
     }
 
+    // CRUD de documento (VitaDocument) — endpoints ja existem no backend.
+    // Renomeia so o title de exibicao (PATCH /api/documents {id,title}).
+    func renameDocument(id: String, title: String) async throws {
+        struct Body: Encodable { let id: String; let title: String }
+        try await client.patch("documents", body: Body(id: id, title: title))
+    }
+    func deleteDocument(id: String) async throws {
+        try await client.delete("documents", queryItems: [URLQueryItem(name: "id", value: id)])
+    }
+    func toggleDocumentFavorite(id: String) async throws {
+        let _: EmptyResponse = try await client.post("documents/\(id)/favorite")
+    }
+
     struct AddToDeckResponse: Decodable {
         let deckId: String
         let addedCount: Int

@@ -33,6 +33,11 @@ struct DisciplineDetailScreen: View {
     @State private var showAddSheet = false
     @State private var showDocPicker = false
     @State private var uploading = false
+    @State private var studyDocTarget: VitaDocument?
+    @State private var renameDocTarget: VitaDocument?
+    @State private var renameDocText = ""
+    @State private var deleteDocTarget: VitaDocument?
+    @State private var studyToast: String?
 
     private var displayName: String { currentName.isEmpty ? disciplineName : currentName }
     @Environment(\.appContainer) private var container
@@ -131,6 +136,44 @@ struct DisciplineDetailScreen: View {
                 uploadPickedPdf(url)
             }
         }
+        .confirmationDialog("Criar estudo deste arquivo", isPresented: Binding(get: { studyDocTarget != nil }, set: { if !$0 { studyDocTarget = nil } }), titleVisibility: .visible) {
+            Button("Flashcards") { if let d = studyDocTarget { studyFromDoc(d, wantFlashcards: true) }; studyDocTarget = nil }
+            Button("Questões") { if let d = studyDocTarget { studyFromDoc(d, wantFlashcards: false) }; studyDocTarget = nil }
+            Button("Cancelar", role: .cancel) { studyDocTarget = nil }
+        }
+        .alert("Renomear arquivo", isPresented: Binding(get: { renameDocTarget != nil }, set: { if !$0 { renameDocTarget = nil } })) {
+            TextField("Nome", text: $renameDocText)
+            Button("Cancelar", role: .cancel) { renameDocTarget = nil }
+            Button("Salvar") {
+                if let d = renameDocTarget {
+                    let n = renameDocText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !n.isEmpty { Task { try? await container.api.renameDocument(id: d.id, title: n); await vm?.load() } }
+                }
+                renameDocTarget = nil
+            }
+        }
+        .confirmationDialog("Excluir este arquivo?", isPresented: Binding(get: { deleteDocTarget != nil }, set: { if !$0 { deleteDocTarget = nil } }), titleVisibility: .visible) {
+            Button("Excluir", role: .destructive) {
+                if let d = deleteDocTarget { Task { try? await container.api.deleteDocument(id: d.id); await vm?.load() } }
+                deleteDocTarget = nil
+            }
+            Button("Cancelar", role: .cancel) { deleteDocTarget = nil }
+        }
+        .overlay(alignment: .bottom) {
+            if let toast = studyToast {
+                Text(toast)
+                    .font(.system(size: 13, weight: .medium))  // ds-allow: fontes cruas — padrão desta tela
+                    .foregroundStyle(VitaColors.surface)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .background(Capsule().fill(VitaColors.accent))
+                    .padding(.bottom, 90)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .task {
+                        try? await Task.sleep(nanoseconds: 2_600_000_000)
+                        withAnimation { studyToast = nil }
+                    }
+            }
+        }
     }
 
     // "+" da disciplina: gaveta canônica escopada. Documento/Prova sobem um PDF
@@ -155,6 +198,54 @@ struct DisciplineDetailScreen: View {
             _ = try? await container.api.uploadDocument(fileData: data, fileName: name, subjectId: disciplineId)
             await vm?.load()
             uploading = false
+        }
+    }
+
+    // Menu "..." (long-press) canônico por arquivo (C). Renomear/Favoritar/
+    // Compartilhar/Excluir ligados nos endpoints que já existem.
+    @ViewBuilder
+    private func docContextMenu(_ doc: VitaDocument) -> some View {
+        Button {
+            renameDocText = doc.title.isEmpty ? doc.fileName : doc.title
+            renameDocTarget = doc
+        } label: { Label("Renomear", systemImage: "pencil") }
+
+        Button {
+            Task {
+                try? await container.api.toggleDocumentFavorite(id: doc.id)
+                await vm?.load()
+            }
+        } label: {
+            Label(doc.isFavorite ? "Desfavoritar" : "Favoritar",
+                  systemImage: doc.isFavorite ? "star.slash" : "star")
+        }
+
+        if let url = URL(string: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file") {
+            ShareLink(item: url) { Label("Compartilhar", systemImage: "square.and.arrow.up") }
+        }
+
+        Button(role: .destructive) { deleteDocTarget = doc } label: {
+            Label("Excluir", systemImage: "trash")
+        }
+    }
+
+    // Gera material de estudo a partir de UM arquivo (B). Prepara a fonte e
+    // dispara o study pack (flashcards ou questões).
+    private func studyFromDoc(_ doc: VitaDocument, wantFlashcards: Bool) {
+        Task {
+            studyToast = wantFlashcards ? "Gerando flashcards…" : "Gerando questões…"
+            guard let src = try? await container.api.ensureDocumentStudySource(documentId: doc.id) else {
+                studyToast = "Não deu pra preparar o material"
+                return
+            }
+            _ = try? await container.api.generateStudyPack(
+                sourceIds: [src.studioSourceId],
+                title: doc.title.isEmpty ? doc.fileName : doc.title,
+                includeQuestions: !wantFlashcards,
+                includeFlashcards: wantFlashcards
+            )
+            studyToast = wantFlashcards ? "Flashcards criados de \(doc.title.isEmpty ? doc.fileName : doc.title)"
+                                        : "Questões criadas de \(doc.title.isEmpty ? doc.fileName : doc.title)"
         }
     }
 
@@ -1088,47 +1179,63 @@ struct DisciplineDetailScreen: View {
                     Rectangle().fill(glassBorder).frame(height: 0.5)
                         .padding(.horizontal, 16)
                 }
-                Button {
-                    router.navigate(to: .pdfViewer(
-                        url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file",
-                        title: doc.title,
-                        documentId: doc.id,
-                        studioSourceId: doc.studioSourceId
-                    ))
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: docIcon(doc.fileName))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(cat.color.opacity(0.80))
-                            .frame(width: 24, height: 24)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(cat.color.opacity(0.10))
-                            )
+                HStack(spacing: 6) {
+                    Button {
+                        router.navigate(to: .pdfViewer(
+                            url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file",
+                            title: doc.title,
+                            documentId: doc.id,
+                            studioSourceId: doc.studioSourceId
+                        ))
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: docIcon(doc.fileName))
+                                .font(.system(size: 12, weight: .semibold))  // ds-allow: fontes cruas — padrão desta tela
+                                .foregroundStyle(cat.color.opacity(0.80))
+                                .frame(width: 24, height: 24)
+                                .background(RoundedRectangle(cornerRadius: 6).fill(cat.color.opacity(0.10)))  // ds-allow: ícone do arquivo
 
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(doc.title.isEmpty ? doc.fileName : doc.title)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(textPrimary)
-                                .lineLimit(1)
-                            // Prioriza data REAL do portal sobre data do nosso ingest.
-                            if let date = doc.displayDate {
-                                Text(formatDate(date, format: "dd/MM/yyyy"))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(textDim)
+                            VStack(alignment: .leading, spacing: 1) {
+                                HStack(spacing: 5) {
+                                    Text(doc.title.isEmpty ? doc.fileName : doc.title)
+                                        .font(.system(size: 12, weight: .medium))  // ds-allow: fontes cruas — padrão desta tela
+                                        .foregroundStyle(textPrimary)
+                                        .lineLimit(1)
+                                    if doc.isFavorite {
+                                        Image(systemName: "star.fill")
+                                            .font(.system(size: 8))  // ds-allow: fontes cruas — padrão desta tela
+                                            .foregroundStyle(VitaColors.dataAmber)
+                                    }
+                                }
+                                if let date = doc.displayDate {
+                                    Text(formatDate(date, format: "dd/MM/yyyy"))
+                                        .font(.system(size: 10))  // ds-allow: fontes cruas — padrão desta tela
+                                        .foregroundStyle(textDim)
+                                }
                             }
+                            Spacer(minLength: 0)
                         }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(textDim)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .buttonStyle(.plain)
+
+                    // ✦ criar estudo deste arquivo (B)
+                    Button { studyDocTarget = doc } label: {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 13, weight: .semibold))  // ds-allow: fontes cruas — padrão desta tela
+                            .foregroundStyle(cat.color.opacity(0.9))
+                            .frame(width: 30, height: 30)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))  // ds-allow: fontes cruas — padrão desta tela
+                        .foregroundStyle(textDim)
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .contextMenu { docContextMenu(doc) }
             }
         }
     }
