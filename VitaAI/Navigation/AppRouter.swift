@@ -913,7 +913,7 @@ struct MainTabView: View {
                 disciplineId: disciplineId,
                 disciplineName: disciplineName,
                 onBack: { router.goBack() },
-                onNavigateToFlashcards: { _ in router.navigate(to: .flashcardHome(subjectId: disciplineId)) },
+                onNavigateToFlashcards: { slug in router.navigate(to: .flashcardHome(subjectId: slug.isEmpty ? nil : slug)) },
                 onNavigateToQBank: { router.navigate(to: .qbank) },
                 onNavigateToSimulado: { router.navigate(to: .simuladoHome) }
             )

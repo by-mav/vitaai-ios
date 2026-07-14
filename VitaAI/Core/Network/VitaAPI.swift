@@ -1055,6 +1055,13 @@ actor VitaAPI {
         return try await client.patch("subjects/\(id)", body: Body(displayName: displayName))
     }
 
+    /// Renomeia o professor da disciplina (PATCH subjects/{id} {professor}).
+    /// Vazio/nil limpa. Rafael 2026-07-13.
+    func renameProfessor(id: String, professor: String?) async throws -> AcademicSubject {
+        struct Body: Encodable { let professor: String? }
+        return try await client.patch("subjects/\(id)", body: Body(professor: professor))
+    }
+
     /// Remover (soft-delete) uma disciplina do aluno. O backend seta deletedAt
     /// e a disciplina some do GET /api/subjects. DELETE /api/subjects/{id}.
     func deleteSubject(id: String) async throws {

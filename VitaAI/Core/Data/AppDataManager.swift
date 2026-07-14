@@ -246,6 +246,20 @@ final class AppDataManager {
         await refreshEnrolled()
     }
 
+    /// Renomeia o professor da disciplina. nil/vazio limpa. Rafael 2026-07-13.
+    func renameProfessor(id: String, professor: String?) async {
+        let trimmed = professor?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let payload = (trimmed?.isEmpty == true) ? nil : trimmed
+        guard let updated = try? await api.renameProfessor(id: id, professor: payload) else {
+            NSLog("[rename] PATCH professor failed for subject \(id)")
+            return
+        }
+        if let idx = allDisciplines.firstIndex(where: { $0.id == id }) {
+            allDisciplines[idx].professor = updated.professor
+        }
+        await refreshEnrolled()
+    }
+
     // MARK: - Private
 
     /// VitaScore lookup by subject name (case/diacritics insensitive)

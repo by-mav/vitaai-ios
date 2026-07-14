@@ -136,6 +136,17 @@ final class DisciplineDetailViewModel {
         }
     }
 
+    /// Slug canônico da disciplina (o MESMO que os decks/flashcards usam pra
+    /// filtrar). Usado pra abrir os flashcards ESCOPADOS nesta disciplina —
+    /// passar o disciplineId cru filtrava errado e mostrava todos os cards.
+    var subjectSlug: String? {
+        if let enrolled = dataManager?.enrolledDisciplines.first(where: { $0.id == disciplineId }),
+           let slug = enrolled.disciplineSlug, !slug.isEmpty {
+            return slug
+        }
+        return subjectDecks.compactMap { $0.disciplineSlug }.first
+    }
+
     /// Uses server-computed dueCount (summary=true path). Fallback to manual
     /// card filter kept for the full-path cases that still hydrate cards[].
     var flashcardsDue: Int {

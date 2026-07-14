@@ -17,7 +17,6 @@ struct DisciplineDetailScreen: View {
     var onNavigateToSimulado: (() -> Void)?
 
     @State private var vm: DisciplineDetailViewModel?
-    @State private var showProfessorSheet = false
     @State private var showColorPicker = false
     @State private var colorRefreshTrigger: UUID = UUID()
     @State private var activeTab: Int = 0  // 0=Arquivos 1=Trabalhos 2=Provas
@@ -25,6 +24,13 @@ struct DisciplineDetailScreen: View {
     @State private var showAllTrabalhos = false
     @State private var showAllProvas = false
     private let tabPreviewLimit = 5
+    @State private var currentName: String = ""
+    @State private var showRenameDiscipline = false
+    @State private var renameText = ""
+    @State private var showRenameProfessor = false
+    @State private var renameProfText = ""
+
+    private var displayName: String { currentName.isEmpty ? disciplineName : currentName }
     @Environment(\.appContainer) private var container
 
     // Tokens — same as FaculdadeHomeScreen
@@ -87,10 +93,24 @@ struct DisciplineDetailScreen: View {
             ScreenLoadContext.finish(for: "DisciplineDetail")
         }
         .trackScreen("DisciplineDetail", extra: ["subject_id": disciplineId])
-        // vita-modals-ignore: VitaSheet wrapping inside closure (hook regex false positive)
-        .sheet(isPresented: $showProfessorSheet) {
-            VitaSheet {
-                ProfessorProfileSheet(subjectId: disciplineId)
+        .alert("Renomear disciplina", isPresented: $showRenameDiscipline) {
+            TextField("Nome da disciplina", text: $renameText)
+            Button("Cancelar", role: .cancel) {}
+            Button("Salvar") {
+                let n = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+                currentName = n
+                Task { await container.dataManager.renameSubject(id: disciplineId, displayName: n.isEmpty ? nil : n) }
+            }
+        }
+        .alert("Renomear professor", isPresented: $showRenameProfessor) {
+            TextField("Professor", text: $renameProfText)
+            Button("Cancelar", role: .cancel) {}
+            Button("Salvar") {
+                let n = renameProfText.trimmingCharacters(in: .whitespacesAndNewlines)
+                Task {
+                    await container.dataManager.renameProfessor(id: disciplineId, professor: n.isEmpty ? nil : n)
+                    await vm?.load()
+                }
             }
         }
     }
@@ -137,12 +157,25 @@ struct DisciplineDetailScreen: View {
                     }
                     .padding(.bottom, 6)
 
-                    Text(disciplineName)
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color.white)
-                        .kerning(-0.4)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.7)
+                    Button {
+                        renameText = displayName
+                        showRenameDiscipline = true
+                    } label: {
+                        HStack(alignment: .top, spacing: 6) {
+                            Text(displayName)
+                                .font(.system(size: 20, weight: .bold))  // ds-allow: fontes cruas — padrão desta tela
+                                .foregroundStyle(Color.white)
+                                .kerning(-0.4)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.7)
+                                .multilineTextAlignment(.leading)
+                            Image(systemName: "pencil")
+                                .font(.system(size: 10, weight: .semibold))  // ds-allow: fontes cruas — padrão desta tela
+                                .foregroundStyle(goldMuted.opacity(0.45))
+                                .padding(.top, 5)
+                        }
+                    }
+                    .buttonStyle(.plain)
 
                     // Workload + absences info
                     HStack(spacing: 12) {
@@ -178,23 +211,22 @@ struct DisciplineDetailScreen: View {
 
                     // Professor + room
                     HStack(spacing: 12) {
-                        if let prof = vm.professorName {
-                            Button {
-                                showProfessorSheet = true
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 9))
-                                    Text(prof)
-                                        .font(.system(size: 11, weight: .medium))
-                                        .lineLimit(1)
-                                    Image(systemName: "info.circle")
-                                        .font(.system(size: 9))
-                                }
-                                .foregroundStyle(goldMuted.opacity(0.80))
+                        Button {
+                            renameProfText = vm.professorName ?? ""
+                            showRenameProfessor = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 9))  // ds-allow: fontes cruas — padrão desta tela
+                                Text(vm.professorName ?? "Adicionar professor")
+                                    .font(.system(size: 11, weight: .medium))  // ds-allow: fontes cruas — padrão desta tela
+                                    .lineLimit(1)
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 8))  // ds-allow: fontes cruas — padrão desta tela
                             }
-                            .buttonStyle(.plain)
+                            .foregroundStyle(goldMuted.opacity(0.80))
                         }
+                        .buttonStyle(.plain)
                         if let room = vm.room {
                             HStack(spacing: 4) {
                                 Image(systemName: "mappin")
@@ -809,7 +841,9 @@ struct DisciplineDetailScreen: View {
                     badge: vm.flashcardsDue > 0 ? "\(vm.flashcardsDue)" : nil,
                     badgeColor: VitaColors.dataAmber
                 ) {
-                    onNavigateToFlashcards?(vm.subjectDecks.first?.id ?? "")
+                    // Passa o SLUG da disciplina (não o id nem o deck) pra abrir
+                    // os flashcards escopados nela — senão mostrava todos os cards.
+                    onNavigateToFlashcards?(vm.subjectSlug ?? "")
                 }
 
                 Rectangle().fill(glassBorder).frame(height: 0.5)
