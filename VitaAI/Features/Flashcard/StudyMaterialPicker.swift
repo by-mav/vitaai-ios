@@ -29,6 +29,9 @@ struct StudyMaterialPicker: View {
     /// Nome da disciplina pra JÁ ligar a pasta dela como filtro ao abrir (vem
     /// da tela da disciplina). nil = nenhuma pasta ligada, mostra tudo.
     var initialSubjectName: String? = nil
+    /// Material único a gerar DIRETO ao abrir (botão rápido num material
+    /// recente): pula a escolha e já entra gerando. nil = fluxo normal de escolha.
+    var autoStartDocument: VitaDocument? = nil
 
     @Environment(\.appContainer) private var container
     @Environment(\.dismiss) private var dismiss
@@ -73,7 +76,18 @@ struct StudyMaterialPicker: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .interactiveDismissDisabled(phase == .working)
-        .task { await load() }
+        .task {
+            // Auto-start (botão rápido num material recente): já entra gerando
+            // AQUELE material, sem passar pela escolha. Rafael 2026-07-14.
+            if let doc = autoStartDocument {
+                docs = [doc]
+                selected = [doc.id]
+                isLoading = false
+                await run()
+            } else {
+                await load()
+            }
+        }
     }
 
     // MARK: - Picking (pastas-filtro + busca + lista)
@@ -423,23 +437,25 @@ struct StudyMaterialPicker: View {
             var sourceIds: [String] = []
             for (i, doc) in picked.enumerated() {
                 progressText = "Lendo o material \(i + 1)/\(picked.count)..."
-                // 1ª tentativa sem texto: se já existe source pronto, volta na hora.
-                var resp = try await container.api.ensureDocumentStudySource(documentId: doc.id)
-                if resp.status != "ready" {
-                    // PDF externo (Canvas): o servidor não baixa — extraímos aqui.
+                // 1ª sondagem BEST-EFFORT: se já existe source pronto, volta na
+                // hora. Office/externo sem texto retorna erro aqui (não é PDF nativo)
+                // — NÃO abortamos: extraímos o texto (o /file já converte Office->PDF
+                // via Gotenberg) e reenviamos. Rafael 2026-07-14.
+                var resp = try? await container.api.ensureDocumentStudySource(documentId: doc.id)
+                if resp?.status != "ready" {
                     guard let text = await extractPdfText(documentId: doc.id) else {
-                        throw PickerError(message: resp.errorMessage
-                            ?? "Não consegui ler \"\(doc.title)\". Tenta abrir o PDF uma vez e gerar de novo.")
+                        throw PickerError(message: resp?.errorMessage
+                            ?? "Não consegui ler \"\(doc.title)\". Tenta abrir o material uma vez e gerar de novo.")
                     }
                     resp = try await container.api.ensureDocumentStudySource(
                         documentId: doc.id, extractedText: text
                     )
                 }
-                guard resp.status == "ready" else {
-                    throw PickerError(message: resp.errorMessage
+                guard let ready = resp, ready.status == "ready" else {
+                    throw PickerError(message: resp?.errorMessage
                         ?? "\"\(doc.title)\" não pôde ser processado.")
                 }
-                sourceIds.append(resp.studioSourceId)
+                sourceIds.append(ready.studioSourceId)
             }
             progressText = "Gerando..."
             let r = try await onGenerate(sourceIds)

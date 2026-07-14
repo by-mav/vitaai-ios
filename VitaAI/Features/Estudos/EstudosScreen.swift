@@ -69,6 +69,17 @@ private struct EstudosContent: View {
     @Bindable var viewModel: EstudosViewModel
     @Environment(\.appData) private var appData
     @Environment(Router.self) private var router
+    @Environment(\.appContainer) private var container
+
+    // Ação rápida "o Vita monta do material" em cada material recente (mesmo
+    // motor vLLM do StudyMaterialPicker, mas já gerando aquele arquivo). Rafael 2026-07-14.
+    enum QuickGenKind: String { case flashcards, questoes }
+    struct QuickGen: Identifiable {
+        let doc: VitaDocument
+        let kind: QuickGenKind
+        var id: String { doc.id + kind.rawValue }
+    }
+    @State private var quickGen: QuickGen?
 
     let onNavigateToCanvasConnect:    (() -> Void)?
     let onNavigateToNotebooks:         (() -> Void)?
@@ -158,6 +169,36 @@ private struct EstudosContent: View {
         }
         .refreshable {
             await viewModel.load()
+        }
+        .sheet(item: $quickGen) { g in
+            // Reusa o MESMO motor vLLM (StudyMaterialPicker), mas já gerando o
+            // material tocado — sem escolher nada. Cai direto na sessão gerada.
+            StudyMaterialPicker(
+                title: g.kind == .flashcards ? "Criar flashcards" : "Criar questões",
+                actionVerb: g.kind == .flashcards ? "Gerar flashcards" : "Gerar questões",
+                onGenerate: { sourceIds in
+                    let pack = try await container.api.generateStudyPack(
+                        sourceIds: sourceIds,
+                        mode: "practice",
+                        includeQuestions: g.kind == .questoes,
+                        includeFlashcards: g.kind == .flashcards
+                    )
+                    if g.kind == .flashcards {
+                        let deckId = pack.flashcardDeckId ?? ""
+                        return .init(
+                            label: "\(pack.counts.flashcards) flashcards criados",
+                            open: { onNavigateToFlashcardSession?(deckId) }
+                        )
+                    } else {
+                        let sid = pack.qbankSessionId ?? ""
+                        return .init(
+                            label: "\(pack.counts.questions) questões criadas",
+                            open: { router.navigate(to: .qbankSession(sessionId: sid)) }
+                        )
+                    }
+                },
+                autoStartDocument: g.doc
+            )
         }
     }
 
@@ -407,7 +448,8 @@ private struct EstudosContent: View {
                                         documentId: document.id,
                                         studioSourceId: document.studioSourceId
                                     ))
-                                }
+                                },
+                                onGenerate: { kind in quickGen = QuickGen(doc: document, kind: kind) }
                             )
                         }
                     }
@@ -684,6 +726,7 @@ private struct AtlasTallCard: View {
 private struct MaterialCard: View {
     let document: VitaDocument
     let onTap: () -> Void
+    let onGenerate: (EstudosContent.QuickGenKind) -> Void
 
     var body: some View {
         Button(action: onTap) {
@@ -724,6 +767,26 @@ private struct MaterialCard: View {
             .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            // ✦ = "o Vita monta estudo DESTE material" (direto, sem entrar).
+            // Overlay por cima do card: pega o toque do ✦; o resto abre o material.
+            Menu {
+                Button { onGenerate(.flashcards) } label: {
+                    Label("Fazer flashcards", systemImage: "rectangle.on.rectangle.angled")
+                }
+                Button { onGenerate(.questoes) } label: {
+                    Label("Fazer questões", systemImage: "list.bullet.clipboard")
+                }
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .bold)) // ds-allow: botão de ação rápida — área de toque
+                    .foregroundStyle(VitaColors.surface)
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(VitaColors.accentHover))
+                    .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
+            }
+            .padding(6)
+        }
         .accessibilityLabel(document.title.isEmpty ? document.fileName : document.title)
     }
 }
