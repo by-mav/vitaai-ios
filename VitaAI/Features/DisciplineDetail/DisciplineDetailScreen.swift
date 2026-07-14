@@ -1117,6 +1117,7 @@ struct DisciplineDetailScreen: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(textDim)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
