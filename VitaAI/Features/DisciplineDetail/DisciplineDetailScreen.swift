@@ -20,6 +20,7 @@ struct DisciplineDetailScreen: View {
     @State private var showProfessorSheet = false
     @State private var showColorPicker = false
     @State private var colorRefreshTrigger: UUID = UUID()
+    @State private var activeTab: Int = 0  // 0=Arquivos 1=Trabalhos 2=Provas
     @Environment(\.appContainer) private var container
 
     // Tokens — same as FaculdadeHomeScreen
@@ -53,13 +54,8 @@ struct DisciplineDetailScreen: View {
                 } else {
                     VStack(spacing: 14) {
                         heroCard(vm: vm)
-                        gradesCard(vm: vm)
-                        scheduleCard(vm: vm)
-                        nextExamCard(vm: vm)
-                        allExamsCard(vm: vm)
-                        trabalhosCard(vm: vm)
+                        unifiedCard(vm: vm)
                         studyCard(vm: vm)
-                        documentsCard(vm: vm)
                         Spacer().frame(height: 100)
                     }
                     .padding(.horizontal, 16)
@@ -207,6 +203,20 @@ struct DisciplineDetailScreen: View {
                     }
                     .padding(.top, 2)
 
+                    // Horários (movido pro hero — antes era card separado)
+                    if !vm.subjectSchedule.isEmpty {
+                        HStack(spacing: 5) {
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.system(size: 9))  // ds-allow: fontes cruas — padrão desta tela
+                            Text(scheduleSummary(vm.subjectSchedule))
+                                .font(.system(size: 11, weight: .medium, design: .rounded))  // ds-allow: fontes cruas — padrão desta tela
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                        }
+                        .foregroundStyle(goldMuted.opacity(0.75))
+                        .padding(.top, 4)
+                    }
+
                     // Average
                     if let avg = vm.currentAverage {
                         let allGraded = vm.gradeSlots.allSatisfy { $0.value != nil }
@@ -259,7 +269,7 @@ struct DisciplineDetailScreen: View {
                 .frame(width: 280)
             }
         }
-        .frame(height: 162)
+        .frame(minHeight: 162)
         .id(colorRefreshTrigger)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
@@ -307,12 +317,160 @@ struct DisciplineDetailScreen: View {
         }
     }
 
-    // MARK: - Grades Card (P1/P2/P3/Final/Freq)
+    // MARK: - Unified card (Arquivos · Trabalhos · Provas)
+    // Rafael 2026-07-13: um card só pra disciplina, com tabs em cima. Reusa os
+    // builders de linha (docCategorySection/trabalhoRow/examRow) — sem duplicar.
 
     @ViewBuilder
-    private func gradesCard(vm: DisciplineDetailViewModel) -> some View {
+    private func unifiedCard(vm: DisciplineDetailViewModel) -> some View {
         VitaGlassCard {
-            VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                VitaSubTabBar(titles: ["Arquivos", "Trabalhos", "Provas"], selected: $activeTab)
+                    .padding(.top, 14)
+                    .padding(.bottom, 8)
+
+                Rectangle().fill(glassBorder).frame(height: 0.5)
+
+                Group {
+                    switch activeTab {
+                    case 1: trabalhosInner(vm: vm)
+                    case 2: provasInner(vm: vm)
+                    default: arquivosInner(vm: vm)
+                    }
+                }
+                .padding(.bottom, 14)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func arquivosInner(vm: DisciplineDetailViewModel) -> some View {
+        let allDocs = vm.subjectDocuments
+        if allDocs.isEmpty {
+            emptyTab(icon: "folder", text: "Nenhum arquivo ainda")
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                tabCount(allDocs.count, singular: "arquivo", plural: "arquivos")
+                ForEach(categorizedDocs(allDocs)) { cat in
+                    docCategorySection(cat)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func trabalhosInner(vm: DisciplineDetailViewModel) -> some View {
+        let items = vm.subjectTrabalhos
+        if items.isEmpty {
+            emptyTab(icon: "doc.badge.clock", text: "Nenhum trabalho ainda")
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    tabCountText(items.count, singular: "trabalho", plural: "trabalhos")
+                    Spacer()
+                    if !vm.trabalhosPending.isEmpty {
+                        Text("\(vm.trabalhosPending.count) pendente\(vm.trabalhosPending.count > 1 ? "s" : "")")
+                            .font(.system(size: 10, weight: .bold))  // ds-allow: fontes cruas — padrão desta tela
+                            .foregroundStyle(VitaColors.dataAmber)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(VitaColors.dataAmber.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 6)
+
+                ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                    if idx > 0 { rowDivider }
+                    Button {
+                        router.navigate(to: .trabalhoDetail(id: item.id))
+                    } label: {
+                        trabalhoRow(item)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func provasInner(vm: DisciplineDetailViewModel) -> some View {
+        let allExams = vm.subjectExams
+        let hasNothing = !vm.hasAnyGrade && allExams.isEmpty && vm.nextExam == nil
+        if hasNothing {
+            emptyTab(icon: "checkmark.seal", text: "Nenhuma prova registrada ainda")
+        } else {
+            VStack(alignment: .leading, spacing: 14) {
+                gradesInner(vm: vm)
+                if let exam = vm.nextExam {
+                    nextExamInline(exam)
+                }
+                if !allExams.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        tabCount(allExams.count, singular: "avaliação", plural: "avaliações")
+                        ForEach(Array(allExams.enumerated()), id: \.element.id) { idx, exam in
+                            if idx > 0 { rowDivider }
+                            examRow(exam)
+                        }
+                    }
+                }
+            }
+            .padding(.top, 12)
+        }
+    }
+
+    // MARK: - Unified helpers
+
+    private var rowDivider: some View {
+        Rectangle().fill(glassBorder).frame(height: 0.5).padding(.horizontal, 16)
+    }
+
+    @ViewBuilder
+    private func tabCount(_ n: Int, singular: String, plural: String) -> some View {
+        HStack {
+            tabCountText(n, singular: singular, plural: plural)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 6)
+    }
+
+    private func tabCountText(_ n: Int, singular: String, plural: String) -> some View {
+        Text("\(n) \(n == 1 ? singular : plural)".uppercased())
+            .font(.system(size: 10, weight: .bold))  // ds-allow: fontes cruas — padrão desta tela
+            .tracking(0.6)
+            .foregroundStyle(textDim)
+    }
+
+    @ViewBuilder
+    private func emptyTab(icon: String, text: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 22, weight: .light))  // ds-allow: fontes cruas — padrão desta tela
+                .foregroundStyle(textDim)
+            Text(text)
+                .font(.system(size: 12))  // ds-allow: fontes cruas — padrão desta tela
+                .foregroundStyle(textDim)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+    }
+
+    private func scheduleSummary(_ blocks: [AgendaClassBlock]) -> String {
+        blocks.map { b in
+            let d = Self.dayNames[max(0, min(6, b.dayOfWeek))]
+            return "\(d) \(b.startTime)–\(b.endTime)"
+        }.joined(separator: "   ·   ")
+    }
+
+    // MARK: - Grades (Notas — dentro da tab Provas)
+
+    @ViewBuilder
+    private func gradesInner(vm: DisciplineDetailViewModel) -> some View {
+        VStack(spacing: 12) {
                 HStack {
                     Text("Notas")
                         .font(.system(size: 13, weight: .semibold))
@@ -371,9 +529,8 @@ struct DisciplineDetailScreen: View {
                         .foregroundStyle(textDim)
                         .padding(.top, 4)
                 }
-            }
-            .padding(16)
         }
+        .padding(.horizontal, 16)
     }
 
     /// Grade slot cell showing "value/weight (normalized)" e.g. "1.3/2 (6.5)"
@@ -415,73 +572,19 @@ struct DisciplineDetailScreen: View {
         return VitaColors.dataRed
     }
 
-    // MARK: - Schedule Card (horários da disciplina)
-
-    // 0=Dom 1=Seg 2=Ter 3=Qua 4=Qui 5=Sex 6=Sab (matches portal_schedule.dayOfWeek)
+    // Dias da semana (0=Dom..6=Sáb) — usado no resumo de horários do hero.
     private static let dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
-    @ViewBuilder
-    private func scheduleCard(vm: DisciplineDetailViewModel) -> some View {
-        let blocks = vm.subjectSchedule
-        if !blocks.isEmpty {
-            VitaGlassCard {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "calendar.badge.clock")
-                            .font(.system(size: 12))
-                            .foregroundStyle(goldPrimary)
-                        Text("Horários")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(textPrimary)
-                    }
+    // MARK: - Next Exam (destaque dentro da tab Provas)
 
-                    ForEach(blocks) { block in
-                        HStack(spacing: 10) {
-                            let dayIdx = max(0, min(6, block.dayOfWeek))
-                            Text(Self.dayNames[dayIdx])
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .foregroundStyle(goldPrimary)
-                                .frame(width: 30, alignment: .leading)
-
-                            Text("\(block.startTime) – \(block.endTime)")
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(textWarm)
-
-                            Spacer()
-
-                            if let room = block.room, !room.isEmpty {
-                                HStack(spacing: 3) {
-                                    Image(systemName: "mappin.circle.fill")
-                                        .font(.system(size: 9))
-                                    Text(room)
-                                        .font(.system(size: 10, weight: .medium))
-                                }
-                                .foregroundStyle(goldMuted.opacity(0.6))
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-                .padding(16)
-            }
-        }
-    }
-
-    // MARK: - Next Exam (highlighted)
-
-    @ViewBuilder
-    private func nextExamCard(vm: DisciplineDetailViewModel) -> some View {
-        if let exam = vm.nextExam {
-            let urgencyColor: Color = {
-                if exam.daysUntil <= 0 { return VitaColors.dataRed }
-                if exam.daysUntil <= 3 { return VitaColors.dataAmber }
-                if exam.daysUntil <= 7 { return VitaColors.accent }
-                return VitaColors.dataGreen
-            }()
-
-            VitaGlassCard {
-                VStack(alignment: .leading, spacing: 10) {
+    private func nextExamInline(_ exam: ExamEntry) -> some View {
+        let urgencyColor: Color = {
+            if exam.daysUntil <= 0 { return VitaColors.dataRed }
+            if exam.daysUntil <= 3 { return VitaColors.dataAmber }
+            if exam.daysUntil <= 7 { return VitaColors.accent }
+            return VitaColors.dataGreen
+        }()
+        return VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .center) {
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -525,48 +628,16 @@ struct DisciplineDetailScreen: View {
                             .lineLimit(3)
                     }
                 }
-                .padding(16)
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(urgencyColor.opacity(0.25), lineWidth: 1)
-            )
-        }
+                .padding(14)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(urgencyColor.opacity(0.06)))  // ds-allow: destaque proxima prova
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: destaque proxima prova
+                        .stroke(urgencyColor.opacity(0.25), lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
     }
 
-    // MARK: - All Exams (history + upcoming)
-
-    @ViewBuilder
-    private func allExamsCard(vm: DisciplineDetailViewModel) -> some View {
-        let allExams = vm.subjectExams
-        if !allExams.isEmpty {
-            VitaGlassCard {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text("Avaliações")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(textPrimary)
-                        Spacer()
-                        Text("\(allExams.count)")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(goldMuted)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 10)
-
-                    ForEach(Array(allExams.enumerated()), id: \.element.id) { idx, exam in
-                        if idx > 0 {
-                            Rectangle().fill(glassBorder).frame(height: 0.5)
-                                .padding(.horizontal, 16)
-                        }
-                        examRow(exam)
-                    }
-                }
-                .padding(.bottom, 14)
-            }
-        }
-    }
+    // MARK: - All Exams / Trabalhos / Documents — builders de linha reusados nas tabs
 
     private func examRow(_ exam: ExamEntry) -> some View {
         let isPast = exam.daysUntil < 0
@@ -603,56 +674,6 @@ struct DisciplineDetailScreen: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-    }
-
-    // MARK: - Trabalhos Card
-
-    @ViewBuilder
-    private func trabalhosCard(vm: DisciplineDetailViewModel) -> some View {
-        let items = vm.subjectTrabalhos
-        if !items.isEmpty {
-            VitaGlassCard {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        HStack(spacing: 6) {
-                            Image(systemName: "doc.badge.clock")
-                                .font(.system(size: 12))
-                                .foregroundStyle(goldPrimary)
-                            Text("Trabalhos")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(textPrimary)
-                        }
-                        Spacer()
-                        if !vm.trabalhosPending.isEmpty {
-                            Text("\(vm.trabalhosPending.count) pendente\(vm.trabalhosPending.count > 1 ? "s" : "")")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(VitaColors.dataAmber)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(VitaColors.dataAmber.opacity(0.12))
-                                .clipShape(Capsule())
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 10)
-
-                    ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
-                        if idx > 0 {
-                            Rectangle().fill(glassBorder).frame(height: 0.5)
-                                .padding(.horizontal, 16)
-                        }
-                        Button {
-                            router.navigate(to: .trabalhoDetail(id: item.id))
-                        } label: {
-                            trabalhoRow(item)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.bottom, 14)
-            }
-        }
     }
 
     private func trabalhoRow(_ item: TrabalhoItem) -> some View {
@@ -864,35 +885,6 @@ struct DisciplineDetailScreen: View {
         if !provas.isEmpty { result.append(DocCategory(label: "Provas & Avaliações", icon: "checkmark.seal", color: VitaColors.dataRed, docs: provas)) }
         if !outros.isEmpty { result.append(DocCategory(label: "Outros Materiais", icon: "doc.text", color: goldPrimary, docs: outros)) }
         return result
-    }
-
-    @ViewBuilder
-    private func documentsCard(vm: DisciplineDetailViewModel) -> some View {
-        let allDocs = vm.subjectDocuments
-        if !allDocs.isEmpty {
-            let categories = categorizedDocs(allDocs)
-            VitaGlassCard {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text("Materiais")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(textPrimary)
-                        Spacer()
-                        Text("\(allDocs.count)")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(goldMuted)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 10)
-
-                    ForEach(categories) { cat in
-                        docCategorySection(cat)
-                    }
-                }
-                .padding(.bottom, 14)
-            }
-        }
     }
 
     @Environment(Router.self) private var router
