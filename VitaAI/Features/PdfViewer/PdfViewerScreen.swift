@@ -186,7 +186,10 @@ struct PdfViewerScreen: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            if canCreateStudyPack && !isFullscreen && !isScanMode {
+            // Rafael 2026-07-14: sem mais botão "Treinar" flutuante. Isso só
+            // aparece pra mostrar o PROGRESSO da geração ou um erro — a AÇÃO
+            // agora vive no menu do rosto do Vita na toolbar.
+            if (isGeneratingStudyPack || studyPackError != nil) && !isFullscreen && !isScanMode {
                 VStack(alignment: .trailing, spacing: 10) {
                     Spacer()
                     if let studyPackError {
@@ -472,99 +475,63 @@ struct PdfViewerScreen: View {
         return text.count >= 120 ? text : nil
     }
 
+    // Só o cartão de PROGRESSO agora (a ação "Treinar" mudou pro menu do rosto
+    // do Vita na toolbar — Rafael 2026-07-14).
+    @ViewBuilder
     private var pdfStudyPackButton: some View {
-        Group {
-            if isGeneratingStudyPack {
-                pdfStudyPackProgressCard
-            } else {
-                Button {
-                    Task { await createStudyPackFromActivePdf() }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bolt.circle.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("Treinar")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 11)
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                            .overlay(Capsule().fill(VitaColors.accent.opacity(0.44)))
-                    )
-                    .overlay(
-                        Capsule()
-                            .stroke(.white.opacity(0.18), lineWidth: 0.8)
-                    )
-                    .shadow(color: VitaColors.accent.opacity(0.28), radius: 18, y: 8)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Criar treino com este PDF")
-            }
+        if isGeneratingStudyPack {
+            pdfStudyPackProgressCard
         }
     }
 
+    // Rafael 2026-07-14: SEM % fake. A IA é caixa-preta (não reporta progresso
+    // real), então mostramos só a FASE honesta + spinner indeterminado. Sem
+    // número inventado, sem barra que enche por cronômetro.
     private var pdfStudyPackProgressCard: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { timeline in
-            let progress = studyPackProgressValue(at: timeline.date)
-            let percent = Int((progress * 100).rounded())
-            let stage = studyPackProgressStage ?? .readingPdf
+        let stage = studyPackProgressStage ?? .readingPdf
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 9) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.white)
+                    .scaleEffect(0.74)
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 9) {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                        .scaleEffect(0.74)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(stage.title)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                        Text(stage.detail)
-                            .font(.system(size: 10.5, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.68))
-                            .lineLimit(2)
-                    }
-
-                    Spacer(minLength: 6)
-
-                    Text("\(percent)%")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.92))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(stage.title)
+                        .font(.system(size: 13, weight: .semibold)) // ds-allow: HUD flutuante de geracao — tamanho compacto proprio
+                        .foregroundStyle(.white)
+                    Text(stage.detail)
+                        .font(.system(size: 10.5, weight: .medium)) // ds-allow: HUD flutuante de geracao — tamanho compacto proprio
+                        .foregroundStyle(.white.opacity(0.68))
+                        .lineLimit(2)
                 }
 
-                ProgressView(value: progress)
-                    .tint(VitaColors.accent)
-                    .scaleEffect(x: 1, y: 0.72, anchor: .center)
-
-                Text("Isso pode levar cerca de 30 a 60s no primeiro treino.")
-                    .font(.system(size: 9.5, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.52))
-                    .lineLimit(1)
+                Spacer(minLength: 6)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(width: 292, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(VitaColors.accent.opacity(0.22))
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(.white.opacity(0.16), lineWidth: 0.8)
-            )
-            .shadow(color: VitaColors.accent.opacity(0.24), radius: 22, y: 10)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(stage.title), \(percent) por cento")
+
+            Text("Isso pode levar cerca de 30 a 60s no primeiro treino.")
+                .font(.system(size: 9.5, weight: .medium)) // ds-allow: HUD flutuante de geracao — tamanho compacto proprio
+                .foregroundStyle(.white.opacity(0.52))
+                .lineLimit(1)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(width: 292, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous) // ds-allow: HUD flutuante de geracao — raio proprio do card
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous) // ds-allow: HUD flutuante de geracao — raio proprio do card
+                        .fill(VitaColors.accent.opacity(0.22))
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous) // ds-allow: HUD flutuante de geracao — raio proprio do card
+                .stroke(.white.opacity(0.16), lineWidth: 0.8)
+        )
+        .shadow(color: VitaColors.accent.opacity(0.24), radius: 22, y: 10)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(stage.title)
     }
 
     private func pdfStudyPackErrorToast(_ message: String) -> some View {
@@ -599,6 +566,13 @@ struct PdfViewerScreen: View {
             var sourceId = activeStudySourceId
             if sourceId == nil, let documentId = activeDocumentId {
                 let extractedText = extractedPdfTextForStudyPack()
+                // PDF só de imagem (slides sem texto selecionável) → não dá pra
+                // extrair texto no app. Mensagem clara em vez do erro confuso
+                // "precisa da versão mais recente do app". Rafael 2026-07-14.
+                if extractedText == nil {
+                    showStudyPackError("Esse PDF é só imagem — sem texto pra gerar treino automático")
+                    return
+                }
                 updateStudyPackProgress(.preparingContent)
                 let source = try await container.api.ensureDocumentStudySource(
                     documentId: documentId,
@@ -762,6 +736,7 @@ struct PdfViewerScreen: View {
                     onToggleMasking: { toggleMaskingMode() },
                     onToggleStudyMode: { toggleStudyMode() },
                     onShowStudyStats: { showStudyStatsSheet = true },
+                    onCreateStudyPack: { Task { await createStudyPackFromActivePdf() } },
                     onToggleStudyActive: {
                         withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
                             showStudyActivePanel.toggle()

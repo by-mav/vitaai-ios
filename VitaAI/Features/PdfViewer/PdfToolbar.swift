@@ -80,6 +80,9 @@ struct PdfToolbar: View {
     var onShowStudyStats: (() -> Void)? = nil
     /// Toggle do painel inline "Estudo Ativo" (Rafael 2026-04-28). Substitui
     /// o Menu nativo SwiftUI antigo que fazia popover overlap no próprio botão.
+    /// Gerar treino (flashcards+questões) a partir deste PDF. Rafael 2026-07-14:
+    /// unificado no menu do rosto do Vita (era um FAB flutuante "Treinar").
+    var onCreateStudyPack: (() -> Void)? = nil
     var onToggleStudyActive: (() -> Void)? = nil
 
     // Audio sync (Notability-style) — gravação + replay sincronizado com
@@ -237,27 +240,38 @@ struct PdfToolbar: View {
             // ZONE-C — Estudo Ativo (fundiu Marcador opaco + Study Mode num
             // único botão menu, Rafael 2026-04-28). Pro user é UMA feature
             // de active recall: cobrir conteúdo pra testar memória depois.
-            studyActiveMenuButton
-
             // Audio sync (Notability-style) — gravação de aula sincronizada
             // com anotações. Tap durante .idle → começa gravar. Tap durante
             // .recording → para. Long-press / re-tap quando .loaded → abre
             // overlay player. Mic muda visual: vermelho pulsante quando ON.
             audioRecordButton
 
-            // Pergunte ao Vita — substitui o FAB flutuante. Mesmo asset do
-            // mascote, menorzinha, na toolbar. Tap = scan area + chat.
-            Button(action: onAskVita) {
+            // Rosto do Vita = 1 botão só pras 3 ações de IA/estudo (Rafael
+            // 2026-07-14): Pergunte ao Vita · Estudo ativo · Treinar. Menu
+            // nativo (clean, Apple-like). Substitui o olho + o FAB "Treinar".
+            Menu {
+                Button(action: onAskVita) {
+                    Label("Pergunte ao Vita", systemImage: "sparkle.magnifyingglass")
+                }
+                if let onToggleStudyActive {
+                    Button(action: onToggleStudyActive) {
+                        Label("Estudo ativo", systemImage: "eye")
+                    }
+                }
+                if let onCreateStudyPack {
+                    Button(action: onCreateStudyPack) {
+                        Label("Treinar com este PDF", systemImage: "bolt.fill")
+                    }
+                }
+            } label: {
                 Image("vita-btn-active")
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 28, height: 28)
             }
-            .buttonStyle(.plain)
             .frame(width: 36, height: 36)
-            .help("Pergunte ao Vita")
-            .accessibilityLabel("Pergunte ao Vita")
+            .accessibilityLabel("Vita")
 
             // Flex spacer pushes the shell group to the right
             Spacer(minLength: 0)
