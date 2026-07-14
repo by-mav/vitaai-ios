@@ -271,14 +271,9 @@ struct DisciplineDetailScreen: View {
                 }
 
                 Spacer()
-
-                if vm.vitaScore > 0 {
-                    vitaScoreBadge(score: vm.vitaScore)
-                        .padding(.top, 2)
-                }
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
             // Color picker trigger — bottom trailing
@@ -305,7 +300,7 @@ struct DisciplineDetailScreen: View {
                 .frame(width: 280)
             }
         }
-        .frame(minHeight: 162)
+        .frame(minHeight: 172)
         .id(colorRefreshTrigger)
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(
