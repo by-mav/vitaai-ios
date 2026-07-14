@@ -21,6 +21,10 @@ struct DisciplineDetailScreen: View {
     @State private var showColorPicker = false
     @State private var colorRefreshTrigger: UUID = UUID()
     @State private var activeTab: Int = 0  // 0=Arquivos 1=Trabalhos 2=Provas
+    @State private var showAllArquivos = false
+    @State private var showAllTrabalhos = false
+    @State private var showAllProvas = false
+    private let tabPreviewLimit = 5
     @Environment(\.appContainer) private var container
 
     // Tokens — same as FaculdadeHomeScreen
@@ -349,10 +353,17 @@ struct DisciplineDetailScreen: View {
         if allDocs.isEmpty {
             emptyTab(icon: "folder", text: "Nenhum arquivo ainda")
         } else {
+            let cats = categorizedDocs(allDocs)
+            let shown = showAllArquivos ? cats : capCategories(cats, limit: tabPreviewLimit)
             VStack(alignment: .leading, spacing: 0) {
                 tabCount(allDocs.count, singular: "arquivo", plural: "arquivos")
-                ForEach(categorizedDocs(allDocs)) { cat in
+                ForEach(shown) { cat in
                     docCategorySection(cat)
+                }
+                if allDocs.count > tabPreviewLimit {
+                    verMaisRow(total: allDocs.count, expanded: showAllArquivos) {
+                        showAllArquivos.toggle()
+                    }
                 }
             }
         }
@@ -382,7 +393,8 @@ struct DisciplineDetailScreen: View {
                 .padding(.top, 12)
                 .padding(.bottom, 6)
 
-                ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                let shown = showAllTrabalhos ? items : Array(items.prefix(tabPreviewLimit))
+                ForEach(Array(shown.enumerated()), id: \.element.id) { idx, item in
                     if idx > 0 { rowDivider }
                     Button {
                         router.navigate(to: .trabalhoDetail(id: item.id))
@@ -390,6 +402,11 @@ struct DisciplineDetailScreen: View {
                         trabalhoRow(item)
                     }
                     .buttonStyle(.plain)
+                }
+                if items.count > tabPreviewLimit {
+                    verMaisRow(total: items.count, expanded: showAllTrabalhos) {
+                        showAllTrabalhos.toggle()
+                    }
                 }
             }
         }
@@ -408,11 +425,17 @@ struct DisciplineDetailScreen: View {
                     nextExamInline(exam)
                 }
                 if !allExams.isEmpty {
+                    let shownExams = showAllProvas ? allExams : Array(allExams.prefix(tabPreviewLimit))
                     VStack(alignment: .leading, spacing: 0) {
                         tabCount(allExams.count, singular: "avaliação", plural: "avaliações")
-                        ForEach(Array(allExams.enumerated()), id: \.element.id) { idx, exam in
+                        ForEach(Array(shownExams.enumerated()), id: \.element.id) { idx, exam in
                             if idx > 0 { rowDivider }
                             examRow(exam)
+                        }
+                        if allExams.count > tabPreviewLimit {
+                            verMaisRow(total: allExams.count, expanded: showAllProvas) {
+                                showAllProvas.toggle()
+                            }
                         }
                     }
                 }
@@ -425,6 +448,38 @@ struct DisciplineDetailScreen: View {
 
     private var rowDivider: some View {
         Rectangle().fill(glassBorder).frame(height: 0.5).padding(.horizontal, 16)
+    }
+
+    // Preview curto: mostra só os primeiros N docs (somando categorias), o resto
+    // fica atrás do "Ver todos" pra não esticar o card e enterrar o "Estudar".
+    private func capCategories(_ cats: [DocCategory], limit: Int) -> [DocCategory] {
+        var remaining = limit
+        var out: [DocCategory] = []
+        for c in cats {
+            if remaining <= 0 { break }
+            let take = Array(c.docs.prefix(remaining))
+            out.append(DocCategory(label: c.label, icon: c.icon, color: c.color, docs: take))
+            remaining -= take.count
+        }
+        return out
+    }
+
+    @ViewBuilder
+    private func verMaisRow(total: Int, expanded: Bool, toggle: @escaping () -> Void) -> some View {
+        rowDivider
+        Button(action: toggle) {
+            HStack(spacing: 6) {
+                Text(expanded ? "Ver menos" : "Ver todos (\(total))")
+                    .font(.system(size: 12, weight: .semibold))  // ds-allow: fontes cruas — padrão desta tela
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 10, weight: .bold))  // ds-allow: fontes cruas — padrão desta tela
+            }
+            .foregroundStyle(goldPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
