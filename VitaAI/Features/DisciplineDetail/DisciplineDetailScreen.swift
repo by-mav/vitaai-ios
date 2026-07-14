@@ -123,12 +123,17 @@ struct DisciplineDetailScreen: View {
             }
         }
         .sheet(isPresented: $showAddSheet) {
-            VitaSheet {
-                VitaAddSheet(onSelect: { kind in
-                    showAddSheet = false
-                    handleAddKind(kind)
-                })
-            }
+            // Apresentação IDÊNTICA à gaveta canônica (VitaTabBar): sheet direto,
+            // sem VitaSheet por fora (que dava chrome duplo/torto). Rafael 2026-07-13.
+            VitaAddSheet(onSelect: { kind in
+                showAddSheet = false
+                handleAddKind(kind)
+            })
+            .padding(.horizontal, 12)
+            .padding(.top, 16)
+            .presentationDetents([.height(360)])
+            .presentationBackground(.clear)
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showDocPicker) {
             PdfTabDocumentPicker { url in
