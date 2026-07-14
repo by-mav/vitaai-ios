@@ -185,30 +185,103 @@ struct HomeScreen: View {
         VitaHomeGrassBackdrop()
     }
 
+    // Céu do mundo pela HORA DO CELULAR (WorldClock): sol + céu claro de dia,
+    // lua + estrelas de noite. Fica ATRÁS do mundo (não lava prédios nem colide
+    // com a UI). "Aspecto de sol", leve — Rafael 2026-07-14.
+    @ViewBuilder private var dayNightSky: some View {
+        GeometryReader { geo in
+            let night = WorldClock.isNight
+            let sx: [CGFloat] = [0.12, 0.28, 0.44, 0.60, 0.70, 0.34, 0.52, 0.20]
+            let sy: [CGFloat] = [0.05, 0.09, 0.04, 0.11, 0.06, 0.14, 0.16, 0.13]
+            ZStack(alignment: .top) {
+                // tinta do céu no topo, some pra baixo
+                LinearGradient(
+                    colors: night
+                        ? [Color(red: 0.10, green: 0.12, blue: 0.26).opacity(0.75), .clear]  // ds-allow: ceu dia/noite (WorldClock)
+                        : [Color(red: 0.42, green: 0.64, blue: 0.95).opacity(0.70), .clear],  // ds-allow: ceu dia/noite (WorldClock)
+                    startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.42))
+                // brilho do sol (dia) / lua (noite) no canto superior direito
+                RadialGradient(
+                    colors: night
+                        ? [Color(red: 0.88, green: 0.90, blue: 1.0).opacity(0.45), .clear]  // ds-allow: ceu dia/noite (WorldClock)
+                        : [Color(red: 1.0, green: 0.92, blue: 0.60).opacity(0.75), .clear],  // ds-allow: ceu dia/noite (WorldClock)
+                    center: UnitPoint(x: 0.82, y: 0.06), startRadius: 2, endRadius: geo.size.width * 0.55)
+                // estrelas (só de noite)
+                if night {
+                    ForEach(0..<8, id: \.self) { i in
+                        Circle().fill(.white.opacity(0.8))
+                            .frame(width: i % 3 == 0 ? 3.5 : 2.2, height: i % 3 == 0 ? 3.5 : 2.2)
+                            .position(x: geo.size.width * sx[i], y: geo.size.height * sy[i])
+                    }
+                }
+            }
+            .allowsHitTesting(false)
+        }
+        .ignoresSafeArea()
+    }
 
+
+
+    // Nível em que cada casa desbloqueia (por fase/loja). Casa travada mostra
+    // cadeado + "Desbloqueie no nível X" e não é clicável. Rafael 2026-07-14.
+    private static func houseUnlock(_ l: Landmark) -> Int {
+        switch l.shopTier ?? 0 {
+        case 0: return 0
+        case 1: return 15
+        case 2: return 30
+        case 3: return 50
+        default: return 100   // Instituto de Especialidades = auge, só no nível 100
+        }
+    }
+
+    // Cada seção da jornada tem SEU prédio (medicina: cursinho -> faculdade ->
+    // clínica-escola -> hospital universitário -> instituto). Rafael 2026-07-14.
+    private static func houseKind(_ l: Landmark) -> HouseKind {
+        switch l.shopTier ?? 0 {
+        case 0: return .cursinho
+        case 1: return .faculdade
+        case 2: return .clinicaEscola
+        case 3: return .hospital
+        default: return .instituto
+        }
+    }
 
     private var worldLandmarks: some View {
         let h = Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + 140
         return GeometryReader { geo in
             ZStack(alignment: .topLeading) {
+                // (estradas casa→trilha REMOVIDAS — Rafael 2026-07-14: ficaram estranhas)
                 ForEach(Self.landmarks) { landmark in
-                    MedicalWorldLandmark(kind: landmark.kind)
-                        .scaleEffect(landmark.scale)
-                        .opacity(landmark.opacity)
-                        // Cada prédio é a LOJA daquela fase (Rafael 2026-07-09): tocar
-                        // abre o guarda-roupa filtrado nos níveis do tier. Os prédios
-                        // ficam nas laterais (15%/85%) — não conflitam com os nós da trilha.
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            if let tier = landmark.shopTier {
-                                router.navigate(to: .skinAppearance(shopTier: tier))
+                    let unlock = Self.houseUnlock(landmark)
+                    let unlocked = userLevel >= unlock
+                    Semi3DHouse(kind: Self.houseKind(landmark), open: unlocked, level: unlock)
+                        .frame(width: 210, height: 210)
+                        .transaction { $0.animation = nil }   // estático (mata o bob do ScrollView)
+                        .overlay(alignment: .center) {
+                            if !unlocked {
+                                VStack(spacing: 5) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 22, weight: .black))  // ds-allow: badge de cadeado + preview de debug
+                                        .foregroundStyle(.white)
+                                        .shadow(color: .black.opacity(0.6), radius: 4)
+                                    Text("Desbloqueie no nível \(unlock)")
+                                        .font(.system(size: 10.5, weight: .bold))  // ds-allow: badge de cadeado + preview de debug
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 9).padding(.vertical, 4)
+                                        .background(Capsule().fill(Color.black.opacity(0.62)))
+                                }
+                                .offset(y: 8)
                             }
                         }
+                        .scaleEffect(landmark.scale)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard unlocked, let tier = landmark.shopTier else { return }
+                            router.navigate(to: .skinAppearance(shopTier: tier))
+                        }
                         .position(
-                            x: landmark.side == .leading
-                                ? geo.size.width * 0.15
-                                : geo.size.width * 0.85,
-                            y: Self.trailTopInset + (landmark.row * Self.rowStride)
+                            x: landmark.side == .leading ? geo.size.width * 0.20 : geo.size.width * 0.80,
+                            y: Self.trailTopInset + (landmark.row * Self.rowStride) - 60
                         )
                 }
             }
@@ -218,13 +291,53 @@ struct HomeScreen: View {
 
     // MARK: - Body
 
+    // QA (Rafael 2026-07-14): --vita-house-preview mostra as casas-marco semi-3D
+    // GRANDES (aberta + trancada) pra iterar a arte sem o mundo em volta. Remover
+    // quando integrar no MedicalWorldLandmark.
+    private var housePreview: Bool {
+        ProcessInfo.processInfo.arguments.contains("--vita-house-preview")
+    }
+
+    private var housePreviewView: some View {
+        let kinds: [(HouseKind, Int)] = [(.cursinho, 7), (.faculdade, 28), (.clinicaEscola, 48), (.hospital, 68), (.instituto, 98)]
+        return ZStack {
+            LinearGradient(colors: [TrailWorld.fieldTop, TrailWorld.fieldBottom],
+                           startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+            dayNightSky
+            ScrollView {
+                VStack(spacing: 10) {
+                    Text("As 5 casas-marco semi-3D").font(.system(size: 15, weight: .bold))  // ds-allow: badge de cadeado + preview de debug
+                        .foregroundStyle(TrailWorld.tier0Bright).padding(.top, 8)
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach(0..<kinds.count, id: \.self) { i in
+                            VStack(spacing: 2) {
+                                Semi3DHouse(kind: kinds[i].0, open: true, level: kinds[i].1).frame(height: 158)
+                                Text("\(kinds[i].0.label) · nv \(kinds[i].1)")
+                                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.72))  // ds-allow: badge de cadeado + preview de debug
+                            }
+                        }
+                        VStack(spacing: 2) {
+                            Semi3DHouse(kind: .clinicaEscola, open: false, level: 48).frame(height: 158)
+                            Text("trancada (exemplo)").font(.system(size: 11)).foregroundStyle(.white.opacity(0.45))  // ds-allow: badge de cadeado + preview de debug
+                        }
+                    }
+                    Color.clear.frame(height: 40)
+                }
+                .padding(.horizontal, 12)
+            }
+        }
+    }
+
     var body: some View {
-        if skinDemo { skinTryOn } else { worldBody }
+        if skinDemo { skinTryOn }
+        else if housePreview { housePreviewView }
+        else { worldBody }
     }
 
     private var worldBody: some View {
         ZStack {
             grassBase.ignoresSafeArea()
+            dayNightSky
             VStack(spacing: 0) {
                 GeometryReader { geo in
                     ScrollViewReader { proxy in
