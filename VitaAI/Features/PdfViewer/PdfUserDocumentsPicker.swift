@@ -5,9 +5,9 @@ import SwiftUI
 /// Drive / device-local files, not at the user's actual Vita PDFs synced
 /// from Canvas / uploads).
 ///
-/// Layout: search bar on top, list grouped by subject (matéria), tap a row
-/// to open it as a new PDF tab. Trailing toolbar button "Files" opens the
-/// system picker as a fallback for ad-hoc imports (rare case).
+/// Layout GOLD (Rafael 2026-07-13): header custom + busca dourada + cards
+/// glass agrupados por matéria — sem List nativo/insetGrouped (que dava ar
+/// "antigo"). Tap numa linha abre como novo tab de PDF.
 struct PdfUserDocumentsPicker: View {
     let onSelect: (URL, String, String?, String?) -> Void
     let onCancel: () -> Void
@@ -20,85 +20,139 @@ struct PdfUserDocumentsPicker: View {
     @State private var showFilesPicker: Bool = false
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                VitaColors.surface.ignoresSafeArea()
-
-                if isLoading {
-                    VitaMascotEquipped(state: .thinking, size: 96)
-                } else if let err = loadError {
-                    VStack(spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(VitaColors.dataRed)
-                        Text(err)
-                            .font(VitaTypography.bodyMedium)
-                            .foregroundStyle(VitaColors.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                        Button("Tentar novamente") { Task { await load() } }
-                            .buttonStyle(.borderedProminent)
-                            .tint(VitaColors.accent)
-                    }
-                } else if filteredGrouped.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "doc.text.magnifyingglass")
-                            .font(.system(size: 32))
-                            .foregroundStyle(VitaColors.textTertiary)
-                        Text(searchText.isEmpty ? "Nenhum documento" : "Nenhum resultado para \"\(searchText)\"")
-                            .font(VitaTypography.bodyMedium)
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
-                } else {
-                    list
-                }
+        ZStack {
+            VitaColors.surface.ignoresSafeArea()
+            VStack(spacing: 0) {
+                header
+                searchField
+                content
             }
-            .searchable(text: $searchText, prompt: "Buscar documento")
-            .navigationTitle("Abrir documento")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancelar", action: onCancel)
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showFilesPicker = true
-                    } label: {
-                        Label("Files", systemImage: "folder")
-                            .foregroundStyle(VitaColors.accent)
-                    }
-                }
-            }
-            // vita-modals-ignore: PdfTabDocumentPicker é UIViewControllerRepresentable nativo (UIDocumentPickerViewController) — VitaSheet quebra apresentação do system picker
-            .sheet(isPresented: $showFilesPicker) {
-                PdfTabDocumentPicker { pickedURL in
-                    showFilesPicker = false
-                    onSelect(pickedURL, pickedURL.lastPathComponent, nil, nil)
-                }
-            }
-            .task { await load() }
         }
+        // vita-modals-ignore: PdfTabDocumentPicker é UIViewControllerRepresentable nativo (UIDocumentPickerViewController) — VitaSheet quebra apresentação do system picker
+        .sheet(isPresented: $showFilesPicker) {
+            PdfTabDocumentPicker { pickedURL in
+                showFilesPicker = false
+                onSelect(pickedURL, pickedURL.lastPathComponent, nil, nil)
+            }
+        }
+        .task { await load() }
     }
 
-    // MARK: - List
+    // MARK: - Header custom (sem nav bar nativa)
 
-    private var list: some View {
-        List {
-            ForEach(filteredGrouped, id: \.subject) { group in
-                Section(header: Text(group.subject).font(VitaTypography.labelSmall).foregroundStyle(VitaColors.textTertiary)) {
-                    ForEach(group.docs) { doc in
-                        Button(action: { select(doc) }) {
-                            DocRow(doc: doc)
-                        }
-                        .buttonStyle(.plain)
-                        .listRowBackground(VitaColors.surfaceCard.opacity(0.4))
-                    }
-                }
+    private var header: some View {
+        HStack {
+            Button(action: onCancel) {
+                Text("Cancelar")
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+            Spacer()
+            Text("Abrir documento")
+                .font(VitaTypography.titleMedium)
+                .foregroundStyle(VitaColors.textPrimary)
+            Spacer()
+            Button { showFilesPicker = true } label: {
+                Image(systemName: "folder")
+                    .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone da toolbar
+                    .foregroundStyle(VitaColors.accent)
             }
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 14)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(VitaColors.textTertiary)
+            TextField("Buscar documento", text: $searchText)
+                .foregroundStyle(VitaColors.textPrimary)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .font(VitaTypography.bodyMedium)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(VitaColors.glassBg))  // ds-allow: campo de busca
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(VitaColors.glassBorder, lineWidth: 0.5))  // ds-allow: campo de busca
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
+    }
+
+    // MARK: - Conteúdo
+
+    @ViewBuilder
+    private var content: some View {
+        if isLoading {
+            Spacer()
+            VitaMascotEquipped(state: .thinking, size: 96)
+            Spacer()
+        } else if let err = loadError {
+            Spacer()
+            VStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 32))  // ds-allow: ícone de estado
+                    .foregroundStyle(VitaColors.dataRed)
+                Text(err)
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                Button("Tentar novamente") { Task { await load() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(VitaColors.accent)
+            }
+            Spacer()
+        } else if filteredGrouped.isEmpty {
+            Spacer()
+            VStack(spacing: 8) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 32))  // ds-allow: ícone de estado
+                    .foregroundStyle(VitaColors.textTertiary)
+                Text(searchText.isEmpty ? "Nenhum documento" : "Nenhum resultado para \"\(searchText)\"")
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+            Spacer()
+        } else {
+            ScrollView(showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    ForEach(filteredGrouped, id: \.subject) { group in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(group.subject.uppercased())
+                                .font(VitaTypography.labelSmall)
+                                .tracking(0.6)
+                                .foregroundStyle(VitaColors.accentLight.opacity(0.70))
+                                .padding(.horizontal, 20)
+
+                            VStack(spacing: 0) {
+                                ForEach(Array(group.docs.enumerated()), id: \.element.id) { idx, doc in
+                                    if idx > 0 {
+                                        Rectangle().fill(VitaColors.glassBorder).frame(height: 0.5)
+                                            .padding(.horizontal, 14)
+                                    }
+                                    Button(action: { select(doc) }) { DocRow(doc: doc) }
+                                        .buttonStyle(.plain)
+                                }
+                            }
+                            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(VitaColors.glassBg))  // ds-allow: card glass da lista
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(VitaColors.glassBorder, lineWidth: 0.5))  // ds-allow: card glass da lista
+                            .padding(.horizontal, 16)
+                        }
+                    }
+                }
+                .padding(.top, 6)
+                .padding(.bottom, 32)
+            }
+        }
     }
 
     // MARK: - Data shaping
@@ -162,11 +216,11 @@ private struct DocRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 16, weight: .medium))  // ds-allow: ícone do arquivo
                 .foregroundStyle(VitaColors.accent)
-                .frame(width: 32, height: 32)
+                .frame(width: 34, height: 34)
                 .background(VitaColors.accentSubtle.opacity(0.4))
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))  // ds-allow: ícone do arquivo
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(doc.title)
@@ -184,10 +238,11 @@ private struct DocRow: View {
             Spacer(minLength: 8)
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))  // ds-allow: chevron
                 .foregroundStyle(VitaColors.textTertiary)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
         .contentShape(Rectangle())
     }
 }
