@@ -16,6 +16,10 @@ struct FaculdadePickerSheet: View {
     @State private var loading = true
     @State private var savingId: String?
 
+    private var trimmedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var filtered: [University] {
         let q = query.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .trimmingCharacters(in: .whitespaces)
@@ -44,11 +48,15 @@ struct FaculdadePickerSheet: View {
                             row(uni)
                         }
                         if filtered.isEmpty {
-                            Text("Nenhuma faculdade encontrada")
-                                .font(VitaTypography.bodySmall)
-                                .foregroundStyle(VitaColors.textTertiary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 24)
+                            if trimmedQuery.count >= 2 {
+                                notFoundCard
+                            } else {
+                                Text("Nenhuma faculdade encontrada")
+                                    .font(VitaTypography.bodySmall)
+                                    .foregroundStyle(VitaColors.textTertiary)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, 24)
+                            }
                         }
                     }
                     .padding(.bottom, 20)
@@ -114,5 +122,51 @@ struct FaculdadePickerSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    // "Meu curso nao esta aqui": o aluno adiciona com o nome que ele usa
+    // (fica salvo pra ele) E a sugestao vai pra equipe (university_requests
+    // -> PULSE) canonizar depois. Rafael 2026-07-13.
+    private var notFoundCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Meu curso não está aqui")
+                .font(VitaTypography.titleSmall)
+                .foregroundStyle(VitaColors.textPrimary)
+            Text("Adicione com o nome que você usa — fica salvo pra você e a gente inclui na lista oficial.")
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                let name = trimmedQuery
+                savingId = "__custom__"
+                Task {
+                    await appData.addCustomFaculty(name: name)
+                    dismiss()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    if savingId == "__custom__" {
+                        ProgressView().tint(VitaColors.surface)
+                    } else {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                    Text("Adicionar “\(trimmedQuery)”")
+                        .font(VitaTypography.labelMedium)
+                        .lineLimit(1)
+                }
+                .foregroundStyle(VitaColors.surface)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(VitaColors.accent))  // ds-allow: CTA adicionar meu curso
+            }
+            .buttonStyle(.plain)
+            .disabled(savingId == "__custom__")
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(VitaColors.glassBg))  // ds-allow: card meu curso nao esta aqui
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(VitaColors.glassBorder, lineWidth: 0.5))  // ds-allow: card meu curso nao esta aqui
+        .padding(.top, 14)
     }
 }

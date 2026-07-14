@@ -75,6 +75,19 @@ final class AppDataManager {
         await refreshProfile()
     }
 
+    // Faculdade custom: aluno nao achou na lista canonica. Salva o nome que
+    // ele escreveu como a faculdade DELE (o nome fica) E manda a sugestao pra
+    // equipe (university_requests -> PULSE) canonizar depois. Rafael 2026-07-13.
+    func addCustomFaculty(name: String) async {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return }
+        try? await api.requestUniversity(name: trimmed, city: "", state: "")
+        // universityId vazio limpa o link canonico no backend; o nome fica.
+        let req = UpdateProfileRequest(university: trimmed, universityId: "")
+        _ = try? await api.updateProfile(req)
+        await refreshProfile()
+    }
+
     /// Prefetched secondary data — loaded in background on launch so tapping
     /// Flashcards/QBank/Simulados/Transcrição/Trabalhos in Estudos opens
     /// instantly with cache (SWR pattern). Each screen refetches silently on
