@@ -2251,7 +2251,9 @@ struct SkinAppearanceScreen: View {
                 if let it = store.item(id: fid) {
                     lootboxReveal = LootboxResult(
                         won: .init(id: it.id, slot: it.slot, name: it.name, rarity: it.rarity, unlockLevel: it.unlockLevel),
-                        price: 150, balance: store.balance
+                        price: 150,
+                        balance: store.balance,
+                        duplicate: false
                     )
                 }
             }
