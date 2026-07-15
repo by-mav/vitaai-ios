@@ -102,6 +102,7 @@ enum MascotAccessory: String, CaseIterable {
     case surgicalMask  // máscara cirúrgica
     case monocle       // monóculo (nobre)
     case n95Mask       // respirador N95 (com válvula)
+    case faceShield    // protetor facial (viseira transparente)
     // — Pescoço / corpo (base do orb) —
     case stethoscope   // estetoscópio pendurado
     case labCoat       // gola de jaleco branco
@@ -115,7 +116,7 @@ enum MascotAccessory: String, CaseIterable {
         switch self {
         case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat, .halo, .nurseCap:
             return "Cabeça"
-        case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle, .n95Mask:
+        case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle, .n95Mask, .faceShield:
             return "Rosto"
         case .stethoscope, .labCoat, .bowTie, .scarf, .goldMedal, .idBadge:
             return "Pescoço"
@@ -135,6 +136,7 @@ enum MascotAccessory: String, CaseIterable {
         case .halo:        return "Auréola"
         case .nurseCap:    return "Touca enfermagem"
         case .n95Mask:     return "Respirador N95"
+        case .faceShield:  return "Protetor facial"
         case .idBadge:     return "Crachá"
         case .glassesRound: return "Redondo"
         case .glassesRect:  return "Reto"
@@ -348,6 +350,7 @@ struct OrbMascot: View {
         case .halo:         haloView(s)
         case .nurseCap:     nurseCapView(s)
         case .n95Mask:      n95MaskView(s)
+        case .faceShield:   faceShieldView(s)
         case .idBadge:      idBadgeView(s)
         case .stethoscope:  stethoscopeView(s)
         case .labCoat:      labCoatView(s)
@@ -481,6 +484,29 @@ struct OrbMascot: View {
                 .frame(width: s * 0.04, height: s * 0.04)
                 .offset(x: s * 0.18, y: -s * 0.58)
                 .blur(radius: 0.5)
+        }
+    }
+
+    // Protetor facial — faixa na testa + viseira TRANSPARENTE (olhos aparecem por trás).
+    private func faceShieldView(_ s: CGFloat) -> some View {
+        let band  = Color(red: 0.30, green: 0.55, blue: 0.72)  // ds-allow: skin color
+        let glass = Color(red: 0.72, green: 0.86, blue: 0.96)  // ds-allow: skin color
+        return ZStack {
+            // Viseira transparente cobrindo o rosto (baixa opacidade = vê os olhos).
+            RoundedRectangle(cornerRadius: s * 0.14)
+                .fill(glass.opacity(0.20))
+                .frame(width: s * 0.62, height: s * 0.54)
+                .overlay(RoundedRectangle(cornerRadius: s * 0.14).stroke(glass.opacity(0.5), lineWidth: s * 0.008))
+                .offset(y: s * 0.07)
+            // Reflexo diagonal no acrílico.
+            Capsule().fill(Color.white.opacity(0.28))
+                .frame(width: s * 0.055, height: s * 0.40)
+                .rotationEffect(.degrees(18))
+                .offset(x: -s * 0.15, y: s * 0.04)
+            // Faixa de espuma na testa (segura a viseira).
+            RoundedRectangle(cornerRadius: s * 0.02).fill(band)
+                .frame(width: s * 0.64, height: s * 0.075)
+                .offset(y: -s * 0.28)
         }
     }
 
