@@ -81,6 +81,7 @@ struct HomeScreen: View {
     @StateObject private var skins = SkinStore()
     @State private var chestConfirmLevel: Int?   // baú tocado, aguardando confirmar a chave
     @State private var chestReveal: LootboxResult?  // baú aberto → revelação em tela cheia
+    @State private var didAutoChest = false   // QA: --vita-open-chest=N abre 1× (testar sem tap)
 
     // Onde ficam os baús na trilha (nível de cada um). Espelha CHEST_LEVELS do backend.
     static let chestLevels: Set<Int> = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
@@ -454,7 +455,18 @@ struct HomeScreen: View {
             }
         }
         .trackScreen("Progresso")
-        .task { await skins.load(api: container.api) }
+        .task {
+            await skins.load(api: container.api)
+            // QA: abre o baú do nível N automaticamente (testar o fluxo sem tap).
+            if !didAutoChest, chestReveal == nil,
+               let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--vita-open-chest=") }),
+               let lvl = Int(arg.dropFirst("--vita-open-chest=".count)) {
+                didAutoChest = true
+                if let won = await skins.openChest(level: lvl, api: container.api) {
+                    chestReveal = won
+                }
+            }
+        }
         // Confirmar a chave antes de abrir o baú.
         .confirmationDialog(
             "Abrir baú?",
