@@ -15,6 +15,7 @@ struct FlashcardSessionScreen: View {
 
     let deckId: String
     var tagFilter: String? = nil
+    var sessionId: String? = nil
     var onBack: () -> Void
     var onFinished: () -> Void = {}
     var onOpenSettings: () -> Void = {}
@@ -26,17 +27,8 @@ struct FlashcardSessionScreen: View {
     @State private var elapsedSeconds: Int = 0
     @State private var timerCancellable: (any Cancellable)?
     @State private var settings = FlashcardSettings()
+    @State private var showEndSessionConfirmation = false
     private let timer = Timer.publish(every: 1, on: .main, in: .common)
-
-    // Progress bar gradient — gold accent
-    private let progressGradient = LinearGradient(
-        colors: [
-            VitaColors.accent.opacity(0.70),
-            VitaColors.accentHover.opacity(0.50)
-        ],
-        startPoint: .leading,
-        endPoint: .trailing
-    )
 
     var body: some View {
         ZStack {
@@ -60,7 +52,7 @@ struct FlashcardSessionScreen: View {
                             result: result,
                             elapsedSeconds: elapsedSeconds,
                             onBack: onBack,
-                            onRestart: { vm.loadDeck(deckId, tagFilter: tagFilter) }
+                            onRestart: { vm.loadDeck(deckId, tagFilter: tagFilter, sessionId: nil) }
                         )
                     }
 
@@ -76,7 +68,7 @@ struct FlashcardSessionScreen: View {
                 let vm = FlashcardViewModel(api: container.api, gamificationEvents: container.gamificationEvents)
                 viewModel = vm
                 Task {
-                    vm.loadDeck(deckId, tagFilter: tagFilter)
+                    vm.loadDeck(deckId, tagFilter: tagFilter, sessionId: sessionId)
                     SentrySDK.reportFullyDisplayed()
                 }
             }
@@ -97,6 +89,9 @@ struct FlashcardSessionScreen: View {
         .onDisappear {
             timerCancellable?.cancel()
             timerCancellable = nil
+            if let vm = viewModel {
+                Task { await vm.persistSession() }
+            }
         }
         .onReceive(timer) { _ in
             guard let vm = viewModel else { return }
@@ -111,6 +106,22 @@ struct FlashcardSessionScreen: View {
             router.activeFlashcardSettings = settings
         }
         .trackScreen("FlashcardSession", extra: ["deck_id": deckId])
+        .confirmationDialog(
+            "Encerrar sessão?",
+            isPresented: $showEndSessionConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Encerrar sessão", role: .destructive) {
+                guard let vm = viewModel else { return }
+                Task {
+                    await vm.endSession()
+                    onBack()
+                }
+            }
+            Button("Continuar estudando", role: .cancel) {}
+        } message: {
+            Text("O progresso já feito fica salvo. A sessão só deixará de aparecer na Home depois de ser encerrada.")
+        }
     }
 
     // MARK: Main Study Layout
@@ -155,61 +166,60 @@ struct FlashcardSessionScreen: View {
 
     private func sessionHeader(vm: FlashcardViewModel) -> some View {
         HStack(spacing: 0) {
-            // Back — chevron.left + "Voltar", rgba(255,240,215,0.50)
+            // Voltar canônico (só a seta), topo-esquerda — igual às outras telas
             Button(action: onBack) {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .medium))
-                    Text("Voltar")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .foregroundStyle(VitaColors.textWarm.opacity(0.70))
-                .frame(minWidth: 60, alignment: .leading)
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.70))
+                    .frame(width: 44, height: 40, alignment: .leading)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("backButton")
 
             Spacer()
 
-            // Center title — 14px semibold, rgba(255,252,248,0.90)
-            Text(vm.deckTitle)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(VitaColors.textPrimary)
-                .lineLimit(1)
+            // Timer pequeno no centro — só quando ativado (sem título, sem 2/15)
+            if settings.showTimer {
+                Text(formattedTimer)
+                    .font(.system(size: 12, weight: .medium))  // ds-allow: timer de sessão
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.50))
+                    .monospacedDigit()
+            }
 
             Spacer()
 
-            // Right side: count + undo + gear
-            HStack(spacing: 10) {
-                if settings.showTimer {
-                    Text(formattedTimer)
-                        .font(.system(size: 11, weight: .medium))  // ds-allow: fonte de sessao (padrao pre-existente do arquivo; tokenizar em refactor dedicado)
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.45))
-                        .monospacedDigit()
-                }
-                Text(vm.progressLabel)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(VitaColors.accent.opacity(0.60))
-                    .monospacedDigit()
-
+            // Direita: undo (quando dá) + ⋯ (opções do card + ajustes)
+            HStack(spacing: 12) {
                 if vm.canUndo {
                     Button(action: { vm.undoLastRating() }) {
                         Image(systemName: "arrow.uturn.backward")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 14, weight: .medium)) // ds-allow: tamanho óptico do SF Symbol
                             .foregroundStyle(VitaColors.accent.opacity(0.70))
                     }
                     .buttonStyle(.plain)
                     .transition(.scale.combined(with: .opacity))
                 }
-
-                Button(action: onOpenSettings) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                Menu {
+                    Button { onOpenSettings() } label: {
+                        Label("Ajustes de estudo", systemImage: "slider.horizontal.3")
+                    }
+                    if vm.studySessionId != nil {
+                        Button(role: .destructive) {
+                            showEndSessionConfirmation = true
+                        } label: {
+                            Label("Encerrar sessão", systemImage: "xmark.circle")
+                        }
+                    }
+                    // Editar / Mover / Excluir card entram aqui no próximo brick
+                    // (usam o backend PATCH/DELETE já pronto).
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 17, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.55))
+                        .frame(width: 44, height: 40, alignment: .trailing)
                 }
-                .buttonStyle(.plain)
             }
-            .frame(minWidth: 80, alignment: .trailing)
+            .frame(minWidth: 44, alignment: .trailing)
             .animation(.easeOut(duration: 0.2), value: vm.canUndo)
         }
     }
@@ -217,19 +227,32 @@ struct FlashcardSessionScreen: View {
     // MARK: Progress Bar — 3px, rgba(255,255,255,0.06) bg, purple gradient fill
 
     private func sessionProgressBar(vm: FlashcardViewModel) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
+        // Risquinhos: 1 por card, colorido pela resposta que o aluno deu.
+        let total = max(vm.cards.count, 1)
+        return HStack(spacing: 3) {
+            ForEach(0..<total, id: \.self) { i in
                 RoundedRectangle(cornerRadius: 999)
-                    .fill(Color.white.opacity(0.06))
-                    .frame(height: 3)
-
-                RoundedRectangle(cornerRadius: 999)
-                    .fill(progressGradient)
-                    .frame(width: geo.size.width * vm.progress, height: 3)
-                    .animation(.easeInOut(duration: 0.4), value: vm.progress)
+                    .fill(segmentColor(vm: vm, index: i))
+                    .frame(height: 4)
             }
         }
-        .frame(height: 3)
+        .animation(.easeInOut(duration: 0.3), value: vm.ratingHistory.count)
+    }
+
+    /// Cor do risquinho: resposta dada (verde/amber/vermelho) · atual (ouro) · pendente (fraco).
+    private func segmentColor(vm: FlashcardViewModel, index: Int) -> Color {
+        if index < vm.ratingHistory.count { return ratingColor(vm.ratingHistory[index]) }
+        if index == vm.ratingHistory.count { return VitaColors.accent.opacity(0.55) }
+        return Color.white.opacity(0.08)
+    }
+
+    private func ratingColor(_ r: ReviewRating) -> Color {
+        switch r {
+        case .again: return VitaColors.dataRed        // errei
+        case .hard:  return VitaColors.dataAmber       // difícil
+        case .good:  return VitaColors.accentHover     // bom (ouro, igual ao botão)
+        case .easy:  return VitaColors.dataGreen       // fácil
+        }
     }
 
     // MARK: Rating Section
@@ -378,4 +401,3 @@ private struct FlashcardLoadingSkeleton: View {
 }
 
 // Uses ShimmerModifier from VitaShimmer.swift (DesignSystem/Components)
-

@@ -290,7 +290,13 @@ final class SimuladoViewModel {
                     state.timedMode = attempt.timed
                     state.timeLimitMinutes = attempt.timeLimitMinutes
                     state.answers = answered
-                    state.currentQuestionIndex = 0
+                    // Resume at the first unanswered question instead of throwing the
+                    // learner back to question one. If every question was answered but
+                    // the attempt was not explicitly finished, keep the last question
+                    // visible so the user can review and finish it.
+                    state.currentQuestionIndex = attempt.questions.firstIndex {
+                        $0.chosenIdx == nil
+                    } ?? max(0, attempt.questions.count - 1)
                     state.sessionStartDate = now
                     state.questionStartDate = now
                     // Restore result for finished attempts

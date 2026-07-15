@@ -259,7 +259,8 @@ struct FlashcardBuilderScreen: View {
                         if !vm.state.lastSessionCardIds.isEmpty {
                             FlashcardMultiDeckHandoff.shared.setQuickSession(
                                 cardIds: vm.state.lastSessionCardIds,
-                                title: vm.lastSessionTitle
+                                title: vm.lastSessionTitle,
+                                sessionId: vm.state.lastSessionId
                             )
                         }
                         onOpenDeck(id)

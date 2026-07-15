@@ -28,6 +28,11 @@ final class FlashcardViewModel {
     private(set) var totalReviewed: Int = 0
     private(set) var correctCount: Int = 0
     private(set) var result: FlashcardSessionResult? = nil
+    private(set) var studySessionId: String? = nil
+
+    // Rating dado a cada card respondido, em ordem — alimenta os "risquinhos"
+    // segmentados do progresso (cada traço colorido pela resposta do aluno).
+    private(set) var ratingHistory: [ReviewRating] = []
 
     // FSRS-5 per-card state (parallel array, indexed by cards)
     private(set) var fsrsStates: [FsrsCardState] = []
@@ -35,6 +40,7 @@ final class FlashcardViewModel {
     // Session timing
     private(set) var sessionStartDate: Date = Date()
     private(set) var cardStartDate: Date = Date()
+    private var accumulatedElapsedSeconds: Int = 0
 
     // Undo support
     private(set) var canUndo: Bool = false
@@ -68,7 +74,9 @@ final class FlashcardViewModel {
 
     var progressLabel: String { "\(min(totalReviewed + 1, cards.count))/\(cards.count)" }
 
-    var elapsedSeconds: Int { Int(Date().timeIntervalSince(sessionStartDate)) }
+    var elapsedSeconds: Int {
+        accumulatedElapsedSeconds + Int(Date().timeIntervalSince(sessionStartDate))
+    }
 
     /// FSRS-5 interval previews for the current card's rating buttons
     var intervalPreviews: [ReviewRating: Int] {
@@ -91,13 +99,16 @@ final class FlashcardViewModel {
 
     // MARK: - Load
 
-    func loadDeck(_ deckId: String, tagFilter: String? = nil) {
+    func loadDeck(_ deckId: String, tagFilter: String? = nil, sessionId: String? = nil) {
         phase = .loading
         isFlipped = false
         currentIndex = 0
         totalReviewed = 0
         correctCount = 0
+        ratingHistory = []
         result = nil
+        studySessionId = nil
+        accumulatedElapsedSeconds = 0
         sessionStartDate = Date()
         cardStartDate = Date()
 
@@ -106,15 +117,57 @@ final class FlashcardViewModel {
         let deckIds = (handoff.count > 1 && handoff.contains(deckId)) ? handoff : [deckId]
         // Sessão rápida (issue #188 I1): fila EXATA calculada pelo servidor.
         let quick = FlashcardMultiDeckHandoff.shared.consumeQuickSession()
+        let requestedSessionId = sessionId ?? quick.sessionId
 
         Task { @MainActor in
             do {
+                let persisted: FlashcardStudySession?
+                if let requestedSessionId {
+                    persisted = try await api.getFlashcardStudySession(id: requestedSessionId)
+                } else {
+                    persisted = nil
+                }
+                let queueIds = persisted?.cardIds ?? quick.cardIds
+                let queueTitle = persisted?.title ?? quick.title
+                studySessionId = persisted?.id ?? quick.sessionId
+                accumulatedElapsedSeconds = persisted?.elapsedSeconds ?? 0
+                sessionStartDate = Date()
                 let deck = try await fetchDeck(
                     deckIds: deckIds,
                     tagFilter: tagFilter,
-                    quickSession: quick.cardIds.isEmpty ? nil : quick
+                    quickSession: queueIds.isEmpty ? nil : (queueIds, queueTitle)
                 )
-                startSession(deck: deck)
+                // A sessao rapida ja nasce persistida no builder. Uma abertura
+                // direta de baralho, por outro lado, precisa registrar a fila
+                // exata que acabou de ser montada antes do primeiro review.
+                if studySessionId == nil, !deck.cards.isEmpty {
+                    do {
+                        let created = try await api.createFlashcardSession(
+                            body: FlashcardSessionBody(
+                                lens: nil,
+                                groupSlugs: nil,
+                                mode: "specific",
+                                limit: nil,
+                                showHints: nil,
+                                skipEasy: nil,
+                                cardIds: deck.cards.map(\.id),
+                                deckId: deck.id,
+                                title: deck.title
+                            )
+                        )
+                        studySessionId = created.sessionId
+                    } catch {
+                        // Keep the study flow usable during a transient network
+                        // failure; the log makes the persistence failure visible.
+                        NSLog("[Flashcard] create study session failed: %@", String(describing: error))
+                    }
+                }
+                startSession(
+                    deck: deck,
+                    initialIndex: persisted?.currentIndex ?? 0,
+                    initialCorrectCount: persisted?.correctCount ?? 0,
+                    initialRatings: persisted?.ratings.compactMap(ReviewRating.init(rawValue:)) ?? []
+                )
             } catch {
                 phase = .error("Erro ao carregar flashcards: \(error.localizedDescription)")
             }
@@ -141,6 +194,7 @@ final class FlashcardViewModel {
             correctCount: correctCount
         )
         canUndo = true
+        ratingHistory.append(rating)
 
         phase = .reviewing
 
@@ -214,6 +268,39 @@ final class FlashcardViewModel {
         if case .error = phase { phase = .studying }
     }
 
+    /// Persiste a fila e o ponto exato da sessão. Fechar a tela ou matar o app
+    /// nunca encerra a sessão; o backend continua sendo a fonte de verdade.
+    func persistSession() async {
+        guard let studySessionId else { return }
+        let elapsed = elapsedSeconds
+        let progress = FlashcardStudySessionProgress(
+            cardIds: cards.map(\.id),
+            ratings: ratingHistory.map(\.rawValue),
+            currentIndex: min(totalReviewed, cards.count),
+            correctCount: min(correctCount, totalReviewed),
+            elapsedSeconds: elapsed
+        )
+        do {
+            _ = try await api.updateFlashcardStudySession(id: studySessionId, progress: progress)
+            accumulatedElapsedSeconds = elapsed
+            sessionStartDate = Date()
+        } catch {
+            NSLog("[Flashcard] persist session failed: %@", String(describing: error))
+        }
+    }
+
+    /// Único caminho que fecha manualmente uma sessão incompleta.
+    func endSession() async {
+        guard let id = studySessionId else { return }
+        await persistSession()
+        do {
+            _ = try await api.finishFlashcardStudySession(id: id)
+            studySessionId = nil
+        } catch {
+            NSLog("[Flashcard] finish session failed: %@", String(describing: error))
+        }
+    }
+
     /// Remove the current card from the session (suspend)
     func suspendCurrentCard() {
         guard case .studying = phase, let card = currentCard else { return }
@@ -241,6 +328,7 @@ final class FlashcardViewModel {
         }
         isFlipped = false
         cardStartDate = Date()
+        Task { await persistSession() }
     }
 
     /// Undo the last rating — go back to previous card
@@ -255,9 +343,11 @@ final class FlashcardViewModel {
         correctCount = snapshot.correctCount
         isFlipped = false
         cardStartDate = Date()
+        if !ratingHistory.isEmpty { ratingHistory.removeLast() }
 
         undoSnapshot = nil
         canUndo = false
+        Task { await persistSession() }
     }
 
     /// Bury current card — hide until tomorrow (remove from session, don't delete)
@@ -287,6 +377,7 @@ final class FlashcardViewModel {
         }
         isFlipped = false
         cardStartDate = Date()
+        Task { await persistSession() }
     }
 
     /// Apply settings from the settings sheet
@@ -348,11 +439,17 @@ final class FlashcardViewModel {
         if cards.isEmpty {
             phase = .empty
         }
+        Task { await persistSession() }
     }
 
     // MARK: - Private
 
-    private func startSession(deck: FlashcardDeck) {
+    private func startSession(
+        deck: FlashcardDeck,
+        initialIndex: Int = 0,
+        initialCorrectCount: Int = 0,
+        initialRatings: [ReviewRating] = []
+    ) {
         guard !deck.cards.isEmpty else {
             deckTitle = deck.title
             result = FlashcardSessionResult(totalCards: 0, correctCount: 0, timeSpentMs: 0, streakCount: 0)
@@ -362,10 +459,12 @@ final class FlashcardViewModel {
 
         deckTitle = deck.title
         cards = deck.cards
-        currentIndex = 0
+        let safeIndex = min(max(0, initialIndex), deck.cards.count)
+        currentIndex = min(safeIndex, max(0, deck.cards.count - 1))
         isFlipped = false
-        totalReviewed = 0
-        correctCount = 0
+        totalReviewed = safeIndex
+        correctCount = min(initialCorrectCount, safeIndex)
+        ratingHistory = Array(initialRatings.prefix(safeIndex))
         sessionStartDate = Date()
         cardStartDate = Date()
         VitaAnalytics.capture(event: "flashcard_review_started", properties: [
@@ -402,7 +501,18 @@ final class FlashcardViewModel {
             }
         }
 
-        phase = .studying
+        if safeIndex >= cards.count {
+            result = FlashcardSessionResult(
+                totalCards: totalReviewed,
+                correctCount: correctCount,
+                timeSpentMs: Int64(elapsedSeconds * 1000),
+                streakCount: correctCount
+            )
+            phase = .finished
+            Task { await endSession() }
+        } else {
+            phase = .studying
+        }
     }
 
     private func advanceCard(rating: ReviewRating) {
@@ -424,12 +534,14 @@ final class FlashcardViewModel {
                 "correct_count": correctCount,
                 "seconds_elapsed": Int(elapsed / 1000),
             ])
+            Task { await endSession() }
 
         } else {
             currentIndex = nextIndex
             isFlipped = false
             cardStartDate = Date()
             phase = .studying
+            Task { await persistSession() }
         }
     }
 

@@ -30,17 +30,20 @@ final class FlashcardMultiDeckHandoff {
 
     private var pendingQuickCardIds: [String] = []
     private var pendingQuickTitle: String? = nil
+    private var pendingQuickSessionId: String? = nil
 
-    func setQuickSession(cardIds: [String], title: String) {
+    func setQuickSession(cardIds: [String], title: String, sessionId: String? = nil) {
         pendingQuickCardIds = cardIds
         pendingQuickTitle = title
+        pendingQuickSessionId = sessionId
     }
 
     /// Fila da sessão rápida e LIMPA. cardIds vazio = fluxo normal por deck.
-    func consumeQuickSession() -> (cardIds: [String], title: String?) {
-        let out = (pendingQuickCardIds, pendingQuickTitle)
+    func consumeQuickSession() -> (cardIds: [String], title: String?, sessionId: String?) {
+        let out = (pendingQuickCardIds, pendingQuickTitle, pendingQuickSessionId)
         pendingQuickCardIds = []
         pendingQuickTitle = nil
+        pendingQuickSessionId = nil
         return out
     }
 }

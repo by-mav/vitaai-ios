@@ -312,6 +312,27 @@ actor VitaAPI {
         try await client.post("study/flashcards/session", body: body)
     }
 
+    func getFlashcardStudySession(id: String) async throws -> FlashcardStudySession {
+        try await client.get("study/flashcards/session/\(id)")
+    }
+
+    @discardableResult
+    func updateFlashcardStudySession(
+        id: String,
+        progress: FlashcardStudySessionProgress
+    ) async throws -> FlashcardStudySession {
+        try await client.patch("study/flashcards/session/\(id)", body: progress)
+    }
+
+    @discardableResult
+    func finishFlashcardStudySession(id: String) async throws -> FlashcardStudySession {
+        try await client.post("study/flashcards/session/\(id)/finish", body: EmptyBody())
+    }
+
+    func getActiveStudySessions() async throws -> ActiveStudySessionsResponse {
+        try await client.get("study/active-sessions")
+    }
+
     /// POST /api/study/flashcards/from-question — converte questão errada do
     /// QBank em flashcard determinístico no deck "Questões erradas" (dedup
     /// server-side por sourceQuestionId → 200 existing=true; 422 = questão

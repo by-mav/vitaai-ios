@@ -224,6 +224,7 @@
 		703BF29ABD3889F1EC2E0E70 /* QBankModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270B16079B86077F2A7DF37A /* QBankModels.swift */; };
 		70CB738E65A003E945F709D4 /* StudyTipCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C79FDD1109E963526A23728 /* StudyTipCard.swift */; };
 		715449BD566555D24F6E10ED /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBBBFC9B58E9F7552AF6C9C /* HomeScreen.swift */; };
+		A1C710000000000000000002 /* ContinueSessionDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C710000000000000000001 /* ContinueSessionDrawer.swift */; };
 		71612295898C578D6E09489C /* AnalyticsTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BFB7763C59547BA37C4EDD6 /* AnalyticsTracker.swift */; };
 		7211533225678DCDD34327F1 /* ConfiguracoesScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB516FEEE3F8C5A3FB28626 /* ConfiguracoesScreen.swift */; };
 		72AA2C1A529171ACC522ED97 /* VoiceModeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72CE7EA9BA0EA4B90790643F /* VoiceModeScreen.swift */; };
@@ -567,6 +568,7 @@
 		3B18EC14C18BD1A28685ADF2 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
 		3C615CE58F474E99F3FD2173 /* NotificationSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsScreen.swift; sourceTree = "<group>"; };
 		3CBBBFC9B58E9F7552AF6C9C /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
+		A1C710000000000000000001 /* ContinueSessionDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueSessionDrawer.swift; sourceTree = "<group>"; };
 		3CC79AAF200B3E4F78222C27 /* MaterialFolderDetailScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialFolderDetailScreen.swift; sourceTree = "<group>"; };
 		3CC9754599090551B56C7C63 /* PrivacyPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPreferences.swift; sourceTree = "<group>"; };
 		3CCBA0525E7D5E4B0760C954 /* MindMapListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapListView.swift; sourceTree = "<group>"; };
@@ -1659,6 +1661,7 @@
 			isa = PBXGroup;
 			children = (
 				00BC9F41EF993F80BAF55655 /* DesempenhoScreen.swift */,
+				A1C710000000000000000001 /* ContinueSessionDrawer.swift */,
 				3CBBBFC9B58E9F7552AF6C9C /* HomeScreen.swift */,
 				7993D339523EA36C4CC8B25C /* ProgressoScreen.swift */,
 				54C5921B1E7D6773BE496440 /* ProgressoViewModel.swift */,
@@ -2239,6 +2242,7 @@
 				6BBC9742F225B4325F737616 /* HapticManager.swift in Sources */,
 				305CEED5D49052D0DCC78E5F /* HeatmapCalendarView.swift in Sources */,
 				715449BD566555D24F6E10ED /* HomeScreen.swift in Sources */,
+				A1C710000000000000000002 /* ContinueSessionDrawer.swift in Sources */,
 				8A1891EC28B37CEE131BA219 /* HorizontalDrillDown.swift in Sources */,
 				2E2C5A22A7D243994EBF9E02 /* ImmersivePreferenceKey.swift in Sources */,
 				4F3666A0AD5A4A7BA7C5C86B /* InsightsChartModels.swift in Sources */,

@@ -227,6 +227,7 @@ struct MainTabView: View {
     let authManager: AuthManager
     @Environment(\.appContainer) private var container
     @Environment(\.subscriptionStatus) private var subStatus
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var pushManager = PushManager.shared
     @State private var showChat = false
     /// Optional pre-filled prompt sent into VitaChatScreen on its next open.
@@ -240,6 +241,7 @@ struct MainTabView: View {
     /// the chrome to go away. Hides TopBar, Breadcrumb, TabBar, safe-area inset.
     @State private var isImmersiveMode: Bool = false
     @State private var navVisibility = NavVisibility()
+    @State private var activeSessionsVM: ActiveStudySessionsViewModel?
 
     var body: some View {
         if ProcessInfo.processInfo.arguments.contains("--vita-skin-demo") {
@@ -323,6 +325,19 @@ struct MainTabView: View {
                             .padding(.horizontal, 14)
                             .padding(.bottom, 86)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
+                    .overlay(alignment: .topLeading) {
+                        if isHomeRoot,
+                           let activeSessionsVM,
+                           !activeSessionsVM.sessions.isEmpty {
+                            ContinueSessionDrawer(
+                                model: activeSessionsVM,
+                                onResume: resumeStudySession
+                            )
+                            .padding(.leading, VitaTokens.Spacing.lg)
+                            .padding(.top, 88)
+                            .zIndex(25)
                         }
                     }
                     .overlay(alignment: .bottom) {
@@ -490,6 +505,14 @@ struct MainTabView: View {
                 }
             }
         }
+        .onChange(of: isHomeRoot) { _, isHome in
+            guard isHome, let activeSessionsVM else { return }
+            Task { await activeSessionsVM.refresh() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, isHomeRoot, let activeSessionsVM else { return }
+            Task { await activeSessionsVM.refresh() }
+        }
         .overlay {
             ZStack {
                 VitaLevelUpOverlay(event: container.gamificationEvents.levelUpEvent)
@@ -499,6 +522,11 @@ struct MainTabView: View {
         }
         .vitaXpToastHost(container.gamificationEvents.xpToast)
         .task {
+            if activeSessionsVM == nil {
+                activeSessionsVM = ActiveStudySessionsViewModel(api: container.api)
+            }
+            await activeSessionsVM?.refresh()
+
             // Populate subtitle from profile API (reliable source)
             if dashboardSubtitle.isEmpty {
                 if let profile = try? await container.api.getProfile(),
@@ -550,13 +578,28 @@ struct MainTabView: View {
 
     private func openHomeStudy(_ route: Route) {
         PixioHaptics.tap()
-        withAnimation(.easeInOut(duration: 0.24)) {
-            // As quatro ferramentas pertencem a Estudos. Quando abertas pelo
-            // dock da Home, o voltar canônico precisa cair na raiz de Estudos,
-            // não devolver o usuário para uma tab diferente.
-            router.selectedTab = .estudos
+        router.popToRoot()
+        if router.selectedTab == .estudos {
             router.navigate(to: route)
+        } else {
+            router.pendingRouteAfterTabChange = route
+            withAnimation(.easeInOut(duration: 0.24)) {
+                router.selectedTab = .estudos
+            }
         }
+    }
+
+    private func resumeStudySession(_ session: ActiveStudySession) {
+        let route: Route
+        switch session.engine {
+        case .qbank:
+            route = .qbankSession(sessionId: session.id, mode: session.mode)
+        case .simulado:
+            route = .simuladoSession(attemptId: session.id)
+        case .flashcards:
+            route = .flashcardSession(deckId: session.deckId ?? "", sessionId: session.id)
+        }
+        openHomeStudy(route)
     }
 
     /// Resolve a gaveta global "+" usando somente destinos que já existem no
@@ -719,10 +762,11 @@ struct MainTabView: View {
                     router.navigate(to: .flashcardSession(deckId: deckId, tagFilter: tagPrefix))
                 }
             )
-        case .flashcardSession(let deckId, let tagFilter):
+        case .flashcardSession(let deckId, let tagFilter, let sessionId):
             FlashcardSessionScreen(
                 deckId: deckId,
                 tagFilter: tagFilter,
+                sessionId: sessionId,
                 onBack: { router.goBack() },
                 onFinished: { router.goBack() },
                 onOpenSettings: { router.navigate(to: .flashcardSettings) }

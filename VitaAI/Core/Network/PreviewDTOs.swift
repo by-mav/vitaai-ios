@@ -75,6 +75,31 @@ struct FlashcardSessionBody: Codable {
     let limit: Int?
     let showHints: Bool?
     let skipEasy: Bool?
+    let cardIds: [String]?
+    let deckId: String?
+    let title: String?
+
+    init(
+        lens: String?,
+        groupSlugs: [String]?,
+        mode: String,
+        limit: Int?,
+        showHints: Bool?,
+        skipEasy: Bool?,
+        cardIds: [String]? = nil,
+        deckId: String? = nil,
+        title: String? = nil
+    ) {
+        self.lens = lens
+        self.groupSlugs = groupSlugs
+        self.mode = mode
+        self.limit = limit
+        self.showHints = showHints
+        self.skipEasy = skipEasy
+        self.cardIds = cardIds
+        self.deckId = deckId
+        self.title = title
+    }
 }
 
 struct FlashcardSessionResp: Codable {
@@ -82,6 +107,59 @@ struct FlashcardSessionResp: Codable {
     let cardIds: [String]
     let totalCards: Int
     let expectedMinutes: Int
+}
+
+struct FlashcardStudySession: Codable {
+    let id: String
+    let title: String
+    let mode: String
+    let deckId: String?
+    let cardIds: [String]
+    let ratings: [Int]
+    let currentIndex: Int
+    let totalCards: Int
+    let correctCount: Int
+    let elapsedSeconds: Int
+    let status: String
+    let finishedAt: String?
+    let createdAt: String
+    let updatedAt: String
+}
+
+struct FlashcardStudySessionProgress: Codable {
+    let cardIds: [String]
+    let ratings: [Int]
+    let currentIndex: Int
+    let correctCount: Int
+    let elapsedSeconds: Int
+}
+
+enum ActiveStudySessionKind: String, Codable, Hashable {
+    case questoes
+    case simulado
+    case flashcards
+}
+
+enum ActiveStudySessionEngine: String, Codable, Hashable {
+    case qbank
+    case simulado
+    case flashcards
+}
+
+struct ActiveStudySession: Codable, Identifiable, Hashable {
+    let id: String
+    let kind: ActiveStudySessionKind
+    let engine: ActiveStudySessionEngine
+    let mode: String?
+    let title: String
+    let current: Int
+    let total: Int
+    let deckId: String?
+    let updatedAt: String
+}
+
+struct ActiveStudySessionsResponse: Codable {
+    let sessions: [ActiveStudySession]
 }
 
 // MARK: - Flashcard From Question (issue #188 I2)

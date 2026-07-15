@@ -482,7 +482,11 @@ final class FlashcardBuilderViewModel {
             // Deck âncora só pra rota (a fila real vem do handoff).
             guard let deckId = state.decks.first(where: { $0.cardCount > 0 })?.id
                     ?? state.decks.first?.id else { return .failed }
-            FlashcardMultiDeckHandoff.shared.setQuickSession(cardIds: resp.cardIds, title: title)
+            FlashcardMultiDeckHandoff.shared.setQuickSession(
+                cardIds: resp.cardIds,
+                title: title,
+                sessionId: resp.sessionId
+            )
             return .open(deckId: deckId)
         } catch {
             NSLog("[FlashcardBuilder] createQuickSession(%@) error: %@", mode, String(describing: error))

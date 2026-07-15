@@ -22,7 +22,7 @@ enum Route: Hashable {
     case mindMapEditor(id: String)
     case flashcardHome(subjectId: String? = nil)
     case flashcardTopics(deckId: String, deckTitle: String)
-    case flashcardSession(deckId: String, tagFilter: String? = nil)
+    case flashcardSession(deckId: String, tagFilter: String? = nil, sessionId: String? = nil)
     case flashcardSettings
     case flashcardStats
     case desempenho
