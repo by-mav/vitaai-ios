@@ -12,25 +12,29 @@ struct AgendaScreen: View {
     @Environment(\.appData) private var appData
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 12) {
-                    MonthlyCalendarView(
-                        schedule: appData.classSchedule,
-                        evaluations: appData.academicEvaluations
-                    )
-                }
-                .padding(14)
-                .pixioRaised(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .shadow(color: .black.opacity(0.24), radius: 14, y: 7)
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Agenda")
 
-                Spacer().frame(height: 120)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        MonthlyCalendarView(
+                            schedule: appData.classSchedule,
+                            evaluations: appData.academicEvaluations
+                        )
+                    }
+                    .padding(14)
+                    .pixioRaised(in: RoundedRectangle(cornerRadius: 18, style: .continuous))  // ds-allow: raio herdado do card de agenda (pre-existente)
+                    .shadow(color: .black.opacity(0.24), radius: 14, y: 7)
+
+                    Spacer().frame(height: 120)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .refreshable { await appData.forceRefresh() }
         }
         .background(Color.clear)
-        .refreshable { await appData.forceRefresh() }
         .task { SentrySDK.reportFullyDisplayed() }
         .trackScreen("Agenda")
     }

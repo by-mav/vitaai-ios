@@ -8,11 +8,15 @@ struct InsightsScreen: View {
     @State private var viewModel: InsightsViewModel?
 
     var body: some View {
-        Group {
-            if let vm = viewModel {
-                insightsContent(vm: vm)
-            } else {
-                DashboardSkeleton()
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Insights")
+
+            Group {
+                if let vm = viewModel {
+                    insightsContent(vm: vm)
+                } else {
+                    DashboardSkeleton()
+                }
             }
         }
         .onAppear {
