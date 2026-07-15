@@ -129,16 +129,21 @@ struct FlashcardSessionScreen: View {
     @ViewBuilder
     private func studyingBody(vm: FlashcardViewModel) -> some View {
         VStack(spacing: 0) {
-            // Session header: back | title | count  (per mockup .session-header)
-            sessionHeader(vm: vm)
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
-                .padding(.bottom, 14)
+            // No TOPO: só o < grande + título (igual às outras telas). Rafael 2026-07-15.
+            VitaScreenHeader(title: vm.deckTitle, onBack: onBack)
 
-            // Progress bar — separate 3px bar below header
+            // Vão: o resto (controle + barra + card) desce e fica agrupado embaixo.
+            Spacer(minLength: 8)
+
+            // Logo ACIMA do card: card anterior | Frente/Verso | ⋯
+            controlRow(vm: vm)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+
+            // Barra de progresso — colada logo acima do card
             sessionProgressBar(vm: vm)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+                .padding(.bottom, 12)
 
             if let card = vm.currentCard {
                 FlashcardCardView(
@@ -158,101 +163,72 @@ struct FlashcardSessionScreen: View {
             ratingSection(vm: vm)
                 .padding(.horizontal, 16)
 
-            // Seta de "card anterior" no rodapé (Rafael 2026-07-15): a de baixo volta
-            // 1 card; a de cima sai dos flashcards. Some quando não há card anterior.
-            previousCardControl(vm: vm)
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-
-            Spacer().frame(height: 20)
+            Spacer(minLength: 20)
         }
-    }
-
-    @ViewBuilder
-    private func previousCardControl(vm: FlashcardViewModel) -> some View {
-        if vm.canUndo {
-            Button(action: { vm.undoLastRating() }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))  // ds-allow: seta óptica do SF Symbol
-                    Text("Card anterior")
-                        .font(VitaTypography.labelMedium)
-                }
-                .foregroundStyle(VitaColors.textSecondary)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .transition(.opacity)
-            .animation(.easeOut(duration: 0.2), value: vm.canUndo)
-        } else {
-            Color.clear.frame(height: 18)
-        }
+        // Ancora no topo (o ZStack pai centralizava e criava o vão acima do header).
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: Session Header — chevron+Voltar | title | count (purple)
 
-    private func sessionHeader(vm: FlashcardViewModel) -> some View {
-        VStack(spacing: 10) {
-            // Título do baralho — topo, centralizado (+ timer discreto à direita se ligado).
-            ZStack {
-                Text(vm.deckTitle)
-                    .font(VitaTypography.labelLarge)
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .lineLimit(1)
-                if settings.showTimer {
-                    HStack {
-                        Spacer()
-                        Text(formattedTimer)
-                            .font(.system(size: 12, weight: .medium))  // ds-allow: timer de sessão
-                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
-                            .monospacedDigit()
-                    }
-                }
-            }
-
-            // Linha de controles: < (sair) | Frente/Verso (centro) | ⋯
-            HStack(spacing: 0) {
-                Button(action: onBack) {
+    // Linha de controle sob o header: card anterior | Frente/Verso | ⋯ (Rafael 2026-07-15).
+    // O voltar-grande (sair do baralho) mora no VitaScreenHeader acima.
+    private func controlRow(vm: FlashcardViewModel) -> some View {
+        HStack(spacing: 0) {
+            // Card anterior — onde ficava o < de sair. Só aparece depois de fazer 1 card.
+            if vm.canUndo {
+                Button(action: { vm.undoLastRating() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 17, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
                         .foregroundStyle(VitaColors.textWarm.opacity(0.70))
                         .frame(width: 44, height: 40, alignment: .leading)
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("backButton")
+                .accessibilityLabel("Card anterior")
+                .transition(.opacity)
+            } else {
+                Color.clear.frame(width: 44, height: 40)
+            }
 
-                Spacer()
+            Spacer()
 
-                // Frente / Verso — no centro, na altura do < e do ⋯ (Rafael 2026-07-15)
+            // Frente / Verso — centro (+ timer discreto embaixo se ligado)
+            VStack(spacing: 2) {
                 Text(vm.isFlipped ? "Verso" : "Frente")
                     .font(VitaTypography.titleSmall)
                     .foregroundStyle(VitaColors.textPrimary)
-                    .animation(.easeInOut(duration: 0.2), value: vm.isFlipped)
-
-                Spacer()
-
-                Menu {
-                    Button { onOpenSettings() } label: {
-                        Label("Ajustes de estudo", systemImage: "slider.horizontal.3")
-                    }
-                    if vm.studySessionId != nil {
-                        Button(role: .destructive) {
-                            showEndSessionConfirmation = true
-                        } label: {
-                            Label("Encerrar sessão", systemImage: "xmark.circle")
-                        }
-                    }
-                    // Editar / Mover / Excluir card entram aqui no próximo brick
-                    // (usam o backend PATCH/DELETE já pronto).
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 17, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.55))
-                        .frame(width: 44, height: 40, alignment: .trailing)
+                if settings.showTimer {
+                    Text(formattedTimer)
+                        .font(.system(size: 11, weight: .medium))  // ds-allow: timer de sessão
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                        .monospacedDigit()
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: vm.isFlipped)
+
+            Spacer()
+
+            Menu {
+                Button { onOpenSettings() } label: {
+                    Label("Ajustes de estudo", systemImage: "slider.horizontal.3")
+                }
+                if vm.studySessionId != nil {
+                    Button(role: .destructive) {
+                        showEndSessionConfirmation = true
+                    } label: {
+                        Label("Encerrar sessão", systemImage: "xmark.circle")
+                    }
+                }
+                // Editar / Mover / Excluir card entram aqui no próximo brick
+                // (usam o backend PATCH/DELETE já pronto).
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.55))
+                    .frame(width: 44, height: 40, alignment: .trailing)
+            }
         }
+        .animation(.easeOut(duration: 0.2), value: vm.canUndo)
     }
 
     // MARK: Progress Bar — 3px, rgba(255,255,255,0.06) bg, purple gradient fill
