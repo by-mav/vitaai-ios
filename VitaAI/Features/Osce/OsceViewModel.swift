@@ -172,16 +172,6 @@ final class OsceViewModel {
                     isStreaming = false
                     phase = .completed
 
-                    // Log OSCE completion for gamification
-                    let durationMinutes = Int(Date().timeIntervalSince(caseStartDate) / 60)
-                    Task { [api, gamificationEvents] in
-                        if let result = try? await api.logActivity(
-                            action: "osce_complete",
-                            metadata: ["durationMinutes": String(durationMinutes)]
-                        ) {
-                            gamificationEvents.handleActivityResponse(result, previousLevel: nil)
-                        }
-                    }
                 } else {
                     exchanges.append(exchange)
                     currentStep = completedStep

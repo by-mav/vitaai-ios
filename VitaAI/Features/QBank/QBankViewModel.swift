@@ -1038,7 +1038,6 @@ final class QBankViewModel {
         completedSessionIds.insert(session.id)
         let correctCount = state.sessionAnswers.values.filter { $0.isCorrect }.count
         let totalAnswered = state.sessionAnswers.count
-        let durationMinutes = Int(Date().timeIntervalSince(sessionStartDate) / 60)
         VitaAnalytics.capture(event: "qbank_session_ended", properties: [
             "session_id": session.id,
             "answered_count": totalAnswered,
@@ -1050,24 +1049,16 @@ final class QBankViewModel {
         state.sessionRewardLoading = true
         Task { [api, gamificationEvents] in
             // POST finish to backend
-            if let finishResp = try? await api.finishQBankSession(
-                id: session.id,
-                correctCount: correctCount,
-                totalAnswered: totalAnswered
-            ) {
+            if let finishResp = try? await api.finishQBankSession(id: session.id) {
                 state.byDiscipline = finishResp.byDiscipline
-            }
-            // Log activity for gamification
-            if let result = try? await api.logActivity(
-                action: "qbank_session_complete",
-                metadata: [
-                    "durationMinutes": String(durationMinutes),
-                    "correctCount": String(correctCount),
-                    "totalAnswered": String(totalAnswered),
-                ]
-            ) {
-                gamificationEvents.handleActivityResponse(result, previousLevel: nil, source: .qbankSessionComplete)
-                state.sessionXpAwarded += result.xpAwarded
+                if let award = finishResp.activityResponse {
+                    gamificationEvents.handleActivityResponse(
+                        award,
+                        previousLevel: nil,
+                        source: .qbankSessionComplete
+                    )
+                    state.sessionXpAwarded += award.xpAwarded
+                }
                 state.sessionReward = gamificationEvents.recordStudySessionSummary(
                     source: .qbankSessionComplete,
                     contextId: session.id,

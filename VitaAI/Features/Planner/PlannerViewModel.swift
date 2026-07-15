@@ -82,13 +82,6 @@ final class PlannerViewModel {
         guard let idx = tasks.firstIndex(where: { $0.id == task.id }) else { return }
         tasks[idx].isCompleted.toggle()
 
-        // Log activity if completing
-        if tasks[idx].isCompleted {
-            _ = try? await api.logActivity(
-                action: "study_session_end",
-                metadata: ["task_id": task.id, "task_type": task.type]
-            )
-        }
     }
 
     // MARK: - Helpers

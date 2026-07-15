@@ -175,15 +175,23 @@ final class FlashcardViewModel {
             "rating": rating.rawValue,
             "seconds_elapsed": Int(responseTimeMs / 1000),
         ])
-        let action = rating.isCorrect ? "flashcard_easy" : "flashcard_review"
-        Task.detached { [api = self.api] in
+        let reviewId = UUID().uuidString
+        Task.detached { [api = self.api, gamificationEvents = self.gamificationEvents] in
             for attempt in 0..<3 {
                 do {
-                    _ = try await api.reviewFlashcard(
+                    let response = try await api.reviewFlashcard(
                         cardId: cardId,
                         rating: rating.rawValue,
-                        responseTimeMs: responseTimeMs
+                        responseTimeMs: responseTimeMs,
+                        reviewId: reviewId
                     )
+                    if let award = response.award {
+                        await gamificationEvents.handleActivityResponse(
+                            award,
+                            previousLevel: nil,
+                            source: .flashcardReview
+                        )
+                    }
                     break
                 } catch {
                     if attempt < 2 {
@@ -192,13 +200,6 @@ final class FlashcardViewModel {
                         print("[Flashcard] Review sync failed after 3 attempts for card \(cardId)")
                     }
                 }
-            }
-        }
-
-        // Track activity for gamification (XP, streak, study time)
-        Task { [api, gamificationEvents] in
-            if let result = try? await api.logActivity(action: action) {
-                gamificationEvents.handleActivityResponse(result, previousLevel: nil, source: .flashcardReview)
             }
         }
 
@@ -424,16 +425,6 @@ final class FlashcardViewModel {
                 "seconds_elapsed": Int(elapsed / 1000),
             ])
 
-            // Log deck completion with study duration
-            let durationMinutes = Int(elapsed / 60_000)
-            Task { [api, gamificationEvents] in
-                if let result = try? await api.logActivity(
-                    action: "deck_completed",
-                    metadata: ["durationMinutes": String(durationMinutes)]
-                ) {
-                    gamificationEvents.handleActivityResponse(result, previousLevel: nil, source: .deckComplete)
-                }
-            }
         } else {
             currentIndex = nextIndex
             isFlipped = false

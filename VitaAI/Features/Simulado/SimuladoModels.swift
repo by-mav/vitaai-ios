@@ -161,6 +161,9 @@ struct AnswerSimuladoResponse: Decodable {
     var id: String = ""
     var isCorrect: Bool = false
     var correctIdx: Int = 0
+    var award: LogActivityResponse?
+
+    var activityResponse: LogActivityResponse? { award }
 }
 
 // MARK: - Finish
@@ -170,6 +173,18 @@ struct FinishSimuladoResponse: Decodable, Equatable {
     var correctQ: Int = 0
     var totalQ: Int = 0
     var score: Double = 0
+    var answeredCount: Int = 0
+    var award: LogActivityResponse?
+
+    var activityResponse: LogActivityResponse? { award }
+
+    static func == (lhs: FinishSimuladoResponse, rhs: FinishSimuladoResponse) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.correctQ == rhs.correctQ &&
+        lhs.totalQ == rhs.totalQ &&
+        lhs.score == rhs.score &&
+        lhs.answeredCount == rhs.answeredCount
+    }
 }
 
 // MARK: - Explain

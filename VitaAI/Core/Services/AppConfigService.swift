@@ -1,49 +1,14 @@
 import Foundation
 import Observation
-import os
-
-// MARK: - Thread-safe XP snapshot (replaces nonisolated(unsafe) statics)
-// Uses os_unfair_lock for fast, safe concurrent reads/writes.
-private final class XpSnapshot: @unchecked Sendable {
-    private var lock = os_unfair_lock()
-    private var _xpRewards: [String: Int] = GamificationConfig.fallback.xpRewards
-    private var _dailyGoal: Int = GamificationConfig.fallback.dailyGoal
-
-    var xpRewards: [String: Int] {
-        os_unfair_lock_lock(&lock)
-        defer { os_unfair_lock_unlock(&lock) }
-        return _xpRewards
-    }
-
-    var dailyGoal: Int {
-        os_unfair_lock_lock(&lock)
-        defer { os_unfair_lock_unlock(&lock) }
-        return _dailyGoal
-    }
-
-    func update(xp: [String: Int], dailyGoal: Int) {
-        os_unfair_lock_lock(&lock)
-        _xpRewards = xp
-        _dailyGoal = dailyGoal
-        os_unfair_lock_unlock(&lock)
-    }
-}
-
-// File-level snapshot instance — outside @MainActor class to avoid isolation mismatch
-private let _appConfigXpSnapshot = XpSnapshot()
 
 // MARK: - AppConfigService
 // Fetches and caches GET /api/config/app.
 // Cache strategy: UserDefaults with 1-hour TTL.
-// Fallback: GamificationConfig.fallback (hardcoded constants matching server).
+// Sem fallback numérico: o cliente guarda e mostra somente configuração recebida.
 //
 // Usage (async, from @MainActor context):
 //   await AppConfigService.shared.loadIfNeeded(api: container.api)
 //
-// Usage (sync, from any context — e.g. XpSource.xp):
-//   let xp = AppConfigService.xpRewards["daily_login"] ?? 20
-//   let xp = AppConfigService.xp(for: .dailyLogin)
-
 @MainActor
 @Observable
 final class AppConfigService {
@@ -51,24 +16,8 @@ final class AppConfigService {
     // MARK: - Singleton
     static let shared = AppConfigService()
 
-    // MARK: - Thread-safe XP snapshot
-    // Updated whenever config is loaded. Used by XpSource.xp (non-isolated context).
-    // Using actor-based storage to avoid data races on Dictionary/Int writes.
-    // _snapshot lives outside the class (file-level) to avoid MainActor isolation
-    nonisolated static var xpRewards: [String: Int] {
-        _appConfigXpSnapshot.xpRewards
-    }
-    nonisolated static var currentDailyGoal: Int {
-        _appConfigXpSnapshot.dailyGoal
-    }
-    nonisolated static func updateSnapshot(xp: [String: Int], dailyGoal: Int) {
-        _appConfigXpSnapshot.update(xp: xp, dailyGoal: dailyGoal)
-    }
-
     // MARK: - State
-    private(set) var config: AppConfigResponse = AppConfigResponse(
-        gamification: .fallback
-    )
+    private(set) var config: AppConfigResponse?
     private(set) var isLoaded = false
     private(set) var lastError: Error?
 
@@ -98,16 +47,6 @@ final class AppConfigService {
         await fetch(api: api)
     }
 
-    /// XP reward for a given action key (actor-isolated).
-    func xp(for action: XpRewardKey) -> Int {
-        config.gamification.xpRewards[action.rawValue] ?? action.fallbackXp
-    }
-
-    /// XP reward for a given action key — callable from any context.
-    nonisolated static func xp(for action: XpRewardKey) -> Int {
-        xpRewards[action.rawValue] ?? action.fallbackXp
-    }
-
     // MARK: - Private
 
     private func fetch(api: VitaAPI) async {
@@ -117,8 +56,6 @@ final class AppConfigService {
             isLoaded = true
             lastError = nil
             saveToCache(fetched)
-            // Update thread-safe snapshot
-            AppConfigService.updateSnapshot(xp: fetched.gamification.xpRewards, dailyGoal: fetched.gamification.dailyGoal)
         } catch {
             // Keep existing config (cache or fallback) on network error
             lastError = error
@@ -138,8 +75,6 @@ final class AppConfigService {
 
         config = decoded
         isLoaded = true
-        // Sync thread-safe snapshot from cache
-        AppConfigService.updateSnapshot(xp: decoded.gamification.xpRewards, dailyGoal: decoded.gamification.dailyGoal)
     }
 
     private func saveToCache(_ config: AppConfigResponse) {
@@ -152,53 +87,5 @@ final class AppConfigService {
         let savedAt = UserDefaults.standard.double(forKey: CacheKey.timestamp)
         guard savedAt > 0 else { return true }
         return Date().timeIntervalSince1970 - savedAt > ttl
-    }
-}
-
-// MARK: - XpRewardKey
-// Typed keys matching the server's xpRewards map.
-// Provides fallback values so callers are never left with 0 XP.
-
-enum XpRewardKey: String {
-    case questionAnswered       = "question_answered"
-    case questionAnsweredWrong  = "question_answered_wrong"
-    case flashcardReview        = "flashcard_review"
-    case flashcardEasy          = "flashcard_easy"
-    case simuladoComplete       = "simulado_complete"
-    case qbankSessionComplete   = "qbank_session_complete"
-    case deckComplete           = "deck_complete"
-    case osceCompleted          = "osce_completed"
-    case noteCreated            = "note_created"
-    case noteEdited             = "note_edited"
-    case pdfAnnotated           = "pdf_annotated"
-    case documentOpened         = "document_opened"
-    case studioGenerated        = "studio_generated"
-    case studySessionEnd        = "study_session_end"
-    case simuladoStart          = "simulado_start"
-    case chatMessage            = "chat_message"
-    case dailyLogin             = "daily_login"
-
-    /// Fallback XP to use when server config is unavailable.
-    /// Matches GamificationConfig.fallback values.
-    var fallbackXp: Int {
-        switch self {
-        case .questionAnswered:      return 8
-        case .questionAnsweredWrong: return 3
-        case .flashcardReview:       return 8
-        case .flashcardEasy:         return 12
-        case .simuladoComplete:      return 80
-        case .qbankSessionComplete:  return 30
-        case .deckComplete:          return 40
-        case .osceCompleted:         return 50
-        case .noteCreated:           return 15
-        case .noteEdited:            return 3
-        case .pdfAnnotated:          return 10
-        case .documentOpened:        return 2
-        case .studioGenerated:       return 10
-        case .studySessionEnd:       return 8
-        case .simuladoStart:         return 3
-        case .chatMessage:           return 4
-        case .dailyLogin:            return 20
-        }
     }
 }

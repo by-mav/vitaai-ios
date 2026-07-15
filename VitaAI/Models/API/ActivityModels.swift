@@ -24,6 +24,7 @@ struct LogActivityResponse: Decodable {
     var streakDays: Int = 0
     var streakUpdated: Bool = false
     var totalStudyHours: Double = 0
+    var deduped: Bool = false
 
     init(
         xpAwarded: Int = 0,
@@ -37,7 +38,8 @@ struct LogActivityResponse: Decodable {
         iconPath: String = "",
         streakDays: Int = 0,
         streakUpdated: Bool = false,
-        totalStudyHours: Double = 0
+        totalStudyHours: Double = 0,
+        deduped: Bool = false
     ) {
         self.xpAwarded = xpAwarded
         self.totalXp = totalXp
@@ -51,11 +53,12 @@ struct LogActivityResponse: Decodable {
         self.streakDays = streakDays
         self.streakUpdated = streakUpdated
         self.totalStudyHours = totalStudyHours
+        self.deduped = deduped
     }
 
     private enum CodingKeys: String, CodingKey {
         case xpAwarded, totalXp, level, currentLevelXp, xpToNextLevel
-        case newBadges, tier, cycle, iconPath, streakDays, streakUpdated, totalStudyHours
+        case newBadges, tier, cycle, iconPath, streakDays, streakUpdated, totalStudyHours, deduped
     }
 
     init(from decoder: Decoder) throws {
@@ -72,7 +75,14 @@ struct LogActivityResponse: Decodable {
         streakDays = (try? c.decode(Int.self, forKey: .streakDays)) ?? 0
         streakUpdated = (try? c.decode(Bool.self, forKey: .streakUpdated)) ?? false
         totalStudyHours = (try? c.decode(Double.self, forKey: .totalStudyHours)) ?? 0
+        deduped = (try? c.decode(Bool.self, forKey: .deduped)) ?? false
     }
+}
+
+/// Envelope devolvido pelas rotas reais de estudo. O iOS não calcula XP e
+/// não envia nomes de recompensa; apenas apresenta o resultado do servidor.
+struct StudyActionResponse: Decodable {
+    let award: LogActivityResponse?
 }
 
 struct NewBadge: Decodable {

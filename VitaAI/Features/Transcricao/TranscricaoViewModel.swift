@@ -336,7 +336,6 @@ final class TranscricaoViewModel {
         if finalStatus == "ready" {
             // Cloud virou a fonte única — apaga a cópia local e refresh a lista
             // cloud pra mostrar a entry nova.
-            let duration = localRecordings.first(where: { $0.id == id })?.durationSeconds ?? 0
             try? TranscricaoLocalStore.shared.delete(id: id)
             loadLocalRecordings()
             await loadRecordings(force: true)
@@ -347,17 +346,6 @@ final class TranscricaoViewModel {
             // que vai aparecer em `recordings` após o refresh acima.
             if let sourceId = sourceIdSeen {
                 await MainActor.run { justCompletedRecordingId = sourceId }
-            }
-
-            // Gamification: study session log (mesmo que processUpload antigo fazia).
-            let durationMinutes = duration / 60
-            if let api, let gamificationEvents, durationMinutes > 0 {
-                if let result = try? await api.logActivity(
-                    action: "study_session_end",
-                    metadata: ["durationMinutes": String(durationMinutes)]
-                ) {
-                    await gamificationEvents.handleActivityResponse(result, previousLevel: nil)
-                }
             }
         }
     }

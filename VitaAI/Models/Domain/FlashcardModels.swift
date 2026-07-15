@@ -175,6 +175,7 @@ enum SM2Scheduler {
 struct FlashcardReviewRequest: Codable {
     let rating: Int
     let responseTimeMs: Int64?
+    let reviewId: String
 }
 
 // MARK: - Domain mapping from API layer
@@ -194,4 +195,3 @@ extension FlashcardEntry {
         )
     }
 }
-

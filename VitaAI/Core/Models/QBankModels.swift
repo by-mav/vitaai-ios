@@ -399,6 +399,7 @@ struct QBankAnswerRequest: Encodable {
 struct QBankAnswerResponse: Decodable {
     var isCorrect: Bool = false
     var answerId: Int = 0
+    var award: LogActivityResponse?
     var xpAwarded: Int = 0
     var totalXp: Int = 0
     var level: Int = 0
@@ -410,6 +411,7 @@ struct QBankAnswerResponse: Decodable {
     var iconPath: String = ""
 
     var activityResponse: LogActivityResponse? {
+        if let award { return award }
         guard xpAwarded > 0 || totalXp > 0 else { return nil }
         return LogActivityResponse(
             xpAwarded: xpAwarded,
@@ -425,13 +427,14 @@ struct QBankAnswerResponse: Decodable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case isCorrect, answerId, xpAwarded, totalXp, level, currentLevelXp, xpToNextLevel
+        case isCorrect, answerId, award, xpAwarded, totalXp, level, currentLevelXp, xpToNextLevel
         case newBadges, tier, cycle, iconPath
     }
 
     init(
         isCorrect: Bool = false,
         answerId: Int = 0,
+        award: LogActivityResponse? = nil,
         xpAwarded: Int = 0,
         totalXp: Int = 0,
         level: Int = 0,
@@ -444,6 +447,7 @@ struct QBankAnswerResponse: Decodable {
     ) {
         self.isCorrect = isCorrect
         self.answerId = answerId
+        self.award = award
         self.xpAwarded = xpAwarded
         self.totalXp = totalXp
         self.level = level
@@ -459,6 +463,7 @@ struct QBankAnswerResponse: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         isCorrect = (try? c.decode(Bool.self, forKey: .isCorrect)) ?? false
         answerId = (try? c.decode(Int.self, forKey: .answerId)) ?? 0
+        award = try? c.decode(LogActivityResponse.self, forKey: .award)
         xpAwarded = (try? c.decode(Int.self, forKey: .xpAwarded)) ?? 0
         totalXp = (try? c.decode(Int.self, forKey: .totalXp)) ?? 0
         level = (try? c.decode(Int.self, forKey: .level)) ?? 0
@@ -471,20 +476,18 @@ struct QBankAnswerResponse: Decodable {
     }
 }
 
-struct QBankFinishSessionRequest: Encodable {
-    let correctCount: Int
-    let totalAnswered: Int
-}
-
 struct QBankFinishSessionResponse: Decodable {
     var correctCount: Int = 0
     var totalQuestions: Int = 0
     var score: Int = 0
     var byDiscipline: [QBankDisciplineBreakdown] = []
     var avgTimeMs: Int? = nil
+    var award: LogActivityResponse?
+
+    var activityResponse: LogActivityResponse? { award }
 
     enum CodingKeys: String, CodingKey {
-        case correctCount, totalQuestions, score, byDiscipline, avgTimeMs
+        case correctCount, totalQuestions, score, byDiscipline, avgTimeMs, award
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -493,6 +496,7 @@ struct QBankFinishSessionResponse: Decodable {
         score = (try? c.decode(Int.self, forKey: .score)) ?? 0
         byDiscipline = (try? c.decode([QBankDisciplineBreakdown].self, forKey: .byDiscipline)) ?? []
         avgTimeMs = try? c.decode(Int.self, forKey: .avgTimeMs)
+        award = try? c.decode(LogActivityResponse.self, forKey: .award)
     }
 }
 

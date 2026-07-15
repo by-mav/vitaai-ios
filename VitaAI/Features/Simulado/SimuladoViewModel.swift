@@ -348,10 +348,17 @@ final class SimuladoViewModel {
                     try? await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt)) * 1_000_000_000))
                 }
                 do {
-                    _ = try await api.answerSimuladoQuestion(
+                    let response = try await api.answerSimuladoQuestion(
                         attemptId: attemptId,
                         body: .init(questionId: questionId, chosenIdx: chosenIdx, responseTimeMs: responseTimeMs)
                     )
+                    if let award = response.activityResponse {
+                        gamificationEvents.handleActivityResponse(
+                            award,
+                            previousLevel: nil,
+                            source: response.isCorrect ? .questionAnswered : .questionAnsweredWrong
+                        )
+                    }
                     return
                 } catch {
                     lastError = error
@@ -410,24 +417,21 @@ final class SimuladoViewModel {
                     "seconds_elapsed": Int(ms / 1000),
                 ])
 
-                // Log simulado completion with study duration
-                let durationMinutes = Int(ms / 60_000)
                 let startedLevel = gamificationEvents.currentLevel
                 let startedProgress = gamificationEvents.currentXpProgress
-                Task { [api, gamificationEvents] in
-                    if let actResult = try? await api.logActivity(
-                        action: "simulado_complete",
-                        metadata: ["durationMinutes": String(durationMinutes)]
-                    ) {
-                        gamificationEvents.handleActivityResponse(actResult, previousLevel: nil, source: .simuladoComplete)
-                        gamificationEvents.recordStudySessionSummary(
-                            source: .simuladoComplete,
-                            contextId: attemptId,
-                            xpAwarded: actResult.xpAwarded,
-                            startedLevel: startedLevel,
-                            startedProgress: startedProgress
-                        )
-                    }
+                if let award = response.activityResponse {
+                    gamificationEvents.handleActivityResponse(
+                        award,
+                        previousLevel: nil,
+                        source: .simuladoComplete
+                    )
+                    gamificationEvents.recordStudySessionSummary(
+                        source: .simuladoComplete,
+                        contextId: attemptId,
+                        xpAwarded: award.xpAwarded,
+                        startedLevel: startedLevel,
+                        startedProgress: startedProgress
+                    )
                 }
             } catch {
                 state.error = "Erro ao finalizar simulado"

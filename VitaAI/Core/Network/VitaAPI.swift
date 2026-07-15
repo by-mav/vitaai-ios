@@ -266,10 +266,19 @@ actor VitaAPI {
         var totalCards: Int?
     }
 
-    func reviewFlashcard(cardId: String, rating: Int, responseTimeMs: Int64) async throws {
-        let _: EmptyResponse = try await client.post(
+    func reviewFlashcard(
+        cardId: String,
+        rating: Int,
+        responseTimeMs: Int64,
+        reviewId: String
+    ) async throws -> StudyActionResponse {
+        try await client.post(
             "study/flashcards/\(cardId)/review",
-            body: FlashcardReviewRequest(rating: rating, responseTimeMs: responseTimeMs)
+            body: FlashcardReviewRequest(
+                rating: rating,
+                responseTimeMs: responseTimeMs,
+                reviewId: reviewId
+            )
         )
     }
 
@@ -768,12 +777,8 @@ actor VitaAPI {
         try await client.get("qbank/sessions/\(id)")
     }
 
-    func finishQBankSession(id: String, correctCount: Int, totalAnswered: Int) async throws -> QBankFinishSessionResponse {
-        let request = QBankFinishSessionRequest(
-            correctCount: correctCount,
-            totalAnswered: totalAnswered
-        )
-        return try await client.postRaw("qbank/sessions/\(id)/finish", body: Self.encodeCamelCase(request))
+    func finishQBankSession(id: String) async throws -> QBankFinishSessionResponse {
+        try await client.post("qbank/sessions/\(id)/finish", body: EmptyBody())
     }
 
     func getQBankQuestions(
