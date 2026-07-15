@@ -363,6 +363,10 @@ struct OrbMascot: View {
             }
             accessoryArt(accessory, s)
         }
+        // Rosto e olhos compartilham a mesma pose. O float/breath já vem do
+        // `orbView`; esta rotação é o micro-movimento que antes fazia os olhos
+        // subirem e descerem por trás de óculos/máscaras parados.
+        .rotationEffect(.degrees(accessory.slot == "Rosto" ? headTilt : 0))
     }
 
     @ViewBuilder private func accessoryArt(_ accessory: MascotAccessory, _ s: CGFloat) -> some View {
