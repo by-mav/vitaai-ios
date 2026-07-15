@@ -125,45 +125,33 @@ struct TranscricaoModeToggle: View {
     @Binding var selected: TranscricaoRecordingMode
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: VitaTokens.Spacing.xxs) {
             ForEach(TranscricaoRecordingMode.allCases, id: \.self) { mode in
                 let isSelected = selected == mode
-                Text(mode.rawValue)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(
-                        isSelected
-                            ? TealColors.accentBright.opacity(0.90)
-                            : Color.white.opacity(0.40)
-                    )
-                    .frame(maxWidth: .infinity, minHeight: 32)
-                    .background(
-                        isSelected
-                            ? RoundedRectangle(cornerRadius: 8)
-                                .fill(TealColors.accent.opacity(0.12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(TealColors.accent.opacity(0.20), lineWidth: 1)
-                                )
-                            : nil
-                    )
-                    // Tap area explícita restrita ao retângulo visível —
-                    // evita o vazamento de hit test pro mascote abaixo que
-                    // estava fazendo "Ao Vivo" virar "começar a gravar".
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selected = mode
-                        }
+                Button {
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        selected = mode
                     }
+                } label: {
+                    Text(mode.rawValue)
+                        .font(VitaTypography.labelMedium)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(isSelected ? VitaColors.surface : VitaColors.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(Capsule().fill(isSelected ? VitaColors.accent : Color.clear))
+                        // Restringe o hit test ao segmento. Isso evita o
+                        // vazamento para o botão do mascote logo abaixo.
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
-        .padding(3)
-        .background(Color.white.opacity(0.03))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(TealColors.accent.opacity(0.08), lineWidth: 1)
-        )
+        .padding(VitaTokens.Spacing.xxs)
+        .background(Capsule().fill(VitaColors.glassBg))
+        .overlay(Capsule().stroke(VitaColors.glassBorder, lineWidth: 0.75))
         // zIndex garante que o ModeToggle está acima de qualquer vizinho no
         // stack pai — hit test vai pegar esse rectangle antes do mascote.
         .zIndex(1)

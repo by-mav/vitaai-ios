@@ -33,8 +33,9 @@ struct TranscricaoRecorderArea: View {
             // consolida Disciplina/Idioma/Modo numa caixa só — área limpa).
             ZStack {
                 Text(formatTranscricaoElapsed(elapsedSeconds))
-                    .font(.system(size: 54, weight: .bold, design: .default))
-                    .tracking(-2)
+                    .font(VitaTypography.displayLarge)
+                    .fontWeight(.bold)
+                    .tracking(-1)
                     .monospacedDigit()
                     .foregroundStyle(
                         isRecording
@@ -43,7 +44,7 @@ struct TranscricaoRecorderArea: View {
                     )
                     .shadow(color: isRecording ? VitaColors.accent.opacity(0.4) : .clear, radius: 32)
 
-                HStack(spacing: 8) {
+                HStack(spacing: VitaTokens.Spacing.sm) {
                     Spacer()
                     TranscricaoToolbox(
                         selectedDiscipline: $selectedDiscipline,
@@ -53,15 +54,15 @@ struct TranscricaoRecorderArea: View {
                     )
                     TranscricaoImportButton(disabled: isRecording, onImport: onImportAudio)
                 }
-                .padding(.trailing, 4)
+                .padding(.trailing, VitaTokens.Spacing.xs)
             }
 
             // Status label secundário — só aparece enquanto gravando/pausado
             // (quando .idle o "Toque para gravar" do orb já cobre o estado).
             if isActive {
                 Text(statusLabel)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(VitaColors.accentLight.opacity(0.70))
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.72))
                     .transition(.opacity)
             }
 
@@ -72,11 +73,12 @@ struct TranscricaoRecorderArea: View {
                     VitaTypingMascot(isRecording: isActive, size: recorderButtonWidth)
 
                     Text(mascotLabel)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(VitaTypography.labelLarge)
+                        .fontWeight(.semibold)
                         .foregroundStyle(
                             isActive
                                 ? VitaColors.accentLight.opacity(0.85)
-                                : Color.white.opacity(0.55)
+                                : VitaColors.textSecondary
                         )
                 }
             }
@@ -197,14 +199,12 @@ struct TranscricaoToolbox: View {
             showSheet = true
         } label: {
             Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(VitaColors.accent)
-                .frame(width: 34, height: 34)
-                .background(
-                    Circle()
-                        .fill(Color.white.opacity(0.03))
-                        .overlay(Circle().stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5))
-                )
+                .font(VitaTypography.titleMedium)
+                .fontWeight(.semibold)
+                .foregroundStyle(VitaColors.accentLight)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(VitaColors.glassBg))
+                .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -472,14 +472,12 @@ struct TranscricaoImportButton: View {
             onImport()
         }) {
             Image(systemName: "square.and.arrow.down")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(VitaColors.accent)
-                .frame(width: 34, height: 34)
-                .background(
-                    Circle()
-                        .fill(Color.white.opacity(0.03))
-                        .overlay(Circle().stroke(VitaColors.accent.opacity(0.18), lineWidth: 0.5))
-                )
+                .font(VitaTypography.titleMedium)
+                .fontWeight(.semibold)
+                .foregroundStyle(VitaColors.accentLight)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(VitaColors.glassBg))
+                .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -677,6 +675,67 @@ struct TranscricaoRecordingsListSection: View {
     @State private var renameFolderValue: String = ""
     @State private var deletingFolder: VitaAPI.StudioFolder? = nil
 
+    /// Preview visual somente no Simulator/Debug. Usa as pastas que vieram da
+    /// API, mas nunca persiste nem envia estes áudios ao servidor.
+    private var libraryRecordings: [TranscricaoEntry] {
+        #if DEBUG
+        #if targetEnvironment(simulator)
+        return recordings + simulatorPreviewRecordings
+        #else
+        return recordings
+        #endif
+        #else
+        return recordings
+        #endif
+    }
+
+    #if DEBUG
+    #if targetEnvironment(simulator)
+    private var simulatorPreviewRecordings: [TranscricaoEntry] {
+        let folderSamples: [[(String, String, Bool)]] = [
+            [
+                ("Farmacocinética — aula 04", "48 min", false),
+                ("Anti-hipertensivos", "36 min", true),
+                ("Revisão de antimicrobianos", "52 min", false),
+            ],
+            [
+                ("Consulta centrada na pessoa", "41 min", true),
+                ("Atenção primária — território", "29 min", false),
+            ],
+            [
+                ("Lesões corporais", "44 min", false),
+                ("Ética e responsabilidade médica", "33 min", false),
+            ],
+        ]
+        let formatter = ISO8601DateFormatter()
+        let now = Date()
+
+        return Array(folders.prefix(folderSamples.count).enumerated()).flatMap { folderIndex, folder in
+            folderSamples[folderIndex].enumerated().map { itemIndex, sample in
+                var entry = TranscricaoEntry()
+                entry.id = "simulator-preview-\(folder.id)-\(itemIndex)"
+                entry.title = sample.0
+                entry.duration = sample.1
+                entry.status = "ready"
+                entry.discipline = folder.subjectName ?? folder.name
+                entry.fileName = "preview-\(folderIndex)-\(itemIndex).m4a"
+                entry.fileSize = 4_800_000 + (folderIndex * 900_000) + (itemIndex * 600_000)
+                entry.createdAt = formatter.string(
+                    from: Calendar.current.date(
+                        byAdding: .hour,
+                        value: -(folderIndex * 30 + itemIndex * 4),
+                        to: now
+                    ) ?? now
+                )
+                entry.favorite = sample.2
+                entry.folderId = folder.id
+                return entry
+            }
+        }
+    }
+    #endif
+    #endif
+
     private func normalizedFolderKey(_ value: String) -> String {
         value
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pt_BR"))
@@ -698,7 +757,7 @@ struct TranscricaoRecordingsListSection: View {
     }
 
     private func recordings(in folder: VitaAPI.StudioFolder) -> [TranscricaoEntry] {
-        recordings.filter { recording in
+        libraryRecordings.filter { recording in
             if recording.folderId == folder.id { return true }
             guard folder.isSubjectFolder, let discipline = recording.discipline else { return false }
             return subjectValue(
@@ -719,7 +778,7 @@ struct TranscricaoRecordingsListSection: View {
     }
 
     private var filteredRecordings: [TranscricaoEntry] {
-        var items = recordings
+        var items = libraryRecordings
         // Step 1 — view principal (Todas / Favoritas / pasta expandida).
         switch listView {
         case .all:
@@ -767,91 +826,34 @@ struct TranscricaoRecordingsListSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Header: "GRAVAÇÕES · N" + botão filtro à direita (padrão Apple
-            // Mail/Notes). Quando filtro ativo, mostra pill removível.
+            // Mesmo ritmo do Jornada: label de seção isolada e uma única
+            // barra de controles alinhada logo abaixo.
             HStack(spacing: 6) {
                 Text("GRAVAÇÕES")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.55))
-                    .tracking(0.5)
+                    .font(VitaTypography.labelSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.sectionLabel)
+                    .tracking(0.8)
 
-                if !recordings.isEmpty {
+                if !libraryRecordings.isEmpty {
                     // Mostra count do filtro ativo (não total absoluto), pra
-                    // chip "Favoritas" mostrar 0 quando não tem favoritas etc.
+                    // Favoritas/filtro/pasta refletirem o conteúdo visível.
                     Text("· \(filteredRecordings.count)")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.35))
-                        .tracking(0.5)
+                        .font(VitaTypography.labelSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(VitaColors.textTertiary)
+                        .tracking(0.8)
                 }
 
                 Spacer()
-
-                // Pill removível mostrando filtro ativo.
-                if let active = selectedFilter {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            selectedFilter = nil
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "book.closed.fill")
-                                .font(.system(size: 9, weight: .semibold))
-                            Text(active)
-                                .font(.system(size: 11, weight: .semibold))
-                                .lineLimit(1)
-                            Image(systemName: "xmark")
-                                .font(.system(size: 8, weight: .bold))
-                                .opacity(0.6)
-                        }
-                        .foregroundStyle(VitaColors.accentLight)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(VitaColors.accent.opacity(0.14)))
-                        .overlay(Capsule().stroke(VitaColors.accent.opacity(0.30), lineWidth: 0.5))
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Button {
-                    onCreateFolder()
-                } label: {
-                    Image(systemName: "folder.badge.plus")
-                        .font(VitaTypography.titleLarge)
-                        .foregroundStyle(VitaColors.accentLight)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(VitaColors.accent.opacity(0.10)))
-                        .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.5))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Nova pasta")
-
-                Button {
-                    showFilterSheet = true
-                } label: {
-                    Image(systemName: selectedFilter == nil
-                          ? "line.3.horizontal.decrease.circle"
-                          : "line.3.horizontal.decrease.circle.fill")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(
-                            selectedFilter == nil
-                                ? VitaColors.textWarm.opacity(0.45)
-                                : VitaColors.accentLight
-                        )
-                }
-                .buttonStyle(.plain)
-                // vita-modals-ignore: TranscricaoFilterSheet é sheet com NavigationStack+searchable+List, NÃO cabe em VitaBubble
-                .sheet(isPresented: $showFilterSheet) {
-                    TranscricaoFilterSheet(
-                        disciplines: filterChips,
-                        selected: $selectedFilter
-                    )
-                }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, VitaTokens.Spacing.xl)
 
-            // Filtros principais e, abaixo de GRAVAÇÕES, a árvore de pastas.
-            // Pastas deixam de competir com filtros dentro do carrossel.
-            viewModeChips
+            libraryToolbar
+
+            if let active = selectedFilter {
+                activeFilterTag(active)
+            }
 
             if !folders.isEmpty {
                 folderRows
@@ -1055,31 +1057,132 @@ struct TranscricaoRecordingsListSection: View {
         )
     }
 
-    /// Scroll horizontal de chips — apenas Todas / Favoritas. Pastas agora
-    /// formam uma árvore vertical expansível abaixo de GRAVAÇÕES.
-    /// Padrão D4 carved: inactive = warm dark glass + gold border 22%; active =
-    /// gold accent 18% fill + gold border 45% + accentLight foreground (NÃO
-    /// gold opaco com texto preto). Alinhamento horizontal idêntico aos
-    /// cards/header (16pt) — primeiro chip alinha com edge das gravações.
-    @ViewBuilder
-    private var viewModeChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                viewChip(
-                    label: "Todas",
-                    icon: "tray.full",
-                    isSelected: listView == .all
-                ) { listView = .all }
-
-                viewChip(
-                    label: "Favoritas",
-                    icon: "star.fill",
-                    isSelected: listView == .favorites
-                ) { listView = .favorites }
+    /// Jornada é a referência: uma seleção textual e ações circulares irmãs,
+    /// todas com 44pt, mesmo material, borda e peso de ícone.
+    private var libraryToolbar: some View {
+        HStack(spacing: VitaTokens.Spacing.sm) {
+            Button {
+                selectLibraryMode(.all)
+            } label: {
+                HStack(spacing: VitaTokens.Spacing.sm) {
+                    Image(systemName: "tray.full")
+                        .font(VitaTypography.labelLarge)
+                    Text("Todas")
+                        .font(VitaTypography.labelLarge)
+                        .fontWeight(.semibold)
+                }
+                .foregroundStyle(listView == .all ? VitaColors.surface : VitaColors.textSecondary)
+                .padding(.horizontal, VitaTokens.Spacing.lg)
+                .frame(height: 44)
+                .background(
+                    Capsule().fill(listView == .all ? VitaColors.accent : VitaColors.glassBg)
+                )
+                .overlay(
+                    Capsule().stroke(
+                        listView == .all ? VitaColors.accent : VitaColors.glassBorder,
+                        lineWidth: 0.75
+                    )
+                )
             }
-            .padding(.horizontal, 16)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Todas as gravações")
+            .accessibilityIdentifier("transcricao_all_recordings")
+
+            Spacer(minLength: 0)
+
+            libraryIconButton(
+                icon: "star.fill",
+                label: "Favoritas",
+                isSelected: listView == .favorites
+            ) {
+                selectLibraryMode(listView == .favorites ? .all : .favorites)
+            }
+
+            libraryIconButton(
+                icon: "line.3.horizontal.decrease",
+                label: "Filtrar gravações",
+                isSelected: selectedFilter != nil
+            ) {
+                showFilterSheet = true
+            }
+            // vita-modals-ignore: TranscricaoFilterSheet usa NavigationStack+searchable+List
+            .sheet(isPresented: $showFilterSheet) {
+                TranscricaoFilterSheet(
+                    disciplines: filterChips,
+                    selected: $selectedFilter
+                )
+            }
+
+            libraryIconButton(
+                icon: "folder.badge.plus",
+                label: "Nova pasta",
+                isSelected: false,
+                action: onCreateFolder
+            )
         }
-        .padding(.bottom, 4)
+        .padding(.horizontal, VitaTokens.Spacing.xl)
+        .padding(.bottom, VitaTokens.Spacing.xs)
+    }
+
+    private func selectLibraryMode(_ mode: TranscricaoListView) {
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+        withAnimation(.easeInOut(duration: 0.18)) {
+            listView = mode
+        }
+    }
+
+    private func libraryIconButton(
+        icon: String,
+        label: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            withAnimation(.easeInOut(duration: 0.18)) { action() }
+        } label: {
+            Image(systemName: icon)
+                .font(VitaTypography.titleMedium)
+                .fontWeight(.semibold)
+                .foregroundStyle(isSelected ? VitaColors.surface : VitaColors.accentLight)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(isSelected ? VitaColors.accent : VitaColors.glassBg))
+                .overlay(
+                    Circle().stroke(
+                        isSelected ? VitaColors.accent : VitaColors.glassBorder,
+                        lineWidth: 0.75
+                    )
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private func activeFilterTag(_ active: String) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedFilter = nil
+            }
+        } label: {
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                Image(systemName: "book.closed.fill")
+                    .font(VitaTypography.labelSmall)
+                Text(active)
+                    .font(VitaTypography.labelMedium)
+                    .lineLimit(1)
+                Image(systemName: "xmark")
+                    .font(VitaTypography.labelSmall)
+                    .opacity(0.7)
+            }
+            .foregroundStyle(VitaColors.accentLight)
+            .padding(.horizontal, VitaTokens.Spacing.md)
+            .frame(height: 32)
+            .background(Capsule().fill(VitaColors.accent.opacity(0.14)))
+            .overlay(Capsule().stroke(VitaColors.accent.opacity(0.30), lineWidth: 0.75))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, VitaTokens.Spacing.xl)
+        .accessibilityLabel("Remover filtro \(active)")
     }
 
     @ViewBuilder
@@ -1232,64 +1335,6 @@ struct TranscricaoRecordingsListSection: View {
         }
     }
 
-    private func viewChip(
-        label: String?,
-        icon: String,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: {
-            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-            withAnimation(.easeInOut(duration: 0.18)) { action() }
-        }) {
-            HStack(spacing: label == nil ? 0 : 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
-                if let label {
-                    Text(label)
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                }
-            }
-            // Foreground: accentLight quando selecionado (não preto opaco),
-            // textWarm 0.65 quando inactive — sutil mas legível.
-            .foregroundStyle(
-                isSelected
-                    ? VitaColors.accentLight
-                    : VitaColors.textWarm.opacity(0.65)
-            )
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            // Background D4 carved: warm dark gradient base, com gold tint
-            // mais forte quando selected.
-            .background(
-                ZStack {
-                    Capsule().fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 30/255, green: 22/255, blue: 15/255).opacity(0.92),
-                                Color(red: 14/255, green: 10/255, blue: 7/255).opacity(0.92)
-                            ],
-                            startPoint: UnitPoint(x: 0.5, y: 0),
-                            endPoint: UnitPoint(x: 0.5, y: 1)
-                        )
-                    )
-                    if isSelected {
-                        Capsule().fill(VitaColors.accent.opacity(0.18))
-                    }
-                }
-            )
-            // Border: gold 22% inactive, gold 45% selected — D4 carved.
-            .overlay(
-                Capsule().strokeBorder(
-                    Color(red: 200/255, green: 160/255, blue: 80/255).opacity(isSelected ? 0.45 : 0.22),
-                    lineWidth: isSelected ? 1 : 0.8
-                )
-            )
-            .shadow(color: .black.opacity(0.50), radius: 6, x: 0, y: 2)
-        }
-        .buttonStyle(.plain)
-    }
 }
 
 
