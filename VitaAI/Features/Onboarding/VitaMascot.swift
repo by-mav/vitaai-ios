@@ -95,6 +95,9 @@ enum MascotAccessory: String, CaseIterable {
     case capybaraHat   // chapéu de capivara (easter egg da capivara dourada)
     case halo          // auréola dourada divina (LENDÁRIA — do baú)
     case nurseCap      // touca de enfermeira (cruz vermelha)
+    case sleepMask     // máscara de dormir na testa (viradas de noite)
+    case headphones    // fones de ouvido (música pra estudar)
+    case partyHat      // chapéu de festa (comemoração)
     // — Rosto (olhos) —
     case glassesRound  // óculos redondos finos (estudo)
     case glassesRect   // óculos retos/estudioso
@@ -110,15 +113,17 @@ enum MascotAccessory: String, CaseIterable {
     case scarf         // cachecol
     case goldMedal     // medalha de ouro (campeão)
     case idBadge       // crachá hospitalar no cordão
+    case tie           // gravata (formal / apresentação)
 
     /// Slot anatômico — pra galeria e (futuro) sistema de equipar por camada.
     var slot: String {
         switch self {
-        case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat, .halo, .nurseCap:
+        case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat, .halo, .nurseCap,
+             .sleepMask, .headphones, .partyHat:
             return "Cabeça"
         case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle, .n95Mask, .faceShield:
             return "Rosto"
-        case .stethoscope, .labCoat, .bowTie, .scarf, .goldMedal, .idBadge:
+        case .stethoscope, .labCoat, .bowTie, .scarf, .goldMedal, .idBadge, .tie:
             return "Pescoço"
         }
     }
@@ -135,6 +140,10 @@ enum MascotAccessory: String, CaseIterable {
         case .capybaraHat: return "Capivara"
         case .halo:        return "Auréola"
         case .nurseCap:    return "Touca enfermagem"
+        case .sleepMask:   return "Máscara de dormir"
+        case .headphones:  return "Fones"
+        case .partyHat:    return "Chapéu de festa"
+        case .tie:         return "Gravata"
         case .n95Mask:     return "Respirador N95"
         case .faceShield:  return "Protetor facial"
         case .idBadge:     return "Crachá"
@@ -349,6 +358,10 @@ struct OrbMascot: View {
         case .capybaraHat:  capybaraHatView(s)
         case .halo:         haloView(s)
         case .nurseCap:     nurseCapView(s)
+        case .sleepMask:    sleepMaskView(s)
+        case .headphones:   headphonesView(s)
+        case .partyHat:     partyHatView(s)
+        case .tie:          tieView(s)
         case .n95Mask:      n95MaskView(s)
         case .faceShield:   faceShieldView(s)
         case .idBadge:      idBadgeView(s)
@@ -630,6 +643,79 @@ struct OrbMascot: View {
                 Image(systemName: "person.fill").resizable().scaledToFit()
                     .foregroundColor(.white.opacity(0.85)).padding(s * 0.02)
             }
+        }
+    }
+
+    // Máscara de dormir empurrada na testa (viradas de noite estudando).
+    private func sleepMaskView(_ s: CGFloat) -> some View {
+        let mask  = Color(red: 0.28, green: 0.24, blue: 0.44)  // ds-allow: skin color
+        let hi    = Color(red: 0.46, green: 0.40, blue: 0.64)  // ds-allow: skin color
+        let strap = Color(red: 0.22, green: 0.18, blue: 0.36)  // ds-allow: skin color
+        return ZStack {
+            Capsule().fill(strap)
+                .frame(width: s * 0.66, height: s * 0.05).offset(y: -s * 0.20)
+            RoundedRectangle(cornerRadius: s * 0.06).fill(mask)
+                .frame(width: s * 0.44, height: s * 0.16)
+                .overlay(RoundedRectangle(cornerRadius: s * 0.045).stroke(hi.opacity(0.5), lineWidth: s * 0.006).padding(s * 0.022))
+                .offset(y: -s * 0.22)
+            Capsule().fill(Color.white.opacity(0.18))
+                .frame(width: s * 0.16, height: s * 0.02).offset(x: -s * 0.08, y: -s * 0.255)
+        }
+    }
+
+    // Fones de ouvido — arco por cima + conchas nas laterais (música pra estudar).
+    private func headphonesView(_ s: CGFloat) -> some View {
+        let band   = Color(red: 0.20, green: 0.22, blue: 0.28)  // ds-allow: skin color
+        let cup    = Color(red: 0.13, green: 0.14, blue: 0.19)  // ds-allow: skin color
+        let accent = Color(red: 0.36, green: 0.72, blue: 1.00)  // ds-allow: skin color
+        return ZStack {
+            Circle().trim(from: 0.0, to: 0.5)
+                .stroke(band, style: StrokeStyle(lineWidth: s * 0.05, lineCap: .round))
+                .rotationEffect(.degrees(180))
+                .frame(width: s * 0.72, height: s * 0.72).offset(y: -s * 0.05)
+            ForEach([-1.0, 1.0], id: \.self) { sign in
+                RoundedRectangle(cornerRadius: s * 0.05).fill(cup)
+                    .frame(width: s * 0.13, height: s * 0.18)
+                    .overlay(RoundedRectangle(cornerRadius: s * 0.03).stroke(accent.opacity(0.7), lineWidth: s * 0.007)
+                        .frame(width: s * 0.08, height: s * 0.12))
+                    .offset(x: CGFloat(sign) * s * 0.35, y: -s * 0.02)
+            }
+        }
+    }
+
+    // Chapéu de festa — cone listrado + pompom (comemoração).
+    private func partyHatView(_ s: CGFloat) -> some View {
+        let a   = Color(red: 1.00, green: 0.42, blue: 0.56)  // ds-allow: skin color
+        let b   = Color(red: 0.42, green: 0.72, blue: 1.00)  // ds-allow: skin color
+        let pom = Color(red: 1.00, green: 0.86, blue: 0.36)  // ds-allow: skin color
+        return ZStack {
+            Path { p in
+                p.move(to: CGPoint(x: s * 0.25, y: 0))
+                p.addLine(to: CGPoint(x: 0, y: s * 0.32))
+                p.addLine(to: CGPoint(x: s * 0.5, y: s * 0.32))
+                p.closeSubpath()
+            }
+            .fill(LinearGradient(colors: [a, b], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .frame(width: s * 0.5, height: s * 0.32).offset(y: -s * 0.44)
+            Circle().fill(pom).frame(width: s * 0.09, height: s * 0.09).offset(y: -s * 0.60)
+        }
+    }
+
+    // Gravata — nó no pescoço + lâmina pendurada (formal / apresentação).
+    private func tieView(_ s: CGFloat) -> some View {
+        let tie = Color(red: 0.62, green: 0.18, blue: 0.24)  // ds-allow: skin color
+        let dk  = Color(red: 0.44, green: 0.12, blue: 0.18)  // ds-allow: skin color
+        return ZStack {
+            RoundedRectangle(cornerRadius: s * 0.012).fill(dk)
+                .frame(width: s * 0.08, height: s * 0.07).offset(y: s * 0.30)
+            Path { p in
+                p.move(to: CGPoint(x: 0, y: 0))
+                p.addLine(to: CGPoint(x: s * 0.09, y: 0))
+                p.addLine(to: CGPoint(x: s * 0.045, y: s * 0.24))
+                p.closeSubpath()
+            }
+            .fill(LinearGradient(colors: [tie, dk], startPoint: .top, endPoint: .bottom))
+            .frame(width: s * 0.09, height: s * 0.24).offset(y: s * 0.47)
         }
     }
 
