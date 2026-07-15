@@ -368,6 +368,12 @@ final class AppDataManager {
         subjectsOverview.first(where: { $0.id == id })?.materials.total ?? 0
     }
 
+    /// Refresca o perfil global AGORA (usado após equipar skin na loja/baú, pra o
+    /// Vita mudar em TODAS as telas na hora — não só na loja). Rafael 2026-07-15.
+    func refreshProfileNow() async {
+        await refreshProfile()
+    }
+
     private func refreshProfile() async {
         if let resp = try? await api.getProfile() {
             profile = resp

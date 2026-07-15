@@ -517,6 +517,7 @@ struct HomeScreen: View {
                 palette: skins.equippedId(slot: "palette"),
                 api: container.api
             )
+            await appData.refreshProfileNow()   // Vita muda em TODAS as telas na hora
         }
     }
 
@@ -2021,6 +2022,7 @@ struct SkinAppearanceScreen: View {
     var shopTier: Int? = nil
 
     @Environment(\.appContainer) private var container
+    @Environment(\.appData) private var appData
     @Environment(Router.self) private var router
     @StateObject private var store = SkinStore()
 
@@ -2346,6 +2348,7 @@ struct SkinAppearanceScreen: View {
                 palette: store.equippedId(slot: "palette"),
                 api: container.api
             )
+            await appData.refreshProfileNow()   // Vita muda em TODAS as telas na hora
         }
     }
 
@@ -2576,7 +2579,7 @@ struct SkinAppearanceScreen: View {
         let (h, f, n, p) = equipState(setting: it.id)
         Task {
             let ok = await store.equip(head: h, face: f, neck: n, palette: p, api: container.api)
-            if ok { selectedId[slot.api] = nil }
+            if ok { selectedId[slot.api] = nil; await appData.refreshProfileNow() }
         }
     }
 
@@ -2584,7 +2587,7 @@ struct SkinAppearanceScreen: View {
         let (h, f, n, p) = equipState(setting: nil)
         Task {
             let ok = await store.equip(head: h, face: f, neck: n, palette: p, api: container.api)
-            if ok { selectedId[slot.api] = nil }
+            if ok { selectedId[slot.api] = nil; await appData.refreshProfileNow() }
         }
     }
 
