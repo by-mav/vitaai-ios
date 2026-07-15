@@ -44,6 +44,7 @@ struct HomeScreen: View {
     @State private var pulse = false
     @State private var hop = false
     @State private var mascotLevel: Int = 1
+    @State private var didAutoOpenShop = false   // QA: --vita-shop-preview abre a loja só 1× (evita loop ao voltar)
     @State private var jumpArc: CGFloat = 0
     @State private var jumpStretch: CGFloat = 1
     @State private var trailCelebration: GamificationEventManager.TrailCelebration?
@@ -389,7 +390,8 @@ struct HomeScreen: View {
             }
         }
         .onAppear {
-            if shopPreview {   // QA: abre a loja REAL (tela cheia, como no toque no prédio)
+            if shopPreview && !didAutoOpenShop {   // QA: abre a loja 1× só (não re-navega ao voltar)
+                didAutoOpenShop = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     router.navigate(to: .skinAppearance(shopTier: 0))
                 }
@@ -2062,9 +2064,10 @@ struct SkinAppearanceScreen: View {
                     tabsBar
                     HStack(alignment: .top, spacing: 12) {
                         leftPane
-                        rightList.frame(width: 96)
+                        rightList.frame(width: 88)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.leading, 16)
+                    .padding(.trailing, 26)   // puxa os cards da direita pra dentro (não vazam)
                     .padding(.top, 6)
                     // Limpa a TabBar (overlay ~92pt): ficha (descricao) e os cards
                     // de baixo nao ficam mais escondidos atras da barra. Rafael 2026-07-13.
@@ -2092,7 +2095,7 @@ struct SkinAppearanceScreen: View {
                 .scaledToFill()
                 .ignoresSafeArea()
             LinearGradient(
-                colors: [.black.opacity(0.12), .black.opacity(0.5), .black.opacity(0.9)],
+                colors: [.black.opacity(0.58), .black.opacity(0.5), .black.opacity(0.92)],
                 startPoint: .top, endPoint: .bottom
             )
             .ignoresSafeArea()
@@ -2245,8 +2248,8 @@ struct SkinAppearanceScreen: View {
             // Remover (desequipa o slot atual) — só faz sentido se há algo equipado nele.
             Button { removeSlot() } label: {
                 Text("Remover")
-                    .font(.system(size: 16, weight: .semibold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
-                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .font(.system(size: 15, weight: .semibold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .frame(maxWidth: .infinity).padding(.vertical, 11)
                     .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.08)))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
             }
             .disabled(store.equippedId(slot: slot.api) == nil || store.isMutating)
@@ -2282,8 +2285,8 @@ struct SkinAppearanceScreen: View {
                     Text("Equipar")
                 }
             }
-            .font(.system(size: 16, weight: .bold)).foregroundColor(inkOnGold)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
-            .frame(maxWidth: .infinity).padding(.vertical, 14)
+            .font(.system(size: 15, weight: .bold)).foregroundColor(inkOnGold)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+            .frame(maxWidth: .infinity).padding(.vertical, 11)
             .background(RoundedRectangle(cornerRadius: 14).fill(gold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
         }
         .disabled((!canBuy && !canEquip) || store.isMutating)
@@ -2332,7 +2335,7 @@ struct SkinAppearanceScreen: View {
                 .overlay(RoundedRectangle(cornerRadius: 18)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .stroke(isSel ? gold : Color.white.opacity(0.12), lineWidth: isSel ? 2 : 1))
             VStack(spacing: 4) {
-                orb.frame(width: 60, height: 60).drawingGroup().opacity(showLock ? 0.4 : 1)
+                orb.frame(width: 50, height: 50).drawingGroup().opacity(showLock ? 0.4 : 1)
                 if showLock {
                     Text("Nível \(item.unlockLevel)")
                         .font(.system(size: 10, weight: .semibold)).foregroundColor(gold.opacity(0.85))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
@@ -2362,7 +2365,7 @@ struct SkinAppearanceScreen: View {
                     .padding(9)
             }
         }
-        .frame(height: 96)
+        .frame(height: 84)
     }
 
     // MARK: - Ações (server-authoritative via store)
