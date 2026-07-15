@@ -101,6 +101,9 @@ enum MascotAccessory: String, CaseIterable {
     case santaHat      // gorro de Natal (sazonal)
     case wizardHat     // chapéu de mago (épico — sabedoria)
     case catEars       // orelhas de gato (fofo)
+    case flowerCrown   // coroa de flores (primavera)
+    case devilHorns    // chifrinhos de diabo (travesso)
+    case topHat        // cartola (formal chique)
     // — Rosto (olhos) —
     case glassesRound  // óculos redondos finos (estudo)
     case glassesRect   // óculos retos/estudioso
@@ -111,6 +114,8 @@ enum MascotAccessory: String, CaseIterable {
     case faceShield    // protetor facial (viseira transparente)
     case mustache      // bigode (divertido)
     case eyePatch      // tapa-olho (pirata / pós-op)
+    case clownNose     // nariz de palhaço (divertido)
+    case heartGlasses  // óculos de coração (fofo)
     // — Pescoço / corpo (base do orb) —
     case stethoscope   // estetoscópio pendurado
     case labCoat       // gola de jaleco branco
@@ -119,17 +124,18 @@ enum MascotAccessory: String, CaseIterable {
     case goldMedal     // medalha de ouro (campeão)
     case idBadge       // crachá hospitalar no cordão
     case tie           // gravata (formal / apresentação)
+    case goldChain     // corrente de ouro (bling)
 
     /// Slot anatômico — pra galeria e (futuro) sistema de equipar por camada.
     var slot: String {
         switch self {
         case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat, .halo, .nurseCap,
-             .sleepMask, .headphones, .partyHat, .santaHat, .wizardHat, .catEars:
+             .sleepMask, .headphones, .partyHat, .santaHat, .wizardHat, .catEars, .flowerCrown, .devilHorns, .topHat:
             return "Cabeça"
         case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle, .n95Mask, .faceShield,
-             .mustache, .eyePatch:
+             .mustache, .eyePatch, .clownNose, .heartGlasses:
             return "Rosto"
-        case .stethoscope, .labCoat, .bowTie, .scarf, .goldMedal, .idBadge, .tie:
+        case .stethoscope, .labCoat, .bowTie, .scarf, .goldMedal, .idBadge, .tie, .goldChain:
             return "Pescoço"
         }
     }
@@ -155,6 +161,12 @@ enum MascotAccessory: String, CaseIterable {
         case .catEars:     return "Orelhas de gato"
         case .mustache:    return "Bigode"
         case .eyePatch:    return "Tapa-olho"
+        case .flowerCrown: return "Coroa de flores"
+        case .devilHorns:  return "Chifrinhos"
+        case .topHat:      return "Cartola"
+        case .clownNose:   return "Nariz de palhaço"
+        case .heartGlasses: return "Óculos de coração"
+        case .goldChain:   return "Corrente de ouro"
         case .n95Mask:     return "Respirador N95"
         case .faceShield:  return "Protetor facial"
         case .idBadge:     return "Crachá"
@@ -378,6 +390,12 @@ struct OrbMascot: View {
         case .catEars:      catEarsView(s)
         case .mustache:     mustacheView(s)
         case .eyePatch:     eyePatchView(s)
+        case .flowerCrown:  flowerCrownView(s)
+        case .devilHorns:   devilHornsView(s)
+        case .topHat:       topHatView(s)
+        case .clownNose:    clownNoseView(s)
+        case .heartGlasses: heartGlassesView(s)
+        case .goldChain:    goldChainView(s)
         case .n95Mask:      n95MaskView(s)
         case .faceShield:   faceShieldView(s)
         case .idBadge:      idBadgeView(s)
@@ -823,6 +841,140 @@ struct OrbMascot: View {
                 .rotationEffect(.degrees(-18)).offset(y: -s * 0.05)
             RoundedRectangle(cornerRadius: s * 0.03).fill(patch)
                 .frame(width: s * 0.17, height: s * 0.19).offset(x: -s * 0.11, y: -s * 0.01)
+        }
+    }
+
+    // Coroa de flores — vinha verde + flores DE VERDADE (5 pétalas + miolo). Rafael 2026-07-15.
+    private func flowerCrownView(_ s: CGFloat) -> some View {
+        let vine = Color(red: 0.36, green: 0.60, blue: 0.34)  // ds-allow: skin color
+        let p1  = Color(red: 1.00, green: 0.55, blue: 0.68)   // ds-allow: skin color
+        let p2  = Color(red: 0.72, green: 0.80, blue: 1.00)   // ds-allow: skin color
+        let p3  = Color(red: 1.00, green: 0.80, blue: 0.42)   // ds-allow: skin color
+        let mid = Color(red: 1.00, green: 0.86, blue: 0.34)   // ds-allow: skin color
+        let cols = [p1, p2, p3, p1, p2]
+        return ZStack {
+            // vinha (arco verde por cima da cabeça)
+            Circle().trim(from: 0.0, to: 0.5)
+                .stroke(vine, style: StrokeStyle(lineWidth: s * 0.028, lineCap: .round))
+                .rotationEffect(.degrees(180))
+                .frame(width: s * 0.78, height: s * 0.78).offset(y: -s * 0.03)
+            ForEach(0..<5, id: \.self) { i in
+                let angle = (Double(i) / 4.0 - 0.5) * 128.0
+                flowerBloom(cols[i], mid, s)
+                    .offset(x: CGFloat(sin(angle * .pi / 180)) * s * 0.37,
+                            y: -CGFloat(cos(angle * .pi / 180)) * s * 0.37)
+            }
+        }
+    }
+
+    // Uma flor: 5 pétalas (elipses radiando) + miolo.
+    private func flowerBloom(_ petal: Color, _ mid: Color, _ s: CGFloat) -> some View {
+        ZStack {
+            ForEach(0..<5, id: \.self) { k in
+                Ellipse().fill(petal)
+                    .frame(width: s * 0.048, height: s * 0.08)
+                    .offset(y: -s * 0.035)
+                    .rotationEffect(.degrees(Double(k) * 72))
+            }
+            Circle().fill(mid).frame(width: s * 0.05, height: s * 0.05)
+        }
+    }
+
+    // Chifres de diabo — MAIORES, curvados pra fora (travesso). Rafael 2026-07-15.
+    private func devilHornsView(_ s: CGFloat) -> some View {
+        let red = Color(red: 0.84, green: 0.15, blue: 0.19)  // ds-allow: skin color
+        let dk  = Color(red: 0.52, green: 0.08, blue: 0.12)  // ds-allow: skin color
+        return ZStack {
+            ForEach([-1.0, 1.0], id: \.self) { sign in
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: s * 0.28))                                   // base externa
+                    p.addQuadCurve(to: CGPoint(x: s * 0.15, y: 0),                            // ponta (curva pra fora/cima)
+                                   control: CGPoint(x: s * 0.02, y: s * 0.12))
+                    p.addQuadCurve(to: CGPoint(x: s * 0.12, y: s * 0.28),                     // volta pela base interna
+                                   control: CGPoint(x: s * 0.11, y: s * 0.14))
+                    p.closeSubpath()
+                }
+                .fill(LinearGradient(colors: [red, dk], startPoint: .top, endPoint: .bottom))
+                .frame(width: s * 0.16, height: s * 0.28)
+                .scaleEffect(x: CGFloat(sign), y: 1, anchor: .center)
+                .offset(x: CGFloat(sign) * s * 0.20, y: -s * 0.40)
+            }
+        }
+    }
+
+    // Cartola — ASSENTA na cabeça (aba curva baixa + cilindro + leve inclinação).
+    // Antes flutuava; agora abraça a curva do orb. Rafael 2026-07-15.
+    private func topHatView(_ s: CGFloat) -> some View {
+        let hat  = Color(red: 0.12, green: 0.12, blue: 0.16)  // ds-allow: skin color
+        let top  = Color(red: 0.22, green: 0.22, blue: 0.27)  // ds-allow: skin color
+        let band = Color(red: 0.62, green: 0.14, blue: 0.20)  // ds-allow: skin color
+        return ZStack {
+            // aba curva, LARGA e BAIXA (encaixa na coroa da cabeça)
+            Ellipse().fill(hat).frame(width: s * 0.66, height: s * 0.14).offset(y: -s * 0.25)
+                .overlay(Ellipse().fill(top.opacity(0.5)).frame(width: s * 0.5, height: s * 0.07).offset(y: -s * 0.27))
+            // cilindro
+            RoundedRectangle(cornerRadius: s * 0.02).fill(hat)
+                .frame(width: s * 0.36, height: s * 0.27).offset(y: -s * 0.40)
+            // faixa vermelha
+            RoundedRectangle(cornerRadius: s * 0.008).fill(band)
+                .frame(width: s * 0.36, height: s * 0.05).offset(y: -s * 0.31)
+            // topo (elipse = tampa 3D)
+            Ellipse().fill(top).frame(width: s * 0.36, height: s * 0.07).offset(y: -s * 0.535)
+        }
+        .rotationEffect(.degrees(-6))   // inclinação chique (colocada na cabeça, não flutuando)
+    }
+
+    // Nariz de palhaço — bolinha vermelha no centro do rosto (divertido).
+    private func clownNoseView(_ s: CGFloat) -> some View {
+        let lite = Color(red: 1.00, green: 0.50, blue: 0.50)  // ds-allow: skin color
+        let red  = Color(red: 0.92, green: 0.18, blue: 0.20)  // ds-allow: skin color
+        return Circle()
+            .fill(RadialGradient(colors: [lite, red], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: s * 0.09))
+            .frame(width: s * 0.14, height: s * 0.14)
+            .offset(y: s * 0.11)
+    }
+
+    // Óculos de coração — lentes GRANDES (o olho do Vita é vertical → cobrir todo).
+    // Rafael 2026-07-15: era pequeno demais no olho.
+    private func heartGlassesView(_ s: CGFloat) -> some View {
+        let lens = Color(red: 1.00, green: 0.35, blue: 0.55)  // ds-allow: skin color
+        let rim  = Color(red: 0.86, green: 0.20, blue: 0.42)  // ds-allow: skin color
+        return ZStack {
+            Capsule().fill(rim).frame(width: s * 0.09, height: s * 0.025)
+            ForEach([-1.0, 1.0], id: \.self) { sign in
+                Image(systemName: "heart.fill")
+                    .font(.system(size: s * 0.30))  // ds-allow: skin color
+                    .foregroundColor(lens.opacity(0.9))
+                    .overlay(Image(systemName: "heart").font(.system(size: s * 0.30)).foregroundColor(rim))  // ds-allow: skin color
+                    .scaleEffect(x: 1, y: 1.12)
+                    .offset(x: CGFloat(sign) * s * 0.15, y: 0)
+            }
+        }
+    }
+
+    // Corrente de ouro — elos ENVOLVENDO o pescoço (hugam a curva do orb), não na
+    // "barriga". Pingente $ no centro. Rafael 2026-07-15.
+    private func goldChainView(_ s: CGFloat) -> some View {
+        let gold = Color(red: 1.00, green: 0.82, blue: 0.32)  // ds-allow: skin color
+        let dk   = Color(red: 0.70, green: 0.50, blue: 0.14)  // ds-allow: skin color
+        let r = s * 0.45
+        return ZStack {
+            // elos ao longo da curva INFERIOR do orb (colar em volta do pescoço)
+            ForEach(0..<13, id: \.self) { i in
+                let angle = (Double(i) / 12.0 - 0.5) * 136.0   // de -68° a +68° a partir de baixo
+                Circle().fill(gold).frame(width: s * 0.05, height: s * 0.05)
+                    .overlay(Circle().stroke(dk, lineWidth: s * 0.005))
+                    .offset(x: CGFloat(sin(angle * .pi / 180)) * r,
+                            y: CGFloat(cos(angle * .pi / 180)) * r)
+            }
+            // pingente $
+            ZStack {
+                Circle().fill(LinearGradient(colors: [gold, dk], startPoint: .top, endPoint: .bottom))
+                    .frame(width: s * 0.13, height: s * 0.13)
+                    .overlay(Circle().stroke(dk, lineWidth: s * 0.006))
+                Text("$").font(.system(size: s * 0.075, weight: .black)).foregroundColor(dk)  // ds-allow: skin color
+            }
+            .offset(y: r + s * 0.06)
         }
     }
 
