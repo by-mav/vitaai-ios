@@ -125,6 +125,17 @@ struct StudyMaterialPicker: View {
 
     private var header: some View {
         HStack(spacing: VitaTokens.Spacing.sm) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")  // ds-allow: voltar da gaveta (área de toque)
+                    .font(.system(size: 15, weight: .semibold))  // ds-allow: área de toque
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(VitaColors.surfaceCard.opacity(0.65)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Voltar")
+            .accessibilityIdentifier("study_material_back")
+
             Text(title)
                 .font(VitaTypography.headlineSmall)
                 .foregroundStyle(VitaColors.textPrimary)
@@ -133,18 +144,12 @@ struct StudyMaterialPicker: View {
                 Image(systemName: "doc.badge.plus")  // ds-allow: importar material (área de toque)
                     .font(.system(size: 15, weight: .semibold))  // ds-allow: área de toque
                     .foregroundStyle(VitaColors.accent)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(VitaColors.surfaceCard.opacity(0.5)))
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(VitaColors.surfaceCard.opacity(0.65)))
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Enviar arquivo")
             .accessibilityIdentifier("study_material_upload")
-            Button { dismiss() } label: {
-                Image(systemName: "xmark")  // ds-allow: fechar a gaveta (área de toque)
-                    .font(.system(size: 15, weight: .semibold))  // ds-allow: área de toque
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(VitaColors.surfaceCard.opacity(0.5)))
-            }
         }
         .padding(.horizontal, VitaTokens.Spacing.xl)
         .padding(.top, VitaTokens.Spacing.lg)
@@ -165,7 +170,7 @@ struct StudyMaterialPicker: View {
                 docsList
             }
             .padding(.vertical, VitaTokens.Spacing.md)
-            .padding(.bottom, 96)  // respiro pro CTA flutuante
+            .padding(.bottom, 112)
         }
         .accessibilityIdentifier("study_material_scroll")
     }
@@ -236,10 +241,16 @@ struct StudyMaterialPicker: View {
         } else {
             LazyVStack(spacing: VitaTokens.Spacing.sm) {
                 ForEach(visibleDocs) { doc in
-                    VitaCardRow(onTap: { toggle(doc.id) }) {
+                    Button {
+                        toggle(doc.id)
+                    } label: {
                         docRow(doc)
                     }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
                     .accessibilityIdentifier("study_material_doc_row")
+                    .accessibilityLabel(doc.title)
+                    .accessibilityValue(selected.contains(doc.id) ? "Selecionado" : "Não selecionado")
                     .padding(.horizontal, VitaTokens.Spacing.xl)
                 }
             }
@@ -275,22 +286,42 @@ struct StudyMaterialPicker: View {
     }
 
     private var selectionCTA: some View {
-        Button {
-            Task { await run() }
-        } label: {
-            Text(selected.isEmpty ? actionVerb : "\(actionVerb) (\(selected.count))")
-                .font(VitaTypography.labelMedium)
-                .foregroundStyle(VitaColors.surface)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, VitaTokens.Spacing.lg)
-                .background(
-                    Capsule().fill(selected.isEmpty ? VitaColors.textTertiary.opacity(0.4) : VitaColors.accent)
-                )
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(VitaColors.glassBorder)
+                .frame(height: 1)
+
+            Button {
+                Task { await run() }
+            } label: {
+                Text(selected.isEmpty ? "Selecione um material" : "\(actionVerb) (\(selected.count))")
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(selected.isEmpty ? VitaColors.textSecondary : VitaColors.surface)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .background(
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                            .fill(selected.isEmpty ? VitaColors.surfaceCard : VitaColors.accent)
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                            .stroke(
+                                selected.isEmpty ? VitaColors.glassBorder : VitaColors.accent.opacity(0.9),
+                                lineWidth: 1
+                            )
+                    }
+            }
+            .buttonStyle(.plain)
+            .disabled(selected.isEmpty)
+            .padding(.horizontal, VitaTokens.Spacing.xl)
+            .padding(.top, VitaTokens.Spacing.md)
+            .padding(.bottom, VitaTokens.Spacing.lg)
         }
-        .buttonStyle(.plain)
-        .disabled(selected.isEmpty)
-        .padding(.horizontal, VitaTokens.Spacing.xl)
-        .padding(.bottom, VitaTokens.Spacing.lg)
+        .background(.ultraThinMaterial)
+        .overlay {
+            Rectangle()
+                .fill(VitaModalTokens.goldTint)
+                .allowsHitTesting(false)
+        }
     }
 
     // MARK: - Working / Done / Failed

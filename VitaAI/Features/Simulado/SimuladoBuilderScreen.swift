@@ -58,35 +58,31 @@ struct SimuladoBuilderScreen: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 12) {
 
-                // 0. Header: titulo + criar do material (padrao das 3
-                // ferramentas de estudo — Rafael 2026-07-12).
-                HStack(spacing: 12) {
-                    Text("Simulados")
-                        .font(PixioTypo.sans(size: 22, weight: .semibold))
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Spacer()
-                    Button(action: { showStudioImport = true }) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .semibold))  // ds-allow: icone SF do botao criar
-                            .foregroundStyle(VitaColors.surface)
-                            .frame(width: 38, height: 38)
-                            .background(Circle().fill(StudyShellTheme.simulados.primaryLight))
+                // 0. Mesmo cabeçalho canônico das quatro ferramentas.
+                VitaScreenHeader(title: "Simulados", onBack: onBack) {
+                    HStack(spacing: VitaTokens.Spacing.sm) {
+                        Button(action: { showStudioImport = true }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 16, weight: .semibold))  // ds-allow: icone SF do botao criar
+                                .foregroundStyle(VitaColors.surface)
+                                .frame(width: 38, height: 38)
+                                .background(Circle().fill(StudyShellTheme.simulados.primaryLight))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Montar simulado do meu material")
+
+                        Button(action: { showSettings = true }) {
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 15, weight: .semibold))  // ds-allow: icone SF do header
+                                .foregroundStyle(VitaColors.textPrimary)
+                                .frame(width: 38, height: 38)
+                                .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
+                                .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Ajustes do simulado")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Montar simulado do meu material")
-                    Button(action: { showSettings = true }) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 15, weight: .semibold))  // ds-allow: icone SF do header
-                            .foregroundStyle(VitaColors.textPrimary)
-                            .frame(width: 38, height: 38)
-                            .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
-                            .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Ajustes do simulado")
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
 
                 // 1. Hero — score médio + simulados completos + total questões
                 StudyImageHeroStat(

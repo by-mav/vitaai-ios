@@ -1106,39 +1106,31 @@ struct TranscricaoRecordingsListSection: View {
                 }
             } label: {
                 HStack(spacing: VitaTokens.Spacing.md) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
-                            .fill(VitaColors.accent.opacity(isExpanded ? 0.18 : 0.10))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
-                                    .stroke(VitaColors.glassBorder, lineWidth: 0.5)
-                            )
+                    // Referência funcional enviada: pasta simples à esquerda,
+                    // nome, contagem e chevron no mesmo eixo — sem tile interno.
+                    Image(systemName: "folder")
+                        .font(.system(size: 22, weight: .medium))  // ds-allow: referência estrutural de pasta
+                        .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.accent)
+                        .frame(width: 28)
 
-                        Image(systemName: folder.icon ?? "folder.fill")
-                            .font(VitaTypography.titleLarge)
-                            .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.accent)
-                    }
-                    .frame(width: 42, height: 42)
-
-                    VStack(alignment: .leading, spacing: VitaTokens.Spacing.xxs) {
-                        Text(folder.name)
-                            .font(VitaTypography.titleMedium)
-                            .foregroundStyle(VitaColors.textPrimary)
-                            .lineLimit(1)
-
-                        Text(allFolderRecordings.count == 1 ? "1 áudio" : "\(allFolderRecordings.count) áudios")
-                            .font(VitaTypography.bodySmall)
-                            .foregroundStyle(VitaColors.textSecondary)
-                    }
+                    Text(folder.name)
+                        .font(VitaTypography.titleMedium)
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .lineLimit(1)
 
                     Spacer(minLength: VitaTokens.Spacing.sm)
+
+                    Text("\(allFolderRecordings.count)")
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textSecondary)
 
                     Image(systemName: "chevron.right")
                         .font(VitaTypography.labelLarge)
                         .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.textTertiary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
-                .padding(VitaTokens.Spacing.md)
+                .padding(.horizontal, VitaTokens.Spacing.lg)
+                .padding(.vertical, 14)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

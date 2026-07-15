@@ -50,8 +50,6 @@ struct QBankBuilderScreen: View {
                         onCreate: { showStudioImport = true },
                         onSettings: { activeSheet = .settings }
                     )
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
 
                     // 1. Hero
                     StudyImageHeroStat(
@@ -914,59 +912,42 @@ private struct QBankBuilderHeader: View {
     let onSettings: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
-                    .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Voltar")
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Questões")
-                    .font(PixioTypo.sans(size: 22, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-            }
-
-            Spacer()
-
-            // "+" = criar questoes do material do aluno (padrao das 3
-            // ferramentas de estudo — Rafael 2026-07-12).
-            Button(action: onCreate) {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .semibold))  // ds-allow: icone SF do botao criar
-                    .foregroundStyle(VitaColors.surface)
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(VitaColors.accent))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Criar questões do meu material")
-
-            Button(action: onSettings) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(VitaColors.textPrimary)
+        VitaScreenHeader(title: "Questões", onBack: onBack) {
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                // "+" = criar questoes do material do aluno (padrao das 3
+                // ferramentas de estudo — Rafael 2026-07-12).
+                Button(action: onCreate) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))  // ds-allow: icone SF do botao criar
+                        .foregroundStyle(VitaColors.surface)
                         .frame(width: 38, height: 38)
-                        .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
-                        .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+                        .background(Circle().fill(VitaColors.accent))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Criar questões do meu material")
 
-                    if settingsCount > 0 {
-                        Text("\(settingsCount)")
-                            .font(PixioTypo.micro)
-                            .foregroundStyle(Color.black.opacity(0.88))
-                            .frame(width: 16, height: 16)
-                            .background(Circle().fill(VitaColors.accentLight))
-                            .offset(x: 3, y: -3)
+                Button(action: onSettings) {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone SF do botão de filtros
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .frame(width: 38, height: 38)
+                            .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
+                            .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+
+                        if settingsCount > 0 {
+                            Text("\(settingsCount)")
+                                .font(PixioTypo.micro)
+                                .foregroundStyle(Color.black.opacity(0.88))
+                                .frame(width: 16, height: 16)
+                                .background(Circle().fill(VitaColors.accentLight))
+                                .offset(x: 3, y: -3)
+                        }
                     }
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Configurar filtros")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Configurar filtros")
         }
     }
 }

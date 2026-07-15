@@ -129,29 +129,14 @@ struct FlashcardBuilderScreen: View {
     // MARK: - App bar (titulo + criar + ajustes) — mockup Rafael 2026-07-10
 
     private var appBar: some View {
-        HStack(spacing: VitaTokens.Spacing.sm) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(VitaTypography.titleLarge)
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(VitaColors.glassBg))
-                    .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+        VitaScreenHeader(title: "Flashcards", onBack: onBack) {
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                appBarButton(icon: "plus") { showCreateMenu = true }
+                    .vitaBubble(isPresented: $showCreateMenu, arrowEdge: .top) { createMenu }
+                appBarButton(icon: "slider.horizontal.3") { showSessionSettings = true }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Voltar")
-
-            Text("Flashcards")
-                .font(VitaTypography.headlineLarge)
-                .foregroundStyle(VitaColors.textPrimary)
-            Spacer(minLength: 0)
-            appBarButton(icon: "plus") { showCreateMenu = true }
-                .vitaBubble(isPresented: $showCreateMenu, arrowEdge: .top) { createMenu }
-            appBarButton(icon: "slider.horizontal.3") { showSessionSettings = true }
         }
-        .padding(.horizontal, VitaTokens.Spacing.xl)
-        .padding(.top, VitaTokens.Spacing.sm)
-        .padding(.bottom, VitaTokens.Spacing.md)
+        .padding(.bottom, VitaTokens.Spacing.sm)
     }
 
     private func appBarButton(icon: String, action: @escaping () -> Void) -> some View {

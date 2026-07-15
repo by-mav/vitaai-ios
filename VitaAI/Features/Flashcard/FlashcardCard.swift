@@ -135,25 +135,25 @@ struct FlashcardCardView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 12)
 
-                // Cloze preserva a frase completa e destaca somente a peça revelada.
-                // Basic continua usando o renderer normal, sem mudança visual.
+                // Frente e verso com a MESMA tipografia e centro (Rafael): a resposta
+                // ocupa o card centralizada, igual à pergunta (size 20, centralizada).
                 if isCloze {
                     ClozeRevealContent(
                         source: front,
                         complement: back.trimmingCharacters(in: .whitespacesAndNewlines)
                     )
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity)
+                    .frame(maxHeight: .infinity)
                 } else {
                     FlashcardContentView(
                         content: back,
-                        fontSize: 16,
-                        textColor: VitaColors.white.opacity(0.88),
-                        alignment: .leading
+                        fontSize: 20,
+                        textColor: VitaColors.white.opacity(0.95),
+                        alignment: .center
                     )
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity)
+                    .frame(maxHeight: .infinity)
                 }
-
-                Spacer()
             }
         }
     }
@@ -206,54 +206,60 @@ private struct ClozeRevealContent: View {
     let complement: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .center, spacing: 16) {
+            // Mesma tipografia/centro da frente (size 20, centralizado)
             Text(revealedSentence)
-                .font(VitaTypography.titleMedium)
-                .foregroundStyle(VitaColors.white.opacity(0.88))
+                .font(VitaTypography.headlineSmall.weight(.medium))
+                .foregroundStyle(VitaColors.white.opacity(0.95))
+                .multilineTextAlignment(.center)
                 .lineSpacing(5)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             if !complement.isEmpty {
                 Rectangle()
                     .fill(VitaColors.glassBorder.opacity(0.55))
-                    .frame(height: 0.5)
+                    .frame(width: 40, height: 0.5)
 
                 FlashcardContentView(
                     content: complement,
-                    fontSize: 14,
+                    fontSize: 15,
                     textColor: VitaColors.textSecondary,
-                    alignment: .leading
+                    alignment: .center
                 )
             }
         }
+        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
     }
 
     private var revealedSentence: AttributedString {
+        // Decodifica &nbsp;/entidades + remove tags ANTES de montar a frase.
+        let clean = flashcardDecodeText(source)
         let pattern = #"\{\{c\d+::([^}]+)\}\}"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {
-            return AttributedString(source)
+            return AttributedString(clean)
         }
 
-        let nsSource = source as NSString
-        let matches = regex.matches(
-            in: source,
-            range: NSRange(location: 0, length: nsSource.length)
-        )
-        guard !matches.isEmpty else { return AttributedString(source) }
+        let ns = clean as NSString
+        let matches = regex.matches(in: clean, range: NSRange(location: 0, length: ns.length))
+        guard !matches.isEmpty else { return AttributedString(clean) }
 
         var result = AttributedString()
         var cursor = 0
         for match in matches {
             if match.range.location > cursor {
                 result += AttributedString(
-                    nsSource.substring(with: NSRange(location: cursor, length: match.range.location - cursor))
+                    ns.substring(with: NSRange(location: cursor, length: match.range.location - cursor))
                 )
             }
 
-            var answer = AttributedString(nsSource.substring(with: match.range(at: 1)))
+            // {{cN::resposta::dica}} -> só a resposta (a dica do cloze não entra no verso)
+            let inner = ns.substring(with: match.range(at: 1))
+            let answerText = inner.components(separatedBy: "::").first ?? inner
+            var answer = AttributedString(answerText)
             answer.foregroundColor = VitaColors.dataRed
-            answer.font = .system(size: 16, weight: .bold)
+            answer.font = .system(size: 20, weight: .bold)
             answer.underlineStyle = Text.LineStyle(
                 pattern: .solid,
                 color: VitaColors.dataRed.opacity(0.72)
@@ -262,9 +268,9 @@ private struct ClozeRevealContent: View {
             cursor = match.range.location + match.range.length
         }
 
-        if cursor < nsSource.length {
+        if cursor < ns.length {
             result += AttributedString(
-                nsSource.substring(with: NSRange(location: cursor, length: nsSource.length - cursor))
+                ns.substring(with: NSRange(location: cursor, length: ns.length - cursor))
             )
         }
         return result

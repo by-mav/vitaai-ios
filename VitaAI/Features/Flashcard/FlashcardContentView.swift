@@ -1,6 +1,23 @@
 import SwiftUI
 import UIKit
 
+// Decodifica entidades HTML (&nbsp; &amp; …) e remove tags — usado no texto puro
+// do card e no reveal do cloze (contextos SÓ-texto; não passar HTML com <img> aqui).
+func flashcardDecodeText(_ raw: String) -> String {
+    var r = raw
+    r = r.replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: .regularExpression)
+    r = r.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+    r = r.replacingOccurrences(of: "&nbsp;", with: " ")
+        .replacingOccurrences(of: "&amp;", with: "&")
+        .replacingOccurrences(of: "&lt;", with: "<")
+        .replacingOccurrences(of: "&gt;", with: ">")
+        .replacingOccurrences(of: "&#39;", with: "'")
+        .replacingOccurrences(of: "&quot;", with: "\"")
+    r = r.replacingOccurrences(of: "[ \\t]+\\n", with: "\n", options: .regularExpression)
+        .replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
+    return r.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
 // MARK: - FlashcardContentView
 //
 // Renders flashcard content that may contain HTML <img> tags (AnKing deck format).
@@ -38,8 +55,8 @@ struct FlashcardContentView: View {
 
     var body: some View {
         if !hasImages {
-            // Fast path — plain text, no parsing overhead
-            Text(content)
+            // Texto puro — decodifica entidades HTML (&nbsp;) e remove tags (<div> do Anki)
+            Text(flashcardDecodeText(content))
                 .font(.system(size: fontSize, weight: .medium))
                 .foregroundStyle(textColor)
                 .multilineTextAlignment(alignment)

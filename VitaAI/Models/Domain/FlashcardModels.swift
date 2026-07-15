@@ -186,7 +186,11 @@ extension FlashcardEntry {
         FlashcardCard(
             id: id,
             front: front.isEmpty ? "Frente não disponível" : front,
-            back:  back.isEmpty  ? "Resposta não disponível" : back,
+            // Cloze: back vazio é NORMAL (a resposta é a frase revelada do front) —
+            // não injeta placeholder, senão vira "Resposta não disponível" no verso.
+            back:  back.isEmpty
+                ? (front.range(of: #"\{\{c\d+::"#, options: .regularExpression) != nil ? "" : "Resposta não disponível")
+                : back,
             stability:    easeFactor,
             difficulty:   0.0,
             state:        repetitions > 0 ? 2 : 0,

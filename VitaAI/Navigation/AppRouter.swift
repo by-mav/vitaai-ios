@@ -543,6 +543,10 @@ struct MainTabView: View {
     private func openHomeStudy(_ route: Route) {
         PixioHaptics.tap()
         withAnimation(.easeInOut(duration: 0.24)) {
+            // As quatro ferramentas pertencem a Estudos. Quando abertas pelo
+            // dock da Home, o voltar canônico precisa cair na raiz de Estudos,
+            // não devolver o usuário para uma tab diferente.
+            router.selectedTab = .estudos
             router.navigate(to: route)
         }
     }
