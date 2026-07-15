@@ -182,6 +182,9 @@ struct OrbMascot: View {
     // Nome bordado no jaleco ("Dr. <nome>"). No app real = 1º nome/apelido do
     // perfil; nil = sem bordado. Só aparece com a skin de jaleco equipada.
     var nameTag: String? = nil
+    // Foto do perfil (OAuth) — usada no crachá LENDÁRIO (foto + nome + "MÉDICO").
+    // nil = silhueta. Vem do authManager.userImage nos callsites com perfil.
+    var photoURL: URL? = nil
     // Staff/snake removed entirely on 2026-04-18 — Rafael called it ugly and
     // wanted the orb to stand on its own. Param kept for source compat (no-op).
     var showStaff: Bool = false
@@ -536,34 +539,71 @@ struct OrbMascot: View {
         }
     }
 
-    // Crachá hospitalar — cartão pendurado num cordão (pescoço/peito).
+    // Crachá médico LENDÁRIO — foto REAL do perfil + nome + "MÉDICO" (Rafael 2026-07-15).
     private func idBadgeView(_ s: CGFloat) -> some View {
-        let cord  = Color(red: 0.20, green: 0.48, blue: 0.64)  // ds-allow: skin color
-        let card  = Color(red: 0.97, green: 0.98, blue: 1.00)  // ds-allow: skin color
-        let line  = Color(red: 0.68, green: 0.73, blue: 0.80)  // ds-allow: skin color
-        let photo = Color(red: 0.55, green: 0.70, blue: 0.86)  // ds-allow: skin color
+        let cord  = Color(red: 0.18, green: 0.46, blue: 0.62)  // ds-allow: skin color
+        let card  = Color(red: 0.98, green: 0.99, blue: 1.00)  // ds-allow: skin color
+        let strip = Color(red: 0.14, green: 0.42, blue: 0.58)  // ds-allow: skin color
+        let line  = Color(red: 0.66, green: 0.72, blue: 0.80)  // ds-allow: skin color
+        let ink   = Color(red: 0.16, green: 0.22, blue: 0.30)  // ds-allow: skin color
+        let cardW = s * 0.46
+        let cardH = s * 0.28
         return ZStack {
+            // cordão em V descendo do pescoço
             ForEach([-1.0, 1.0], id: \.self) { sign in
                 Capsule().fill(cord)
-                    .frame(width: s * 0.02, height: s * 0.26)
-                    .rotationEffect(.degrees(Double(sign) * 16))
-                    .offset(x: CGFloat(sign) * s * 0.09, y: s * 0.30)
+                    .frame(width: s * 0.022, height: s * 0.24)
+                    .rotationEffect(.degrees(Double(sign) * 18))
+                    .offset(x: CGFloat(sign) * s * 0.11, y: s * 0.28)
             }
             RoundedRectangle(cornerRadius: s * 0.005).fill(line)
-                .frame(width: s * 0.05, height: s * 0.025)
-                .offset(y: s * 0.40)
-            RoundedRectangle(cornerRadius: s * 0.018).fill(card)
-                .frame(width: s * 0.20, height: s * 0.14)
-                .overlay(RoundedRectangle(cornerRadius: s * 0.018).stroke(line, lineWidth: s * 0.006))
-                .offset(y: s * 0.49)
-            RoundedRectangle(cornerRadius: s * 0.006).fill(photo)
-                .frame(width: s * 0.05, height: s * 0.065)
-                .offset(x: -s * 0.05, y: s * 0.48)
-            VStack(alignment: .leading, spacing: s * 0.014) {
-                Capsule().fill(line).frame(width: s * 0.075, height: s * 0.012)
-                Capsule().fill(line.opacity(0.7)).frame(width: s * 0.055, height: s * 0.01)
+                .frame(width: s * 0.05, height: s * 0.022).offset(y: s * 0.38)
+            // cartão do crachá
+            ZStack(alignment: .top) {
+                RoundedRectangle(cornerRadius: s * 0.022).fill(card)
+                    .overlay(RoundedRectangle(cornerRadius: s * 0.022).stroke(line, lineWidth: s * 0.005))
+                UnevenRoundedRectangle(topLeadingRadius: s * 0.022, topTrailingRadius: s * 0.022)
+                    .fill(strip).frame(height: cardH * 0.22)
+                HStack(spacing: s * 0.022) {
+                    photoThumb(s)
+                        .frame(width: s * 0.11, height: s * 0.11)
+                        .clipShape(RoundedRectangle(cornerRadius: s * 0.014))
+                        .overlay(RoundedRectangle(cornerRadius: s * 0.014).stroke(line.opacity(0.6), lineWidth: s * 0.004))
+                    VStack(alignment: .leading, spacing: s * 0.004) {
+                        Text(nameTag ?? "Vita")
+                            .font(.system(size: s * 0.05, weight: .bold)).foregroundColor(ink)  // ds-allow: crachá (arte)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                        Text("MÉDICO")
+                            .font(.system(size: s * 0.034, weight: .heavy)).foregroundColor(strip)  // ds-allow: crachá (arte)
+                            .tracking(s * 0.005)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, s * 0.022)
+                .padding(.top, cardH * 0.30)
             }
-            .offset(x: s * 0.035, y: s * 0.49)
+            .frame(width: cardW, height: cardH)
+            .offset(y: s * 0.52)
+        }
+    }
+
+    // Miniatura da foto do perfil no crachá (ou silhueta enquanto carrega/sem foto).
+    @ViewBuilder private func photoThumb(_ s: CGFloat) -> some View {
+        let fallback = Color(red: 0.80, green: 0.86, blue: 0.92)  // ds-allow: skin color
+        if let photoURL {
+            CachedAsyncImage(url: photoURL) {
+                ZStack {
+                    fallback
+                    Image(systemName: "person.fill").resizable().scaledToFit()
+                        .foregroundColor(.white.opacity(0.85)).padding(s * 0.02)
+                }
+            }
+        } else {
+            ZStack {
+                fallback
+                Image(systemName: "person.fill").resizable().scaledToFit()
+                    .foregroundColor(.white.opacity(0.85)).padding(s * 0.02)
+            }
         }
     }
 

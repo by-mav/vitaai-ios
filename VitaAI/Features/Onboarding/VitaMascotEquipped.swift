@@ -34,6 +34,7 @@ extension ProfileEquippedSkin {
 /// pós-auth no lugar de `OrbMascot(palette: .vita, ...)`.
 struct VitaMascotEquipped: View {
     @Environment(\.appData) private var appData
+    @Environment(\.appContainer) private var container
 
     var state: VitaMascotState = .awake
     var size: CGFloat = 120
@@ -48,6 +49,7 @@ struct VitaMascotEquipped: View {
             size: size,
             accessories: equip?.accessories ?? [],
             nameTag: Self.firstName(appData.profile?.displayName),
+            photoURL: container.authManager.userImage.flatMap(URL.init(string:)),
             bounceEnabled: bounceEnabled,
             idleEnabled: idleEnabled
         )

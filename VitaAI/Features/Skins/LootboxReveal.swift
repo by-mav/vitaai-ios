@@ -155,6 +155,9 @@ struct LootboxRevealView: View {
     let onEquip: () -> Void
     let onClose: () -> Void
 
+    @Environment(\.appData) private var appData
+    @Environment(\.appContainer) private var container
+
     @State private var phase: Phase = .closed
     @State private var chestScale: CGFloat = 0.6
     @State private var chestOpen = false
@@ -187,7 +190,9 @@ struct LootboxRevealView: View {
         OrbMascot(
             palette: .vita, size: 96,
             accessories: MascotAccessory(rawValue: result.won.id).map { [$0] } ?? [],
-            animated: true
+            animated: true,
+            nameTag: VitaMascotEquipped.firstName(appData.profile?.displayName),
+            photoURL: container.authManager.userImage.flatMap(URL.init(string:))
         )
     }
 
