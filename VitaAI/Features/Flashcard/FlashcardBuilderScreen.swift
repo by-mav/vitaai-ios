@@ -73,10 +73,8 @@ struct FlashcardBuilderScreen: View {
             appBar
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
-                    heroCard(vm: vm)
-                    statsCard(vm: vm)
                     GlassTextField(
-                        placeholder: deckTab == .biblioteca ? "Buscar disciplina" : "Buscar baralhos",
+                        placeholder: "Buscar baralhos",
                         text: $deckSearch,
                         icon: "magnifyingglass"
                     )
@@ -122,19 +120,16 @@ struct FlashcardBuilderScreen: View {
             CreateDeckSheet(onCreated: { Task { await vm.refresh() } })
         }
         .sheet(isPresented: $showCreateCard) {
-            CreateCardSheet(onCreated: { Task { await vm.refresh() } })
+            CardEditorScreen(onCreated: { Task { await vm.refresh() } })
         }
     }
 
     // MARK: - App bar (titulo + criar + ajustes) — mockup Rafael 2026-07-10
 
     private var appBar: some View {
-        VitaScreenHeader(title: "Flashcards", onBack: onBack) {
-            HStack(spacing: VitaTokens.Spacing.sm) {
-                appBarButton(icon: "plus") { showCreateMenu = true }
-                    .vitaBubble(isPresented: $showCreateMenu, arrowEdge: .top) { createMenu }
-                appBarButton(icon: "slider.horizontal.3") { showSessionSettings = true }
-            }
+        VitaScreenHeader(title: "Baralhos", onBack: onBack) {
+            appBarButton(icon: "plus") { showCreateMenu = true }
+                .vitaBubble(isPresented: $showCreateMenu, arrowEdge: .top) { createMenu }
         }
         .padding(.bottom, VitaTokens.Spacing.sm)
     }
@@ -217,45 +212,19 @@ struct FlashcardBuilderScreen: View {
 
     // MARK: - Hero (N para revisar + ilustracao de cards + Estudar agora)
 
+    // Faixa fina "Estudar tudo" (Rafael 2026-07-15): o hero grande virou uma
+    // barra compacta — um toque monta a fila FSRS cross-baralho (POST /session)
+    // que já existia. Sem número 46pt nem ilustração ocupando meia tela.
     private func heroCard(vm: FlashcardBuilderViewModel) -> some View {
         let hasDue = vm.state.dueNow > 0
-        // "para aprender" honesto: /preview.new (cards realmente novos) quando o
-        // preview ja carregou, em vez de total-due (que inflava contando cards em
-        // revisao como novos). Rafael 2026-07-12 (#189 hero honesto).
         let newCount = vm.state.previewLoaded ? vm.state.previewNew : vm.state.newNow
         let count = hasDue ? vm.state.dueNow : newCount
-        let caption = hasDue ? "para revisar" : "para aprender"
+        let caption = hasDue ? "vencidos" : "para aprender"
         let est = max(1, Int((Double(count) * 1.6).rounded(.up)))
-        return VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
-            HStack(alignment: .top, spacing: VitaTokens.Spacing.md) {
-                VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
-                    Image(systemName: "rectangle.on.rectangle.angled")
-                        .font(.system(size: 20, weight: .semibold))  // ds-allow: icone hero
-                        .foregroundStyle(VitaColors.accent)
-                        .frame(width: 44, height: 44)
-                        .background(RoundedRectangle(cornerRadius: VitaTokens.Radius.md).fill(VitaColors.glassBg))
-                    HStack(alignment: .firstTextBaseline, spacing: VitaTokens.Spacing.sm) {
-                        Text("\(count)")
-                            .font(.system(size: 46, weight: .bold))  // ds-allow: numero hero
-                            .foregroundStyle(VitaColors.accent)
-                        Text(caption)
-                            .font(VitaTypography.titleLarge)
-                            .foregroundStyle(VitaColors.textPrimary)
-                    }
-                    Text("Aproximadamente \(est) min")
-                        .font(VitaTypography.bodySmall)
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
-                Spacer(minLength: 0)
-                cardsIllustration
-            }
+        return VStack(spacing: VitaTokens.Spacing.md) {
             Button {
                 Task {
                     if let id = await vm.createSession() {
-                        // Consome a fila FSRS cross-deck do servidor (POST /session)
-                        // em vez de abrir um baralho arbitrario. Isso tambem faz a
-                        // gaveta valer: o server ja aplica novos/dia, max revisoes e
-                        // retencao ao montar a fila. Rafael 2026-07-12 (#189).
                         if !vm.state.lastSessionCardIds.isEmpty {
                             FlashcardMultiDeckHandoff.shared.setQuickSession(
                                 cardIds: vm.state.lastSessionCardIds,
@@ -267,50 +236,34 @@ struct FlashcardBuilderScreen: View {
                     }
                 }
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "play.fill").font(.system(size: 13, weight: .bold))  // ds-allow: icone play
-                    Text("Estudar agora").font(VitaTypography.labelMedium)
+                HStack(spacing: VitaTokens.Spacing.md) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 16, weight: .bold))  // ds-allow: play do CTA
+                        .foregroundStyle(VitaColors.surface)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(VitaColors.accent))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Estudar tudo")
+                            .font(VitaTypography.titleMedium)
+                            .foregroundStyle(VitaColors.textPrimary)
+                        Text(count > 0 ? "\(count) \(caption) · cerca de \(est) min" : "Nada pendente por agora")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 15, weight: .semibold))  // ds-allow: chevron
+                        .foregroundStyle(VitaColors.textTertiary)
                 }
-                .foregroundStyle(VitaColors.surface)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, VitaTokens.Spacing.lg)
-                .background(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).fill(VitaColors.accent))
+                .padding(VitaTokens.Spacing.lg)
+                .glassCard(cornerRadius: VitaTokens.Radius.lg)
             }
             .buttonStyle(.plain)
             .disabled(count == 0)
-            .opacity(count == 0 ? 0.5 : 1)
+            .opacity(count == 0 ? 0.6 : 1)
 
-            // Modos alternativos do MESMO ato (estudar) moram aqui no hero —
-            // soltos entre stats e busca liam como filtro da lista
-            // (Rafael 2026-07-12, review impeccable).
             FlashcardQuickModesRow(vm: vm, onOpenDeck: onOpenDeck)
         }
-        .padding(VitaTokens.Spacing._2xl)
-        .glassCard(cornerRadius: VitaTokens.Radius.xl)
-    }
-
-    // Ilustracao: 3 cards dourados em leque com glow (aproxima o mockup).
-    private var cardsIllustration: some View {
-        ZStack {
-            ForEach(0..<3) { i in
-                RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [VitaColors.accentHover, VitaColors.accent, VitaColors.accentDark],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 46, height: 64)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
-                            .stroke(VitaColors.accentLight.opacity(0.5), lineWidth: 0.75)
-                    )
-                    .rotationEffect(.degrees(Double(i - 1) * 14))
-                    .offset(x: CGFloat(i - 1) * 16, y: CGFloat(abs(i - 1)) * 4)
-                    .shadow(color: VitaColors.accent.opacity(0.35), radius: 10, y: 4)
-            }
-        }
-        .frame(width: 120, height: 84)
     }
 
     // MARK: - Card de stats (hoje / dias seguidos / cartoes)
@@ -347,68 +300,80 @@ struct FlashcardBuilderScreen: View {
         let byName: (FlashcardDeckEntry, FlashcardDeckEntry) -> Bool = {
             cleanDeckTitle($0.title).localizedCaseInsensitiveCompare(cleanDeckTitle($1.title)) == .orderedAscending
         }
-        let library = all.filter { ($0.userId ?? "").isEmpty }.sorted(by: byName)
+        // Rafael 2026-07-15: baralho curado com < 20 cards não vira linha própria
+        // (é fragmento de auto-seed) — some da lista. Os do usuário aparecem sempre.
+        let minLibraryCards = 20
+        let library = all
+            .filter { ($0.userId ?? "").isEmpty && $0.cardCount >= minLibraryCards }
+            .sorted(by: byName)
         let mine = all.filter { !($0.userId ?? "").isEmpty }.sorted(by: byName)
-        let base = deckTab == .biblioteca ? library : mine
+        let ordered = library + mine
         let q = deckSearch.trimmingCharacters(in: .whitespaces).lowercased()
-        let shown = q.isEmpty ? base : base.filter { cleanDeckTitle($0.title).lowercased().contains(q) }
-        return VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
-            deckTabSwitcher(libraryCount: library.count, mineCount: mine.count)
+        let shown = q.isEmpty ? ordered : ordered.filter { cleanDeckTitle($0.title).lowercased().contains(q) }
+        return VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
             if vm.state.decksLoading && all.isEmpty {
                 groupsSkeleton
             } else if shown.isEmpty {
                 deckTabEmpty
             } else {
-                VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) {
-                    VStack(spacing: 0) {
-                        ForEach(Array(shown.enumerated()), id: \.element.id) { idx, deck in
-                            deckRowV2(deck)
-                            if idx < shown.count - 1 {
-                                Divider().overlay(VitaColors.glassBorder.opacity(0.5))
-                                    .padding(.leading, 60)
-                            }
-                        }
-                    }
+                ForEach(shown) { deck in
+                    deckRowV2(deck)
                 }
             }
         }
     }
 
     private func deckRowV2(_ deck: FlashcardDeckEntry) -> some View {
-        let due = deck.dueCount ?? 0
-        let total = deck.totalCards ?? deck.cardCount
-        let progress = (due > 0 && total > 0) ? min(1.0, Double(due) / Double(total)) : 0
-        return Button(action: { onOpenDeck(deck.id) }) {
+        Button(action: { onOpenDeck(deck.id) }) {
             HStack(spacing: VitaTokens.Spacing.md) {
-                ProgressRingView(
-                    progress: progress,
-                    size: 30,
-                    strokeWidth: 3,
-                    trackColor: VitaColors.glassBorder,
-                    progressColor: due > 0 ? VitaColors.accent : VitaColors.textTertiary.opacity(0.5)
-                )
-                VStack(alignment: .leading, spacing: 2) {
+                deckIconTile(deck)
+                VStack(alignment: .leading, spacing: 3) {
                     Text(cleanDeckTitle(deck.title))
                         .font(VitaTypography.titleMedium)
                         .foregroundStyle(VitaColors.textPrimary)
                         .lineLimit(1)
-                    Text(deckSubtitle(deck))
+                    Text("\(deck.cardCount) cartões")
                         .font(VitaTypography.bodySmall)
-                        .foregroundStyle(due > 0 ? VitaColors.accent : VitaColors.textTertiary)
+                        .foregroundStyle(VitaColors.textSecondary)
                 }
                 Spacer(minLength: VitaTokens.Spacing.sm)
-                Text("\(deck.cardCount)")
-                    .font(VitaTypography.bodyMedium)
-                    .foregroundStyle(VitaColors.textSecondary)
                 Image(systemName: "chevron.right")
-                    .font(VitaTypography.labelSmall)
+                    .font(VitaTypography.titleMedium)
                     .foregroundStyle(VitaColors.textTertiary)
             }
-            .padding(.horizontal, VitaTokens.Spacing.lg)
-            .padding(.vertical, VitaTokens.Spacing.md)
+            .padding(.vertical, VitaTokens.Spacing.sm)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// Badge redondo da disciplina: glifo semântico sobre círculo com gradiente da
+    /// cor da disciplina + highlight especular no topo + glow colorido (profundidade).
+    private func deckIconTile(_ deck: FlashcardDeckEntry) -> some View {
+        let spec = DisciplineImages.iconSpec(for: deck.disciplineSlug ?? deck.title)
+        return ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [spec.color.opacity(0.95), spec.color.opacity(0.55)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.55), Color.white.opacity(0.0)],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+            Image(systemName: spec.symbol)
+                .font(.system(size: 21, weight: .semibold))  // ds-allow: glifo do ícone (não é texto)
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.28), radius: 1.5, y: 1)
+        }
+        .frame(width: 50, height: 50)
+        .shadow(color: spec.color.opacity(0.35), radius: 5, y: 3)
     }
 
     // MARK: - Mode selector — pills limpas (Pendentes · Filtros · Novos)

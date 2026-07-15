@@ -158,7 +158,35 @@ struct FlashcardSessionScreen: View {
             ratingSection(vm: vm)
                 .padding(.horizontal, 16)
 
+            // Seta de "card anterior" no rodapé (Rafael 2026-07-15): a de baixo volta
+            // 1 card; a de cima sai dos flashcards. Some quando não há card anterior.
+            previousCardControl(vm: vm)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+
             Spacer().frame(height: 20)
+        }
+    }
+
+    @ViewBuilder
+    private func previousCardControl(vm: FlashcardViewModel) -> some View {
+        if vm.canUndo {
+            Button(action: { vm.undoLastRating() }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))  // ds-allow: seta óptica do SF Symbol
+                    Text("Card anterior")
+                        .font(VitaTypography.labelMedium)
+                }
+                .foregroundStyle(VitaColors.textSecondary)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .transition(.opacity)
+            .animation(.easeOut(duration: 0.2), value: vm.canUndo)
+        } else {
+            Color.clear.frame(height: 18)
         }
     }
 
@@ -188,17 +216,8 @@ struct FlashcardSessionScreen: View {
 
             Spacer()
 
-            // Direita: undo (quando dá) + ⋯ (opções do card + ajustes)
+            // Direita: só ⋯ (opções do card + ajustes). O "card anterior" mora no rodapé.
             HStack(spacing: 12) {
-                if vm.canUndo {
-                    Button(action: { vm.undoLastRating() }) {
-                        Image(systemName: "arrow.uturn.backward")
-                            .font(.system(size: 14, weight: .medium)) // ds-allow: tamanho óptico do SF Symbol
-                            .foregroundStyle(VitaColors.accent.opacity(0.70))
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
-                }
                 Menu {
                     Button { onOpenSettings() } label: {
                         Label("Ajustes de estudo", systemImage: "slider.horizontal.3")
