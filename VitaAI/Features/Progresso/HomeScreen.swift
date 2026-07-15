@@ -77,6 +77,18 @@ struct HomeScreen: View {
     @State private var equipPalette: MascotPalette = .vita
     @Namespace private var mascotTrail
 
+    // Baús da trilha (Rafael 2026-07-14): estado vem do backend (nível/aberto).
+    @StateObject private var skins = SkinStore()
+    @State private var chestConfirmLevel: Int?   // baú tocado, aguardando confirmar a chave
+    @State private var chestReveal: LootboxResult?  // baú aberto → revelação em tela cheia
+
+    // Onde ficam os baús na trilha (nível de cada um). Espelha CHEST_LEVELS do backend.
+    static let chestLevels: Set<Int> = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    /// Nível de baú desta etapa (o topo dela cai num nível de baú), senão nil.
+    private func chestLevel(for stage: Stage) -> Int? {
+        Self.chestLevels.contains(stage.maxLevel) ? stage.maxLevel : nil
+    }
+
     // QA: --vita-levelup-demo roda em loop a passagem por uma seção (portão abre + Vita atravessa)
     private var demoLevelUp: Bool {
         ProcessInfo.processInfo.arguments.contains("--vita-levelup-demo")
@@ -442,6 +454,58 @@ struct HomeScreen: View {
             }
         }
         .trackScreen("Progresso")
+        .task { await skins.load(api: container.api) }
+        // Confirmar a chave antes de abrir o baú.
+        .confirmationDialog(
+            "Abrir baú?",
+            isPresented: Binding(
+                get: { chestConfirmLevel != nil },
+                set: { if !$0 { chestConfirmLevel = nil } }
+            ),
+            presenting: chestConfirmLevel
+        ) { lvl in
+            Button("Abrir com chave · \(skins.keyPrice) moedas") {
+                Task {
+                    if let won = await skins.openChest(level: lvl, api: container.api) {
+                        chestReveal = won
+                    }
+                    chestConfirmLevel = nil
+                }
+            }
+            Button("Agora não", role: .cancel) { chestConfirmLevel = nil }
+        } message: { _ in
+            Text("A chave custa \(skins.keyPrice) moedas. Você tem \(skins.balance).")
+        }
+        // Revelação do baú em tela cheia (mesma cerimônia da skin).
+        .fullScreenCover(item: $chestReveal) { reveal in
+            LootboxRevealView(
+                result: reveal,
+                onEquip: { equipWonChest(reveal); chestReveal = nil },
+                onClose: { chestReveal = nil }
+            )
+        }
+        .alert("Ops", isPresented: Binding(
+            get: { skins.errorMessage != nil },
+            set: { if !$0 { skins.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { skins.errorMessage = nil }
+        } message: {
+            Text(skins.errorMessage ?? "")
+        }
+    }
+
+    /// Equipa a skin ganha no baú, preservando os outros slots.
+    private func equipWonChest(_ reveal: LootboxResult) {
+        let won = reveal.won
+        Task {
+            await skins.equip(
+                head: won.slot == "head" ? won.id : skins.equippedId(slot: "head"),
+                face: won.slot == "face" ? won.id : skins.equippedId(slot: "face"),
+                neck: won.slot == "neck" ? won.id : skins.equippedId(slot: "neck"),
+                palette: skins.equippedId(slot: "palette"),
+                api: container.api
+            )
+        }
     }
 
     private var trailMapContent: some View {
@@ -672,11 +736,21 @@ struct HomeScreen: View {
         let tier = Self.tiers[stage.tierIdx]
         return ZStack {
             VStack(spacing: 4) {
-                Button(action: { tapStage(state) }) {
+                let chestOpenable: Bool = {
+                    guard let cl = chestLevel(for: stage), let ch = skins.chest(level: cl) else { return false }
+                    return ch.unlocked && !ch.claimed
+                }()
+                Button(action: {
+                    if chestOpenable, let cl = chestLevel(for: stage) {
+                        chestConfirmLevel = cl
+                    } else {
+                        tapStage(state)
+                    }
+                }) {
                     coin(stage: stage, tier: tier, state: state)
                 }
                 .buttonStyle(TrailPressStyle())
-                .disabled(state != .current)
+                .disabled(state != .current && !chestOpenable)
 
                 stageCaption(stage, state: state)
             }
@@ -749,10 +823,19 @@ struct HomeScreen: View {
                     Circle().fill(LinearGradient(colors: [.white.opacity(0.20), .clear],
                                                  startPoint: .top, endPoint: .center))
                 )
-            // glifo branco flat (ref Duolingo)
-            Image(systemName: locked ? "lock.fill" : stage.icon)
-                .font(.system(size: size * 0.40, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
-                .foregroundStyle(locked ? Color.white.opacity(0.85) : .white)
+            // Glifo: a cada 10 níveis, um BAÚ no lugar do cadeado/ícone — cinza
+            // (bloqueado) ou dourado aceso (nível alcançado = abrível). Rafael 2026-07-14.
+            if let cl = chestLevel(for: stage), let ch = skins.chest(level: cl), !ch.claimed {
+                TreasureChestView(open: false, accent: .clear, width: size * 0.66)
+                    .grayscale(ch.unlocked ? 0 : 1)
+                    .opacity(ch.unlocked ? 1 : 0.7)
+                    .shadow(color: ch.unlocked ? Color(red: 1, green: 0.82, blue: 0.35).opacity(0.7) : .clear,  // ds-allow: baú na trilha (arte gamificada) — visual signature
+                            radius: ch.unlocked ? 9 : 0)
+            } else {
+                Image(systemName: locked ? "lock.fill" : stage.icon)
+                    .font(.system(size: size * 0.40, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .foregroundStyle(locked ? Color.white.opacity(0.85) : .white)
+            }
             // selo de concluído (check branco em disco escuro)
             if state == .completed {
                 Image(systemName: "checkmark")
@@ -2016,6 +2099,9 @@ struct SkinAppearanceScreen: View {
     @State private var slot: Slot = .head
     // Preview (o que o usuário selecionou mas ainda não equipou): slotApi -> id.
     @State private var selectedId: [String: String] = [:]
+    // Caixa Misteriosa: quando != nil, mostra o overlay de revelação da skin ganha.
+    @State private var lootboxReveal: LootboxResult?
+    @State private var didAutoBox = false   // QA: --vita-open-lootbox abre a caixa 1× (testar sem tap)
 
     // MARK: - Derivados do store
 
@@ -2098,7 +2184,8 @@ struct SkinAppearanceScreen: View {
             } else {
                 VStack(spacing: 0) {
                     header
-                    if let shop = shopTierInfo { attendantBubble(shop) }
+                    // NPC/saudação e card da Caixa saíram da loja — os baús vão pro
+                    // mapa (abertos com chave). Rafael 2026-07-14.
                     tabsBar
                     HStack(alignment: .top, spacing: 12) {
                         leftPane
@@ -2113,7 +2200,34 @@ struct SkinAppearanceScreen: View {
                 }
             }
         }
-        .task { await store.load(api: container.api) }
+        // Caixa Misteriosa: revelação em TELA CHEIA (cobre a TabBar também).
+        .fullScreenCover(item: $lootboxReveal) { reveal in
+            LootboxRevealView(
+                result: reveal,
+                onEquip: { equipWonSkin(reveal); lootboxReveal = nil },
+                onClose: { lootboxReveal = nil }
+            )
+        }
+        .task {
+            await store.load(api: container.api)
+            // QA: abre a Caixa 1× automaticamente pra testar o reveal sem tap.
+            if ProcessInfo.processInfo.arguments.contains("--vita-open-lootbox"),
+               !didAutoBox, lootboxReveal == nil {
+                didAutoBox = true
+                if let won = await store.openLootbox(api: container.api) {
+                    withAnimation(.easeInOut(duration: 0.2)) { lootboxReveal = won }
+                }
+            }
+            // QA: reveal FAKE (sem backend) só pra ver a arte do baú por raridade.
+            if ProcessInfo.processInfo.arguments.contains("--vita-fake-reveal"),
+               !didAutoBox, lootboxReveal == nil {
+                didAutoBox = true
+                lootboxReveal = LootboxResult(
+                    won: .init(id: "crown", slot: "head", name: "Coroa", rarity: "epic", unlockLevel: 92),
+                    price: 150, balance: store.balance
+                )
+            }
+        }
         .alert("Ops", isPresented: Binding(
             get: { store.errorMessage != nil },
             set: { if !$0 { store.errorMessage = nil } }
@@ -2191,7 +2305,7 @@ struct SkinAppearanceScreen: View {
             }
             // Saldo de moeda (mérito).
             HStack(spacing: 5) {
-                Image(systemName: "seal.fill").font(.system(size: 13)).foregroundColor(gold)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                CoinIcon(size: 15)
                 Text("\(store.balance)")
                     .font(.system(size: 15, weight: .bold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
             }
@@ -2200,6 +2314,22 @@ struct SkinAppearanceScreen: View {
         }
         .padding(.horizontal, 18)
         .padding(.top, 10)
+    }
+
+    // MARK: - Caixa Misteriosa (reveal reusado; os baús vivem no mapa, em HomeScreen)
+
+    /// Equipa a skin ganha na caixa, preservando os outros slots equipados.
+    private func equipWonSkin(_ reveal: LootboxResult) {
+        let won = reveal.won
+        Task {
+            await store.equip(
+                head: won.slot == "head" ? won.id : store.equippedId(slot: "head"),
+                face: won.slot == "face" ? won.id : store.equippedId(slot: "face"),
+                neck: won.slot == "neck" ? won.id : store.equippedId(slot: "neck"),
+                palette: store.equippedId(slot: "palette"),
+                api: container.api
+            )
+        }
     }
 
     // MARK: - Abas

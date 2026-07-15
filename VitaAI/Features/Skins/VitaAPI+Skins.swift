@@ -53,6 +53,36 @@ struct SkinStoreResponse: Codable, Sendable {
     let spent: Int
     let equipped: EquippedSkinDTO?
     let catalog: [SkinStoreItem]
+    /// Preço da Caixa Misteriosa (o backend é dono do número; a UI só exibe).
+    /// Opcional pra tolerar backend antigo durante o hot-reload.
+    let lootboxPrice: Int?
+    /// Baús da trilha (níveis 10,20,…,100) + estado. Opcional (backend antigo).
+    let chests: [ChestState]?
+    /// Custo da chave pra abrir um baú (backend é dono do número).
+    let keyPrice: Int?
+}
+
+/// Estado de um baú da trilha. `unlocked` = nível alcançado; `claimed` = já aberto.
+struct ChestState: Codable, Sendable, Hashable {
+    let level: Int
+    let unlocked: Bool
+    let claimed: Bool
+}
+
+/// POST /api/skins/lootbox → 200. Caixa Misteriosa: skin sorteada + saldo novo.
+struct LootboxResult: Codable, Sendable, Identifiable {
+    struct Won: Codable, Sendable, Hashable {
+        let id: String
+        let slot: String
+        let name: String
+        let rarity: String
+        let unlockLevel: Int
+    }
+    let won: Won
+    let price: Int
+    let balance: Int
+    // Pra apresentar via .fullScreenCover(item:).
+    var id: String { won.id }
 }
 
 /// POST /api/skins/buy → 200
@@ -81,6 +111,7 @@ private struct EquipSkinRequest: Encodable {
 private struct BuySkinRequest: Encodable {
     let skinId: String
 }
+// EmptyBody (corpo vazio pro POST da Caixa) já existe em Core/Network/VitaAPI.swift.
 
 // MARK: - VitaAPI
 
@@ -110,6 +141,22 @@ extension VitaAPI {
             body: EquipSkinRequest(head: head, face: face, neck: neck, palette: palette)
         )
     }
+
+    /// POST /api/skins/lootbox — abre a Caixa Misteriosa. Lança serverError(402)
+    /// sem saldo, (409) quando não há mais o que ganhar no nível atual.
+    func openLootbox() async throws -> LootboxResult {
+        try await client.post("skins/lootbox", body: EmptyBody())
+    }
+
+    /// POST /api/chests/open — abre o baú do `level` (paga a chave). Lança
+    /// serverError(402) sem moeda, (403) nível não alcançado, (409) já aberto.
+    func openChest(level: Int) async throws -> LootboxResult {
+        try await client.post("chests/open", body: OpenChestRequest(level: level))
+    }
+}
+
+private struct OpenChestRequest: Encodable {
+    let level: Int
 }
 
 // MARK: - SkinStore (ViewModel)
@@ -126,6 +173,9 @@ final class SkinStore: ObservableObject {
     @Published private(set) var equipped: EquippedSkinDTO = .init()
     @Published private(set) var isLoading = false
     @Published private(set) var isMutating = false
+    @Published private(set) var lootboxPrice: Int = 120   // preço da Caixa (backend sobrescreve no load)
+    @Published private(set) var chests: [ChestState] = []  // baús da trilha (backend)
+    @Published private(set) var keyPrice: Int = 150        // custo da chave (backend sobrescreve)
     @Published var errorMessage: String?
 
     /// Carrega tudo do backend. Chame no onAppear/.task da tela.
@@ -174,11 +224,54 @@ final class SkinStore: ObservableObject {
         }
     }
 
+    /// Abre a Caixa Misteriosa (moeda de mérito). Recarrega em seguida (SOT) pra
+    /// saldo/posse baterem com o backend. Retorna a skin ganha, ou nil se falhou
+    /// (sem saldo / já tem tudo do nível).
+    @discardableResult
+    func openLootbox(api: VitaAPI) async -> LootboxResult? {
+        guard !isMutating else { return nil }
+        isMutating = true
+        defer { isMutating = false }
+        do {
+            let r = try await api.openLootbox()
+            await load(api: api)
+            return r
+        } catch {
+            errorMessage = "Não abriu a caixa. Confira o saldo — ou você já ganhou tudo que dá no seu nível."
+            return nil
+        }
+    }
+
+    /// Abre o baú do nível (paga a chave). Recarrega em seguida (SOT). Retorna a
+    /// skin ganha, ou nil se falhou (sem moeda / nível não alcançado / já aberto).
+    @discardableResult
+    func openChest(level: Int, api: VitaAPI) async -> LootboxResult? {
+        guard !isMutating else { return nil }
+        isMutating = true
+        defer { isMutating = false }
+        do {
+            let r = try await api.openChest(level: level)
+            await load(api: api)
+            return r
+        } catch {
+            errorMessage = "Não abriu o baú. Confira se tem moeda pra chave (\(keyPrice))."
+            return nil
+        }
+    }
+
+    /// Estado do baú de um nível (nil = não é nível de baú).
+    func chest(level: Int) -> ChestState? {
+        chests.first { $0.level == level }
+    }
+
     private func apply(_ r: SkinStoreResponse) {
         level = r.level
         balance = r.balance
         catalog = r.catalog
         equipped = r.equipped ?? .init()
+        if let p = r.lootboxPrice { lootboxPrice = p }
+        if let c = r.chests { chests = c }
+        if let k = r.keyPrice { keyPrice = k }
     }
 
     // MARK: - Helpers de leitura (a tela consome)
