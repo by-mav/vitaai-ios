@@ -1,5 +1,6 @@
 import PDFKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Popout COMPARTILHADO: gaveta glass OURO pra escolher PDFs/materiais do aluno
 /// e gerar material de estudo. Reusado por Flashcards, Questões e Simulados.
@@ -45,6 +46,7 @@ struct StudyMaterialPicker: View {
     @State private var phase: Phase = .picking
     @State private var progressText = ""
     @State private var result: Result?
+    @State private var showFileImporter = false
 
     private enum Phase: Equatable {
         case picking, working, done, failed(String)
@@ -76,6 +78,12 @@ struct StudyMaterialPicker: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .interactiveDismissDisabled(phase == .working)
+        // vita-modals-ignore: seletor nativo existente, compartilhado com upload de prova
+        .sheet(isPresented: $showFileImporter) {
+            DocumentPickerView(allowedTypes: [.pdf, .jpeg, .png]) { url in
+                importPickedFile(url)
+            }
+        }
         .task {
             // Auto-start (botão rápido num material recente): já entra gerando
             // AQUELE material, sem passar pela escolha. Rafael 2026-07-14.
@@ -121,6 +129,15 @@ struct StudyMaterialPicker: View {
                 .font(VitaTypography.headlineSmall)
                 .foregroundStyle(VitaColors.textPrimary)
             Spacer(minLength: 0)
+            Button { showFileImporter = true } label: {
+                Image(systemName: "doc.badge.plus")  // ds-allow: importar material (área de toque)
+                    .font(.system(size: 15, weight: .semibold))  // ds-allow: área de toque
+                    .foregroundStyle(VitaColors.accent)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(VitaColors.surfaceCard.opacity(0.5)))
+            }
+            .accessibilityLabel("Enviar arquivo")
+            .accessibilityIdentifier("study_material_upload")
             Button { dismiss() } label: {
                 Image(systemName: "xmark")  // ds-allow: fechar a gaveta (área de toque)
                     .font(.system(size: 15, weight: .semibold))  // ds-allow: área de toque
@@ -150,6 +167,7 @@ struct StudyMaterialPicker: View {
             .padding(.vertical, VitaTokens.Spacing.md)
             .padding(.bottom, 96)  // respiro pro CTA flutuante
         }
+        .accessibilityIdentifier("study_material_scroll")
     }
 
     // Grid de pastas — tap liga/desliga a disciplina como filtro da lista abaixo.
@@ -221,6 +239,7 @@ struct StudyMaterialPicker: View {
                     VitaCardRow(onTap: { toggle(doc.id) }) {
                         docRow(doc)
                     }
+                    .accessibilityIdentifier("study_material_doc_row")
                     .padding(.horizontal, VitaTokens.Spacing.xl)
                 }
             }
@@ -406,6 +425,42 @@ struct StudyMaterialPicker: View {
 
     private func toggle(_ id: String) {
         if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }
+    }
+
+    private func importPickedFile(_ url: URL) {
+        showFileImporter = false
+        guard let data = try? Data(contentsOf: url) else {
+            phase = .failed("Não consegui abrir esse arquivo.")
+            return
+        }
+        guard data.count <= 20 * 1_024 * 1_024 else {
+            phase = .failed("O arquivo precisa ter até 20 MB.")
+            return
+        }
+        let mimeType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType
+            ?? "application/octet-stream"
+        Task { await runUploadedFile(data, fileName: url.lastPathComponent, mimeType: mimeType) }
+    }
+
+    private func runUploadedFile(_ data: Data, fileName: String, mimeType: String) async {
+        phase = .working
+        progressText = "Enviando o material..."
+        do {
+            let upload = try await container.api.uploadStudioSource(
+                fileData: data, fileName: fileName, mimeType: mimeType
+            )
+            progressText = "Lendo o material..."
+            let detail = try await container.api.waitForStudioSourceTerminal(id: upload.sourceId)
+            guard detail.status == "ready" else {
+                throw PickerError(message: detail.errorMessage
+                    ?? "O processamento demorou mais que o esperado. Tenta de novo.")
+            }
+            progressText = "Gerando..."
+            result = try await onGenerate([detail.id])
+            phase = .done
+        } catch {
+            phase = .failed(error.localizedDescription)
+        }
     }
 
     private func fileExt(_ doc: VitaDocument) -> String {

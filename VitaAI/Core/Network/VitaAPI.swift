@@ -363,6 +363,19 @@ actor VitaAPI {
         try await client.get("studio/sources/\(id)")
     }
 
+    /// Aguarda o pipeline assíncrono de uma fonte chegar a `ready` ou `failed`.
+    /// Retorna o último estado no timeout para a UI exibir uma mensagem própria.
+    func waitForStudioSourceTerminal(id: String, timeout: TimeInterval = 180) async throws -> StudioSourceDetail {
+        let deadline = Date().addingTimeInterval(timeout)
+        var detail = try await getStudioSourceDetail(id: id)
+        while detail.status != "ready", detail.status != "failed", Date() < deadline {
+            try Task.checkCancellation()
+            try await Task.sleep(nanoseconds: 2_000_000_000)
+            detail = try await getStudioSourceDetail(id: id)
+        }
+        return detail
+    }
+
     private struct RenameStudioSourceBody: Encodable { let title: String }
 
     func renameStudioSource(id: String, title: String) async throws {

@@ -98,15 +98,20 @@ struct VitaCardRow<Content: View>: View {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     action()
                 }
-                .gesture(swipeGesture)
+                // O swipe horizontal pode coexistir com o ScrollView vertical.
+                // Usar `.gesture` aqui fazia qualquer row capturar o dedo e
+                // impedia a rolagem quando o drag começava sobre o card.
+                .simultaneousGesture(swipeGesture)
         }
     }
 
     private var swipeGesture: some Gesture {
         DragGesture(minimumDistance: 20)
             .onChanged { value in
-                isDragging = true
                 let raw = value.translation.width
+                guard abs(raw) > abs(value.translation.height) else { return }
+                guard onSwipeRight != nil || onSwipeLeft != nil else { return }
+                isDragging = true
                 // Bloqueia o lado que não tem ação configurada.
                 if raw > 0, onSwipeRight == nil { offset = 0; return }
                 if raw < 0, onSwipeLeft == nil { offset = 0; return }
