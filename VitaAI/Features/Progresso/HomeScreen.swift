@@ -474,7 +474,7 @@ struct HomeScreen: View {
                 }
             }
         }
-        // Confirmar a chave antes de abrir o baú.
+        // Confirmação do prêmio gratuito de marco.
         .confirmationDialog(
             "Abrir baú?",
             isPresented: Binding(
@@ -483,7 +483,7 @@ struct HomeScreen: View {
             ),
             presenting: chestConfirmLevel
         ) { lvl in
-            Button("Abrir com chave · \(skins.keyPrice) moedas") {
+            Button("Abrir recompensa") {
                 Task {
                     if let won = await skins.openChest(level: lvl, api: container.api) {
                         chestReveal = won
@@ -493,7 +493,7 @@ struct HomeScreen: View {
             }
             Button("Agora não", role: .cancel) { chestConfirmLevel = nil }
         } message: { _ in
-            Text("A chave custa \(skins.keyPrice) moedas. Você tem \(skins.balance).")
+            Text("Recompensa gratuita deste nível. A caixa pode revelar um item que você já possui.")
         }
         // Revelação do baú em tela cheia (mesma cerimônia da skin).
         .fullScreenCover(item: $chestReveal) { reveal in

@@ -54,12 +54,11 @@ struct SkinStoreResponse: Codable, Sendable {
     let spent: Int
     let equipped: EquippedSkinDTO?
     let catalog: [SkinStoreItem]
-    /// Preço da Caixa Misteriosa (o backend é dono do número; a UI só exibe).
-    /// Opcional pra tolerar backend antigo durante o hot-reload.
+    /// Caixa paga aposentada; nil no backend atual.
     let lootboxPrice: Int?
     /// Baús da trilha (níveis 10,20,…,100) + estado. Opcional (backend antigo).
     let chests: [ChestState]?
-    /// Custo da chave pra abrir um baú (backend é dono do número).
+    /// Compatibilidade do payload antigo; zero no backend atual.
     let keyPrice: Int?
 }
 
@@ -82,6 +81,7 @@ struct LootboxResult: Codable, Sendable, Identifiable {
     let won: Won
     let price: Int
     let balance: Int
+    let duplicate: Bool?
     // Pra apresentar via .fullScreenCover(item:).
     var id: String { won.id }
 }
@@ -153,8 +153,8 @@ extension VitaAPI {
         try await client.post("skins/lootbox", body: EmptyBody())
     }
 
-    /// POST /api/chests/open — abre o baú do `level` (paga a chave). Lança
-    /// serverError(402) sem moeda, (403) nível não alcançado, (409) já aberto.
+    /// POST /api/chests/open — abre gratuitamente o baú do `level` uma única vez.
+    /// Lança serverError(403) se o nível não foi alcançado e (409) se já abriu.
     func openChest(level: Int) async throws -> LootboxResult {
         try await client.post("chests/open", body: OpenChestRequest(level: level))
     }
@@ -180,7 +180,7 @@ final class SkinStore: ObservableObject {
     @Published private(set) var isMutating = false
     @Published private(set) var lootboxPrice: Int = 120   // preço da Caixa (backend sobrescreve no load)
     @Published private(set) var chests: [ChestState] = []  // baús da trilha (backend)
-    @Published private(set) var keyPrice: Int = 150        // custo da chave (backend sobrescreve)
+    @Published private(set) var keyPrice: Int = 0          // compatibilidade; baú atual é grátis
     @Published var errorMessage: String?
 
     /// Carrega tudo do backend. Chame no onAppear/.task da tela.
@@ -268,8 +268,7 @@ final class SkinStore: ObservableObject {
         }
     }
 
-    /// Abre o baú do nível (paga a chave). Recarrega em seguida (SOT). Retorna a
-    /// skin ganha, ou nil se falhou (sem moeda / nível não alcançado / já aberto).
+    /// Abre gratuitamente o baú do nível. Recarrega em seguida (SOT).
     @discardableResult
     func openChest(level: Int, api: VitaAPI) async -> LootboxResult? {
         guard !isMutating else { return nil }
@@ -280,7 +279,7 @@ final class SkinStore: ObservableObject {
             await load(api: api)
             return r
         } catch {
-            errorMessage = "Não abriu o baú. Confira se tem moeda pra chave (\(keyPrice))."
+            errorMessage = "Não abriu o baú. Ele pode estar bloqueado ou já ter sido aberto."
             return nil
         }
     }

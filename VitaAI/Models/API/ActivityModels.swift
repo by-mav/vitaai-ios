@@ -88,6 +88,8 @@ struct StudyActionResponse: Decodable {
 struct NewBadge: Decodable {
     var id: String = ""
     var name: String = ""
+    var description: String?
+    var icon: String?
 }
 
 // MARK: - Gamification Stats

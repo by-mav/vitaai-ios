@@ -101,7 +101,11 @@ final class GamificationEventManager {
             Task {
                 let delay: Double = data.level > baselineLevel ? 5.5 : 2.2
                 try? await Task.sleep(for: .seconds(delay))
-                badgeEvent = BadgeUnlockEvent(name: badge.name)
+                badgeEvent = BadgeUnlockEvent(
+                    name: badge.name,
+                    description: badge.description ?? "",
+                    icon: badge.icon ?? "medal"
+                )
             }
         }
 

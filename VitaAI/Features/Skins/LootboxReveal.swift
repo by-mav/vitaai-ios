@@ -233,7 +233,7 @@ struct LootboxRevealView: View {
                     Text(result.won.name)
                         .font(.system(size: 25, weight: .bold))  // ds-allow: baú (loja gamificada) — visual signature
                         .foregroundStyle(.white)
-                    Text("Você ganhou!")
+                    Text(result.duplicate == true ? "Item repetido · já estava no guarda-roupa" : "Você ganhou!")
                         .font(.system(size: 14))  // ds-allow: baú (loja gamificada) — visual signature
                         .foregroundStyle(.white.opacity(0.6))
                 }
