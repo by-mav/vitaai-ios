@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 // MARK: - Card accent colors (ouro Vita — roxo do mockup v1 aposentado 2026-07-10)
@@ -134,14 +135,23 @@ struct FlashcardCardView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 12)
 
-                // Answer text — 16px medium, rgba(255,252,248,0.88)
-                FlashcardContentView(
-                    content: displayBack,
-                    fontSize: 16,
-                    textColor: VitaColors.white.opacity(0.88),
-                    alignment: .leading
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
+                // Cloze preserva a frase completa e destaca somente a peça revelada.
+                // Basic continua usando o renderer normal, sem mudança visual.
+                if isCloze {
+                    ClozeRevealContent(
+                        source: front,
+                        complement: back.trimmingCharacters(in: .whitespacesAndNewlines)
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    FlashcardContentView(
+                        content: back,
+                        fontSize: 16,
+                        textColor: VitaColors.white.opacity(0.88),
+                        alignment: .leading
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
 
                 Spacer()
             }
@@ -184,5 +194,79 @@ struct FlashcardCardView: View {
         .shadow(color: .black.opacity(0.45), radius: 30, x: 0, y: 12)
         .shadow(color: cardAccent.opacity(0.20), radius: 24, x: 0, y: 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Cloze reveal
+
+/// Reconstrói a frase declarativa no verso e aplica hierarquia somente às
+/// respostas que estavam ocultas no front (`{{c1::resposta}}`).
+private struct ClozeRevealContent: View {
+    let source: String
+    let complement: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(revealedSentence)
+                .font(VitaTypography.titleMedium)
+                .foregroundStyle(VitaColors.white.opacity(0.88))
+                .lineSpacing(5)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !complement.isEmpty {
+                Rectangle()
+                    .fill(VitaColors.glassBorder.opacity(0.55))
+                    .frame(height: 0.5)
+
+                FlashcardContentView(
+                    content: complement,
+                    fontSize: 14,
+                    textColor: VitaColors.textSecondary,
+                    alignment: .leading
+                )
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var revealedSentence: AttributedString {
+        let pattern = #"\{\{c\d+::([^}]+)\}\}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return AttributedString(source)
+        }
+
+        let nsSource = source as NSString
+        let matches = regex.matches(
+            in: source,
+            range: NSRange(location: 0, length: nsSource.length)
+        )
+        guard !matches.isEmpty else { return AttributedString(source) }
+
+        var result = AttributedString()
+        var cursor = 0
+        for match in matches {
+            if match.range.location > cursor {
+                result += AttributedString(
+                    nsSource.substring(with: NSRange(location: cursor, length: match.range.location - cursor))
+                )
+            }
+
+            var answer = AttributedString(nsSource.substring(with: match.range(at: 1)))
+            answer.foregroundColor = VitaColors.dataRed
+            answer.font = .system(size: 16, weight: .bold)
+            answer.underlineStyle = Text.LineStyle(
+                pattern: .solid,
+                color: VitaColors.dataRed.opacity(0.72)
+            )
+            result += answer
+            cursor = match.range.location + match.range.length
+        }
+
+        if cursor < nsSource.length {
+            result += AttributedString(
+                nsSource.substring(with: NSRange(location: cursor, length: nsSource.length - cursor))
+            )
+        }
+        return result
     }
 }

@@ -51,20 +51,7 @@ struct DesempenhoScreen: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: VitaTokens.Spacing.sm) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))  // ds-allow: back chevron
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .frame(width: 40, height: 40)
-            }
-            Text("Meu desempenho")
-                .font(VitaTypography.headlineSmall)
-                .foregroundStyle(VitaColors.textPrimary)
-            Spacer()
-        }
-        .padding(.horizontal, VitaTokens.Spacing.md)
-        .padding(.top, VitaTokens.Spacing.sm)
+        VitaScreenHeader(title: "Meu desempenho", onBack: onBack)
     }
 
     private var content: some View {

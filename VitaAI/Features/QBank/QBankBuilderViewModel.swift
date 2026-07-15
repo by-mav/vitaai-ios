@@ -55,6 +55,9 @@ struct QBankBuilderState {
     // Preview live count
     var previewCount: Int? = nil
     var previewLoading: Bool = false
+    var previewFacets: QBankPreviewFacets? = nil
+    var formatCounts: [String: Int] = [:]
+    var yearCounts: [String: Int] = [:]
 
     // Hero (progress)
     var progressTotal: Int = 0
@@ -165,6 +168,7 @@ final class QBankBuilderViewModel {
             state.difficulties = resp.difficulties
             state.totalQuestions = resp.totalQuestions
             state.stage = resp.lens // echo da lente aplicada
+            applyPreviewFacets(state.previewFacets)
         } catch {
             NSLog("[QBankBuilder] loadFilters ERROR: %@", String(describing: error))
             state.error = "Não foi possível carregar filtros"
@@ -201,6 +205,8 @@ final class QBankBuilderViewModel {
         state.selectedGroupSlugs.removeAll()
         state.selectedSubgroupIds.removeAll()
         state.expandedGroupSlugs.removeAll()
+        state.previewFacets = nil
+        state.formatCounts = [:]
         Task {
             await loadFilters()
             scheduleRefreshPreview()
@@ -338,7 +344,8 @@ final class QBankBuilderViewModel {
             hideAnnulled: state.hideAnnulled ? true : nil,
             hideReviewed: state.hideReviewed ? true : nil,
             excludeNoExplanation: state.excludeNoExplanation,
-            includeSynthetic: state.includeSynthetic
+            includeSynthetic: state.includeSynthetic,
+            stage: "all"
         )
 
         do {
@@ -349,9 +356,37 @@ final class QBankBuilderViewModel {
                   state.lens.rawValue,
                   String(describing: groupSlugsArr))
             state.previewCount = resp.total
+            applyPreviewFacets(resp.facets)
         } catch {
             NSLog("[QBankBuilder] preview ERROR: %@", String(describing: error))
             state.previewCount = nil
+        }
+    }
+
+    private func applyPreviewFacets(_ facets: QBankPreviewFacets?) {
+        guard let facets else { return }
+        state.previewFacets = facets
+        state.formatCounts = facets.formats
+        state.yearCounts = facets.years
+        state.groups = state.groups.map { current in
+            var group = current
+            group.count = facets.groups[group.slug] ?? 0
+            group.children = group.children.map { currentChild in
+                var child = currentChild
+                child.count = facets.subgroups[child.id] ?? 0
+                return child
+            }
+            return group
+        }
+        state.institutions = state.institutions.map { current in
+            var institution = current
+            institution.count = facets.institutions[String(institution.id)] ?? 0
+            return institution
+        }
+        state.difficulties = state.difficulties.map { current in
+            var difficulty = current
+            difficulty.count = facets.difficulties[difficulty.difficulty] ?? 0
+            return difficulty
         }
     }
 

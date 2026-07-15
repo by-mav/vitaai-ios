@@ -404,6 +404,37 @@ final class TranscricaoViewModel {
         }
     }
 
+    /// Renames either a custom folder or a subject-backed folder. Renaming a
+    /// subject folder changes only its transcription label, never the
+    /// academic_subjects row.
+    func renameFolder(id: String, name: String) async -> Bool {
+        guard let api else { return false }
+        do {
+            try await api.updateStudioFolder(id: id, name: name)
+            await loadFolders()
+            return true
+        } catch {
+            NSLog("[TranscricaoVM] renameFolder failed: %@", "\(error)")
+            return false
+        }
+    }
+
+    /// Soft-deletes the folder on the backend. Subject-backed folders retain
+    /// their subjectKey tombstone and therefore do not reappear on the next
+    /// Canvas/manual subject reconciliation.
+    func deleteFolder(id: String) async -> Bool {
+        guard let api else { return false }
+        do {
+            try await api.deleteStudioFolder(id: id)
+            folders.removeAll { $0.id == id }
+            return true
+        } catch {
+            NSLog("[TranscricaoVM] deleteFolder failed: %@", "\(error)")
+            await loadFolders()
+            return false
+        }
+    }
+
     /// Toggle favorito (PATCH studio/sources/:id). Optimistic update local
     /// pra swipe-action sentir instantâneo; revert silencioso se a request falha.
     ///

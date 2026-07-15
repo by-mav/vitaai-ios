@@ -126,25 +126,7 @@ struct ConfiguracoesScreen: View {
     // MARK: - Header (back + título — navegação do Vita preservada)
 
     private var headerBar: some View {
-        HStack(spacing: PixioSpacing.md) {
-            Button(action: { onBack?() }) {
-                Image(systemName: "chevron.left")
-                    .font(PixioTypo.sans(size: 15, weight: .semibold))
-                    .foregroundStyle(PixioColor.textLight)
-                    .frame(width: 30, height: 30)
-                    .pixioRaised(in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                    .frame(minWidth: 44, minHeight: 44, alignment: .leading)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("backButton")
-            .accessibilityLabel("Voltar")
-
-            Text("Configurações")
-                .font(PixioTypo.sans(size: 20, weight: .bold))
-                .foregroundStyle(PixioColor.textLight)
-
-            Spacer()
-        }
+        VitaScreenHeader(title: "Configurações", onBack: onBack)
     }
 
     // MARK: - User Card (identidade no topo — clean Pixio)

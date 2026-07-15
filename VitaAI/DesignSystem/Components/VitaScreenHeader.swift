@@ -36,6 +36,7 @@ struct VitaScreenHeader<Trailing: View>: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Voltar")
+            .accessibilityIdentifier("backButton")
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)

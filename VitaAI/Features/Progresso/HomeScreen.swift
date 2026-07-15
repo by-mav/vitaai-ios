@@ -984,7 +984,7 @@ struct HomeScreen: View {
         }
     }
 
-    // MARK: - Modelo (21 etapas / 6 tiers — espelha gamification.ts)
+    // MARK: - Modelo (20 etapas / 5 tiers — espelha a trilha atual)
 
     private enum StageState { case completed, current, locked }
 
@@ -998,13 +998,12 @@ struct HomeScreen: View {
     }
 
     private struct Stage: Identifiable {
-        let index: Int        // 1…21
+        let index: Int        // 1…20
         let name: String
-        let icon: String      // SF Symbol (fallback / header)
-        let asset: String     // ícone oficial 3D (Assets.xcassets/Levels)
+        let icon: String      // SF Symbol renderizado na trilha
         let minLevel: Int
         let maxLevel: Int
-        let tierIdx: Int      // 0…5
+        let tierIdx: Int      // 0…4
         var id: Int { index }
     }
 
@@ -1587,26 +1586,26 @@ struct HomeScreen: View {
     ]
 
     private static let stages: [Stage] = [
-        Stage(index: 1,  name: "Termômetro",   icon: "thermometer.medium", asset: "level-01-thermometer",   minLevel: 0,  maxLevel: 5,   tierIdx: 0),
-        Stage(index: 2,  name: "Seringa",      icon: "syringe.fill",       asset: "level-02-syringe",       minLevel: 5,  maxLevel: 10,  tierIdx: 0),
-        Stage(index: 3,  name: "Bisturi",      icon: "cross.case.fill",    asset: "level-03-scalpel",       minLevel: 10, maxLevel: 15,  tierIdx: 0),
-        Stage(index: 4,  name: "Estetoscópio", icon: "stethoscope",        asset: "level-04-stethoscope",   minLevel: 15, maxLevel: 20,  tierIdx: 0),
-        Stage(index: 5,  name: "Máscara",      icon: "facemask.fill",      asset: "level-05-mask",          minLevel: 20, maxLevel: 25,  tierIdx: 1),
-        Stage(index: 6,  name: "Microscópio",  icon: "microbe.fill",       asset: "level-06-microscope",    minLevel: 25, maxLevel: 30,  tierIdx: 1),
-        Stage(index: 7,  name: "Martelo",      icon: "hammer.fill",        asset: "level-07-reflex-hammer", minLevel: 30, maxLevel: 35,  tierIdx: 1),
-        Stage(index: 8,  name: "Desfibrilador",icon: "bolt.heart.fill",    asset: "level-08-defibrillator", minLevel: 35, maxLevel: 40,  tierIdx: 1),
-        Stage(index: 9,  name: "DNA",          icon: "waveform.path.ecg",  asset: "level-09-dna",           minLevel: 40, maxLevel: 45,  tierIdx: 2),
-        Stage(index: 10, name: "Comprimido",   icon: "pills.fill",         asset: "level-10-pill",          minLevel: 45, maxLevel: 50,  tierIdx: 2),
-        Stage(index: 11, name: "Coração",      icon: "heart.fill",         asset: "level-11-heart",         minLevel: 50, maxLevel: 55,  tierIdx: 2),
-        Stage(index: 12, name: "Jaleco",       icon: "cross.case.fill",    asset: "level-12-labcoat",       minLevel: 55, maxLevel: 60,  tierIdx: 2),
-        Stage(index: 13, name: "Robô Da Vinci",icon: "gearshape.2.fill",   asset: "level-13-davinci-robot", minLevel: 60, maxLevel: 65,  tierIdx: 3),
-        Stage(index: 14, name: "Cérebro",      icon: "brain.head.profile", asset: "level-14-brain",         minLevel: 65, maxLevel: 70,  tierIdx: 3),
-        Stage(index: 15, name: "Crânio",       icon: "staroflife.fill",    asset: "level-15-skull",         minLevel: 70, maxLevel: 75,  tierIdx: 3),
-        Stage(index: 16, name: "Escudo",       icon: "shield.fill",        asset: "level-16-shield",        minLevel: 75, maxLevel: 80,  tierIdx: 3),
-        Stage(index: 17, name: "Diploma",      icon: "graduationcap.fill", asset: "level-17-diploma",       minLevel: 80, maxLevel: 85,  tierIdx: 4),
-        Stage(index: 18, name: "Caduceu",      icon: "cross.fill",         asset: "level-18-caduceus-staff",minLevel: 85, maxLevel: 90,  tierIdx: 4),
-        Stage(index: 19, name: "Coroa",        icon: "crown.fill",         asset: "level-19-crown",         minLevel: 90, maxLevel: 95,  tierIdx: 4),
-        Stage(index: 20, name: "Vita",         icon: "rosette",            asset: "level-20-vita-caduceu",  minLevel: 95, maxLevel: 100, tierIdx: 4),
+        Stage(index: 1,  name: "Termômetro",   icon: "thermometer.medium", minLevel: 0,  maxLevel: 5,   tierIdx: 0),
+        Stage(index: 2,  name: "Seringa",      icon: "syringe.fill",       minLevel: 5,  maxLevel: 10,  tierIdx: 0),
+        Stage(index: 3,  name: "Bisturi",      icon: "cross.case.fill",    minLevel: 10, maxLevel: 15,  tierIdx: 0),
+        Stage(index: 4,  name: "Estetoscópio", icon: "stethoscope",        minLevel: 15, maxLevel: 20,  tierIdx: 0),
+        Stage(index: 5,  name: "Máscara",      icon: "facemask.fill",      minLevel: 20, maxLevel: 25,  tierIdx: 1),
+        Stage(index: 6,  name: "Microscópio",  icon: "microbe.fill",       minLevel: 25, maxLevel: 30,  tierIdx: 1),
+        Stage(index: 7,  name: "Martelo",      icon: "hammer.fill",        minLevel: 30, maxLevel: 35,  tierIdx: 1),
+        Stage(index: 8,  name: "Desfibrilador",icon: "bolt.heart.fill",    minLevel: 35, maxLevel: 40,  tierIdx: 1),
+        Stage(index: 9,  name: "DNA",          icon: "waveform.path.ecg",  minLevel: 40, maxLevel: 45,  tierIdx: 2),
+        Stage(index: 10, name: "Comprimido",   icon: "pills.fill",         minLevel: 45, maxLevel: 50,  tierIdx: 2),
+        Stage(index: 11, name: "Coração",      icon: "heart.fill",         minLevel: 50, maxLevel: 55,  tierIdx: 2),
+        Stage(index: 12, name: "Jaleco",       icon: "cross.case.fill",    minLevel: 55, maxLevel: 60,  tierIdx: 2),
+        Stage(index: 13, name: "Robô Da Vinci",icon: "gearshape.2.fill",   minLevel: 60, maxLevel: 65,  tierIdx: 3),
+        Stage(index: 14, name: "Cérebro",      icon: "brain.head.profile", minLevel: 65, maxLevel: 70,  tierIdx: 3),
+        Stage(index: 15, name: "Crânio",       icon: "staroflife.fill",    minLevel: 70, maxLevel: 75,  tierIdx: 3),
+        Stage(index: 16, name: "Escudo",       icon: "shield.fill",        minLevel: 75, maxLevel: 80,  tierIdx: 3),
+        Stage(index: 17, name: "Diploma",      icon: "graduationcap.fill", minLevel: 80, maxLevel: 85,  tierIdx: 4),
+        Stage(index: 18, name: "Caduceu",      icon: "cross.fill",         minLevel: 85, maxLevel: 90,  tierIdx: 4),
+        Stage(index: 19, name: "Coroa",        icon: "crown.fill",         minLevel: 90, maxLevel: 95,  tierIdx: 4),
+        Stage(index: 20, name: "Vita",         icon: "rosette",            minLevel: 95, maxLevel: 100, tierIdx: 4),
     ]
 
     private static let landmarks: [Landmark] = [

@@ -677,27 +677,67 @@ struct TranscricaoRecordingsListSection: View {
     @State private var renameFolderValue: String = ""
     @State private var deletingFolder: VitaAPI.StudioFolder? = nil
 
+    private func normalizedFolderKey(_ value: String) -> String {
+        value
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pt_BR"))
+            .lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .joined(separator: " ")
+    }
+
+    private func subjectValue(_ value: String, matches candidates: [String]) -> Bool {
+        let valueKey = normalizedFolderKey(value)
+        guard !valueKey.isEmpty else { return false }
+        return candidates.contains { candidate in
+            let candidateKey = normalizedFolderKey(candidate)
+            guard !candidateKey.isEmpty else { return false }
+            return valueKey == candidateKey ||
+                (min(valueKey.count, candidateKey.count) >= 5 &&
+                    (valueKey.hasPrefix(candidateKey) || candidateKey.hasPrefix(valueKey)))
+        }
+    }
+
+    private func recordings(in folder: VitaAPI.StudioFolder) -> [TranscricaoEntry] {
+        recordings.filter { recording in
+            if recording.folderId == folder.id { return true }
+            guard folder.isSubjectFolder, let discipline = recording.discipline else { return false }
+            return subjectValue(
+                discipline,
+                matches: [
+                    folder.name,
+                    folder.subjectName ?? "",
+                    folder.disciplineSlug ?? "",
+                    folder.subjectKey ?? "",
+                ]
+            )
+        }
+    }
+
+    private func applyingDisciplineFilter(to items: [TranscricaoEntry]) -> [TranscricaoEntry] {
+        guard let filter = selectedFilter else { return items }
+        return items.filter { subjectValue($0.discipline ?? "", matches: [filter]) }
+    }
+
     private var filteredRecordings: [TranscricaoEntry] {
         var items = recordings
-        // Step 1 — chip de view (Todas / ⭐ / 📁 pasta)
+        // Step 1 — view principal (Todas / Favoritas / pasta expandida).
         switch listView {
         case .all:
             break
         case .favorites:
             items = items.filter { $0.favorite == true }
         case .folder(let id):
-            items = items.filter { $0.folderId == id }
+            if let folder = folders.first(where: { $0.id == id }) {
+                items = recordings(in: folder)
+            } else {
+                items = []
+            }
         }
-        // Step 2 — filtro disciplina (sheet avançado, opcional)
-        if let filter = selectedFilter {
-            items = items.filter { $0.discipline?.uppercased() == filter.uppercased() }
-        }
-        return items
+        return applyingDisciplineFilter(to: items)
     }
 
-    // Group recordings by date bucket
-    private var groupedRecordings: [(key: String, recordings: [TranscricaoEntry])] {
-        let items = filteredRecordings
+    // Group recordings by date bucket.
+    private func groupedRecordings(for items: [TranscricaoEntry]) -> [(key: String, recordings: [TranscricaoEntry])] {
         let cal = Calendar.current
         let now = Date()
 
@@ -727,11 +767,6 @@ struct TranscricaoRecordingsListSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Chips horizontais — Todas / ⭐ Favoritas / 📁 Pastas / + Nova.
-            // Padrão Apple Notes/Files: scroll horizontal pra navegar sem sair
-            // da tela principal.
-            viewModeChips
-
             // Header: "GRAVAÇÕES · N" + botão filtro à direita (padrão Apple
             // Mail/Notes). Quando filtro ativo, mostra pill removível.
             HStack(spacing: 6) {
@@ -778,6 +813,19 @@ struct TranscricaoRecordingsListSection: View {
                 }
 
                 Button {
+                    onCreateFolder()
+                } label: {
+                    Image(systemName: "folder.badge.plus")
+                        .font(VitaTypography.titleLarge)
+                        .foregroundStyle(VitaColors.accentLight)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(VitaColors.accent.opacity(0.10)))
+                        .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Nova pasta")
+
+                Button {
                     showFilterSheet = true
                 } label: {
                     Image(systemName: selectedFilter == nil
@@ -801,12 +849,24 @@ struct TranscricaoRecordingsListSection: View {
             }
             .padding(.horizontal, 16)
 
+            // Filtros principais e, abaixo de GRAVAÇÕES, a árvore de pastas.
+            // Pastas deixam de competir com filtros dentro do carrossel.
+            viewModeChips
+
+            if !folders.isEmpty {
+                folderRows
+            }
+
             if isLoading {
                 ProgressView()
                     .tint(TealColors.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
-            } else if recordings.isEmpty {
+            } else if case .folder = listView {
+                // A gravação da pasta selecionada vive imediatamente abaixo
+                // da própria linha expansível, não duplicada no fim da seção.
+                EmptyView()
+            } else if filteredRecordings.isEmpty {
                 // Empty state
                 VStack(spacing: 14) {
                     ZStack {
@@ -841,7 +901,7 @@ struct TranscricaoRecordingsListSection: View {
             } else {
                 // Date-grouped recordings
                 VStack(spacing: 4) {
-                    ForEach(groupedRecordings, id: \.key) { group in
+                    ForEach(groupedRecordings(for: filteredRecordings), id: \.key) { group in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(group.key.uppercased())
                                 .font(.system(size: 10, weight: .bold))
@@ -995,7 +1055,8 @@ struct TranscricaoRecordingsListSection: View {
         )
     }
 
-    /// Scroll horizontal de chips — Todas / ⭐ Favoritas / 📁 Pastas / + Nova.
+    /// Scroll horizontal de chips — apenas Todas / Favoritas. Pastas agora
+    /// formam uma árvore vertical expansível abaixo de GRAVAÇÕES.
     /// Padrão D4 carved: inactive = warm dark glass + gold border 22%; active =
     /// gold accent 18% fill + gold border 45% + accentLight foreground (NÃO
     /// gold opaco com texto preto). Alinhamento horizontal idêntico aos
@@ -1015,47 +1076,168 @@ struct TranscricaoRecordingsListSection: View {
                     icon: "star.fill",
                     isSelected: listView == .favorites
                 ) { listView = .favorites }
-
-                ForEach(folders) { folder in
-                    viewChip(
-                        label: folder.name,
-                        icon: folder.icon ?? "folder.fill",
-                        isSelected: listView == .folder(id: folder.id)
-                    ) { listView = .folder(id: folder.id) }
-                    .contextMenu {
-                        Button {
-                            renameFolderValue = folder.name
-                            renamingFolder = folder
-                        } label: {
-                            Label("Renomear", systemImage: "pencil")
-                        }
-                        Button {
-                            onShareFolder?(folder)
-                        } label: {
-                            Label("Compartilhar", systemImage: "square.and.arrow.up")
-                        }
-                        Divider()
-                        Button(role: .destructive) {
-                            deletingFolder = folder
-                        } label: {
-                            Label("Excluir", systemImage: "trash")
-                        }
-                    }
-                }
-
-                // "+" pra criar pasta — mesmo style dos chips Todas/Favoritas/
-                // folders. Só ícone, sem label "Nova pasta" (Rafael 2026-04-26).
-                // Visual idêntico aos outros chips inactive.
-                viewChip(
-                    label: nil,
-                    icon: "plus",
-                    isSelected: false,
-                    action: onCreateFolder
-                )
             }
             .padding(.horizontal, 16)
         }
         .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private var folderRows: some View {
+        VStack(spacing: VitaTokens.Spacing.sm) {
+            ForEach(folders) { folder in
+                folderRow(folder)
+            }
+        }
+        .padding(.horizontal, VitaTokens.Spacing.lg)
+    }
+
+    @ViewBuilder
+    private func folderRow(_ folder: VitaAPI.StudioFolder) -> some View {
+        let isExpanded = listView == .folder(id: folder.id)
+        let allFolderRecordings = recordings(in: folder)
+        let visibleFolderRecordings = applyingDisciplineFilter(to: allFolderRecordings)
+
+        VStack(spacing: 0) {
+            Button {
+                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    listView = isExpanded ? .all : .folder(id: folder.id)
+                }
+            } label: {
+                HStack(spacing: VitaTokens.Spacing.md) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                            .fill(VitaColors.accent.opacity(isExpanded ? 0.18 : 0.10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                                    .stroke(VitaColors.glassBorder, lineWidth: 0.5)
+                            )
+
+                        Image(systemName: folder.icon ?? "folder.fill")
+                            .font(VitaTypography.titleLarge)
+                            .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.accent)
+                    }
+                    .frame(width: 42, height: 42)
+
+                    VStack(alignment: .leading, spacing: VitaTokens.Spacing.xxs) {
+                        Text(folder.name)
+                            .font(VitaTypography.titleMedium)
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .lineLimit(1)
+
+                        Text(allFolderRecordings.count == 1 ? "1 áudio" : "\(allFolderRecordings.count) áudios")
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+
+                    Spacer(minLength: VitaTokens.Spacing.sm)
+
+                    Image(systemName: "chevron.right")
+                        .font(VitaTypography.labelLarge)
+                        .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.textTertiary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .padding(VitaTokens.Spacing.md)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(folder.name), \(allFolderRecordings.count) áudios")
+            .accessibilityValue(isExpanded ? "Expandida" : "Recolhida")
+
+            if isExpanded {
+                Divider()
+                    .overlay(VitaColors.glassBorder)
+                    .padding(.horizontal, VitaTokens.Spacing.md)
+
+                if visibleFolderRecordings.isEmpty {
+                    HStack(spacing: VitaTokens.Spacing.sm) {
+                        Image(systemName: "waveform")
+                            .foregroundStyle(VitaColors.accent.opacity(0.65))
+                        Text(selectedFilter == nil ? "Nenhum áudio nesta pasta" : "Nenhum áudio com este filtro")
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(VitaTokens.Spacing.lg)
+                } else {
+                    VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                        ForEach(groupedRecordings(for: visibleFolderRecordings), id: \.key) { group in
+                            Text(group.key.uppercased())
+                                .font(VitaTypography.labelSmall)
+                                .foregroundStyle(VitaColors.sectionLabel)
+                                .tracking(0.8)
+                                .padding(.horizontal, VitaTokens.Spacing.md)
+                                .padding(.top, VitaTokens.Spacing.sm)
+
+                            ForEach(group.recordings) { rec in
+                                VitaCardRow(
+                                    onTap: { onTap(rec) },
+                                    onSwipeRight: { onFavorite?(rec) },
+                                    onSwipeLeft: { onDelete(rec) }
+                                ) {
+                                    TealGlassRecordingCard(recording: rec)
+                                }
+                                .padding(.horizontal, VitaTokens.Spacing.sm)
+                                .contextMenu {
+                                    Button { onTap(rec) } label: {
+                                        Label("Ver detalhes", systemImage: "doc.text.magnifyingglass")
+                                    }
+                                    if let onFavorite {
+                                        Button { onFavorite(rec) } label: {
+                                            Label(
+                                                rec.favorite == true ? "Remover dos favoritos" : "Favoritar",
+                                                systemImage: rec.favorite == true ? "star.slash" : "star"
+                                            )
+                                        }
+                                    }
+                                    Button {
+                                        renameValue = rec.title
+                                        renamingRec = rec
+                                    } label: {
+                                        Label("Renomear", systemImage: "pencil")
+                                    }
+                                    Button(role: .destructive) { onDelete(rec) } label: {
+                                        Label("Excluir", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.bottom, VitaTokens.Spacing.sm)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                .fill(VitaColors.glassBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                .stroke(isExpanded ? VitaColors.accent.opacity(0.34) : VitaColors.glassBorder, lineWidth: 0.7)
+        )
+        .shadow(color: .black.opacity(0.18), radius: VitaTokens.Elevation.lg, y: VitaTokens.Elevation.sm)
+        .animation(.easeInOut(duration: 0.22), value: isExpanded)
+        .contextMenu {
+            Button {
+                renameFolderValue = folder.name
+                renamingFolder = folder
+            } label: {
+                Label("Renomear", systemImage: "pencil")
+            }
+            if onShareFolder != nil {
+                Button { onShareFolder?(folder) } label: {
+                    Label("Compartilhar", systemImage: "square.and.arrow.up")
+                }
+            }
+            Divider()
+            Button(role: .destructive) {
+                deletingFolder = folder
+            } label: {
+                Label("Excluir", systemImage: "trash")
+            }
+        }
     }
 
     private func viewChip(
@@ -1235,5 +1417,3 @@ struct TealGlassRecordingCard: View {
 }
 
 // `abbreviateDiscipline` moved to TranscricaoControls.swift (shared with pickers).
-
-

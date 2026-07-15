@@ -63,23 +63,7 @@ struct DisciplinasConfigScreen: View {
     // MARK: - Header
 
     private var headerBar: some View {
-        HStack {
-            HStack(spacing: 10) {
-                Button(action: { onBack?() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.75))
-                        .frame(minWidth: 44, minHeight: 44)
-                }
-                .buttonStyle(.plain)
-
-                Text("Disciplinas")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.88))
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 20)
+        VitaScreenHeader(title: "Disciplinas", onBack: onBack)
     }
 
     // MARK: - Empty State

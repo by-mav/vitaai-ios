@@ -25,23 +25,11 @@ struct FlashcardTopicsScreen: View {
             VStack(alignment: .leading, spacing: 0) {
 
                 // Header
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(VitaColors.accentLight.opacity(0.7))
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(deckTitle)
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(0.93))
-                        Text("\(totalCards) cards \u{00B7} \(totalDue) pendentes")
-                            .font(.system(size: 12))
-                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
-                    }
-                    Spacer()
-                }
-                .padding(.top, 8)
+                VitaScreenHeader(
+                    title: deckTitle,
+                    subtitle: "\(totalCards) cards \u{00B7} \(totalDue) pendentes",
+                    onBack: onBack
+                )
                 .padding(.bottom, 20)
 
                 if isLoading {

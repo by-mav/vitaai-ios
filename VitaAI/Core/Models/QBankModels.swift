@@ -106,6 +106,8 @@ struct QBankPreviewBody: Encodable {
     var hideReviewed: Bool?
     var excludeNoExplanation: Bool?
     var includeSynthetic: Bool?
+    /// `all` no Builder de Questões; nil herda o momento acadêmico do perfil.
+    var stage: String?
 }
 
 struct QBankPreviewYears: Encodable {
@@ -116,17 +118,46 @@ struct QBankPreviewYears: Encodable {
 struct QBankPreviewResp: Decodable {
     var total: Int = 0
     var byDifficulty: [String: Int] = [:]
+    var facets: QBankPreviewFacets? = nil
     var appliedJourneyBoost: String? = nil
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         total = (try? c.decode(Int.self, forKey: .total)) ?? 0
         byDifficulty = (try? c.decode([String: Int].self, forKey: .byDifficulty)) ?? [:]
+        facets = try? c.decode(QBankPreviewFacets.self, forKey: .facets)
         appliedJourneyBoost = try? c.decode(String.self, forKey: .appliedJourneyBoost)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case total, byDifficulty, appliedJourneyBoost
+        case total, byDifficulty, facets, appliedJourneyBoost
+    }
+}
+
+/// Facetas condicionais: cada mapa aplica todos os filtros, exceto sua própria família.
+/// As opções estáticas de `/qbank/filters` continuam sendo a fonte dos rótulos.
+struct QBankPreviewFacets: Codable, Hashable {
+    var groups: [String: Int] = [:]
+    var subgroups: [String: Int] = [:]
+    var institutions: [String: Int] = [:]
+    var years: [String: Int] = [:]
+    var difficulties: [String: Int] = [:]
+    var formats: [String: Int] = [:]
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        groups = (try? container.decode([String: Int].self, forKey: .groups)) ?? [:]
+        subgroups = (try? container.decode([String: Int].self, forKey: .subgroups)) ?? [:]
+        institutions = (try? container.decode([String: Int].self, forKey: .institutions)) ?? [:]
+        years = (try? container.decode([String: Int].self, forKey: .years)) ?? [:]
+        difficulties = (try? container.decode([String: Int].self, forKey: .difficulties)) ?? [:]
+        formats = (try? container.decode([String: Int].self, forKey: .formats)) ?? [:]
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case groups, subgroups, institutions, years, difficulties, formats
     }
 }
 

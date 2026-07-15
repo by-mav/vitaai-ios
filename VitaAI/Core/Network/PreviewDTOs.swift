@@ -21,6 +21,7 @@ struct SimuladoPreviewYears: Codable, Hashable {
 struct SimuladoPreviewBody: Codable {
     let lens: String?
     let groupSlugs: [String]?
+    let subgroupSlugs: [String]?
     let institutionIds: [Int]?
     let years: SimuladoPreviewYears?
     let difficulties: [String]?
@@ -46,6 +47,7 @@ struct SimuladoPreviewResp: Codable {
     let byDifficulty: [String: Int]?
     let byYear: [String: Int]?
     let topGroups: [SimuladoPreviewTopGroup]?
+    let facets: QBankPreviewFacets?
     let appliedJourneyBoost: String?
 }
 

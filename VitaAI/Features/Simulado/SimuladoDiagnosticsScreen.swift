@@ -47,20 +47,7 @@ struct SimuladoDiagnosticsScreen: View {
     private func diagnosticsContent(vm: SimuladoViewModel) -> some View {
         VStack(spacing: 0) {
             // Top bar
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "arrow.left")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(VitaColors.textPrimary)
-                        .frame(width: 44, height: 44)
-                }
-                Text("Diagnóstico")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            VitaScreenHeader(title: "Diagnóstico", onBack: onBack)
 
             // Period chips
             ScrollView(.horizontal, showsIndicators: false) {

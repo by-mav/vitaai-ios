@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - FlashcardContentView
 //
@@ -241,13 +242,27 @@ private struct FlashcardImageSegment: View {
         horizontalSizeClass == .regular ? 300 : 200
     }
 
+    // Refs relativas (ex: "medicina/foo.webp") = mídia EMBUTIDA no app
+    // (folder reference FlashcardMedia). http(s) segue pela rede via AsyncImage.
+    private var bundledImage: UIImage? {
+        guard !url.hasPrefix("http"), let base = Bundle.main.resourceURL else { return nil }
+        let path = base.appendingPathComponent("FlashcardMedia").appendingPathComponent(url).path
+        return UIImage(contentsOfFile: path)
+    }
+
     var body: some View {
-        if let imageURL = URL(string: url) {
+        if let img = bundledImage {
+            Image(uiImage: img)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: maxImageHeight)
+                .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.sm))
+        } else if let imageURL = URL(string: url) {
             AsyncImage(url: imageURL) { phase in
                 switch phase {
                 case .empty:
                     // Placeholder shimmer
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.sm)
                         .fill(Color.white.opacity(0.06))
                         .frame(maxWidth: .infinity)
                         .frame(height: 120)
@@ -261,11 +276,11 @@ private struct FlashcardImageSegment: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: maxImageHeight)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.sm))
 
                 case .failure:
                     // Broken image indicator
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.sm)
                         .fill(Color.white.opacity(0.04))
                         .frame(maxWidth: .infinity)
                         .frame(height: 60)

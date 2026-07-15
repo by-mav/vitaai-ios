@@ -53,23 +53,7 @@ struct FlashcardStatsView: View {
     // MARK: - Top Bar
 
     private var statsTopBar: some View {
-        HStack(spacing: 4) {
-            Button(action: onBack) {
-                Image(systemName: "arrow.backward")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Text("Estatísticas dos Flashcards")
-                .font(VitaTypography.titleMedium)
-                .fontWeight(.semibold)
-                .foregroundStyle(VitaColors.textPrimary)
-
-            Spacer()
-        }
+        VitaScreenHeader(title: "Estatísticas dos Flashcards", onBack: onBack)
     }
 
     // MARK: - Scrollable content

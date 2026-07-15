@@ -275,6 +275,7 @@
 		8DAB61FBB197AC29828DE194 /* FlashcardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6827736C1825D7205D33703E /* FlashcardModels.swift */; };
 		8E5C3FCDB7EC7E77A034CADD /* InsightsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E64F3F466E1AEC167C8E16C4 /* InsightsScreen.swift */; };
 		8EDD3071F7A9D9C7E35BE415 /* EditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2EEF1677FFACD22671C46E4 /* EditorViewModel.swift */; };
+		8EFFE81F6FE80306696F64C3 /* FlashcardMedia in Resources */ = {isa = PBXBuildFile; fileRef = 600344BE2F44BF1DA633B9E6 /* FlashcardMedia */; };
 		8F0908753A169E642BC7F406 /* AddTokenSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA416DE7182E63F3EE44EA8D /* AddTokenSheet.swift */; };
 		8FE3CF124E46756F36C8811C /* StudyModulesGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 303EAFF83B774D5B3B9DFC46 /* StudyModulesGrid.swift */; };
 		9025A078FB032CE551E9E4BB /* AboutScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED0343F16BF93C40BA29E8D8 /* AboutScreen.swift */; };
@@ -642,6 +643,7 @@
 		5EE115A0772689E4DA94BD33 /* QBankResultContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankResultContent.swift; sourceTree = "<group>"; };
 		5F5D38E34409AF1928A15F19 /* ForecastBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastBarView.swift; sourceTree = "<group>"; };
 		5FD6822D39D8417619B16510 /* PhoneVerifySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneVerifySheet.swift; sourceTree = "<group>"; };
+		600344BE2F44BF1DA633B9E6 /* FlashcardMedia */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = FlashcardMedia; path = FlashcardMedia; sourceTree = "<group>"; };
 		601CF5843581EE6256E3BF4C /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		60D988573DC3C5C6FC200AD8 /* UserJourney.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserJourney.swift; sourceTree = "<group>"; };
 		61FD27599EBCAC8F56A1C348 /* AppearanceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceScreen.swift; sourceTree = "<group>"; };
@@ -1909,6 +1911,7 @@
 			isa = PBXGroup;
 			children = (
 				071FF1B45D3A3121280AE457 /* Localizable.strings */,
+				600344BE2F44BF1DA633B9E6 /* FlashcardMedia */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -2042,6 +2045,7 @@
 				A9660EB0D2F93B27F63FD890 /* Localizable.strings in Resources */,
 				CAFC22F70859BC5E8856DE49 /* PrivacyInfo.xcprivacy in Resources */,
 				89E5E213E3113C09A90A1775 /* VitaAI.storekit in Resources */,
+				8EFFE81F6FE80306696F64C3 /* FlashcardMedia in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

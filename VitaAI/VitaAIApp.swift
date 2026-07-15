@@ -186,6 +186,9 @@ private extension VitaAIApp {
 
         if let injected = AppConfig.injectedSession {
             keychain.save(key: "vita_session_token", value: injected.token)
+            // Sessão injetada é um caminho explícito de QA/CI: sem este estado,
+            // o app salva o token mas volta para o splash no próximo relaunch.
+            AppConfig.setOnboardingComplete(true, in: defaults)
             if let name = injected.name { defaults.set(name, forKey: "vita_user_name") }
             if let email = injected.email { defaults.set(email, forKey: "vita_user_email") }
             if let image = injected.image { defaults.set(image, forKey: "vita_user_image") }

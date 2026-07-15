@@ -130,6 +130,17 @@ struct FlashcardBuilderScreen: View {
 
     private var appBar: some View {
         HStack(spacing: VitaTokens.Spacing.sm) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(VitaTypography.titleLarge)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(VitaColors.glassBg))
+                    .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Voltar")
+
             Text("Flashcards")
                 .font(VitaTypography.headlineLarge)
                 .foregroundStyle(VitaColors.textPrimary)

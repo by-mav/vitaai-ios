@@ -118,6 +118,26 @@ private struct SimuladoFromTemplateResponse: Decodable {
     let id: String
 }
 
+private struct SimuladoCustomGenerateBody: Encodable {
+    let lens: String
+    let groupSlugs: [String]?
+    let subgroupSlugs: [String]?
+    let institutionIds: [Int]?
+    let years: SimuladoPreviewYears?
+    let difficulties: [String]?
+    let format: [String]?
+    let hideAnswered: Bool
+    let hideAnnulled: Bool
+    let excludeNoExplanation: Bool
+    let includeSynthetic: Bool
+    let questionCount: Int
+    let timeLimitMinutes: Int?
+}
+
+private struct SimuladoCustomGenerateResponse: Decodable {
+    let id: String
+}
+
 // MARK: - State
 
 struct SimuladoBuilderState {
@@ -167,6 +187,9 @@ struct SimuladoBuilderState {
     // Preview live count (Custom)
     var previewCount: Int? = nil
     var previewLoading: Bool = false
+    var previewFacets: QBankPreviewFacets? = nil
+    var formatCounts: [String: Int] = [:]
+    var yearCounts: [String: Int] = [:]
 
     // Loading
     var screenLoading: Bool = true
@@ -301,6 +324,7 @@ final class SimuladoBuilderViewModel {
             state.difficulties = resp.difficulties
             state.years = resp.years
             state.totalQuestions = resp.totalQuestions
+            applyPreviewFacets(state.previewFacets)
         } catch {
             NSLog("[SimuladoBuilder] loadFilters ERROR: %@", String(describing: error))
         }
@@ -329,6 +353,8 @@ final class SimuladoBuilderViewModel {
         state.lens = lens
         state.selectedGroupSlugs.removeAll()
         state.selectedSubgroupIds.removeAll()
+        state.previewFacets = nil
+        state.formatCounts = [:]
         Task {
             await loadFilters()
             scheduleRefreshPreview()
@@ -438,6 +464,7 @@ final class SimuladoBuilderViewModel {
         let body = SimuladoPreviewBody(
             lens: state.lens.rawValue,
             groupSlugs: groupSlugsArr.nilIfEmpty,
+            subgroupSlugs: selectedSubgroupSlugs(),
             institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
             years: years,
             difficulties: Array(state.selectedDifficulties).nilIfEmpty,
@@ -454,8 +481,43 @@ final class SimuladoBuilderViewModel {
         do {
             let resp = try await api.previewSimuladoPool(body: body)
             state.previewCount = resp.total
+            applyPreviewFacets(resp.facets)
         } catch {
             state.previewCount = nil
+        }
+    }
+
+    private func selectedSubgroupSlugs() -> [String]? {
+        state.selectedSubgroupIds
+            .compactMap { id in id.split(separator: "/", maxSplits: 1).last.map(String.init) }
+            .sorted()
+            .nilIfEmpty
+    }
+
+    private func applyPreviewFacets(_ facets: QBankPreviewFacets?) {
+        guard let facets else { return }
+        state.previewFacets = facets
+        state.formatCounts = facets.formats
+        state.yearCounts = facets.years
+        state.groups = state.groups.map { current in
+            var group = current
+            group.count = facets.groups[group.slug] ?? 0
+            group.children = group.children.map { currentChild in
+                var child = currentChild
+                child.count = facets.subgroups[child.id] ?? 0
+                return child
+            }
+            return group
+        }
+        state.institutions = state.institutions.map { current in
+            var institution = current
+            institution.count = facets.institutions[String(institution.id)] ?? 0
+            return institution
+        }
+        state.difficulties = state.difficulties.map { current in
+            var difficulty = current
+            difficulty.count = facets.difficulties[difficulty.difficulty] ?? 0
+            return difficulty
         }
     }
 
@@ -494,21 +556,30 @@ final class SimuladoBuilderViewModel {
     }
 
     private func createCustom() async -> String? {
-        let subject = state.selectedGroupSlugs.first
-            ?? state.selectedTemplateSlug
-            ?? "Geral"
-        let firstDifficulty = state.selectedDifficulties.first ?? "medium"
-        let mode = state.timerEnabled ? "exam" : "immediate"
+        let years: SimuladoPreviewYears? = (state.selectedYearMin == nil && state.selectedYearMax == nil)
+            ? nil
+            : SimuladoPreviewYears(min: state.selectedYearMin, max: state.selectedYearMax)
+        let body = SimuladoCustomGenerateBody(
+            lens: state.lens.rawValue,
+            groupSlugs: Array(state.selectedGroupSlugs).nilIfEmpty,
+            subgroupSlugs: selectedSubgroupSlugs(),
+            institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
+            years: years,
+            difficulties: Array(state.selectedDifficulties).nilIfEmpty,
+            format: Array(state.selectedFormats).nilIfEmpty,
+            hideAnswered: false,
+            hideAnnulled: false,
+            excludeNoExplanation: true,
+            includeSynthetic: false,
+            questionCount: state.questionCount,
+            timeLimitMinutes: state.timerEnabled ? state.timerMinutes : nil
+        )
 
         do {
-            let resp = try await api.generateSimulado(.init(
-                subject: subject,
-                difficulty: firstDifficulty,
-                questionCount: state.questionCount,
-                mode: mode,
-                sourceDocumentIds: nil,
-                courseId: nil
-            ))
+            let resp: SimuladoCustomGenerateResponse = try await api.client.post(
+                "simulados/generate",
+                body: body
+            )
             return resp.id.isEmpty ? nil : resp.id
         } catch {
             NSLog("[SimuladoBuilder] generateSimulado ERROR: %@", String(describing: error))

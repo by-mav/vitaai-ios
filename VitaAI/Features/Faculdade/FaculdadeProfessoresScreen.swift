@@ -33,38 +33,8 @@ struct FaculdadeProfessoresScreen: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 14) {
-                // Back button row
-                HStack {
-                    Button {
-                        router.goBack()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 12, weight: .semibold))
-                            Text("Faculdade")
-                                .font(.system(size: 13, weight: .medium))
-                        }
-                        .foregroundStyle(goldMuted.opacity(0.75))
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-
                 // Header
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Professores")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(textPrimary)
-                        Text("Perfis dos professores deste semestre")
-                            .font(.system(size: 12))
-                            .foregroundStyle(textDim)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
+                VitaScreenHeader(title: "Professores", subtitle: "Perfis dos professores deste semestre")
 
                 // Professor list
                 if professors.isEmpty {

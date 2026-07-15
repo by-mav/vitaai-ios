@@ -199,28 +199,11 @@ struct ToolManagerScreen: View {
     // MARK: - Top Bar
 
     private var topBar: some View {
-        HStack(spacing: 0) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(VitaColors.textPrimary)
-                    .frame(width: 48, height: 48)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey("tool_manager_title"))
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(VitaColors.textPrimary)
-
-                Text(LocalizedStringKey("tool_manager_subtitle"))
-                    .font(.system(size: 13))
-                    .foregroundColor(VitaColors.textTertiary)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 12)
+        VitaScreenHeader(
+            title: NSLocalizedString("tool_manager_title", comment: ""),
+            subtitle: NSLocalizedString("tool_manager_subtitle", comment: ""),
+            onBack: onBack
+        )
     }
 
     // MARK: - Counter Pill

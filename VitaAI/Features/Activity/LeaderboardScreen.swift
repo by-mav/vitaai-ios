@@ -17,20 +17,7 @@ struct LeaderboardScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(VitaColors.textPrimary)
-                }
-                Text("Ranking")
-                    .font(VitaTypography.titleLarge)
-                    .foregroundStyle(VitaColors.textPrimary)
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            VitaScreenHeader(title: "Ranking", onBack: onBack)
 
             // Period chips
             HStack(spacing: 8) {

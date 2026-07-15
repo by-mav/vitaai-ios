@@ -94,26 +94,7 @@ private struct AchievementsTopBar: View {
     let onBack: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.60))
-                    .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.04))
-                    .clipShape(Circle())
-            }
-            .frame(minWidth: 44, minHeight: 44)
-            .accessibilityLabel("Voltar")
-
-            Text(NSLocalizedString("Conquistas", comment: "Achievements title"))
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(Color.white.opacity(0.85))
-
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        VitaScreenHeader(title: "Conquistas", onBack: onBack)
     }
 }
 

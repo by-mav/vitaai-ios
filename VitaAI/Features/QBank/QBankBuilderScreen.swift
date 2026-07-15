@@ -251,7 +251,8 @@ struct QBankBuilderScreen: View {
                 availableMax: vm.state.years.max() ?? 2026,
                 theme: .questoes,
                 expanded: $yearsExpanded,
-                onChange: { vm.scheduleRefreshPreview() }
+                onChange: { vm.scheduleRefreshPreview() },
+                counts: vm.state.yearCounts
             )
             .padding(.horizontal, 16)
         }
@@ -273,7 +274,8 @@ struct QBankBuilderScreen: View {
                         for f in added { vm.toggleFormat(f) }
                     }
                 ),
-                theme: .questoes
+                theme: .questoes,
+                counts: vm.state.formatCounts
             )
         }
         .padding(.horizontal, 16)
@@ -1015,7 +1017,8 @@ private struct QBankSettingsSheet: View {
                             availableMax: vm.state.years.max() ?? 2026,
                             theme: .questoes,
                             expanded: $yearsExpanded,
-                            onChange: { vm.scheduleRefreshPreview() }
+                            onChange: { vm.scheduleRefreshPreview() },
+                            counts: vm.state.yearCounts
                         )
                     }
 
@@ -1036,7 +1039,8 @@ private struct QBankSettingsSheet: View {
                                     for f in added { vm.toggleFormat(f) }
                                 }
                             ),
-                            theme: .questoes
+                            theme: .questoes,
+                            counts: vm.state.formatCounts
                         )
                     }
 

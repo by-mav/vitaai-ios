@@ -275,6 +275,7 @@ struct SpecialtyMultiSelect: View {
 struct FormatPills: View {
     @Binding var selected: Set<String>  // 'objective' | 'discursive' | 'withImage'
     let theme: StudyShellTheme
+    var counts: [String: Int] = [:]
 
     private let options: [(slug: String, label: String, icon: String)] = [
         ("objective", "Objetivas", "list.bullet"),
@@ -291,6 +292,7 @@ struct FormatPills: View {
             HStack(spacing: 6) {
                 ForEach(options, id: \.slug) { opt in
                     let isSelected = selected.contains(opt.slug)
+                    let count = counts[opt.slug]
                     Button {
                         if isSelected { selected.remove(opt.slug) }
                         else { selected.insert(opt.slug) }
@@ -298,8 +300,15 @@ struct FormatPills: View {
                         HStack(spacing: 4) {
                             Image(systemName: opt.icon)
                                 .font(.system(size: 11, weight: .semibold))
-                            Text(opt.label)
-                                .font(.system(size: 12, weight: .semibold))
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(opt.label)
+                                    .font(VitaTypography.labelMedium.weight(.semibold))
+                                if let count {
+                                    Text(count.formatted(.number.locale(Locale(identifier: "pt_BR"))))
+                                        .font(VitaTypography.labelSmall)
+                                        .foregroundStyle(VitaColors.textTertiary)
+                                }
+                            }
                         }
                         .foregroundStyle(isSelected ? theme.primaryLight.opacity(0.98) : VitaColors.textSecondary)
                         .frame(maxWidth: .infinity)
@@ -314,6 +323,8 @@ struct FormatPills: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .disabled(!isSelected && count == 0)
+                    .opacity(!isSelected && count == 0 ? 0.38 : 1)
                 }
             }
         }
@@ -1006,6 +1017,7 @@ struct YearsRangeSection: View {
     @Binding var expanded: Bool
     /// Callback unificado pra disparar refresh preview no VM (debounced lá).
     let onChange: () -> Void
+    var counts: [String: Int] = [:]
 
     private var summaryText: String {
         switch (minYear, maxYear) {
@@ -1017,11 +1029,22 @@ struct YearsRangeSection: View {
         }
     }
 
+    private var contextualSummary: String {
+        guard !counts.isEmpty else { return summaryText }
+        let lower = minYear ?? availableMin
+        let upper = maxYear ?? availableMax
+        let count = counts.reduce(into: 0) { total, entry in
+            guard let year = Int(entry.key), year >= lower, year <= upper else { return }
+            total += entry.value
+        }
+        return "\(summaryText) · \(count.formatted(.number.locale(Locale(identifier: "pt_BR"))))"
+    }
+
     var body: some View {
         CollapsibleSectionCard(
             title: "Anos",
             icon: "calendar",
-            summary: summaryText,
+            summary: contextualSummary,
             theme: theme,
             expanded: $expanded
         ) {

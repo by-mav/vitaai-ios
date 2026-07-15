@@ -58,28 +58,7 @@ struct AppearanceScreen: View {
     // MARK: - Header
 
     private var headerBar: some View {
-        HStack(spacing: 10) {
-            Button(action: { dismiss() }) {
-                Image(systemName: "arrow.left")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(subtleText.opacity(0.75))
-                    .frame(width: 32, height: 32)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Aparência")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.90))
-                Text("Personalize a interface")
-                    .font(.system(size: 11))
-                    .foregroundStyle(subtleText.opacity(0.40))
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.bottom, 4)
+        VitaScreenHeader(title: "Aparência", subtitle: "Personalize a interface", onBack: { dismiss() })
     }
 
     // MARK: - Preview Frame

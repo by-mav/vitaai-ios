@@ -440,6 +440,14 @@ actor VitaAPI {
         let name: String
         let color: String?
         let icon: String?
+        /// Present for folders reconciled from academic_subjects. Custom
+        /// folders keep these fields nil.
+        let subjectId: String?
+        let subjectKey: String?
+        let subjectName: String?
+        let disciplineSlug: String?
+
+        var isSubjectFolder: Bool { subjectKey != nil }
     }
 
     private struct StudioFoldersResponse: Decodable { let folders: [StudioFolder] }
@@ -457,6 +465,11 @@ actor VitaAPI {
             body: Body(name: name, color: color, icon: icon)
         )
         return resp.folder
+    }
+
+    func updateStudioFolder(id: String, name: String) async throws {
+        struct Body: Encodable { let name: String }
+        try await client.patch("studio/folders/\(id)", body: Body(name: name))
     }
 
     func deleteStudioFolder(id: String) async throws {

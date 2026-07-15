@@ -158,6 +158,8 @@ private struct TranscricaoContent: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
+                VitaScreenHeader(title: "Transcrição", onBack: onBack)
+
                 switch viewModel.phase {
                 case .error:
                     TranscricaoErrorPhase(
@@ -334,6 +336,23 @@ private struct TranscricaoContent: View {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                     viewModel.renameRecording(id: rec.id, newTitle: newTitle)
                                     showToast("✓ Renomeado")
+                                },
+                                onRenameFolder: { folder, newName in
+                                    Task {
+                                        let renamed = await viewModel.renameFolder(id: folder.id, name: newName)
+                                        await MainActor.run {
+                                            showToast(renamed ? "✓ Pasta renomeada" : "Falha ao renomear pasta")
+                                        }
+                                    }
+                                },
+                                onDeleteFolder: { folder in
+                                    if listView == .folder(id: folder.id) { listView = .all }
+                                    Task {
+                                        let deleted = await viewModel.deleteFolder(id: folder.id)
+                                        await MainActor.run {
+                                            showToast(deleted ? "✓ Pasta excluída" : "Falha ao excluir pasta")
+                                        }
+                                    }
                                 }
                             )
                             .padding(.top, 10)

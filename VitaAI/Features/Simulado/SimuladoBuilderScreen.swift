@@ -223,7 +223,8 @@ struct SimuladoBuilderScreen: View {
                             availableMax: vm.state.years.max() ?? 2026,
                             theme: .simulados,
                             expanded: $yearsExpanded,
-                            onChange: { vm.scheduleRefreshPreview() }
+                            onChange: { vm.scheduleRefreshPreview() },
+                            counts: vm.state.yearCounts
                         )
                         .padding(.horizontal, 16)
                     }
@@ -246,7 +247,8 @@ struct SimuladoBuilderScreen: View {
                                     for f in added { vm.toggleFormat(f) }
                                 }
                             ),
-                            theme: .simulados
+                            theme: .simulados,
+                            counts: vm.state.formatCounts
                         )
                     }
                     .padding(.horizontal, 16)

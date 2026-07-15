@@ -71,31 +71,7 @@ private struct ProvasContent: View {
         ZStack {
             VStack(spacing: 0) {
                 // Back bar
-                HStack {
-                    Button(action: onBack) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("Voltar")
-                                .font(VitaTypography.labelLarge)
-                        }
-                        .foregroundColor(VitaColors.textPrimary)
-                    }
-                    Spacer()
-                    Text("Provas")
-                        .font(VitaTypography.titleMedium)
-                        .foregroundColor(VitaColors.textPrimary)
-                    Spacer()
-                    // Balance the back button
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.left")
-                        Text("Voltar")
-                    }
-                    .opacity(0)
-                    .font(VitaTypography.labelLarge)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+                VitaScreenHeader(title: "Provas", onBack: onBack)
 
                 // Tab bar
                 HStack(spacing: 0) {

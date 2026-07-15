@@ -81,24 +81,7 @@ private struct OsceTopBar: View {
     let onNewCase: () -> Void
 
     var body: some View {
-        HStack {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .frame(width: 44, height: 44)
-            }
-            .accessibilityIdentifier("backButton")
-
-            Spacer()
-
-            Text("Caso Clínico OSCE")
-                .font(VitaTypography.titleMedium)
-                .fontWeight(.semibold)
-                .foregroundStyle(VitaColors.textPrimary)
-
-            Spacer()
-
+        VitaScreenHeader(title: "Caso Clínico OSCE", onBack: onBack) {
             if phase != .selectSpecialty {
                 Button("Novo Caso", action: onNewCase)
                     .font(VitaTypography.labelMedium)
@@ -106,15 +89,7 @@ private struct OsceTopBar: View {
                     .foregroundStyle(VitaColors.accent)
                     .frame(height: 44)
                     .padding(.trailing, 4)
-            } else {
-                Color.clear.frame(width: 44, height: 44)
             }
-        }
-        .padding(.horizontal, 8)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(VitaColors.glassBorder)
-                .frame(height: 1)
         }
     }
 }
