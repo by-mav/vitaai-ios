@@ -67,9 +67,6 @@ enum Route: Hashable {
     // MARK: - Course Detail
     case courseDetail(courseId: String, colorIndex: Int)
 
-    // MARK: - Provas (Crowd)
-    case provas
-
     // MARK: - QBank (Question Bank)
     case qbank
     case qbankSession(sessionId: String, mode: String? = nil)

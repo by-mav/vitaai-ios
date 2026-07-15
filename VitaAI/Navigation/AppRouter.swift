@@ -171,7 +171,7 @@ struct AppRouter: View {
                         router.navigate(to: route)
                     }
                 case .qbank, .qbankSession(_, _), .simuladoHome, .transcricao, .atlas3D, .osce,
-                     .provas, .trabalhos, .flashcardHome, .flashcardSession:
+                     .trabalhos, .flashcardHome, .flashcardSession:
                     // Sub-features de Estudos: ao chegar via deep link,
                     // ative a tab Estudos pra bottom nav refletir o contexto.
                     // Sem isso o bottom nav fica em Home (default) enquanto
@@ -341,6 +341,8 @@ struct MainTabView: View {
                                 withAnimation(.easeInOut(duration: 0.25)) { showChat.toggle() }
                             }, onTabReselect: { _ in
                                 router.popToRoot()
+                            }, onAddSelect: { kind in
+                                openQuickAdd(kind)
                             })
                             .ignoresSafeArea(.keyboard)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -481,6 +483,12 @@ struct MainTabView: View {
             if !router.path.isEmpty {
                 router.popToRoot()
             }
+            if let destination = router.pendingRouteAfterTabChange {
+                router.pendingRouteAfterTabChange = nil
+                DispatchQueue.main.async {
+                    router.navigate(to: destination)
+                }
+            }
         }
         .overlay {
             ZStack {
@@ -551,6 +559,33 @@ struct MainTabView: View {
         }
     }
 
+    /// Resolve a gaveta global "+" usando somente destinos que já existem no
+    /// app. A tab Estudos vira a casa canônica desses quatro fluxos, inclusive
+    /// quando o atalho parte de Home, Jornada ou Progresso.
+    private func openQuickAdd(_ kind: VitaAddSheet.Kind) {
+        let destination: Route
+        switch kind {
+        case .prova:
+            // Prova não tem biblioteca global. A disciplina é a única casa;
+            // dali o aluno abre a pasta Provas e adiciona o arquivo escopado.
+            destination = .faculdadeMaterias
+        case .documento:
+            destination = .faculdadeDocumentos
+        case .transcricao:
+            destination = .transcricao
+        case .nota:
+            destination = .notebookList
+        }
+
+        router.popToRoot()
+        if router.selectedTab == .estudos {
+            router.navigate(to: destination)
+        } else {
+            router.pendingRouteAfterTabChange = destination
+            router.selectedTab = .estudos
+        }
+    }
+
     private func closeSettingsPanel() {
         PixioHaptics.tap()
         withAnimation(.spring(response: 0.36, dampingFraction: 0.9)) {
@@ -600,7 +635,6 @@ struct MainTabView: View {
                 onNavigateToCourseDetail: { disciplineId, disciplineName in
                     router.navigate(to: .disciplineDetail(disciplineId: disciplineId, disciplineName: disciplineName))
                 },
-                onNavigateToProvas: { router.navigate(to: .provas) },
                 onNavigateToQBank: { router.navigate(to: .qbank) },
                 onNavigateToTranscricao: { router.navigate(to: .transcricao) },
                 onNavigateToTrabalhos: { router.navigate(to: .trabalhos) }
@@ -831,8 +865,6 @@ struct MainTabView: View {
                 },
                 onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) }
             )
-        case .provas:
-            ProvasScreen(onBack: { router.goBack() })
         case .achievements:
             AchievementsScreen(onBack: { router.goBack() })
         case .planner:

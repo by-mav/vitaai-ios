@@ -85,7 +85,8 @@ private let allTools: [ToolEntry] = [
         id: "provas",
         label: LocalizedStringKey("tool_manager_provas"),
         iconName: "graduationcap",
-        route: .provas
+        // Sem página global: o atalho começa escolhendo a disciplina.
+        route: .faculdadeMaterias
     ),
     ToolEntry(
         id: "cadernos",

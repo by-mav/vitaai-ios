@@ -8,6 +8,9 @@ final class Router {
     var activeScreen: Route?
     var hideShell = false
     var showPaywall = false
+    /// Rota aguardando a troca de tab terminar. O MainTabView consome este
+    /// valor depois de limpar a pilha antiga, evitando perder o primeiro push.
+    var pendingRouteAfterTabChange: Route?
 
     // Shared state for flashcard session → settings screen communication
     var activeFlashcardVM: FlashcardViewModel?
@@ -97,7 +100,7 @@ final class Router {
             "/study/grades": (.faculdade, .faculdadeMaterias),
             "/study/flashcards": (.estudos, .flashcardHome()),
             "/study/trabalhos": (.faculdade, .trabalhos),
-            "/study/provas": (.faculdade, .provas),
+            "/study/provas": (.faculdade, .faculdadeMaterias),
             "/materiais": (.faculdade, .faculdadeDocumentos),
             "/planner": (.estudos, .planner),
             "/faculdade": (.faculdade, nil),

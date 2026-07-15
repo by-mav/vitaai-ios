@@ -1182,28 +1182,6 @@ actor VitaAPI {
         )
     }
 
-    // MARK: - Crowd / Provas (NO BACKEND: crowd/*)
-
-    func getCrowdProfessors() async throws -> [CrowdProfessor] {
-        try await client.get("crowd/professors")
-    }
-
-    func getCrowdExams() async throws -> [CrowdExamEntry] {
-        try await client.get("crowd/exams")
-    }
-
-    func getCrowdExamDetail(_ examId: String) async throws -> CrowdExamDetail {
-        try await client.get("crowd/exams/\(examId)")
-    }
-
-    func getCrowdUploads() async throws -> [CrowdUploadRecord] {
-        try await client.get("crowd/upload")
-    }
-
-    func uploadExamImages(_ images: [(Data, String, String)]) async throws -> CrowdUploadResponse {
-        try await client.uploadMultipart("crowd/upload", images: images)
-    }
-
     func getExams(upcoming: Bool = false) async throws -> ExamsResponse {
         var items: [URLQueryItem] = []
         if upcoming { items.append(.init(name: "upcoming", value: "true")) }

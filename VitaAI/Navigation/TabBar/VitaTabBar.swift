@@ -96,7 +96,13 @@ struct VitaTabBar: View {
         .sheet(isPresented: $showAdd) {
             VitaAddSheet(onSelect: { kind in
                 showAdd = false
-                onAddSelect?(kind)
+                // A sheet precisa terminar de sair antes de o host empurrar uma
+                // rota (ou apresentar outro picker). Sem esse handoff, SwiftUI
+                // pode descartar a segunda apresentação no mesmo frame.
+                let selectionHandler = onAddSelect
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+                    selectionHandler?(kind)
+                }
             })
             .padding(.horizontal, 12)
             .padding(.top, 16)

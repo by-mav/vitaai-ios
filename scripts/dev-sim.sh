@@ -13,13 +13,19 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
 echo "🔨 Build $SIM_NAME"
-xcodebuild \
+BUILD_LOG="/tmp/VitaAI-dev-sim.log"
+if ! xcodebuild \
     -workspace VitaAI.xcworkspace \
     -scheme VitaAI \
     -sdk iphonesimulator \
     -destination "platform=iOS Simulator,name=$SIM_NAME" \
     -derivedDataPath build/DerivedData \
-    build 2>&1 | tail -5
+    build >"$BUILD_LOG" 2>&1; then
+    echo "❌ Build failed — log: $BUILD_LOG"
+    grep -E -A4 -B2 'error:|Undefined symbols|duplicate symbol|linker command failed' "$BUILD_LOG" | tail -80 || true
+    exit 65
+fi
+tail -5 "$BUILD_LOG"
 
 APP_PATH="build/DerivedData/Build/Products/Debug-iphonesimulator/VitaAI.app"
 [ -d "$APP_PATH" ] || { echo "❌ .app not found at $APP_PATH"; exit 1; }

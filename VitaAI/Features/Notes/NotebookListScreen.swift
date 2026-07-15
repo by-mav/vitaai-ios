@@ -31,8 +31,7 @@ struct NotebookListScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
             VitaScreenHeader(title: "Notebooks", onBack: onBack)
             ZStack {
                 Group {
@@ -115,9 +114,8 @@ struct NotebookListScreen: View {
                     )
                 }
             }
-            }
-            .navigationBarHidden(true)
         }
+        .navigationBarHidden(true)
         .trackScreen("NotebookList")
     }
 

@@ -17,7 +17,6 @@ struct EstudosScreen: View {
     var onNavigateToOsce:              (() -> Void)?
     var onNavigateToAtlas:             (() -> Void)?
     var onNavigateToCourseDetail:      ((String, String) -> Void)?
-    var onNavigateToProvas:            (() -> Void)?
     var onNavigateToQBank:             (() -> Void)?
     var onNavigateToTranscricao:       (() -> Void)?
     var onNavigateToTrabalhos:         (() -> Void)?
@@ -40,7 +39,6 @@ struct EstudosScreen: View {
                     onNavigateToOsce:             onNavigateToOsce,
                     onNavigateToAtlas:            onNavigateToAtlas,
                     onNavigateToCourseDetail:     onNavigateToCourseDetail,
-                    onNavigateToProvas:           onNavigateToProvas,
                     onNavigateToQBank:            onNavigateToQBank,
                     onNavigateToTranscricao:      onNavigateToTranscricao,
                     onNavigateToTrabalhos:        onNavigateToTrabalhos
@@ -92,7 +90,6 @@ private struct EstudosContent: View {
     let onNavigateToOsce:              (() -> Void)?
     let onNavigateToAtlas:             (() -> Void)?
     let onNavigateToCourseDetail:      ((String, String) -> Void)?
-    let onNavigateToProvas:            (() -> Void)?
     let onNavigateToQBank:             (() -> Void)?
     let onNavigateToTranscricao:       (() -> Void)?
     let onNavigateToTrabalhos:         (() -> Void)?
