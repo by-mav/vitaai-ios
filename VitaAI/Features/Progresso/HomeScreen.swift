@@ -1914,7 +1914,7 @@ struct SkinAppearanceScreen: View {
     private static let tiers: [TierShop] = [
         .init(name: "Calouro", range: 1...20, asset: "loja-escola",
               greeting: "E aí, calouro! Bora te montar pro primeiro dia. Dá uma olhada 👀",
-              attendant: [.bouffantCap, .glassesRound]),
+              attendant: [.gradCap, .glassesRect]),   // atendente = PROFESSOR (capelo + óculos sérios) — Rafael 2026-07-14
         .init(name: "Acadêmico", range: 21...40, asset: "loja-faculdade",
               greeting: "Subiu de nível, hein? Chegou coisa nova na faculdade.",
               attendant: [.labCoat]),
@@ -1933,9 +1933,9 @@ struct SkinAppearanceScreen: View {
         return Self.tiers[t]
     }
 
-    // Aba da UI (PT-BR) ↔ slot do backend (EN).
+    // Aba da UI (PT-BR) ↔ slot do backend (EN). "Corpo" = slot `neck` no backend (Rafael 2026-07-14).
     private enum Slot: String, CaseIterable, Identifiable {
-        case head = "Cabeça", face = "Rosto", neck = "Pescoço", color = "Cor"
+        case head = "Cabeça", face = "Rosto", neck = "Corpo", color = "Cor"
         var id: String { rawValue }
         var api: String {
             switch self {
