@@ -14,9 +14,9 @@
 #      CURRENT_PROJECT_VERSION to (asc_max + 1). No local-vs-ASC drift; no
 #      creep from aborted deploys. Called ONLY after pre-flight passes.
 #
-#   3. NO rm -rf DerivedData before archive. Previous version deleted the SPM
-#      artifact cache which produced "Could not resolve package dependencies"
-#      errors repeatedly. xcodebuild manages its own cache.
+#   3. CANONICAL housekeeping keeps one release DerivedData, preserves its SPM
+#      SourcePackages cache, and removes only regenerable Build/Index/Logs data.
+#      This avoids both disk exhaustion and slow binary-target redownloads.
 #
 #   4. Rollback on failure: if archive OR export fails, restore the
 #      pre-deploy build number so we don't burn slots.
@@ -42,6 +42,73 @@ ASC_KEY_ID="4KYZTCFPWX"
 ASC_KEY_FILE="$HOME/.private_keys/AuthKey_${ASC_KEY_ID}.p8"
 ASC_ISSUER_ID="6fc1df15-2bd3-4fcf-8251-0a12be7d26d3"
 ASC_APP_ID="6759848167"
+
+# One canonical cache for release builds. SourcePackages is intentionally kept:
+# Sentry/GLTFKit2 binary targets are large and re-downloading them is both slow
+# and likely to fail when the Mac is close to full.
+DERIVED_DATA_PATH="${VITA_DERIVED_DATA_PATH:-$PROJECT_DIR/build/DerivedData}"
+MIN_RELEASE_FREE_GB="${VITA_MIN_RELEASE_FREE_GB:-5}"
+
+safe_delete_tree() {
+  local target="$1"
+  case "$target" in
+    "$PROJECT_DIR/build/"*|"$HOME/vita-dd/"*) ;;
+    *)
+      echo "       FAIL — refused to clean unexpected path: $target"
+      exit 1
+      ;;
+  esac
+  if [[ -e "$target" ]]; then
+    find "$target" -depth -delete
+  fi
+}
+
+prune_derived_data_keep_packages() {
+  local root="$1"
+  [[ -d "$root" ]] || return 0
+  for child in \
+    Build \
+    Index.noindex \
+    Logs \
+    ModuleCache.noindex \
+    CompilationCache.noindex \
+    SDKStatCaches.noindex \
+    TestResults
+  do
+    safe_delete_tree "$root/$child"
+  done
+}
+
+echo "[space] Canonical release housekeeping..."
+SPACE_BEFORE_KB=$(df -k /System/Volumes/Data | awk 'NR == 2 { print $4 }')
+
+# Remove task-specific DerivedData duplicates left by prior agents. These paths
+# are ignored build products; the canonical SourcePackages cache remains below.
+if [[ -d "$PROJECT_DIR/build" ]]; then
+  while IFS= read -r stale_cache; do
+    safe_delete_tree "$stale_cache"
+  done < <(find "$PROJECT_DIR/build" -mindepth 1 -maxdepth 1 -type d -name 'codex-*' -print)
+fi
+
+prune_derived_data_keep_packages "$DERIVED_DATA_PATH"
+prune_derived_data_keep_packages "$HOME/vita-dd"
+find "$ARCHIVE_PATH" -depth -delete 2>/dev/null || true
+find "$EXPORT_PATH" -depth -delete 2>/dev/null || true
+mkdir -p "$DERIVED_DATA_PATH/SourcePackages"
+
+SPACE_AFTER_KB=$(df -k /System/Volumes/Data | awk 'NR == 2 { print $4 }')
+SPACE_FREED_KB=$((SPACE_AFTER_KB - SPACE_BEFORE_KB))
+REQUIRED_KB=$((MIN_RELEASE_FREE_GB * 1024 * 1024))
+printf "       freed %.1f GB; %.1f GB available\n" \
+  "$(awk -v kb="$SPACE_FREED_KB" 'BEGIN { print kb / 1024 / 1024 }')" \
+  "$(awk -v kb="$SPACE_AFTER_KB" 'BEGIN { print kb / 1024 / 1024 }')"
+if (( SPACE_AFTER_KB < REQUIRED_KB )); then
+  echo "       FAIL — release needs at least ${MIN_RELEASE_FREE_GB} GB free after safe cleanup"
+  echo "       SourcePackages was preserved; inspect non-build storage before retrying."
+  exit 1
+fi
+echo "       Canonical cache: $DERIVED_DATA_PATH (SourcePackages preserved)"
+echo ""
 
 # XcodeGen rewrites VitaAI.xcodeproj and removes CocoaPods integration. Always
 # restore the workspace/project wiring before archive so device-only modules
@@ -176,6 +243,7 @@ xcodebuild \
     -scheme "$SCHEME" \
     -sdk iphoneos \
     -configuration Release \
+    -derivedDataPath "$DERIVED_DATA_PATH" \
     -archivePath "$ARCHIVE_PATH" \
     archive \
     -allowProvisioningUpdates \
