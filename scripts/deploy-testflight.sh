@@ -83,6 +83,20 @@ prune_derived_data_keep_packages() {
   done
 }
 
+purge_legacy_derived_data() {
+  if [[ "$LEGACY_DERIVED_DATA_PATH" == "$DERIVED_DATA_PATH" || ! -d "$LEGACY_DERIVED_DATA_PATH" ]]; then
+    return 0
+  fi
+  if [[ ! -d "$DERIVED_DATA_PATH/SourcePackages" && -d "$LEGACY_DERIVED_DATA_PATH/SourcePackages" ]]; then
+    mv "$LEGACY_DERIVED_DATA_PATH/SourcePackages" "$DERIVED_DATA_PATH/SourcePackages"
+    echo "       migrated legacy SourcePackages into the canonical cache"
+  fi
+  while IFS= read -r legacy_entry; do
+    safe_delete_tree "$legacy_entry"
+  done < <(find "$LEGACY_DERIVED_DATA_PATH" -mindepth 1 -maxdepth 1 -print)
+  rmdir "$LEGACY_DERIVED_DATA_PATH" 2>/dev/null || true
+}
+
 echo "[space] Canonical release housekeeping..."
 SPACE_BEFORE_KB=$(df -k /System/Volumes/Data | awk 'NR == 2 { print $4 }')
 
@@ -99,16 +113,7 @@ mkdir -p "$DERIVED_DATA_PATH"
 # The old release path duplicated the same multi-gigabyte SPM cache. Migrate it
 # only when the canonical cache does not exist, then remove the legacy tree so
 # every future release converges on one cache instead of growing two forever.
-if [[ "$LEGACY_DERIVED_DATA_PATH" != "$DERIVED_DATA_PATH" && -d "$LEGACY_DERIVED_DATA_PATH" ]]; then
-  if [[ ! -d "$DERIVED_DATA_PATH/SourcePackages" && -d "$LEGACY_DERIVED_DATA_PATH/SourcePackages" ]]; then
-    mv "$LEGACY_DERIVED_DATA_PATH/SourcePackages" "$DERIVED_DATA_PATH/SourcePackages"
-    echo "       migrated legacy SourcePackages into the canonical cache"
-  fi
-  while IFS= read -r legacy_entry; do
-    safe_delete_tree "$legacy_entry"
-  done < <(find "$LEGACY_DERIVED_DATA_PATH" -mindepth 1 -maxdepth 1 -print)
-  rmdir "$LEGACY_DERIVED_DATA_PATH" 2>/dev/null || true
-fi
+purge_legacy_derived_data
 
 prune_derived_data_keep_packages "$DERIVED_DATA_PATH"
 find "$ARCHIVE_PATH" -depth -delete 2>/dev/null || true
@@ -466,6 +471,15 @@ except Exception as e:
     print(f"       ❌ Blind PATCH falhou: {e}")
     print(f"       → Setar compliance manual no https://appstoreconnect.apple.com/apps/${ASC_APP_ID}/testflight/ios")
 PYEOF
+
+# A misconfigured or older concurrent tool can recreate ~/vita-dd while the
+# release is running. Reclaim it again after Xcode/altool have exited. Never
+# remove it while another real xcodebuild process is still active.
+if pgrep -x xcodebuild >/dev/null 2>&1; then
+  echo "       WARN: legacy cache cleanup deferred because another xcodebuild is active"
+else
+  purge_legacy_derived_data
+fi
 
 echo ""
 echo "=============================="
