@@ -286,9 +286,14 @@ for i in range(120):
             b = data["data"][0]
             state = b["attributes"]["processingState"]
             if state == "VALID":
-                # Auto-PATCH compliance (idempotent: safe to run even if já setado)
-                patch_compliance(b["id"])
-                print(f"       ✅ VALID — export compliance set automatically, build #{b['attributes']['version']} LIVE in TestFlight")
+                # O ASC responde 409 ao tentar regravar compliance já resolvido.
+                # Evite o PATCH quando o próprio GET confirma false; assim o
+                # polling termina imediatamente e continua idempotente.
+                compliance = b["attributes"].get("usesNonExemptEncryption")
+                if compliance is not False:
+                    patch_compliance(b["id"])
+                detail = "already set" if compliance is False else "set automatically"
+                print(f"       ✅ VALID — export compliance {detail}, build #{b['attributes']['version']} LIVE in TestFlight")
                 sys.exit(0)
             elif state in ("FAILED", "INVALID"):
                 print(f"       ❌ ASC rejected build: state={state}")
