@@ -47,7 +47,9 @@ ASC_APP_ID="6759848167"
 # Sentry/GLTFKit2 binary targets are large and re-downloading them is both slow
 # and likely to fail when the Mac is close to full.
 DERIVED_DATA_PATH="${VITA_DERIVED_DATA_PATH:-$PROJECT_DIR/build/DerivedData}"
-MIN_RELEASE_FREE_GB="${VITA_MIN_RELEASE_FREE_GB:-5}"
+LEGACY_DERIVED_DATA_PATH="$HOME/vita-dd"
+MIN_RELEASE_FREE_GB="${VITA_MIN_RELEASE_FREE_GB:-6}"
+ARCHIVE_LOG="${VITA_ARCHIVE_LOG:-/tmp/VitaAI-archive.log}"
 
 safe_delete_tree() {
   local target="$1"
@@ -90,8 +92,23 @@ if [[ -d "$PROJECT_DIR/build" ]]; then
   done < <(find "$PROJECT_DIR/build" -mindepth 1 -maxdepth 1 -type d -name 'codex-*' -print)
 fi
 
+mkdir -p "$DERIVED_DATA_PATH"
+
+# The old release path duplicated the same multi-gigabyte SPM cache. Migrate it
+# only when the canonical cache does not exist, then remove the legacy tree so
+# every future release converges on one cache instead of growing two forever.
+if [[ "$LEGACY_DERIVED_DATA_PATH" != "$DERIVED_DATA_PATH" && -d "$LEGACY_DERIVED_DATA_PATH" ]]; then
+  if [[ ! -d "$DERIVED_DATA_PATH/SourcePackages" && -d "$LEGACY_DERIVED_DATA_PATH/SourcePackages" ]]; then
+    mv "$LEGACY_DERIVED_DATA_PATH/SourcePackages" "$DERIVED_DATA_PATH/SourcePackages"
+    echo "       migrated legacy SourcePackages into the canonical cache"
+  fi
+  while IFS= read -r legacy_entry; do
+    safe_delete_tree "$legacy_entry"
+  done < <(find "$LEGACY_DERIVED_DATA_PATH" -mindepth 1 -maxdepth 1 -print)
+  rmdir "$LEGACY_DERIVED_DATA_PATH" 2>/dev/null || true
+fi
+
 prune_derived_data_keep_packages "$DERIVED_DATA_PATH"
-prune_derived_data_keep_packages "$HOME/vita-dd"
 find "$ARCHIVE_PATH" -depth -delete 2>/dev/null || true
 find "$EXPORT_PATH" -depth -delete 2>/dev/null || true
 mkdir -p "$DERIVED_DATA_PATH/SourcePackages"
@@ -237,6 +254,7 @@ echo "       v$VERSION ($NEW_BUILD)"
 echo ""
 echo "[2/4] Archiving... (60-90s)"
 find "$ARCHIVE_PATH" -delete 2>/dev/null || true
+find "$ARCHIVE_LOG" -delete 2>/dev/null || true
 set +e
 xcodebuild \
     -workspace "$WORKSPACE" \
@@ -247,17 +265,18 @@ xcodebuild \
     -archivePath "$ARCHIVE_PATH" \
     archive \
     -allowProvisioningUpdates \
-    -quiet 2>&1 | tail -20
-ARCHIVE_RC=${PIPESTATUS[0]}
+    > "$ARCHIVE_LOG" 2>&1
+ARCHIVE_RC=$?
 set -e
 
 if [[ $ARCHIVE_RC -ne 0 || ! -d "$ARCHIVE_PATH" ]]; then
     echo "       FAIL — archive exit=$ARCHIVE_RC"
-    echo "       Common causes:"
-    echo "        - SPM artifact cache corrupted: run 'find ~/Library/Caches/org.swift.swiftpm -name sentry\\* -delete' and retry"
-    echo "        - DerivedData stale: run 'find ~/Library/Developer/Xcode/DerivedData/VitaAI-\\* -delete' and retry"
+    echo "       Relevant diagnostics:"
+    grep -nE '(^|: )(error:|fatal error:)|No space left|Command SwiftCompile failed|Failed frontend command' "$ARCHIVE_LOG" | tail -60 || true
+    echo "       Full archive log: $ARCHIVE_LOG"
     exit 1
 fi
+tail -10 "$ARCHIVE_LOG" || true
 echo "       Archive OK"
 
 # -------------------------------------------------------------------------
