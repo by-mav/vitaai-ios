@@ -98,6 +98,9 @@ enum MascotAccessory: String, CaseIterable {
     case sleepMask     // máscara de dormir na testa (viradas de noite)
     case headphones    // fones de ouvido (música pra estudar)
     case partyHat      // chapéu de festa (comemoração)
+    case santaHat      // gorro de Natal (sazonal)
+    case wizardHat     // chapéu de mago (épico — sabedoria)
+    case catEars       // orelhas de gato (fofo)
     // — Rosto (olhos) —
     case glassesRound  // óculos redondos finos (estudo)
     case glassesRect   // óculos retos/estudioso
@@ -106,6 +109,8 @@ enum MascotAccessory: String, CaseIterable {
     case monocle       // monóculo (nobre)
     case n95Mask       // respirador N95 (com válvula)
     case faceShield    // protetor facial (viseira transparente)
+    case mustache      // bigode (divertido)
+    case eyePatch      // tapa-olho (pirata / pós-op)
     // — Pescoço / corpo (base do orb) —
     case stethoscope   // estetoscópio pendurado
     case labCoat       // gola de jaleco branco
@@ -119,9 +124,10 @@ enum MascotAccessory: String, CaseIterable {
     var slot: String {
         switch self {
         case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat, .halo, .nurseCap,
-             .sleepMask, .headphones, .partyHat:
+             .sleepMask, .headphones, .partyHat, .santaHat, .wizardHat, .catEars:
             return "Cabeça"
-        case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle, .n95Mask, .faceShield:
+        case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle, .n95Mask, .faceShield,
+             .mustache, .eyePatch:
             return "Rosto"
         case .stethoscope, .labCoat, .bowTie, .scarf, .goldMedal, .idBadge, .tie:
             return "Pescoço"
@@ -144,6 +150,11 @@ enum MascotAccessory: String, CaseIterable {
         case .headphones:  return "Fones"
         case .partyHat:    return "Chapéu de festa"
         case .tie:         return "Gravata"
+        case .santaHat:    return "Gorro de Natal"
+        case .wizardHat:   return "Chapéu de mago"
+        case .catEars:     return "Orelhas de gato"
+        case .mustache:    return "Bigode"
+        case .eyePatch:    return "Tapa-olho"
         case .n95Mask:     return "Respirador N95"
         case .faceShield:  return "Protetor facial"
         case .idBadge:     return "Crachá"
@@ -362,6 +373,11 @@ struct OrbMascot: View {
         case .headphones:   headphonesView(s)
         case .partyHat:     partyHatView(s)
         case .tie:          tieView(s)
+        case .santaHat:     santaHatView(s)
+        case .wizardHat:    wizardHatView(s)
+        case .catEars:      catEarsView(s)
+        case .mustache:     mustacheView(s)
+        case .eyePatch:     eyePatchView(s)
         case .n95Mask:      n95MaskView(s)
         case .faceShield:   faceShieldView(s)
         case .idBadge:      idBadgeView(s)
@@ -716,6 +732,97 @@ struct OrbMascot: View {
             }
             .fill(LinearGradient(colors: [tie, dk], startPoint: .top, endPoint: .bottom))
             .frame(width: s * 0.09, height: s * 0.24).offset(y: s * 0.47)
+        }
+    }
+
+    // Gorro de Natal — cone vermelho caído + faixa branca + pompom (sazonal).
+    private func santaHatView(_ s: CGFloat) -> some View {
+        let red   = Color(red: 0.82, green: 0.20, blue: 0.24)  // ds-allow: skin color
+        let dk    = Color(red: 0.60, green: 0.13, blue: 0.17)  // ds-allow: skin color
+        let white = Color(red: 0.97, green: 0.98, blue: 1.00)  // ds-allow: skin color
+        return ZStack {
+            Path { p in
+                p.move(to: CGPoint(x: s * 0.5, y: 0))
+                p.addLine(to: CGPoint(x: 0, y: s * 0.24))
+                p.addLine(to: CGPoint(x: s * 0.42, y: s * 0.30))
+                p.closeSubpath()
+            }
+            .fill(LinearGradient(colors: [red, dk], startPoint: .top, endPoint: .bottom))
+            .frame(width: s * 0.5, height: s * 0.30).offset(x: s * 0.04, y: -s * 0.44)
+            Circle().fill(white).frame(width: s * 0.10, height: s * 0.10).offset(x: s * 0.28, y: -s * 0.56)
+            Capsule().fill(white).frame(width: s * 0.52, height: s * 0.09).offset(y: -s * 0.30)
+        }
+    }
+
+    // Chapéu de mago — aba + cone alto roxo + estrelinhas (ÉPICO, sabedoria).
+    private func wizardHatView(_ s: CGFloat) -> some View {
+        let hat  = Color(red: 0.34, green: 0.25, blue: 0.58)  // ds-allow: skin color
+        let dk   = Color(red: 0.20, green: 0.14, blue: 0.38)  // ds-allow: skin color
+        let star = Color(red: 1.00, green: 0.86, blue: 0.40)  // ds-allow: skin color
+        return ZStack {
+            Ellipse().fill(dk).frame(width: s * 0.72, height: s * 0.12).offset(y: -s * 0.26)
+            Path { p in
+                p.move(to: CGPoint(x: s * 0.25, y: 0))
+                p.addLine(to: CGPoint(x: s * 0.02, y: s * 0.42))
+                p.addLine(to: CGPoint(x: s * 0.48, y: s * 0.42))
+                p.closeSubpath()
+            }
+            .fill(LinearGradient(colors: [hat, dk], startPoint: .top, endPoint: .bottom))
+            .frame(width: s * 0.5, height: s * 0.42).offset(y: -s * 0.54)
+            Image(systemName: "star.fill").font(.system(size: s * 0.06)).foregroundColor(star)  // ds-allow: skin color
+                .offset(x: s * 0.02, y: -s * 0.52)
+            Image(systemName: "star.fill").font(.system(size: s * 0.04)).foregroundColor(star)  // ds-allow: skin color
+                .offset(x: -s * 0.06, y: -s * 0.40)
+        }
+    }
+
+    // Orelhas de gato — dois triângulos de pelo + interior rosa (fofo).
+    private func catEarsView(_ s: CGFloat) -> some View {
+        let fur   = Color(red: 0.30, green: 0.28, blue: 0.35)  // ds-allow: skin color
+        let inner = Color(red: 0.92, green: 0.64, blue: 0.70)  // ds-allow: skin color
+        return ZStack {
+            ForEach([-1.0, 1.0], id: \.self) { sign in
+                ZStack {
+                    Path { p in
+                        p.move(to: CGPoint(x: s * 0.11, y: 0))
+                        p.addLine(to: CGPoint(x: 0, y: s * 0.20))
+                        p.addLine(to: CGPoint(x: s * 0.22, y: s * 0.20))
+                        p.closeSubpath()
+                    }
+                    .fill(fur).frame(width: s * 0.22, height: s * 0.20)
+                    Path { p in
+                        p.move(to: CGPoint(x: s * 0.06, y: s * 0.05))
+                        p.addLine(to: CGPoint(x: s * 0.02, y: s * 0.14))
+                        p.addLine(to: CGPoint(x: s * 0.10, y: s * 0.14))
+                        p.closeSubpath()
+                    }
+                    .fill(inner).frame(width: s * 0.12, height: s * 0.14)
+                }
+                .offset(x: CGFloat(sign) * s * 0.19, y: -s * 0.40)
+            }
+        }
+    }
+
+    // Bigode — duas metades curvas abaixo dos olhos (divertido).
+    private func mustacheView(_ s: CGFloat) -> some View {
+        let hair = Color(red: 0.26, green: 0.18, blue: 0.12)  // ds-allow: skin color
+        return ZStack {
+            Capsule().fill(hair).frame(width: s * 0.17, height: s * 0.06)
+                .rotationEffect(.degrees(-14)).offset(x: -s * 0.08, y: s * 0.17)
+            Capsule().fill(hair).frame(width: s * 0.17, height: s * 0.06)
+                .rotationEffect(.degrees(14)).offset(x: s * 0.08, y: s * 0.17)
+        }
+    }
+
+    // Tapa-olho — tira diagonal + tampão sobre um olho (pirata / pós-op).
+    private func eyePatchView(_ s: CGFloat) -> some View {
+        let patch = Color(red: 0.10, green: 0.11, blue: 0.14)  // ds-allow: skin color
+        let strap = Color(red: 0.17, green: 0.18, blue: 0.22)  // ds-allow: skin color
+        return ZStack {
+            Capsule().fill(strap).frame(width: s * 0.74, height: s * 0.035)
+                .rotationEffect(.degrees(-18)).offset(y: -s * 0.05)
+            RoundedRectangle(cornerRadius: s * 0.03).fill(patch)
+                .frame(width: s * 0.17, height: s * 0.19).offset(x: -s * 0.11, y: -s * 0.01)
         }
     }
 
