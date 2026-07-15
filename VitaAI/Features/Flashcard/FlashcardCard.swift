@@ -73,16 +73,8 @@ struct FlashcardCardView: View {
     private var frontFace: some View {
         cardShell {
             VStack(spacing: 0) {
-                // Category tag — plain uppercase text per .card-tag
-                Text(deckTitle.uppercased())
-                    .font(.system(size: 10, weight: .bold))
-                    .kerning(1.0)
-                    .foregroundStyle(cardLabel.opacity(0.65))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Spacer().frame(height: 16)
-
-                // Question — 20px semibold, rgba(255,252,248,0.95), vertically centered
+                // Card LIMPO: sem label de título dentro (o título do baralho e o
+                // "Frente" vivem no header). Só o conteúdo, centralizado. Rafael 2026-07-15.
                 FlashcardContentView(
                     content: displayFront,
                     fontSize: 20,
@@ -91,8 +83,6 @@ struct FlashcardCardView: View {
                 )
                 .frame(maxWidth: .infinity)
                 .frame(maxHeight: .infinity)
-
-                Spacer()
 
                 // Hint — italic, rgba(255,255,255,0.18), centered at bottom
                 Text("Toque para ver a resposta")
@@ -108,25 +98,8 @@ struct FlashcardCardView: View {
     private var backFace: some View {
         cardShell {
             VStack(spacing: 0) {
-                // "Resposta" tag — same style as front tag
-                Text("RESPOSTA")
-                    .font(.system(size: 10, weight: .bold))
-                    .kerning(1.0)
-                    .foregroundStyle(cardLabel.opacity(0.65))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Divider — 40px × 2px, rgba(148,75,220,0.25), per .card-divider
-                HStack {
-                    RoundedRectangle(cornerRadius: 999)
-                        .fill(cardAccent.opacity(0.25))
-                        .frame(width: 40, height: 2)
-                    Spacer()
-                }
-                .padding(.top, 12)
-                .padding(.bottom, 12)
-
-                // Frente e verso com a MESMA tipografia e centro (Rafael): a resposta
-                // ocupa o card centralizada, igual à pergunta (size 20, centralizada).
+                // Verso LIMPO: sem label "RESPOSTA" nem divisor dentro do card (o "Verso"
+                // vive no header). Só o conteúdo, centralizado igual à frente. Rafael 2026-07-15.
                 if isCloze {
                     ClozeRevealContent(
                         source: front,

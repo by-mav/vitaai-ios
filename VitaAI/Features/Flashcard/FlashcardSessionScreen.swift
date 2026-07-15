@@ -193,31 +193,45 @@ struct FlashcardSessionScreen: View {
     // MARK: Session Header — chevron+Voltar | title | count (purple)
 
     private func sessionHeader(vm: FlashcardViewModel) -> some View {
-        HStack(spacing: 0) {
-            // Voltar canônico (só a seta), topo-esquerda — igual às outras telas
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.70))
-                    .frame(width: 44, height: 40, alignment: .leading)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("backButton")
-
-            Spacer()
-
-            // Timer pequeno no centro — só quando ativado (sem título, sem 2/15)
-            if settings.showTimer {
-                Text(formattedTimer)
-                    .font(.system(size: 12, weight: .medium))  // ds-allow: timer de sessão
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.50))
-                    .monospacedDigit()
+        VStack(spacing: 10) {
+            // Título do baralho — topo, centralizado (+ timer discreto à direita se ligado).
+            ZStack {
+                Text(vm.deckTitle)
+                    .font(VitaTypography.labelLarge)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .lineLimit(1)
+                if settings.showTimer {
+                    HStack {
+                        Spacer()
+                        Text(formattedTimer)
+                            .font(.system(size: 12, weight: .medium))  // ds-allow: timer de sessão
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.45))
+                            .monospacedDigit()
+                    }
+                }
             }
 
-            Spacer()
+            // Linha de controles: < (sair) | Frente/Verso (centro) | ⋯
+            HStack(spacing: 0) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.70))
+                        .frame(width: 44, height: 40, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("backButton")
 
-            // Direita: só ⋯ (opções do card + ajustes). O "card anterior" mora no rodapé.
-            HStack(spacing: 12) {
+                Spacer()
+
+                // Frente / Verso — no centro, na altura do < e do ⋯ (Rafael 2026-07-15)
+                Text(vm.isFlipped ? "Verso" : "Frente")
+                    .font(VitaTypography.titleSmall)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .animation(.easeInOut(duration: 0.2), value: vm.isFlipped)
+
+                Spacer()
+
                 Menu {
                     Button { onOpenSettings() } label: {
                         Label("Ajustes de estudo", systemImage: "slider.horizontal.3")
@@ -238,8 +252,6 @@ struct FlashcardSessionScreen: View {
                         .frame(width: 44, height: 40, alignment: .trailing)
                 }
             }
-            .frame(minWidth: 44, alignment: .trailing)
-            .animation(.easeOut(duration: 0.2), value: vm.canUndo)
         }
     }
 
