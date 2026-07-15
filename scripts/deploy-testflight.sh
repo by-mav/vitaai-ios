@@ -36,6 +36,8 @@ INFO_PLIST="VitaAI/Info.plist"
 ARCHIVE_PATH="/tmp/VitaAI.xcarchive"
 EXPORT_PATH="/tmp/VitaAI-export"
 EXPORT_PLIST="$PROJECT_DIR/scripts/ExportOptions.plist"
+LOCAL_EXPORT_PLIST="/tmp/VitaAI-ExportOptions-local.plist"
+IPA_VALIDATION_PATH="/tmp/VitaAI-ipa-validation"
 
 # ASC API config
 ASC_KEY_ID="4KYZTCFPWX"
@@ -111,6 +113,8 @@ fi
 prune_derived_data_keep_packages "$DERIVED_DATA_PATH"
 find "$ARCHIVE_PATH" -depth -delete 2>/dev/null || true
 find "$EXPORT_PATH" -depth -delete 2>/dev/null || true
+find "$IPA_VALIDATION_PATH" -depth -delete 2>/dev/null || true
+find "$LOCAL_EXPORT_PLIST" -delete 2>/dev/null || true
 mkdir -p "$DERIVED_DATA_PATH/SourcePackages"
 
 SPACE_AFTER_KB=$(df -k /System/Volumes/Data | awk 'NR == 2 { print $4 }')
@@ -304,16 +308,25 @@ else
 fi
 
 # -------------------------------------------------------------------------
-# STEP 3: Export + Upload
+# STEP 3: Export a local IPA, validate it, then upload via altool
 # -------------------------------------------------------------------------
 echo ""
-echo "[3/4] Uploading to ASC... (30-60s)"
+echo "[3/4] Exporting and validating IPA..."
 find "$EXPORT_PATH" -delete 2>/dev/null || true
+find "$IPA_VALIDATION_PATH" -delete 2>/dev/null || true
+
+# Xcode 26 may silently choose the next ASC build number during export. Force
+# the signed IPA to keep the exact version already archived and selected above.
+cp "$EXPORT_PLIST" "$LOCAL_EXPORT_PLIST"
+/usr/libexec/PlistBuddy -c "Set :destination export" "$LOCAL_EXPORT_PLIST"
+/usr/libexec/PlistBuddy -c "Delete :manageAppVersionAndBuildNumber" "$LOCAL_EXPORT_PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :manageAppVersionAndBuildNumber bool false" "$LOCAL_EXPORT_PLIST"
+
 set +e
 OUTPUT=$(xcodebuild \
     -exportArchive \
     -archivePath "$ARCHIVE_PATH" \
-    -exportOptionsPlist "$EXPORT_PLIST" \
+    -exportOptionsPlist "$LOCAL_EXPORT_PLIST" \
     -exportPath "$EXPORT_PATH" \
     -authenticationKeyPath "$ASC_KEY_FILE" \
     -authenticationKeyID "$ASC_KEY_ID" \
@@ -322,11 +335,53 @@ OUTPUT=$(xcodebuild \
 EXPORT_RC=$?
 set -e
 
-if [[ $EXPORT_RC -ne 0 ]] || ! echo "$OUTPUT" | grep -q "Upload succeeded"; then
+if [[ $EXPORT_RC -ne 0 ]]; then
     echo "       FAIL — export exit=$EXPORT_RC"
     echo "$OUTPUT" | grep -iE "error:|failed|missing.*purpose|code = 90" | head -5 || true
     echo "       Tip: if Apple complains of a missing purpose string, add the key to"
     echo "       VitaAI/Info.plist + project.yml + .git/hooks/pre-commit REQUIRED_PURPOSE_KEYS."
+    exit 1
+fi
+
+IPA_PATH=$(find "$EXPORT_PATH" -maxdepth 1 -name '*.ipa' -print -quit)
+if [[ -z "$IPA_PATH" || ! -f "$IPA_PATH" ]]; then
+    echo "       FAIL — export succeeded but no IPA was produced in $EXPORT_PATH"
+    exit 1
+fi
+
+ditto -x -k "$IPA_PATH" "$IPA_VALIDATION_PATH"
+IPA_APP="$IPA_VALIDATION_PATH/Payload/VitaAI.app"
+IPA_INFO_PLIST="$IPA_APP/Info.plist"
+IPA_BUNDLE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$IPA_INFO_PLIST")
+IPA_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$IPA_INFO_PLIST")
+IPA_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$IPA_INFO_PLIST")
+
+if [[ "$IPA_BUNDLE" != "com.bymav.vitaai" || "$IPA_VERSION" != "$VERSION" || "$IPA_BUILD" != "$NEW_BUILD" ]]; then
+    echo "       FAIL — IPA metadata mismatch"
+    echo "       expected com.bymav.vitaai v$VERSION ($NEW_BUILD)"
+    echo "       actual   $IPA_BUNDLE v$IPA_VERSION ($IPA_BUILD)"
+    exit 1
+fi
+codesign --verify --deep --strict --verbose=2 "$IPA_APP"
+IPA_BYTES=$(stat -f '%z' "$IPA_PATH")
+IPA_SHA256=$(shasum -a 256 "$IPA_PATH" | awk '{print $1}')
+find "$IPA_VALIDATION_PATH" -depth -delete
+echo "       IPA OK — $IPA_BUNDLE v$IPA_VERSION ($IPA_BUILD)"
+echo "       IPA: $IPA_PATH ($IPA_BYTES bytes, sha256=$IPA_SHA256)"
+
+echo "       Uploading validated IPA to ASC..."
+set +e
+UPLOAD_OUTPUT=$(xcrun altool \
+    --upload-app \
+    --type ios \
+    --file "$IPA_PATH" \
+    --apiKey "$ASC_KEY_ID" \
+    --apiIssuer "$ASC_ISSUER_ID" 2>&1)
+UPLOAD_RC=$?
+set -e
+if [[ $UPLOAD_RC -ne 0 ]]; then
+    echo "       FAIL — altool upload exit=$UPLOAD_RC"
+    echo "$UPLOAD_OUTPUT" | tail -20
     exit 1
 fi
 echo "       Upload succeeded"
