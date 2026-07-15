@@ -9,6 +9,13 @@ enum VitaDebug {
         }
         return nil
     }
+    /// QA: qual tier de loja o `--vita-shop-preview` abre (`--vita-shop=0..4`). Default Calouro.
+    static var shopTier: Int {
+        for a in ProcessInfo.processInfo.arguments where a.hasPrefix("--vita-shop=") {
+            return Int(a.dropFirst("--vita-shop=".count)) ?? 0
+        }
+        return 0
+    }
 }
 
 // MARK: - HomeScreen — Mapa vivo da carreira médica (gold 3D, estilo Duolingo)
@@ -236,13 +243,15 @@ struct HomeScreen: View {
 
     // Nível em que cada casa desbloqueia (por fase/loja). Casa travada mostra
     // cadeado + "Desbloqueie no nível X" e não é clicável. Rafael 2026-07-14.
+    // Desbloqueio dos prédios PROPORCIONAL 1→100 (Rafael 2026-07-14): 0/25/50/75/100.
+    // No nv99 só o Instituto (100) fica trancado — o aluno está na casa ANTERIOR ao auge.
     private static func houseUnlock(_ l: Landmark) -> Int {
         switch l.shopTier ?? 0 {
-        case 0: return 0
-        case 1: return 15
-        case 2: return 30
-        case 3: return 50
-        default: return 100   // Instituto de Especialidades = auge, só no nível 100
+        case 0: return 0     // Cursinho
+        case 1: return 25    // Faculdade
+        case 2: return 50    // Clínica-Escola
+        case 3: return 75    // Hospital Universitário
+        default: return 100  // Instituto de Especialidades = auge/endgame no nível 100
         }
     }
 
@@ -412,7 +421,7 @@ struct HomeScreen: View {
             if shopPreview && !didAutoOpenShop {   // QA: abre a loja 1× só (não re-navega ao voltar)
                 didAutoOpenShop = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    router.navigate(to: .skinAppearance(shopTier: 0))
+                    router.navigate(to: .skinAppearance(shopTier: VitaDebug.shopTier))   // QA: --vita-shop=N
                 }
             }
             if !pulse {
@@ -2018,6 +2027,15 @@ struct SkinAppearanceScreen: View {
         return all.filter { $0.unlockLevel <= range.upperBound }
     }
 
+    /// Cadeado do item. Em PROD usa a verdade do backend (`it.locked`, calculado com
+    /// `levelForXp` da conta). Em QA (`--vita-level=N`) recalcula contra o nível
+    /// simulado pra a loja bater com o mapa/badge — prod fica INTOCADO. Rafael 2026-07-14.
+    private func isLocked(_ it: SkinStoreItem) -> Bool {
+        if it.owned { return false }
+        if let lv = VitaDebug.forcedLevel { return lv < it.unlockLevel }
+        return it.locked
+    }
+
     /// Item em foco no slot atual (dentro do que está VISÍVEL na aba/fase): o selecionado,
     /// senão o equipado se ele pertence à fase, senão o primeiro item da aba.
     private var focusItem: SkinStoreItem? {
@@ -2286,8 +2304,8 @@ struct SkinAppearanceScreen: View {
         let it = focusItem
         let equippedNow = it.map(isEquipped) ?? false
         let canEquip = (it?.owned ?? false) && !equippedNow
-        let canBuy = it != nil && !it!.owned && !it!.locked && it!.slot != "palette"
-        let locked = it?.locked ?? false && !(it?.owned ?? false)
+        let canBuy = it != nil && !it!.owned && !isLocked(it!) && it!.slot != "palette"
+        let locked = it.map(isLocked) ?? false
 
         Button {
             if canBuy { buySelected() } else if canEquip { equipSelected() }
@@ -2335,7 +2353,7 @@ struct SkinAppearanceScreen: View {
 
     private func itemCard(_ item: SkinStoreItem) -> some View {
         let isSel = chosenId(slot.api) == item.id
-        let showLock = item.locked && !item.owned
+        let showLock = isLocked(item)
         let orb: OrbMascot = slot == .color
             ? OrbMascot(palette: palette(for: item.id), size: 40, accessories: [], animated: false)
             : OrbMascot(palette: .vita, size: 40, accessories: MascotAccessory(rawValue: item.id).map { [$0] } ?? [], animated: false)
