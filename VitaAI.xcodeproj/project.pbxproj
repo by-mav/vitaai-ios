@@ -123,6 +123,7 @@
 		36683FEB44D6D7D32200EEF2 /* NotesSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197E24D257AEEC53A26F1D18 /* NotesSyncModels.swift */; };
 		36E9C4E0AB2724D60B8B51CC /* AppearanceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61FD27599EBCAC8F56A1C348 /* AppearanceScreen.swift */; };
 		375C8BC3848EAE0DE2D0B366 /* MindMapEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72F6501BF097D2C6E365B2C2 /* MindMapEditorViewModel.swift */; };
+		381E6477AA7EFD1856512083 /* StudyToolsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EA7B8795B2D053E57C296F3 /* StudyToolsGrid.swift */; };
 		384B5A1A0D21EC35F33B3D14 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94679ADA237C7F8A3B01896 /* SoundManager.swift */; };
 		38735D1BB10023AA90F40D77 /* StudyOverviewFlashcards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDC2690C2FD02E700F634E6 /* StudyOverviewFlashcards.swift */; };
 		38C16C9ADD318E2625BC36ED /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75E96FF57B89B2EE5967448 /* InsightsViewModel.swift */; };
@@ -633,6 +634,7 @@
 		5D6F3E04E70C2FFA771693FE /* TrabalhoEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrabalhoEditorView.swift; sourceTree = "<group>"; };
 		5DCE3DF83F6E4CB8288F40DB /* QBankPreviewResponseTopGroupsInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankPreviewResponseTopGroupsInner.swift; sourceTree = "<group>"; };
 		5E1D7F50D43B24E6AA736C9A /* VitaTypingMascot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaTypingMascot.swift; sourceTree = "<group>"; };
+		5EA7B8795B2D053E57C296F3 /* StudyToolsGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyToolsGrid.swift; sourceTree = "<group>"; };
 		5EE115A0772689E4DA94BD33 /* QBankResultContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankResultContent.swift; sourceTree = "<group>"; };
 		5F5D38E34409AF1928A15F19 /* ForecastBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastBarView.swift; sourceTree = "<group>"; };
 		5FD6822D39D8417619B16510 /* PhoneVerifySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneVerifySheet.swift; sourceTree = "<group>"; };
@@ -1047,6 +1049,7 @@
 			children = (
 				A7767F1FB254B26A8CE24184 /* EstudosScreen.swift */,
 				29D88B194FA41210BD6E1BCD /* EstudosViewModel.swift */,
+				5EA7B8795B2D053E57C296F3 /* StudyToolsGrid.swift */,
 				938BAB8E7EF84A15B46FA925 /* Shared */,
 			);
 			path = Estudos;
@@ -2354,6 +2357,7 @@
 				C9A5EB24F32CC606981DBF10 /* StudyOverviewTranscricoes.swift in Sources */,
 				94FB657CBA1170A3F4EB2675 /* StudyShellTheme.swift in Sources */,
 				70CB738E65A003E945F709D4 /* StudyTipCard.swift in Sources */,
+				381E6477AA7EFD1856512083 /* StudyToolsGrid.swift in Sources */,
 				C46461D35E69B8AEF2EA3FD1 /* SubjectColorPicker.swift in Sources */,
 				672E26ACBF229968B2BB55F2 /* SubjectColors.swift in Sources */,
 				55EACDD1A3837408EF62D49F /* SubjectOverviewModels.swift in Sources */,

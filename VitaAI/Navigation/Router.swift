@@ -17,6 +17,21 @@ final class Router {
     private(set) var routeStack: [Route] = []
     var currentPath: [Route] { routeStack }
 
+    init() {
+        // QA: `--vita-tab <home|estudos|jornada|progresso>` abre direto na aba no
+        // cold launch (screenshot/QA sem depender de idb). Só afeta a aba inicial.
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "--vita-tab"), i + 1 < args.count {
+            switch args[i + 1].lowercased() {
+            case "estudos": selectedTab = .estudos
+            case "jornada", "faculdade": selectedTab = .faculdade
+            case "progresso": selectedTab = .progresso
+            case "home": selectedTab = .home
+            default: break
+            }
+        }
+    }
+
     /// Sync routeStack when NavigationPath changes externally (e.g. swipe-back gesture)
     func syncStackToPath() {
         while routeStack.count > path.count {

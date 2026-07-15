@@ -97,12 +97,8 @@ private struct EstudosContent: View {
     let onNavigateToTranscricao:       (() -> Void)?
     let onNavigateToTrabalhos:         (() -> Void)?
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
-    private var atlasCardWidth: CGFloat { sizeClass == .regular ? 160 : 106 }
-
     // Design tokens — matching FaculdadeHomeScreen
     private var goldPrimary: Color { VitaColors.accentHover }
-    private var goldMuted: Color { VitaColors.accentLight }
     private var textPrimary: Color { VitaColors.textPrimary }
     private var textWarm: Color { VitaColors.textWarm }
     private var textDim: Color { VitaColors.textWarm.opacity(0.30) }
@@ -139,11 +135,8 @@ private struct EstudosContent: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                // 1. Hero card — progress overview
-                estudosHeroCard
-                    .padding(.horizontal, 16)
-
-                // 2. Ferramentas — 2x2 grid + Atlas tall card
+                // 1. Ferramentas — cards de IMAGEM no topo (Rafael 2026-07-15: o
+                // hero saiu; voltaram as artes tool-* que a gente já tinha).
                 ferramentasSection
                     .padding(.horizontal, 16)
 
@@ -202,136 +195,17 @@ private struct EstudosContent: View {
         }
     }
 
-    // MARK: - 1. Hero Card
+    // MARK: - 1. Ferramentas Section
 
-    private var estudosHeroCard: some View {
-        StudyImageHeroStat(
-            imageAsset: "hero-estudos-v2",
-            eyebrow: "Central de estudos",
-            primary: "\(viewModel.flashcardsDue)",
-            primaryCaption: "cards para revisar",
-            stats: estudosHeroStats,
-            theme: .questoes
-        )
-    }
-
-    private var estudosHeroStats: [StudyHeroStat.Stat] {
-        [
-            .init(value: "\(viewModel.streakDays)d", label: "sequência"),
-            .init(value: accuracyString, label: "acerto"),
-            .init(value: "\(studyDisciplines.count)", label: "matérias"),
-        ]
-    }
-
-    private var heroCardContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Eyebrow
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(goldPrimary)
-                    .frame(width: 5, height: 5)
-                Text("ESTUDOS")
-                    .font(.system(size: 10, weight: .bold))
-                    .tracking(1.2)
-                    .foregroundStyle(goldPrimary)
-            }
-            .padding(.bottom, 6)
-
-            // Title
-            Text("Seu Progresso")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color.white)
-                .kerning(-0.4)
-
-            HStack(spacing: 6) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(goldMuted.opacity(0.75))
-                Text("Acompanhe sua evolução")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.88))
-            }
-            .padding(.top, 3)
-
-            Spacer(minLength: 0)
-
-            // Stats strip
-            HStack(spacing: 14) {
-                heroStat(label: "Due", value: "\(viewModel.flashcardsDue)")
-                heroStatDivider
-                heroStat(label: "Streak", value: "\(viewModel.streakDays)d")
-                heroStatDivider
-                heroStat(label: "Acerto", value: accuracyString)
-                Spacer()
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
-
-    private var accuracyString: String {
-        if viewModel.avgAccuracy <= 0 { return "—" }
-        return "\(Int(viewModel.avgAccuracy))%"
-    }
-
-    private var heroStatDivider: some View {
-        Rectangle()
-            .fill(Color.white.opacity(0.12))
-            .frame(width: 1, height: 16)
-    }
-
-    private func heroStat(label: String, value: String) -> some View {
-        HStack(spacing: 5) {
-            Text(value)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(goldPrimary)
-            Text(label)
-                .font(.system(size: 9, weight: .semibold))
-                .tracking(0.4)
-                .foregroundStyle(Color.white.opacity(0.55))
-        }
-    }
-
-    // MARK: - 2. Ferramentas Section
-
+    // Ferramentas = cards de IMAGEM (arte tool-*), componente único StudyToolsGrid.
     private var ferramentasSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("FERRAMENTAS DE ESTUDO")
-
-            HStack(alignment: .top, spacing: 8) {
-                // Left: 2x2 grid
-                let leftColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 2)
-                LazyVGrid(columns: leftColumns, spacing: 8) {
-                    ToolCard(
-                        symbol: "list.clipboard",
-                        label: "Questões",
-                        onTap: { onNavigateToQBank?() }
-                    )
-                    ToolCard(
-                        symbol: "rectangle.on.rectangle.angled",
-                        label: "Flashcards",
-                        onTap: { onNavigateToFlashcardHome?() }
-                    )
-                    ToolCard(
-                        symbol: "stopwatch",
-                        label: "Simulados",
-                        onTap: { onNavigateToSimulados?() }
-                    )
-                    ToolCard(
-                        symbol: "mic",
-                        label: "Transcrição",
-                        onTap: { onNavigateToTranscricao?() }
-                    )
-                }
-                .frame(maxWidth: .infinity)
-
-                // Right: Atlas tall card
-                AtlasTallCard(onTap: { onNavigateToAtlas?() })
-                    .frame(width: atlasCardWidth)
-            }
-        }
+        StudyToolsGrid(
+            onQuestoes: { onNavigateToQBank?() },
+            onFlashcards: { onNavigateToFlashcardHome?() },
+            onSimulados: { onNavigateToSimulados?() },
+            onTranscricao: { onNavigateToTranscricao?() },
+            onAtlas: { onNavigateToAtlas?() }
+        )
     }
 
     // MARK: - 3. Disciplinas Section
@@ -640,84 +514,6 @@ private struct EstudosContent: View {
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard(cornerRadius: 12)
-    }
-}
-
-// MARK: - Tool Card (2x2 grid cell)
-
-private struct ToolCard: View {
-    let symbol: String
-    let label: String
-    let onTap: () -> Void
-
-    @Environment(\.horizontalSizeClass) private var sizeClass
-
-    private var cardHeight: CGFloat { sizeClass == .regular ? 140 : 90 }
-    private var emblemSize: CGFloat { sizeClass == .regular ? 56 : 40 }
-
-    var body: some View {
-        // 2026-07-02 (Rafael): fim dos PNGs gerados (cada um com estética
-        // própria = colcha de retalhos). Card de vidro do DS + VitaEmblem
-        // (emblema dourado, mesma física de luz do medalhão de level-up).
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
-                VitaEmblem(symbol: symbol, size: emblemSize)
-                Spacer(minLength: 4)
-                HStack(spacing: 4) {
-                    Text(label)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.92))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.25))
-                }
-            }
-            .padding(12)
-            .frame(height: cardHeight)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassCard(cornerRadius: 16)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-    }
-}
-
-// MARK: - Atlas Tall Card
-
-private struct AtlasTallCard: View {
-    let onTap: () -> Void
-    @Environment(\.horizontalSizeClass) private var sizeClass
-
-    // Mesma altura das 2 linhas do grid ao lado (cardHeight×2 + spacing 8)
-    private var cardHeight: CGFloat { sizeClass == .regular ? 288 : 188 }
-
-    var body: some View {
-        // 2026-07-02 (Rafael): banner PNG dourado destoante → mesmo sistema
-        // dos ToolCards (vidro + emblema), com emblema maior por ser destaque.
-        Button(action: onTap) {
-            VStack(spacing: 10) {
-                Spacer(minLength: 0)
-                VitaEmblem(symbol: "brain.head.profile", size: sizeClass == .regular ? 72 : 56)
-                VStack(spacing: 3) {
-                    Text("Atlas 3D")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.92))
-                    Text("anatomia\ninterativa")
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.40))
-                        .multilineTextAlignment(.center)
-                }
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: cardHeight)
-            .glassCard(cornerRadius: 16)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Atlas 3D")
     }
 }
 
