@@ -94,27 +94,30 @@ enum MascotAccessory: String, CaseIterable {
     case laurel        // coroa de louros (acadêmico)
     case capybaraHat   // chapéu de capivara (easter egg da capivara dourada)
     case halo          // auréola dourada divina (LENDÁRIA — do baú)
+    case nurseCap      // touca de enfermeira (cruz vermelha)
     // — Rosto (olhos) —
     case glassesRound  // óculos redondos finos (estudo)
     case glassesRect   // óculos retos/estudioso
     case sunglasses    // óculos de sol aviador (streak 30d)
     case surgicalMask  // máscara cirúrgica
     case monocle       // monóculo (nobre)
+    case n95Mask       // respirador N95 (com válvula)
     // — Pescoço / corpo (base do orb) —
     case stethoscope   // estetoscópio pendurado
     case labCoat       // gola de jaleco branco
     case bowTie        // gravata-borboleta
     case scarf         // cachecol
     case goldMedal     // medalha de ouro (campeão)
+    case idBadge       // crachá hospitalar no cordão
 
     /// Slot anatômico — pra galeria e (futuro) sistema de equipar por camada.
     var slot: String {
         switch self {
-        case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat, .halo:
+        case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat, .halo, .nurseCap:
             return "Cabeça"
-        case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle:
+        case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle, .n95Mask:
             return "Rosto"
-        case .stethoscope, .labCoat, .bowTie, .scarf, .goldMedal:
+        case .stethoscope, .labCoat, .bowTie, .scarf, .goldMedal, .idBadge:
             return "Pescoço"
         }
     }
@@ -130,6 +133,9 @@ enum MascotAccessory: String, CaseIterable {
         case .laurel:      return "Louros"
         case .capybaraHat: return "Capivara"
         case .halo:        return "Auréola"
+        case .nurseCap:    return "Touca enfermagem"
+        case .n95Mask:     return "Respirador N95"
+        case .idBadge:     return "Crachá"
         case .glassesRound: return "Redondo"
         case .glassesRect:  return "Reto"
         case .sunglasses:   return "Sol"
@@ -337,6 +343,9 @@ struct OrbMascot: View {
         case .laurel:       laurelView(s)
         case .capybaraHat:  capybaraHatView(s)
         case .halo:         haloView(s)
+        case .nurseCap:     nurseCapView(s)
+        case .n95Mask:      n95MaskView(s)
+        case .idBadge:      idBadgeView(s)
         case .stethoscope:  stethoscopeView(s)
         case .labCoat:      labCoatView(s)
         case .bowTie:       bowTieView(s)
@@ -469,6 +478,92 @@ struct OrbMascot: View {
                 .frame(width: s * 0.04, height: s * 0.04)
                 .offset(x: s * 0.18, y: -s * 0.58)
                 .blur(radius: 0.5)
+        }
+    }
+
+    // Touca de enfermagem — branca com cruz vermelha (topo da cabeça).
+    private func nurseCapView(_ s: CGFloat) -> some View {
+        let white = Color(red: 0.97, green: 0.98, blue: 1.00)  // ds-allow: skin color
+        let shade = Color(red: 0.80, green: 0.84, blue: 0.90)  // ds-allow: skin color
+        let red   = Color(red: 0.85, green: 0.24, blue: 0.28)  // ds-allow: skin color
+        return ZStack {
+            UnevenRoundedRectangle(topLeadingRadius: s * 0.06, bottomLeadingRadius: s * 0.015,
+                                   bottomTrailingRadius: s * 0.015, topTrailingRadius: s * 0.06)
+                .fill(LinearGradient(colors: [white, shade], startPoint: .top, endPoint: .bottom))
+                .frame(width: s * 0.48, height: s * 0.22)
+                .offset(y: -s * 0.42)
+            RoundedRectangle(cornerRadius: s * 0.008).fill(shade.opacity(0.7))
+                .frame(width: s * 0.48, height: s * 0.028)
+                .offset(y: -s * 0.325)
+            ZStack {
+                RoundedRectangle(cornerRadius: s * 0.004).fill(red).frame(width: s * 0.10, height: s * 0.032)
+                RoundedRectangle(cornerRadius: s * 0.004).fill(red).frame(width: s * 0.032, height: s * 0.10)
+            }
+            .offset(y: -s * 0.44)
+        }
+    }
+
+    // Respirador N95 — moldado, branco, com válvula (rosto). Mais bojudo que a cirúrgica.
+    private func n95MaskView(_ s: CGFloat) -> some View {
+        let white = Color(red: 0.95, green: 0.96, blue: 0.98)  // ds-allow: skin color
+        let shade = Color(red: 0.74, green: 0.78, blue: 0.84)  // ds-allow: skin color
+        let valve = Color(red: 0.40, green: 0.44, blue: 0.50)  // ds-allow: skin color
+        return ZStack {
+            // Laços de orelha (baixos, indo pras laterais — não pra cima).
+            ForEach([-1.0, 1.0], id: \.self) { sign in
+                Capsule().fill(shade)
+                    .frame(width: s * 0.02, height: s * 0.20)
+                    .rotationEffect(.degrees(Double(sign) * 12))
+                    .offset(x: CGFloat(sign) * s * 0.25, y: s * 0.16)
+            }
+            // Corpo moldado — SÓ nariz+boca (baixo, olhos livres em cima).
+            Ellipse()
+                .fill(LinearGradient(colors: [white, shade], startPoint: .top, endPoint: .bottom))
+                .frame(width: s * 0.50, height: s * 0.32)
+                .offset(y: s * 0.28)
+            Capsule().fill(shade.opacity(0.7))
+                .frame(width: s * 0.018, height: s * 0.22)
+                .offset(y: s * 0.28)
+            Circle().fill(valve)
+                .frame(width: s * 0.10, height: s * 0.10)
+                .overlay(
+                    VStack(spacing: s * 0.014) {
+                        Capsule().fill(white.opacity(0.45)).frame(width: s * 0.06, height: s * 0.007)
+                        Capsule().fill(white.opacity(0.45)).frame(width: s * 0.06, height: s * 0.007)
+                    }
+                )
+                .offset(y: s * 0.31)
+        }
+    }
+
+    // Crachá hospitalar — cartão pendurado num cordão (pescoço/peito).
+    private func idBadgeView(_ s: CGFloat) -> some View {
+        let cord  = Color(red: 0.20, green: 0.48, blue: 0.64)  // ds-allow: skin color
+        let card  = Color(red: 0.97, green: 0.98, blue: 1.00)  // ds-allow: skin color
+        let line  = Color(red: 0.68, green: 0.73, blue: 0.80)  // ds-allow: skin color
+        let photo = Color(red: 0.55, green: 0.70, blue: 0.86)  // ds-allow: skin color
+        return ZStack {
+            ForEach([-1.0, 1.0], id: \.self) { sign in
+                Capsule().fill(cord)
+                    .frame(width: s * 0.02, height: s * 0.26)
+                    .rotationEffect(.degrees(Double(sign) * 16))
+                    .offset(x: CGFloat(sign) * s * 0.09, y: s * 0.30)
+            }
+            RoundedRectangle(cornerRadius: s * 0.005).fill(line)
+                .frame(width: s * 0.05, height: s * 0.025)
+                .offset(y: s * 0.40)
+            RoundedRectangle(cornerRadius: s * 0.018).fill(card)
+                .frame(width: s * 0.20, height: s * 0.14)
+                .overlay(RoundedRectangle(cornerRadius: s * 0.018).stroke(line, lineWidth: s * 0.006))
+                .offset(y: s * 0.49)
+            RoundedRectangle(cornerRadius: s * 0.006).fill(photo)
+                .frame(width: s * 0.05, height: s * 0.065)
+                .offset(x: -s * 0.05, y: s * 0.48)
+            VStack(alignment: .leading, spacing: s * 0.014) {
+                Capsule().fill(line).frame(width: s * 0.075, height: s * 0.012)
+                Capsule().fill(line.opacity(0.7)).frame(width: s * 0.055, height: s * 0.01)
+            }
+            .offset(x: s * 0.035, y: s * 0.49)
         }
     }
 

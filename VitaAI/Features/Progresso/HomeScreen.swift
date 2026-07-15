@@ -2234,10 +2234,15 @@ struct SkinAppearanceScreen: View {
             if ProcessInfo.processInfo.arguments.contains("--vita-fake-reveal"),
                !didAutoBox, lootboxReveal == nil {
                 didAutoBox = true
-                lootboxReveal = LootboxResult(
-                    won: .init(id: "halo", slot: "head", name: "Auréola", rarity: "legendary", unlockLevel: 100),
-                    price: 150, balance: store.balance
-                )
+                let fid = ProcessInfo.processInfo.arguments
+                    .first(where: { $0.hasPrefix("--vita-fake-skin=") })
+                    .map { String($0.dropFirst("--vita-fake-skin=".count)) } ?? "halo"
+                if let it = store.item(id: fid) {
+                    lootboxReveal = LootboxResult(
+                        won: .init(id: it.id, slot: it.slot, name: it.name, rarity: it.rarity, unlockLevel: it.unlockLevel),
+                        price: 150, balance: store.balance
+                    )
+                }
             }
         }
         .alert("Ops", isPresented: Binding(
