@@ -43,6 +43,21 @@ ASC_KEY_FILE="$HOME/.private_keys/AuthKey_${ASC_KEY_ID}.p8"
 ASC_ISSUER_ID="6fc1df15-2bd3-4fcf-8251-0a12be7d26d3"
 ASC_APP_ID="6759848167"
 
+# XcodeGen rewrites VitaAI.xcodeproj and removes CocoaPods integration. Always
+# restore the workspace/project wiring before archive so device-only modules
+# such as MLKitDigitalInkRecognition are visible to the VitaAI target.
+export LANG="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"
+
+echo "[deps] Synchronizing CocoaPods workspace..."
+if ! command -v pod >/dev/null 2>&1; then
+  echo "       FAIL — CocoaPods is not installed"
+  exit 1
+fi
+pod install --deployment --no-ansi
+echo "       CocoaPods workspace synchronized"
+echo ""
+
 echo "=============================="
 echo "  VitaAI TestFlight Deploy"
 echo "=============================="
