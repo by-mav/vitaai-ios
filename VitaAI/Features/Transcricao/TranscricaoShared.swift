@@ -125,33 +125,36 @@ struct TranscricaoModeToggle: View {
     @Binding var selected: TranscricaoRecordingMode
 
     var body: some View {
-        HStack(spacing: VitaTokens.Spacing.xxs) {
-            ForEach(TranscricaoRecordingMode.allCases, id: \.self) { mode in
-                let isSelected = selected == mode
-                Button {
-                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        selected = mode
+        // Mesmo seletor content-sized da Jornada, sem uma segunda label de
+        // seção competindo com o cronômetro.
+        HStack {
+            Spacer()
+
+            HStack(spacing: VitaTokens.Spacing.xxs) {
+                ForEach(TranscricaoRecordingMode.allCases, id: \.self) { mode in
+                    let isSelected = selected == mode
+                    Button {
+                        UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selected = mode
+                        }
+                    } label: {
+                        Text(mode.rawValue)
+                            .font(VitaTypography.labelMedium)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(isSelected ? VitaColors.surface : VitaColors.textSecondary)
+                            .padding(.horizontal, VitaTokens.Spacing.md)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(isSelected ? VitaColors.accent : Color.clear))
                     }
-                } label: {
-                    Text(mode.rawValue)
-                        .font(VitaTypography.labelMedium)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(isSelected ? VitaColors.surface : VitaColors.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 36)
-                        .background(Capsule().fill(isSelected ? VitaColors.accent : Color.clear))
-                        // Restringe o hit test ao segmento. Isso evita o
-                        // vazamento para o botão do mascote logo abaixo.
-                        .contentShape(Capsule())
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
+            .padding(VitaTokens.Spacing.xxs)
+            .background(Capsule().fill(VitaColors.glassBg))
+            .overlay(Capsule().stroke(VitaColors.glassBorder, lineWidth: 0.5))
         }
-        .padding(VitaTokens.Spacing.xxs)
-        .background(Capsule().fill(VitaColors.glassBg))
-        .overlay(Capsule().stroke(VitaColors.glassBorder, lineWidth: 0.75))
         // zIndex garante que o ModeToggle está acima de qualquer vizinho no
         // stack pai — hit test vai pegar esse rectangle antes do mascote.
         .zIndex(1)

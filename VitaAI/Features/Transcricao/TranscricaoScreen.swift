@@ -124,6 +124,13 @@ struct TranscricaoScreen: View {
 
 // MARK: - Content
 
+private struct TranscricaoFolderEditorRequest: Identifiable {
+    let id = UUID()
+    let folder: VitaAPI.StudioFolder?
+
+    var title: String { folder == nil ? "Nova pasta" : "Editar pasta" }
+}
+
 @MainActor
 private struct TranscricaoContent: View {
     @Bindable var viewModel: TranscricaoViewModel
@@ -137,12 +144,9 @@ private struct TranscricaoContent: View {
     // payload (R2 metadata + backend) without a second piece of state.
     @State private var selectedFilter: String? = nil
     @State private var selectedRecording: TranscricaoEntry? = nil
-    /// Chip horizontal selecionada — Todas / Favoritas / 📁 pasta. Combina
-    /// com `selectedFilter` (disciplina, do filtro avançado).
-    @State private var listView: TranscricaoListView = .all
-    /// Alert "Nova pasta" — TextField pra criar folder direto da chip "+".
-    @State private var showCreateFolderAlert: Bool = false
-    @State private var newFolderName: String = ""
+    /// Estado interno da biblioteca: visão geral, favoritas ou pasta expandida.
+    @State private var listView: TranscricaoListView = .library
+    @State private var folderEditor: TranscricaoFolderEditorRequest? = nil
     /// Toast visual (appear + auto-dismiss) pra quick-actions (gerar, favoritar).
     /// Sem Sheets/Alerts — UX pattern Instagram/WhatsApp.
     @State private var toastMessage: String? = nil
@@ -189,7 +193,7 @@ private struct TranscricaoContent: View {
                             }
 
                             // Recorder card (mode toggle + recorder area)
-                            VStack(spacing: 12) {
+                            VStack(spacing: 10) {
                                 TranscricaoModeToggle(selected: $selectedMode)
                                     .disabled(viewModel.phase == .recording)
 
@@ -232,8 +236,8 @@ private struct TranscricaoContent: View {
                                     }
                                 )
                             }
-                            .padding(16)
-                            .glassCard(cornerRadius: 20)
+                            .padding(14)
+                            .glassCard(cornerRadius: 16)
                             .padding(.horizontal, 16)
                             .padding(.top, 10)
 
@@ -280,8 +284,7 @@ private struct TranscricaoContent: View {
                                 listView: $listView,
                                 folders: viewModel.folders,
                                 onCreateFolder: {
-                                    newFolderName = ""
-                                    showCreateFolderAlert = true
+                                    folderEditor = TranscricaoFolderEditorRequest(folder: nil)
                                 },
                                 onTap: { rec in selectedRecording = rec },
                                 onDelete: { rec in
@@ -337,16 +340,11 @@ private struct TranscricaoContent: View {
                                     viewModel.renameRecording(id: rec.id, newTitle: newTitle)
                                     showToast("✓ Renomeado")
                                 },
-                                onRenameFolder: { folder, newName in
-                                    Task {
-                                        let renamed = await viewModel.renameFolder(id: folder.id, name: newName)
-                                        await MainActor.run {
-                                            showToast(renamed ? "✓ Pasta renomeada" : "Falha ao renomear pasta")
-                                        }
-                                    }
+                                onEditFolder: { folder in
+                                    folderEditor = TranscricaoFolderEditorRequest(folder: folder)
                                 },
                                 onDeleteFolder: { folder in
-                                    if listView == .folder(id: folder.id) { listView = .all }
+                                    if listView == .folder(id: folder.id) { listView = .library }
                                     Task {
                                         let deleted = await viewModel.deleteFolder(id: folder.id)
                                         await MainActor.run {
@@ -386,6 +384,19 @@ private struct TranscricaoContent: View {
                 )
             }
         }
+        .sheet(item: $folderEditor) { request in
+            VitaSheet(title: request.title, detents: [.medium, .large]) {
+                TranscricaoFolderEditorSheet(
+                    folder: request.folder,
+                    subjects: appData.canonicalDisciplines,
+                    onCancel: { folderEditor = nil },
+                    onSave: { name, subjectId in
+                        folderEditor = nil
+                        saveFolder(request: request, name: name, subjectId: subjectId)
+                    }
+                )
+            }
+        }
         // Auto-abre sheet quando transcrição acabou de processar (ready).
         // UX pattern Otter/Airgram: "sua gravação tá pronta — toca o que quer
         // fazer". Evita o user ter que caçar a gravação na lista pra abrir.
@@ -395,28 +406,6 @@ private struct TranscricaoContent: View {
                 selectedRecording = rec
                 viewModel.justCompletedRecordingId = nil
             }
-        }
-        // vita-modals-ignore: TextField inline no .alert — VitaAlert não suporta input
-        .alert("Nova pasta", isPresented: $showCreateFolderAlert) {
-            TextField("Nome da pasta", text: $newFolderName)
-            Button("Cancelar", role: .cancel) {}
-            Button("Criar") {
-                let trimmed = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return }
-                Task {
-                    if let f = await viewModel.createFolder(name: trimmed) {
-                        await MainActor.run {
-                            listView = .folder(id: f.id)
-                            showToast("✓ Pasta '\(trimmed)' criada")
-                        }
-                    } else {
-                        await MainActor.run { showToast("Falha ao criar pasta") }
-                    }
-                }
-            }
-            .disabled(newFolderName.trimmingCharacters(in: .whitespaces).isEmpty)
-        } message: {
-            Text("Organize suas gravações em pastas customizadas.")
         }
         // Toast overlay — feedback visual de quick-actions (gerar, favoritar).
         .overlay(alignment: .top) {
@@ -439,6 +428,54 @@ private struct TranscricaoContent: View {
         // = /api/subjects). Fonte única — sem chamada extra nem merge local.
     }
 
+    private func saveFolder(
+        request: TranscricaoFolderEditorRequest,
+        name: String,
+        subjectId: String?
+    ) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        Task {
+            if let folder = request.folder {
+                guard trimmed != folder.name else { return }
+                let renamed = await viewModel.renameFolder(id: folder.id, name: trimmed)
+                showToast(renamed ? "✓ Pasta renomeada" : "Falha ao renomear pasta")
+                return
+            }
+
+            if let subjectId {
+                // O backend mantém uma pasta canônica por disciplina. Atrelar
+                // usa essa pasta em vez de criar uma duplicata concorrente.
+                guard let subjectFolder = viewModel.folders.first(where: { $0.subjectId == subjectId }) else {
+                    showToast("Não foi possível vincular essa disciplina")
+                    await viewModel.loadFolders()
+                    return
+                }
+                let renamed: Bool
+                if subjectFolder.name == trimmed {
+                    renamed = true
+                } else {
+                    renamed = await viewModel.renameFolder(id: subjectFolder.id, name: trimmed)
+                }
+                if renamed {
+                    listView = .folder(id: subjectFolder.id)
+                    showToast("✓ Pasta vinculada à disciplina")
+                } else {
+                    showToast("Falha ao salvar pasta")
+                }
+                return
+            }
+
+            if let folder = await viewModel.createFolder(name: trimmed) {
+                listView = .folder(id: folder.id)
+                showToast("✓ Pasta criada")
+            } else {
+                showToast("Falha ao criar pasta")
+            }
+        }
+    }
+
     /// Mostra toast por 1.8s. Chamar via MainActor.run se vier de Task background.
     private func showToast(_ message: String) {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
@@ -449,5 +486,210 @@ private struct TranscricaoContent: View {
                 toastMessage = nil
             }
         }
+    }
+}
+
+private struct TranscricaoFolderEditorSheet: View {
+    let folder: VitaAPI.StudioFolder?
+    let subjects: [AcademicSubject]
+    let onCancel: () -> Void
+    let onSave: (String, String?) -> Void
+
+    @State private var name: String
+    @State private var selectedSubjectId: String?
+    @FocusState private var nameFocused: Bool
+
+    init(
+        folder: VitaAPI.StudioFolder?,
+        subjects: [AcademicSubject],
+        onCancel: @escaping () -> Void,
+        onSave: @escaping (String, String?) -> Void
+    ) {
+        self.folder = folder
+        self.subjects = subjects
+        self.onCancel = onCancel
+        self.onSave = onSave
+        _name = State(initialValue: folder?.name ?? "")
+        _selectedSubjectId = State(initialValue: folder?.subjectId)
+    }
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var linkedSubjectName: String? {
+        guard let selectedSubjectId else { return folder?.subjectName }
+        return subjects.first(where: { $0.id == selectedSubjectId })?.preferredName ?? folder?.subjectName
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+            fieldSection
+
+            if folder == nil {
+                disciplineSection
+            } else {
+                folderContext
+            }
+
+            Spacer(minLength: VitaTokens.Spacing.sm)
+
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                VitaButton(
+                    text: "Cancelar",
+                    action: onCancel,
+                    variant: .ghost,
+                    size: .md
+                )
+                Spacer(minLength: 0)
+                VitaButton(
+                    text: folder == nil ? "Criar pasta" : "Salvar",
+                    action: { onSave(trimmedName, folder == nil ? selectedSubjectId : folder?.subjectId) },
+                    variant: .primary,
+                    size: .md,
+                    isEnabled: !trimmedName.isEmpty,
+                    leadingSystemImage: folder == nil ? "folder.badge.plus" : "checkmark"
+                )
+            }
+        }
+        .padding(.horizontal, VitaTokens.Spacing.xl)
+        .padding(.bottom, VitaTokens.Spacing.xl)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                nameFocused = true
+            }
+        }
+    }
+
+    private var fieldSection: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            sectionLabel("NOME")
+
+            TextField("Nome da pasta", text: $name)
+                .font(VitaTypography.bodyLarge)
+                .foregroundStyle(VitaColors.textPrimary)
+                .textInputAutocapitalization(.words)
+                .submitLabel(.done)
+                .focused($nameFocused)
+                .padding(.horizontal, 14)
+                .frame(height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                        .fill(VitaColors.glassBg)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                        .stroke(nameFocused ? VitaColors.accent.opacity(0.45) : VitaColors.glassBorder, lineWidth: 0.75)
+                )
+        }
+    }
+
+    private var disciplineSection: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            sectionLabel("DISCIPLINA · OPCIONAL")
+
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 0) {
+                    disciplineRow(id: nil, title: "Sem disciplina", icon: "folder")
+
+                    ForEach(subjects) { subject in
+                        Divider()
+                            .overlay(VitaColors.glassBorder)
+                            .padding(.leading, 48)
+                        disciplineRow(
+                            id: subject.id,
+                            title: subject.preferredName,
+                            icon: "book.closed"
+                        )
+                    }
+                }
+            }
+            .frame(maxHeight: 230)
+            .background(
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                    .fill(VitaColors.glassBg)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                    .stroke(VitaColors.glassBorder, lineWidth: 0.5)
+            )
+
+            Text("Ao escolher uma disciplina, o Vita usa a pasta acadêmica já vinculada a ela.")
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var folderContext: some View {
+        HStack(spacing: VitaTokens.Spacing.md) {
+            Image(systemName: linkedSubjectName == nil ? "folder" : "book.closed")
+                .font(VitaTypography.bodyMedium)
+                .foregroundStyle(VitaColors.accent)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(VitaColors.accent.opacity(0.10)))
+
+            VStack(alignment: .leading, spacing: 1) {
+                sectionLabel(linkedSubjectName == nil ? "PASTA PERSONALIZADA" : "DISCIPLINA VINCULADA")
+                Text(linkedSubjectName ?? "Sem disciplina")
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, VitaTokens.Spacing.md)
+        .frame(minHeight: 52)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .fill(VitaColors.glassBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .stroke(VitaColors.glassBorder, lineWidth: 0.5)
+        )
+    }
+
+    private func disciplineRow(id: String?, title: String, icon: String) -> some View {
+        let selected = selectedSubjectId == id
+        return Button {
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            selectedSubjectId = id
+            if id != nil, trimmedName.isEmpty {
+                name = title
+            }
+        } label: {
+            HStack(spacing: VitaTokens.Spacing.md) {
+                Image(systemName: icon)
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(selected ? VitaColors.accent : VitaColors.textSecondary)
+                    .frame(width: 24)
+
+                Text(title)
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(VitaTypography.titleMedium)
+                        .foregroundStyle(VitaColors.accent)
+                }
+            }
+            .padding(.horizontal, VitaTokens.Spacing.md)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(VitaTypography.labelSmall)
+            .fontWeight(.semibold)
+            .kerning(0.8)
+            .foregroundStyle(VitaColors.sectionLabel)
     }
 }

@@ -27,7 +27,7 @@ struct TranscricaoRecorderArea: View {
     private var isActive: Bool { isRecording || isPaused }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             // Timer gigante centralizado; caixa de ferramentas + Importar
             // ancorados à direita, na altura do cronômetro (Rafael 2026-07-01:
             // consolida Disciplina/Idioma/Modo numa caixa só — área limpa).
@@ -199,12 +199,13 @@ struct TranscricaoToolbox: View {
             showSheet = true
         } label: {
             Image(systemName: "slider.horizontal.3")
-                .font(VitaTypography.titleMedium)
+                .font(VitaTypography.labelMedium)
                 .fontWeight(.semibold)
                 .foregroundStyle(VitaColors.accentLight)
-                .frame(width: 44, height: 44)
+                .frame(width: 30, height: 30)
                 .background(Circle().fill(VitaColors.glassBg))
-                .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+                .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.5))
+                .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -472,12 +473,13 @@ struct TranscricaoImportButton: View {
             onImport()
         }) {
             Image(systemName: "square.and.arrow.down")
-                .font(VitaTypography.titleMedium)
+                .font(VitaTypography.labelMedium)
                 .fontWeight(.semibold)
                 .foregroundStyle(VitaColors.accentLight)
-                .frame(width: 44, height: 44)
+                .frame(width: 30, height: 30)
                 .background(Circle().fill(VitaColors.glassBg))
-                .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+                .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.5))
+                .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -631,13 +633,13 @@ struct TranscricaoLiveTranscriptBox: View {
     }
 }
 
-// MARK: - List view mode (chips: Todas / Favoritas / Pastas)
+// MARK: - Library view mode (biblioteca / favoritas / pasta)
 
 /// Sub-view filter aplicado pelas chips horizontais no header. Combina
 /// com `selectedFilter` (disciplina, do filtro avançado) — ambos têm que
 /// passar pra gravação aparecer.
 enum TranscricaoListView: Equatable {
-    case all
+    case library
     case favorites
     case folder(id: String)
 }
@@ -661,9 +663,9 @@ struct TranscricaoRecordingsListSection: View {
     var onFavorite: ((TranscricaoEntry) -> Void)? = nil
     /// Long press → renomear. Abre alert inline sem precisar entrar no detail.
     var onRename: ((TranscricaoEntry, String) -> Void)? = nil
-    /// Renomear pasta (long-press → "Renomear"). Backend: PATCH /api/studio/folders/:id
-    var onRenameFolder: ((VitaAPI.StudioFolder, String) -> Void)? = nil
-    /// Excluir pasta (long-press → "Excluir"). Gravações dentro vão pra "Sem pasta".
+    /// Abre o drawer canônico de edição da pasta.
+    var onEditFolder: ((VitaAPI.StudioFolder) -> Void)? = nil
+    /// Excluir pasta pelo menu visível. Gravações dentro vão pra lista geral.
     /// Backend: DELETE /api/studio/folders/:id
     var onDeleteFolder: ((VitaAPI.StudioFolder) -> Void)? = nil
     /// Compartilhar pasta — abre share sheet com texto resumindo gravações.
@@ -671,8 +673,6 @@ struct TranscricaoRecordingsListSection: View {
 
     @State private var renamingRec: TranscricaoEntry? = nil
     @State private var renameValue: String = ""
-    @State private var renamingFolder: VitaAPI.StudioFolder? = nil
-    @State private var renameFolderValue: String = ""
     @State private var deletingFolder: VitaAPI.StudioFolder? = nil
 
     /// Preview visual somente no Simulator/Debug. Usa as pastas que vieram da
@@ -779,9 +779,9 @@ struct TranscricaoRecordingsListSection: View {
 
     private var filteredRecordings: [TranscricaoEntry] {
         var items = libraryRecordings
-        // Step 1 — view principal (Todas / Favoritas / pasta expandida).
+        // Step 1 — biblioteca, favoritas ou pasta expandida.
         switch listView {
-        case .all:
+        case .library:
             break
         case .favorites:
             items = items.filter { $0.favorite == true }
@@ -826,30 +826,7 @@ struct TranscricaoRecordingsListSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Mesmo ritmo do Jornada: label de seção isolada e uma única
-            // barra de controles alinhada logo abaixo.
-            HStack(spacing: 6) {
-                Text("GRAVAÇÕES")
-                    .font(VitaTypography.labelSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(VitaColors.sectionLabel)
-                    .tracking(0.8)
-
-                if !libraryRecordings.isEmpty {
-                    // Mostra count do filtro ativo (não total absoluto), pra
-                    // Favoritas/filtro/pasta refletirem o conteúdo visível.
-                    Text("· \(filteredRecordings.count)")
-                        .font(VitaTypography.labelSmall)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(VitaColors.textTertiary)
-                        .tracking(0.8)
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, VitaTokens.Spacing.xl)
-
-            libraryToolbar
+            libraryHeader
 
             if let active = selectedFilter {
                 activeFilterTag(active)
@@ -1018,25 +995,6 @@ struct TranscricaoRecordingsListSection: View {
             }
             .disabled(renameValue.trimmingCharacters(in: .whitespaces).isEmpty)
         }
-        // vita-modals-ignore: TextField inline no .alert — VitaAlert não suporta input de texto
-        .alert(
-            "Renomear pasta",
-            isPresented: Binding(
-                get: { renamingFolder != nil },
-                set: { if !$0 { renamingFolder = nil } }
-            )
-        ) {
-            TextField("Nome da pasta", text: $renameFolderValue)
-            Button("Cancelar", role: .cancel) { renamingFolder = nil }
-            Button("Salvar") {
-                let trimmed = renameFolderValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let folder = renamingFolder, !trimmed.isEmpty, trimmed != folder.name {
-                    onRenameFolder?(folder, trimmed)
-                }
-                renamingFolder = nil
-            }
-            .disabled(renameFolderValue.trimmingCharacters(in: .whitespaces).isEmpty)
-        }
         .vitaAlert(
             isPresented: Binding(
                 get: { deletingFolder != nil },
@@ -1044,7 +1002,7 @@ struct TranscricaoRecordingsListSection: View {
             ),
             title: "Excluir pasta?",
             message: deletingFolder.map { f in
-                "A pasta \"\(f.name)\" será apagada. As gravações dentro voltam pra \"Todas\" — nada é deletado."
+                "A pasta \"\(f.name)\" será apagada. As gravações dentro voltam para a lista geral — nenhum áudio é deletado."
             },
             destructiveLabel: "Excluir pasta",
             cancelLabel: "Cancelar",
@@ -1057,36 +1015,22 @@ struct TranscricaoRecordingsListSection: View {
         )
     }
 
-    /// Jornada é a referência: uma seleção textual e ações circulares irmãs,
-    /// todas com 44pt, mesmo material, borda e peso de ícone.
-    private var libraryToolbar: some View {
-        HStack(spacing: VitaTokens.Spacing.sm) {
-            Button {
-                selectLibraryMode(.all)
-            } label: {
-                HStack(spacing: VitaTokens.Spacing.sm) {
-                    Image(systemName: "tray.full")
-                        .font(VitaTypography.labelLarge)
-                    Text("Todas")
-                        .font(VitaTypography.labelLarge)
-                        .fontWeight(.semibold)
-                }
-                .foregroundStyle(listView == .all ? VitaColors.surface : VitaColors.textSecondary)
-                .padding(.horizontal, VitaTokens.Spacing.lg)
-                .frame(height: 44)
-                .background(
-                    Capsule().fill(listView == .all ? VitaColors.accent : VitaColors.glassBg)
-                )
-                .overlay(
-                    Capsule().stroke(
-                        listView == .all ? VitaColors.accent : VitaColors.glassBorder,
-                        lineWidth: 0.75
-                    )
-                )
+    /// Mesmo header da Jornada: label e ações irmãs no mesmo eixo.
+    private var libraryHeader: some View {
+        HStack(spacing: VitaTokens.Spacing.xs) {
+            Text("GRAVAÇÕES")
+                .font(VitaTypography.labelSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(VitaColors.sectionLabel)
+                .tracking(0.8)
+
+            if !libraryRecordings.isEmpty {
+                Text("· \(filteredRecordings.count)")
+                    .font(VitaTypography.labelSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.textTertiary)
+                    .tracking(0.8)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Todas as gravações")
-            .accessibilityIdentifier("transcricao_all_recordings")
 
             Spacer(minLength: 0)
 
@@ -1095,7 +1039,7 @@ struct TranscricaoRecordingsListSection: View {
                 label: "Favoritas",
                 isSelected: listView == .favorites
             ) {
-                selectLibraryMode(listView == .favorites ? .all : .favorites)
+                selectLibraryMode(listView == .favorites ? .library : .favorites)
             }
 
             libraryIconButton(
@@ -1120,8 +1064,7 @@ struct TranscricaoRecordingsListSection: View {
                 action: onCreateFolder
             )
         }
-        .padding(.horizontal, VitaTokens.Spacing.xl)
-        .padding(.bottom, VitaTokens.Spacing.xs)
+        .padding(.horizontal, VitaTokens.Spacing.lg)
     }
 
     private func selectLibraryMode(_ mode: TranscricaoListView) {
@@ -1142,17 +1085,19 @@ struct TranscricaoRecordingsListSection: View {
             withAnimation(.easeInOut(duration: 0.18)) { action() }
         } label: {
             Image(systemName: icon)
-                .font(VitaTypography.titleMedium)
+                .font(VitaTypography.labelMedium)
                 .fontWeight(.semibold)
                 .foregroundStyle(isSelected ? VitaColors.surface : VitaColors.accentLight)
-                .frame(width: 44, height: 44)
+                .frame(width: 30, height: 30)
                 .background(Circle().fill(isSelected ? VitaColors.accent : VitaColors.glassBg))
                 .overlay(
                     Circle().stroke(
                         isSelected ? VitaColors.accent : VitaColors.glassBorder,
-                        lineWidth: 0.75
+                        lineWidth: 0.5
                     )
                 )
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -1187,7 +1132,7 @@ struct TranscricaoRecordingsListSection: View {
 
     @ViewBuilder
     private var folderRows: some View {
-        VStack(spacing: VitaTokens.Spacing.sm) {
+        VStack(spacing: 6) {
             ForEach(folders) { folder in
                 folderRow(folder)
             }
@@ -1202,43 +1147,70 @@ struct TranscricaoRecordingsListSection: View {
         let visibleFolderRecordings = applyingDisciplineFilter(to: allFolderRecordings)
 
         VStack(spacing: 0) {
-            Button {
-                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    listView = isExpanded ? .all : .folder(id: folder.id)
+            HStack(spacing: 0) {
+                Button {
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        listView = isExpanded ? .library : .folder(id: folder.id)
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "folder")
+                            .font(VitaTypography.titleLarge)
+                            .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.accent)
+                            .frame(width: 24)
+
+                        Text(folder.name)
+                            .font(VitaTypography.bodyMedium)
+                            .fontWeight(.medium)
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .lineLimit(1)
+
+                        Spacer(minLength: VitaTokens.Spacing.sm)
+
+                        Text("\(allFolderRecordings.count)")
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+
+                        Image(systemName: "chevron.right")
+                            .font(VitaTypography.labelMedium)
+                            .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.textTertiary)
+                            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    }
+                    .padding(.leading, 14)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
                 }
-            } label: {
-                HStack(spacing: VitaTokens.Spacing.md) {
-                    // Referência funcional enviada: pasta simples à esquerda,
-                    // nome, contagem e chevron no mesmo eixo — sem tile interno.
-                    Image(systemName: "folder")
-                        .font(.system(size: 22, weight: .medium))  // ds-allow: referência estrutural de pasta
-                        .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.accent)
-                        .frame(width: 28)
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(folder.name), \(allFolderRecordings.count) áudios")
+                .accessibilityValue(isExpanded ? "Expandida" : "Recolhida")
 
-                    Text(folder.name)
-                        .font(VitaTypography.titleMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-                        .lineLimit(1)
-
-                    Spacer(minLength: VitaTokens.Spacing.sm)
-
-                    Text("\(allFolderRecordings.count)")
-                        .font(VitaTypography.bodyMedium)
+                Menu {
+                    Button { onEditFolder?(folder) } label: {
+                        Label("Renomear", systemImage: "pencil")
+                    }
+                    if onShareFolder != nil {
+                        Button { onShareFolder?(folder) } label: {
+                            Label("Compartilhar", systemImage: "square.and.arrow.up")
+                        }
+                    }
+                    Divider()
+                    Button(role: .destructive) { deletingFolder = folder } label: {
+                        Label("Excluir", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(VitaTypography.labelMedium)
+                        .fontWeight(.semibold)
                         .foregroundStyle(VitaColors.textSecondary)
-
-                    Image(systemName: "chevron.right")
-                        .font(VitaTypography.labelLarge)
-                        .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.textTertiary)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(VitaColors.glassBg))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
-                .padding(.horizontal, VitaTokens.Spacing.lg)
-                .padding(.vertical, 14)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .accessibilityLabel("Opções da pasta \(folder.name)")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(folder.name), \(allFolderRecordings.count) áudios")
-            .accessibilityValue(isExpanded ? "Expandida" : "Recolhida")
 
             if isExpanded {
                 Divider()
@@ -1256,7 +1228,7 @@ struct TranscricaoRecordingsListSection: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(VitaTokens.Spacing.lg)
                 } else {
-                    VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                    VStack(alignment: .leading, spacing: 0) {
                         ForEach(groupedRecordings(for: visibleFolderRecordings), id: \.key) { group in
                             Text(group.key.uppercased())
                                 .font(VitaTypography.labelSmall)
@@ -1265,7 +1237,7 @@ struct TranscricaoRecordingsListSection: View {
                                 .padding(.horizontal, VitaTokens.Spacing.md)
                                 .padding(.top, VitaTokens.Spacing.sm)
 
-                            ForEach(group.recordings) { rec in
+                            ForEach(Array(group.recordings.enumerated()), id: \.element.id) { index, rec in
                                 VitaCardRow(
                                     onTap: { onTap(rec) },
                                     onSwipeRight: { onFavorite?(rec) },
@@ -1273,7 +1245,7 @@ struct TranscricaoRecordingsListSection: View {
                                 ) {
                                     TealGlassRecordingCard(recording: rec)
                                 }
-                                .padding(.horizontal, VitaTokens.Spacing.sm)
+                                .padding(.horizontal, VitaTokens.Spacing.xs)
                                 .contextMenu {
                                     Button { onTap(rec) } label: {
                                         Label("Ver detalhes", systemImage: "doc.text.magnifyingglass")
@@ -1296,6 +1268,13 @@ struct TranscricaoRecordingsListSection: View {
                                         Label("Excluir", systemImage: "trash")
                                     }
                                 }
+
+                                if index < group.recordings.count - 1 {
+                                    Divider()
+                                        .overlay(VitaColors.glassBorder)
+                                        .padding(.leading, 58)
+                                        .padding(.trailing, VitaTokens.Spacing.md)
+                                }
                             }
                         }
                         .padding(.bottom, VitaTokens.Spacing.sm)
@@ -1312,27 +1291,7 @@ struct TranscricaoRecordingsListSection: View {
             RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
                 .stroke(isExpanded ? VitaColors.accent.opacity(0.34) : VitaColors.glassBorder, lineWidth: 0.7)
         )
-        .shadow(color: .black.opacity(0.18), radius: VitaTokens.Elevation.lg, y: VitaTokens.Elevation.sm)
         .animation(.easeInOut(duration: 0.22), value: isExpanded)
-        .contextMenu {
-            Button {
-                renameFolderValue = folder.name
-                renamingFolder = folder
-            } label: {
-                Label("Renomear", systemImage: "pencil")
-            }
-            if onShareFolder != nil {
-                Button { onShareFolder?(folder) } label: {
-                    Label("Compartilhar", systemImage: "square.and.arrow.up")
-                }
-            }
-            Divider()
-            Button(role: .destructive) {
-                deletingFolder = folder
-            } label: {
-                Label("Excluir", systemImage: "trash")
-            }
-        }
     }
 
 }
@@ -1370,10 +1329,10 @@ struct TealGlassRecordingCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             // Mic icon in glass circle
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.sm)
                     .fill(
                         LinearGradient(
                             colors: [
@@ -1384,32 +1343,33 @@ struct TealGlassRecordingCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 44, height: 44)
+                    .frame(width: 36, height: 36)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(VitaColors.accent.opacity(0.22), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.sm)
+                            .stroke(VitaColors.accent.opacity(0.22), lineWidth: 0.5)
                     )
-                    .shadow(color: .black.opacity(0.40), radius: 6, y: 3)
 
                 Image(systemName: "waveform")
-                    .font(.system(size: 18, weight: .medium))
+                    .font(VitaTypography.bodyMedium)
                     .foregroundStyle(VitaColors.accentLight.opacity(0.92))
             }
             .opacity(displayStatus == .pending ? 0.5 : 1.0)
 
             // Text block
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 1) {
                 // Discipline header (sempre presente, fallback "Outros")
                 // iOS pattern: Notes/Voice Memos mostram pasta/categoria antes do título
                 Text(disciplineDisplay)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(VitaTypography.labelSmall)
+                    .fontWeight(.semibold)
                     .tracking(0.9)
                     .lineLimit(1)
                     .foregroundStyle(VitaColors.accent.opacity(0.85))
 
                 Text(titleDisplay)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.96))
+                    .font(VitaTypography.titleSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.textPrimary)
                     .lineLimit(1)
 
                 // Metadata row: date · duration · size
@@ -1417,7 +1377,7 @@ struct TealGlassRecordingCard: View {
                     let dateStr = recording.relativeDate
                     if !dateStr.isEmpty {
                         Label(dateStr, systemImage: "clock")
-                            .font(.system(size: 10))
+                            .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textWarm.opacity(0.40))
                     }
 
@@ -1426,14 +1386,14 @@ struct TealGlassRecordingCard: View {
                             Circle().fill(VitaColors.textWarm.opacity(0.20)).frame(width: 2.5, height: 2.5)
                         }
                         Text(duration)
-                            .font(.system(size: 10))
+                            .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textWarm.opacity(0.40))
                     }
 
                     if let size = recording.formattedSize {
                         Circle().fill(VitaColors.textWarm.opacity(0.20)).frame(width: 2.5, height: 2.5)
                         Text(size)
-                            .font(.system(size: 10))
+                            .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textWarm.opacity(0.40))
                     }
                 }
@@ -1442,14 +1402,12 @@ struct TealGlassRecordingCard: View {
 
             Spacer()
 
-            // Status badge only — chevron removed (data+duration já fica
-            // abaixo do título, indicador visual de tappable é o próprio
-            // glassCard com hover state).
+            // Status compacto; o row inteiro continua sendo o affordance de toque.
             TranscricaoStatusBadge(status: displayStatus)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .glassCard(cornerRadius: 16)
+        .padding(.horizontal, VitaTokens.Spacing.md)
+        .padding(.vertical, 5)
+        .contentShape(Rectangle())
     }
 }
 
