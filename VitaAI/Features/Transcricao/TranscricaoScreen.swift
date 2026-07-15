@@ -340,6 +340,27 @@ private struct TranscricaoContent: View {
                                     viewModel.renameRecording(id: rec.id, newTitle: newTitle)
                                     showToast("✓ Renomeado")
                                 },
+                                onMove: { rec, folderID, disciplineSlug in
+                                    let destination = folderID.flatMap { targetID in
+                                        viewModel.folders.first(where: { $0.id == targetID })?.name
+                                    } ?? disciplineSlug ?? "Gravações"
+                                    Task {
+                                        let moved = await viewModel.moveRecording(
+                                            id: rec.id,
+                                            folderId: folderID,
+                                            disciplineSlug: disciplineSlug
+                                        )
+                                        await MainActor.run {
+                                            if moved {
+                                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                                showToast("✓ Movido para \(destination)")
+                                            } else {
+                                                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                                                showToast("Falha ao mover gravação")
+                                            }
+                                        }
+                                    }
+                                },
                                 onEditFolder: { folder in
                                     folderEditor = TranscricaoFolderEditorRequest(folder: folder)
                                 },
@@ -353,7 +374,7 @@ private struct TranscricaoContent: View {
                                     }
                                 }
                             )
-                            .padding(.top, 10)
+                            .padding(.top, VitaTokens.Spacing.lg)
                         }
                         .padding(.bottom, 120)
                     }

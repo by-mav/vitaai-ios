@@ -663,6 +663,9 @@ struct TranscricaoRecordingsListSection: View {
     var onFavorite: ((TranscricaoEntry) -> Void)? = nil
     /// Long press → renomear. Abre alert inline sem precisar entrar no detail.
     var onRename: ((TranscricaoEntry, String) -> Void)? = nil
+    /// Move a gravação para uma pasta, disciplina ou para a biblioteca geral.
+    /// Os dois destinos são mutuamente exclusivos; nil/nil remove a organização.
+    var onMove: ((TranscricaoEntry, String?, String?) -> Void)? = nil
     /// Abre o drawer canônico de edição da pasta.
     var onEditFolder: ((VitaAPI.StudioFolder) -> Void)? = nil
     /// Excluir pasta pelo menu visível. Gravações dentro vão pra lista geral.
@@ -673,7 +676,12 @@ struct TranscricaoRecordingsListSection: View {
 
     @State private var renamingRec: TranscricaoEntry? = nil
     @State private var renameValue: String = ""
+    @State private var movingRec: TranscricaoEntry? = nil
+    @State private var deletingRec: TranscricaoEntry? = nil
     @State private var deletingFolder: VitaAPI.StudioFolder? = nil
+    @State private var activeDropFolderID: String? = nil
+    @State private var simulatorFolderOverrides: [String: String] = [:]
+    @State private var simulatorUnfiledRecordingIDs: Set<String> = []
 
     /// Preview visual somente no Simulator/Debug. Usa as pastas que vieram da
     /// API, mas nunca persiste nem envia estes áudios ao servidor.
@@ -713,11 +721,22 @@ struct TranscricaoRecordingsListSection: View {
         return Array(folders.prefix(folderSamples.count).enumerated()).flatMap { folderIndex, folder in
             folderSamples[folderIndex].enumerated().map { itemIndex, sample in
                 var entry = TranscricaoEntry()
-                entry.id = "simulator-preview-\(folder.id)-\(itemIndex)"
+                let previewID = "simulator-preview-\(folder.id)-\(itemIndex)"
+                entry.id = previewID
                 entry.title = sample.0
                 entry.duration = sample.1
                 entry.status = "ready"
-                entry.discipline = folder.subjectName ?? folder.name
+                if simulatorUnfiledRecordingIDs.contains(previewID) {
+                    entry.discipline = nil
+                    entry.folderId = nil
+                } else if let overrideFolderID = simulatorFolderOverrides[previewID],
+                   let overrideFolder = folders.first(where: { $0.id == overrideFolderID }) {
+                    entry.discipline = overrideFolder.subjectName ?? overrideFolder.name
+                    entry.folderId = overrideFolderID
+                } else {
+                    entry.discipline = folder.subjectName ?? folder.name
+                    entry.folderId = folder.id
+                }
                 entry.fileName = "preview-\(folderIndex)-\(itemIndex).m4a"
                 entry.fileSize = 4_800_000 + (folderIndex * 900_000) + (itemIndex * 600_000)
                 entry.createdAt = formatter.string(
@@ -728,7 +747,6 @@ struct TranscricaoRecordingsListSection: View {
                     ) ?? now
                 )
                 entry.favorite = sample.2
-                entry.folderId = folder.id
                 return entry
             }
         }
@@ -777,12 +795,32 @@ struct TranscricaoRecordingsListSection: View {
         return items.filter { subjectValue($0.discipline ?? "", matches: [filter]) }
     }
 
+    private func belongsToAnyFolder(_ recording: TranscricaoEntry) -> Bool {
+        if let folderID = recording.folderId,
+           folders.contains(where: { $0.id == folderID }) {
+            return true
+        }
+        guard let discipline = recording.discipline else { return false }
+        return folders.contains { folder in
+            guard folder.isSubjectFolder else { return false }
+            return subjectValue(
+                discipline,
+                matches: [
+                    folder.name,
+                    folder.subjectName ?? "",
+                    folder.disciplineSlug ?? "",
+                    folder.subjectKey ?? "",
+                ]
+            )
+        }
+    }
+
     private var filteredRecordings: [TranscricaoEntry] {
         var items = libraryRecordings
         // Step 1 — biblioteca, favoritas ou pasta expandida.
         switch listView {
         case .library:
-            break
+            items = items.filter { !belongsToAnyFolder($0) }
         case .favorites:
             items = items.filter { $0.favorite == true }
         case .folder(let id):
@@ -793,6 +831,15 @@ struct TranscricaoRecordingsListSection: View {
             }
         }
         return applyingDisciplineFilter(to: items)
+    }
+
+    private var headerRecordingCount: Int {
+        switch listView {
+        case .favorites:
+            return applyingDisciplineFilter(to: libraryRecordings.filter { $0.favorite == true }).count
+        case .library, .folder:
+            return applyingDisciplineFilter(to: libraryRecordings).count
+        }
     }
 
     // Group recordings by date bucket.
@@ -825,157 +872,42 @@ struct TranscricaoRecordingsListSection: View {
     @State private var showFilterSheet = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            libraryHeader
+        VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) {
+            VStack(alignment: .leading, spacing: 0) {
+                libraryHeader
+                    .frame(minHeight: VitaTokens.Spacing._4xl + VitaTokens.Spacing.xs)
 
-            if let active = selectedFilter {
-                activeFilterTag(active)
-            }
-
-            if !folders.isEmpty {
-                folderRows
-            }
-
-            if isLoading {
-                ProgressView()
-                    .tint(TealColors.accent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-            } else if case .folder = listView {
-                // A gravação da pasta selecionada vive imediatamente abaixo
-                // da própria linha expansível, não duplicada no fim da seção.
-                EmptyView()
-            } else if filteredRecordings.isEmpty {
-                // Empty state
-                VStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [VitaColors.accent.opacity(0.12), VitaColors.accent.opacity(0.03)],
-                                    center: .center,
-                                    startRadius: 0,
-                                    endRadius: 40
-                                )
-                            )
-                            .frame(width: 80, height: 80)
-                        Image(systemName: "waveform.and.mic")
-                            .font(.system(size: 30, weight: .light))
-                            .foregroundStyle(VitaColors.accent.opacity(0.55))
-                    }
-
-                    Text("Nenhuma gravação ainda")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.65))
-
-                    Text("Grave sua aula e a IA transcreve, resume,\ne cria flashcards automaticamente.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.35))
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(3)
+                if let active = selectedFilter {
+                    libraryDivider
+                    activeFilterTag(active)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
-                .padding(.horizontal, 32)
-            } else {
-                // Date-grouped recordings
-                VStack(spacing: 4) {
-                    ForEach(groupedRecordings(for: filteredRecordings), id: \.key) { group in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(group.key.uppercased())
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(VitaColors.textWarm.opacity(0.35))
-                                .tracking(0.8)
-                                .padding(.horizontal, 16)
-                                .padding(.top, 8)
 
-                            ForEach(group.recordings) { rec in
-                                VitaCardRow(
-                                    onTap: { onTap(rec) },
-                                    onSwipeRight: { onFavorite?(rec) },
-                                    onSwipeLeft: { onDelete(rec) }
-                                ) {
-                                    TealGlassRecordingCard(recording: rec)
-                                }
-                                    .padding(.horizontal, 16)
-                                    // Long press → context menu com todas ações quick-access.
-                                    // Pattern Apple Mail/Photos: hold revela menu contextual
-                                    // sem precisar abrir sheet inteiro.
-                                    .contextMenu {
-                                        // Ver detalhes (mesmo que tap)
-                                        Button {
-                                            onTap(rec)
-                                        } label: {
-                                            Label("Ver detalhes", systemImage: "doc.text.magnifyingglass")
-                                        }
+                if !folders.isEmpty, listView != .favorites {
+                    libraryDivider
+                    folderRows
+                }
 
-                                        // Toggle favorito — mesmo callback do swipe right.
-                                        // Label muda dinâmico conforme estado atual.
-                                        if let onFavorite {
-                                            Button {
-                                                onFavorite(rec)
-                                            } label: {
-                                                Label(
-                                                    rec.favorite == true ? "Remover dos favoritos" : "Favoritar",
-                                                    systemImage: rec.favorite == true ? "star.slash" : "star"
-                                                )
-                                            }
-                                        }
-
-                                        // Renomear inline — sem precisar abrir sheet
-                                        Button {
-                                            renameValue = rec.title
-                                            renamingRec = rec
-                                        } label: {
-                                            Label("Renomear", systemImage: "pencil")
-                                        }
-
-                                        Divider()
-
-                                        // Gerar conteúdo — 5 ações direto, sem sheet
-                                        if rec.isTranscribed, let onGenerate {
-                                            Button {
-                                                onGenerate(rec, "summary")
-                                            } label: {
-                                                Label("Gerar resumo", systemImage: "doc.text")
-                                            }
-                                            Button {
-                                                onGenerate(rec, "flashcards")
-                                            } label: {
-                                                Label("Gerar flashcards", systemImage: "rectangle.stack")
-                                            }
-                                            Button {
-                                                onGenerate(rec, "questions")
-                                            } label: {
-                                                Label("Gerar questões", systemImage: "questionmark.circle")
-                                            }
-                                            Button {
-                                                onGenerate(rec, "concepts")
-                                            } label: {
-                                                Label("Extrair conceitos-chave", systemImage: "key")
-                                            }
-                                            Button {
-                                                onGenerate(rec, "mindmap")
-                                            } label: {
-                                                Label("Gerar mindmap", systemImage: "point.3.connected.trianglepath.dotted")
-                                            }
-
-                                            Divider()
-                                        }
-
-                                        // Excluir (destructive, sempre disponível)
-                                        Button(role: .destructive) {
-                                            onDelete(rec)
-                                        } label: {
-                                            Label("Excluir", systemImage: "trash")
-                                        }
-                                    }
-                            }
-                        }
+                if isLoading {
+                    libraryDivider
+                    ProgressView()
+                        .tint(TealColors.accent)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, VitaTokens.Spacing._2xl)
+                } else if case .folder = listView {
+                    // A gravação da pasta selecionada vive imediatamente abaixo
+                    // da própria linha expansível, não duplicada no fim da seção.
+                    EmptyView()
+                } else {
+                    libraryDivider
+                    if filteredRecordings.isEmpty {
+                        compactEmptyState
+                    } else {
+                        recordingGroups(filteredRecordings)
                     }
                 }
             }
         }
+        .padding(.horizontal, VitaTokens.Spacing.lg)
         // vita-modals-ignore: TextField inline no .alert — VitaAlert não suporta input de texto
         .alert(
             "Renomear gravação",
@@ -995,6 +927,31 @@ struct TranscricaoRecordingsListSection: View {
             }
             .disabled(renameValue.trimmingCharacters(in: .whitespaces).isEmpty)
         }
+        .sheet(item: $movingRec) { recording in
+            TranscricaoMovePickerSheet(
+                currentSlug: nil,
+                currentFolderId: recording.folderId,
+                onPick: { folderID, disciplineSlug in
+                    performMove(recording, folderID: folderID, disciplineSlug: disciplineSlug)
+                }
+            )
+        }
+        .vitaAlert(
+            isPresented: Binding(
+                get: { deletingRec != nil },
+                set: { if !$0 { deletingRec = nil } }
+            ),
+            title: "Excluir gravação?",
+            message: deletingRec.map { "\"\($0.title)\" será excluída definitivamente." },
+            destructiveLabel: "Excluir gravação",
+            cancelLabel: "Cancelar",
+            onConfirm: {
+                if let recording = deletingRec {
+                    onDelete(recording)
+                }
+                deletingRec = nil
+            }
+        )
         .vitaAlert(
             isPresented: Binding(
                 get: { deletingFolder != nil },
@@ -1025,7 +982,7 @@ struct TranscricaoRecordingsListSection: View {
                 .tracking(0.8)
 
             if !libraryRecordings.isEmpty {
-                Text("· \(filteredRecordings.count)")
+                Text("· \(headerRecordingCount)")
                     .font(VitaTypography.labelSmall)
                     .fontWeight(.semibold)
                     .foregroundStyle(VitaColors.textTertiary)
@@ -1126,23 +1083,220 @@ struct TranscricaoRecordingsListSection: View {
             .overlay(Capsule().stroke(VitaColors.accent.opacity(0.30), lineWidth: 0.75))
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, VitaTokens.Spacing.xl)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(.horizontal, VitaTokens.Spacing.lg)
+        .contentShape(Rectangle())
         .accessibilityLabel("Remover filtro \(active)")
+    }
+
+    private var libraryDivider: some View {
+        Divider()
+            .overlay(VitaColors.glassBorder)
+    }
+
+    private var rowDivider: some View {
+        Divider()
+            .overlay(VitaColors.glassBorder)
+            .padding(.leading, VitaTokens.Spacing.lg + 36 + VitaTokens.Spacing.md)
+            .padding(.trailing, VitaTokens.Spacing.lg)
+    }
+
+    private var compactEmptyState: some View {
+        VStack(spacing: VitaTokens.Spacing.sm) {
+            Image(systemName: "waveform.and.mic")
+                .font(VitaTypography.headlineMedium)
+                .foregroundStyle(VitaColors.accent.opacity(0.62))
+
+            Text("Nenhuma gravação ainda")
+                .font(VitaTypography.bodyMedium)
+                .fontWeight(.semibold)
+                .foregroundStyle(VitaColors.textPrimary)
+
+            Text("Grave sua aula para transcrever e criar materiais.")
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, VitaTokens.Spacing._2xl)
+        .padding(.vertical, VitaTokens.Spacing._2xl)
+    }
+
+    @ViewBuilder
+    private func recordingGroups(_ items: [TranscricaoEntry]) -> some View {
+        let groups = groupedRecordings(for: items)
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(groups.enumerated()), id: \.element.key) { groupIndex, group in
+                Text(group.key.uppercased())
+                    .font(VitaTypography.labelSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.sectionLabel)
+                    .tracking(0.8)
+                    .padding(.horizontal, VitaTokens.Spacing.lg)
+                    .padding(.top, VitaTokens.Spacing.sm)
+                    .padding(.bottom, VitaTokens.Spacing.xs)
+
+                ForEach(Array(group.recordings.enumerated()), id: \.element.id) { index, recording in
+                    recordingRow(recording)
+
+                    if index < group.recordings.count - 1 {
+                        rowDivider
+                    }
+                }
+
+                if groupIndex < groups.count - 1 {
+                    libraryDivider
+                }
+            }
+        }
+    }
+
+    private func recordingRow(_ recording: TranscricaoEntry) -> some View {
+        VitaCardRow(
+            onTap: nil,
+            onSwipeRight: { onFavorite?(recording) },
+            onSwipeLeft: { deletingRec = recording }
+        ) {
+            HStack(spacing: 0) {
+                Button {
+                    onTap(recording)
+                } label: {
+                    TealGlassRecordingCard(recording: recording)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .draggable(recording.id) {
+                    recordingDragPreview(recording)
+                }
+                .accessibilityHint("Mantenha pressionado e arraste para mover entre pastas")
+
+                Menu {
+                    recordingMenu(recording)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(VitaTypography.labelMedium)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(VitaColors.accent.opacity(0.07)))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Opções de \(recording.title)")
+            }
+            .padding(.horizontal, VitaTokens.Spacing.xs)
+        }
+    }
+
+    @ViewBuilder
+    private func recordingMenu(_ recording: TranscricaoEntry) -> some View {
+        if let onFavorite {
+            Button { onFavorite(recording) } label: {
+                Label(
+                    recording.favorite == true ? "Remover dos favoritos" : "Favoritar",
+                    systemImage: recording.favorite == true ? "star.slash" : "star"
+                )
+            }
+        }
+
+        ShareLink(
+            item: shareText(for: recording),
+            subject: Text(recording.title)
+        ) {
+            Label("Compartilhar", systemImage: "square.and.arrow.up")
+        }
+
+        Button {
+            renameValue = recording.title
+            renamingRec = recording
+        } label: {
+            Label("Renomear", systemImage: "pencil")
+        }
+
+        Button { movingRec = recording } label: {
+            Label("Mover para…", systemImage: "folder")
+        }
+
+        if recording.isTranscribed, let onGenerate {
+            Menu("Criar com IA", systemImage: "sparkles") {
+                Button { onGenerate(recording, "summary") } label: {
+                    Label("Resumo", systemImage: "doc.text")
+                }
+                Button { onGenerate(recording, "flashcards") } label: {
+                    Label("Flashcards", systemImage: "rectangle.stack")
+                }
+                Button { onGenerate(recording, "questions") } label: {
+                    Label("Questões", systemImage: "questionmark.circle")
+                }
+                Button { onGenerate(recording, "concepts") } label: {
+                    Label("Conceitos-chave", systemImage: "key")
+                }
+                Button { onGenerate(recording, "mindmap") } label: {
+                    Label("Mindmap", systemImage: "point.3.connected.trianglepath.dotted")
+                }
+            }
+        }
+
+        Divider()
+
+        Button(role: .destructive) { deletingRec = recording } label: {
+            Label("Excluir", systemImage: "trash")
+        }
+    }
+
+    private func recordingDragPreview(_ recording: TranscricaoEntry) -> some View {
+        HStack(spacing: VitaTokens.Spacing.sm) {
+            Image(systemName: "waveform")
+                .foregroundStyle(VitaColors.accent)
+            Text(recording.title)
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textPrimary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, VitaTokens.Spacing.md)
+        .padding(.vertical, VitaTokens.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .fill(VitaColors.glassBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .stroke(VitaColors.accent.opacity(0.30), lineWidth: 0.75)
+        )
+    }
+
+    private func shareText(for recording: TranscricaoEntry) -> String {
+        var lines = [recording.title]
+        if let discipline = recording.discipline, !discipline.isEmpty {
+            lines.append(discipline)
+        }
+        if let detail = recording.detail, !detail.isEmpty {
+            lines.append(detail)
+        }
+        lines.append("Compartilhado pelo Vita")
+        return lines.joined(separator: "\n\n")
     }
 
     @ViewBuilder
     private var folderRows: some View {
-        VStack(spacing: 6) {
-            ForEach(folders) { folder in
+        VStack(spacing: 0) {
+            ForEach(Array(folders.enumerated()), id: \.element.id) { index, folder in
                 folderRow(folder)
+
+                if index < folders.count - 1 {
+                    libraryDivider
+                        .padding(.leading, VitaTokens.Spacing.lg + 24 + VitaTokens.Spacing.md)
+                }
             }
         }
-        .padding(.horizontal, VitaTokens.Spacing.lg)
     }
 
     @ViewBuilder
     private func folderRow(_ folder: VitaAPI.StudioFolder) -> some View {
         let isExpanded = listView == .folder(id: folder.id)
+        let isDropTarget = activeDropFolderID == folder.id
         let allFolderRecordings = recordings(in: folder)
         let visibleFolderRecordings = applyingDisciplineFilter(to: allFolderRecordings)
 
@@ -1154,10 +1308,10 @@ struct TranscricaoRecordingsListSection: View {
                         listView = isExpanded ? .library : .folder(id: folder.id)
                     }
                 } label: {
-                    HStack(spacing: 10) {
+                    HStack(spacing: VitaTokens.Spacing.md) {
                         Image(systemName: "folder")
                             .font(VitaTypography.titleLarge)
-                            .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.accent)
+                            .foregroundStyle(isExpanded || isDropTarget ? VitaColors.accentLight : VitaColors.accent)
                             .frame(width: 24)
 
                         Text(folder.name)
@@ -1177,13 +1331,14 @@ struct TranscricaoRecordingsListSection: View {
                             .foregroundStyle(isExpanded ? VitaColors.accentLight : VitaColors.textTertiary)
                             .rotationEffect(.degrees(isExpanded ? 90 : 0))
                     }
-                    .padding(.leading, 14)
+                    .padding(.leading, VitaTokens.Spacing.lg)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(folder.name), \(allFolderRecordings.count) áudios")
                 .accessibilityValue(isExpanded ? "Expandida" : "Recolhida")
+                .accessibilityHint("Solte uma gravação aqui para movê-la")
 
                 Menu {
                     Button { onEditFolder?(folder) } label: {
@@ -1204,17 +1359,47 @@ struct TranscricaoRecordingsListSection: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(VitaColors.textSecondary)
                         .frame(width: 30, height: 30)
-                        .background(Circle().fill(VitaColors.glassBg))
+                        .background(Circle().fill(VitaColors.accent.opacity(0.07)))
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Opções da pasta \(folder.name)")
             }
+            .background(
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                    .fill(isDropTarget ? VitaColors.accent.opacity(0.12) : Color.clear)
+                    .padding(.horizontal, VitaTokens.Spacing.xs)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                    .stroke(isDropTarget ? VitaColors.accent.opacity(0.42) : Color.clear, lineWidth: 0.75)
+                    .padding(.horizontal, VitaTokens.Spacing.xs)
+            )
+            .dropDestination(for: String.self) { recordingIDs, _ in
+                guard let recordingID = recordingIDs.first,
+                      let recording = libraryRecordings.first(where: { $0.id == recordingID }),
+                      recording.folderId != folder.id else {
+                    return false
+                }
+                performMove(recording, folderID: folder.id, disciplineSlug: nil)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                return true
+            } isTargeted: { targeted in
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    if targeted {
+                        if activeDropFolderID != folder.id {
+                            UISelectionFeedbackGenerator().selectionChanged()
+                        }
+                        activeDropFolderID = folder.id
+                    } else if activeDropFolderID == folder.id {
+                        activeDropFolderID = nil
+                    }
+                }
+            }
 
             if isExpanded {
-                Divider()
-                    .overlay(VitaColors.glassBorder)
+                libraryDivider
                     .padding(.horizontal, VitaTokens.Spacing.md)
 
                 if visibleFolderRecordings.isEmpty {
@@ -1228,70 +1413,41 @@ struct TranscricaoRecordingsListSection: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(VitaTokens.Spacing.lg)
                 } else {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(groupedRecordings(for: visibleFolderRecordings), id: \.key) { group in
-                            Text(group.key.uppercased())
-                                .font(VitaTypography.labelSmall)
-                                .foregroundStyle(VitaColors.sectionLabel)
-                                .tracking(0.8)
-                                .padding(.horizontal, VitaTokens.Spacing.md)
-                                .padding(.top, VitaTokens.Spacing.sm)
-
-                            ForEach(Array(group.recordings.enumerated()), id: \.element.id) { index, rec in
-                                VitaCardRow(
-                                    onTap: { onTap(rec) },
-                                    onSwipeRight: { onFavorite?(rec) },
-                                    onSwipeLeft: { onDelete(rec) }
-                                ) {
-                                    TealGlassRecordingCard(recording: rec)
-                                }
-                                .padding(.horizontal, VitaTokens.Spacing.xs)
-                                .contextMenu {
-                                    Button { onTap(rec) } label: {
-                                        Label("Ver detalhes", systemImage: "doc.text.magnifyingglass")
-                                    }
-                                    if let onFavorite {
-                                        Button { onFavorite(rec) } label: {
-                                            Label(
-                                                rec.favorite == true ? "Remover dos favoritos" : "Favoritar",
-                                                systemImage: rec.favorite == true ? "star.slash" : "star"
-                                            )
-                                        }
-                                    }
-                                    Button {
-                                        renameValue = rec.title
-                                        renamingRec = rec
-                                    } label: {
-                                        Label("Renomear", systemImage: "pencil")
-                                    }
-                                    Button(role: .destructive) { onDelete(rec) } label: {
-                                        Label("Excluir", systemImage: "trash")
-                                    }
-                                }
-
-                                if index < group.recordings.count - 1 {
-                                    Divider()
-                                        .overlay(VitaColors.glassBorder)
-                                        .padding(.leading, 58)
-                                        .padding(.trailing, VitaTokens.Spacing.md)
-                                }
-                            }
-                        }
-                        .padding(.bottom, VitaTokens.Spacing.sm)
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    recordingGroups(visibleFolderRecordings)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
-                .fill(VitaColors.glassBg)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
-                .stroke(isExpanded ? VitaColors.accent.opacity(0.34) : VitaColors.glassBorder, lineWidth: 0.7)
-        )
         .animation(.easeInOut(duration: 0.22), value: isExpanded)
+    }
+
+    private func performMove(
+        _ recording: TranscricaoEntry,
+        folderID: String?,
+        disciplineSlug: String?
+    ) {
+        #if DEBUG
+        #if targetEnvironment(simulator)
+        if recording.id.hasPrefix("simulator-preview-") {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                if let folderID {
+                    simulatorFolderOverrides[recording.id] = folderID
+                    simulatorUnfiledRecordingIDs.remove(recording.id)
+                } else if let disciplineSlug,
+                          let subjectFolder = folders.first(where: { $0.disciplineSlug == disciplineSlug }) {
+                    simulatorFolderOverrides[recording.id] = subjectFolder.id
+                    simulatorUnfiledRecordingIDs.remove(recording.id)
+                } else {
+                    simulatorFolderOverrides.removeValue(forKey: recording.id)
+                    simulatorUnfiledRecordingIDs.insert(recording.id)
+                }
+            }
+            return
+        }
+        #endif
+        #endif
+
+        onMove?(recording, folderID, disciplineSlug)
     }
 
 }
@@ -1329,7 +1485,7 @@ struct TealGlassRecordingCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: VitaTokens.Spacing.md) {
             // Mic icon in glass circle
             ZStack {
                 RoundedRectangle(cornerRadius: VitaTokens.Radius.sm)
@@ -1373,7 +1529,7 @@ struct TealGlassRecordingCard: View {
                     .lineLimit(1)
 
                 // Metadata row: date · duration · size
-                HStack(spacing: 5) {
+                HStack(spacing: VitaTokens.Spacing.xs) {
                     let dateStr = recording.relativeDate
                     if !dateStr.isEmpty {
                         Label(dateStr, systemImage: "clock")
@@ -1396,18 +1552,49 @@ struct TealGlassRecordingCard: View {
                             .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.textWarm.opacity(0.40))
                     }
+
+                    if recording.favorite == true {
+                        Image(systemName: "star.fill")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.accent)
+                            .accessibilityLabel("Favorita")
+                    }
+
+                    statusIndicator
                 }
                 .labelStyle(.titleOnly)
             }
-
-            Spacer()
-
-            // Status compacto; o row inteiro continua sendo o affordance de toque.
-            TranscricaoStatusBadge(status: displayStatus)
         }
         .padding(.horizontal, VitaTokens.Spacing.md)
-        .padding(.vertical, 5)
+        .padding(.vertical, VitaTokens.Spacing.xs)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        switch displayStatus {
+        case .transcribed:
+            Image(systemName: "checkmark.circle.fill")
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.dataGreen)
+                .accessibilityLabel("Transcrito")
+        case .pending:
+            ProgressView()
+                .scaleEffect(0.5)
+                .tint(VitaColors.accentHover)
+                .frame(width: 10, height: 10)
+                .accessibilityLabel("Processando")
+        case .failed:
+            Image(systemName: "exclamationmark.circle.fill")
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.dataRed)
+                .accessibilityLabel("Falhou")
+        case .recording:
+            Circle()
+                .fill(VitaColors.dataRed)
+                .frame(width: 6, height: 6)
+                .accessibilityLabel("Gravando")
+        }
     }
 }
 

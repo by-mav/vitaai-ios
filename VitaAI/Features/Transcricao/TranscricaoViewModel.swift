@@ -465,6 +465,46 @@ final class TranscricaoViewModel {
         }
     }
 
+    /// Move uma gravação para pasta custom, disciplina ou biblioteca geral.
+    /// Atualiza a lista de forma otimista para o drop parecer instantâneo e
+    /// recarrega a fonte canônica depois que o PATCH confirma.
+    func moveRecording(
+        id: String,
+        folderId: String?,
+        disciplineSlug: String?
+    ) async -> Bool {
+        guard let api else { return false }
+
+        let originalIndex = recordings.firstIndex(where: { $0.id == id })
+        let original = originalIndex.map { recordings[$0] }
+
+        if let originalIndex {
+            var updated = recordings[originalIndex]
+            updated.folderId = folderId
+            updated.discipline = disciplineSlug
+            recordings[originalIndex] = updated
+        }
+
+        do {
+            try await api.updateStudioSource(
+                id: id,
+                disciplineSlug: disciplineSlug,
+                clearDiscipline: disciplineSlug == nil,
+                folderId: folderId,
+                clearFolder: folderId == nil
+            )
+            await loadRecordings(force: true)
+            return true
+        } catch {
+            NSLog("[TranscricaoVM] moveRecording failed: %@", "\(error)")
+            if let originalIndex, let original, recordings.indices.contains(originalIndex) {
+                recordings[originalIndex] = original
+            }
+            await loadRecordings(force: true)
+            return false
+        }
+    }
+
     /// Renomeia gravação cloud (chama PATCH studio/sources/:id) + recarrega lista.
     /// Optimistic update na UI primeiro, revert silencioso se falhar.
     func renameRecording(id: String, newTitle: String) {
