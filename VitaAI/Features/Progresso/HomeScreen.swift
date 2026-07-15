@@ -334,6 +334,9 @@ struct HomeScreen: View {
         else { worldBody }
     }
 
+    // QA: --vita-shop-preview dispara a navegação REAL pra loja (tela cheia, igual ao toque no prédio).
+    private var shopPreview: Bool { ProcessInfo.processInfo.arguments.contains("--vita-shop-preview") }
+
     private var worldBody: some View {
         ZStack {
             grassBase.ignoresSafeArea()
@@ -386,6 +389,11 @@ struct HomeScreen: View {
             }
         }
         .onAppear {
+            if shopPreview {   // QA: abre a loja REAL (tela cheia, como no toque no prédio)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    router.navigate(to: .skinAppearance(shopTier: 0))
+                }
+            }
             if !pulse {
                 withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
             }
@@ -2054,9 +2062,9 @@ struct SkinAppearanceScreen: View {
                     tabsBar
                     HStack(alignment: .top, spacing: 12) {
                         leftPane
-                        rightList.frame(width: 108)
+                        rightList.frame(width: 96)
                     }
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 16)
                     .padding(.top, 6)
                     // Limpa a TabBar (overlay ~92pt): ficha (descricao) e os cards
                     // de baixo nao ficam mais escondidos atras da barra. Rafael 2026-07-13.
@@ -2187,11 +2195,11 @@ struct SkinAppearanceScreen: View {
             ZStack {
                 Ellipse()
                     .fill(RadialGradient(colors: [gold.opacity(0.5), .clear], center: .center, startRadius: 2, endRadius: 90))
-                    .frame(width: 200, height: 72).blur(radius: 8).offset(y: 98)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .frame(width: 150, height: 60).blur(radius: 8).offset(y: 86)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                 Ellipse()
                     .stroke(gold.opacity(0.85), lineWidth: 3)
-                    .frame(width: 168, height: 46).blur(radius: 0.6).offset(y: 98)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
-                OrbMascot(palette: previewPalette, size: 170, accessories: previewAccessories, animated: false, bounceEnabled: false, bob: false)
+                    .frame(width: 128, height: 38).blur(radius: 0.6).offset(y: 86)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                OrbMascot(palette: previewPalette, size: 148, accessories: previewAccessories, animated: false, bounceEnabled: false, bob: false)
             }
             .frame(maxWidth: .infinity)
             Spacer(minLength: 12)
@@ -2205,6 +2213,7 @@ struct SkinAppearanceScreen: View {
             if let it = focusItem {
                 Text(it.name)
                     .font(.system(size: 24, weight: .bold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .lineLimit(1).minimumScaleFactor(0.7)   // nome nunca empurra a largura (evita vazar a lateral)
                 HStack(spacing: 6) {
                     Text(slot == .color ? "Cor" : rarityLabel(it.rarity))
                         .foregroundColor(slot == .color ? Color.white.opacity(0.5) : rarityColor(it.rarity))
@@ -2227,6 +2236,7 @@ struct SkinAppearanceScreen: View {
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 16)         // margem de segurança: nome/raridade nunca colam na borda esquerda
         .padding(.bottom, 10)
     }
 
