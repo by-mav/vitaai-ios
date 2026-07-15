@@ -437,6 +437,13 @@ struct HomeScreen: View {
                     router.navigate(to: .skinAppearance(shopTier: VitaDebug.shopTier))   // QA: --vita-shop=N
                 }
             }
+            // QA: abre a tela de disciplinas (unificada) pra testar sem tap.
+            if ProcessInfo.processInfo.arguments.contains("--vita-open-disciplinas"), !didAutoOpenShop {
+                didAutoOpenShop = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    router.navigate(to: .faculdadeDisciplinas)
+                }
+            }
             if !pulse {
                 withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
             }
