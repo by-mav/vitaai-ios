@@ -1,5 +1,16 @@
 import Foundation
+import Observation
 import SwiftData
+
+/// Session-owned viewport for the Home trail.
+///
+/// The backend owns progression. This object only keeps the user's visual
+/// location alive while SwiftUI swaps tab roots in and out of the hierarchy.
+@MainActor @Observable
+final class HomeTrailViewportState {
+    var accountScope: String?
+    var visibleStageID: String?
+}
 
 // MARK: - AppContainer
 // Dependency injection root. Constructs and owns all app-level singletons.
@@ -69,6 +80,7 @@ final class AppContainer: ObservableObject {
     private var _noteSyncManager: Any?
     private var _mindMapSyncManager: Any?
     let gamificationEvents: GamificationEventManager
+    let homeTrailViewport: HomeTrailViewportState
     let appConfigService: AppConfigService
 
 
@@ -212,6 +224,7 @@ final class AppContainer: ObservableObject {
         }
 
         self.gamificationEvents = GamificationEventManager()
+        self.homeTrailViewport = HomeTrailViewportState()
         self.appConfigService = AppConfigService.shared
 
         Task { @MainActor in

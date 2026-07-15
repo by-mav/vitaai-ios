@@ -1,3 +1,4 @@
+import CryptoKit
 import SwiftUI
 
 // QA: flags de debug globais (args de launch). --vita-level=99 força o nível no
@@ -62,6 +63,8 @@ struct HomeScreen: View {
     @State private var pulse = false
     @State private var hop = false
     @State private var mascotLevel: Int = 1
+    @State private var scrollStageID: String?
+    @State private var isTrailHydrated = false
     @State private var didAutoOpenShop = false   // QA: --vita-shop-preview abre a loja só 1× (evita loop ao voltar)
     @State private var jumpArc: CGFloat = 0
     @State private var jumpStretch: CGFloat = 1
@@ -102,11 +105,79 @@ struct HomeScreen: View {
     private var userLevel: Int { VitaDebug.forcedLevel ?? demoLevel ?? max(0, gamify.currentLevel) }
     private var flashcardsDue: Int { dash.flashcardsDueTotal }
 
-    private var currentStage: Stage {
-        if let stage = Self.stages.first(where: { contains(userLevel, in: $0) }) {
+    private func stage(for level: Int) -> Stage {
+        if let stage = Self.stages.first(where: { contains(level, in: $0) }) {
             return stage
         }
-        return userLevel > (Self.stages.last?.maxLevel ?? 0) ? Self.stages[Self.stages.count - 1] : Self.stages[0]
+        return level > (Self.stages.last?.maxLevel ?? 0) ? Self.stages[Self.stages.count - 1] : Self.stages[0]
+    }
+
+    private var currentStage: Stage { stage(for: userLevel) }
+
+    /// Stable, privacy-safe namespace for device-local trail cache.
+    /// The server remains authoritative; this is only an offline bootstrap.
+    private var trailAccountScope: String? {
+        let identity = container.authManager.userEmail ?? appData.profile?.email
+        guard let identity, !identity.isEmpty else { return nil }
+        let digest = SHA256.hash(data: Data(identity.lowercased().utf8))
+        return digest.prefix(12).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private var cachedLevelKey: String? {
+        trailAccountScope.map { "vita.trail.cachedLevel.\($0)" }
+    }
+
+    private func cachedTrailLevel() -> Int? {
+        guard let key = cachedLevelKey,
+              UserDefaults.standard.object(forKey: key) != nil else { return nil }
+        return max(1, UserDefaults.standard.integer(forKey: key))
+    }
+
+    private func cacheTrailLevel(_ level: Int) {
+        guard let key = cachedLevelKey else { return }
+        UserDefaults.standard.set(max(1, level), forKey: key)
+    }
+
+    private func isValidStageID(_ id: String?) -> Bool {
+        guard let id else { return false }
+        return Self.stages.contains { "stage-\($0.index)" == id }
+    }
+
+    /// Resolves server progression before exposing the trail. Initial hydration
+    /// never animates: animation is reserved for a real level-up event.
+    private func hydrateTrailIfNeeded() async {
+        guard !isTrailHydrated else { return }
+
+        let stats = try? await container.api.getGamificationStats()
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+
+        withTransaction(transaction) {
+            if let stats {
+                gamify.updateFromStats(stats)
+                cacheTrailLevel(stats.level)
+            } else if gamify.currentLevel <= 1, let cachedLevel = cachedTrailLevel() {
+                // Offline fallback only. A successful response above always wins.
+                gamify.currentLevel = cachedLevel
+            }
+
+            mascotLevel = userLevel
+
+            let viewport = container.homeTrailViewport
+            let scopeChanged = viewport.accountScope != trailAccountScope
+            let targetStageID = scopeChanged || !isValidStageID(viewport.visibleStageID)
+                ? "stage-\(currentStage.index)"
+                : viewport.visibleStageID
+            viewport.accountScope = trailAccountScope
+            viewport.visibleStageID = targetStageID
+            scrollStageID = targetStageID
+        }
+
+        // Let the semantic scroll target settle before the map becomes visible.
+        await Task.yield()
+        withTransaction(transaction) {
+            isTrailHydrated = true
+        }
     }
 
     // Geometria da trilha — cada nó ocupa um "slot" de altura fixa (rowStride) e
@@ -381,22 +452,14 @@ struct HomeScreen: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         trailMapContent
                             .frame(width: geo.size.width, alignment: .top)
-                            .onAppear {
-                                UserDefaults.standard.removeObject(forKey: "vita.trail.lastSeenLevel")
-                                mascotLevel = userLevel
-                            }
                             .task {
+                                await hydrateTrailIfNeeded()
                                 await vmProg.loadIfNeeded()
                                 await dash.loadDashboard()
                                 ScreenLoadContext.finish(for: "Progresso")
-                                if let stats = try? await container.api.getGamificationStats() {
-                                    gamify.updateFromStats(stats)
-                                }
-                                if !trailCelebrationInFlight {
-                                    mascotLevel = userLevel
-                                }
                             }
                             .onChange(of: userLevel) { _, newLevel in
+                                guard isTrailHydrated else { return }
                                 // Nunca reposiciona o scroll enquanto o usuario
                                 // explora o mapa. O nivel muda o estado visual
                                 // da trilha; celebracoes animam o mascote sem
@@ -405,15 +468,23 @@ struct HomeScreen: View {
                             }
                     }
                     .scrollContentBackground(.hidden)
+                    .scrollPosition(
+                        id: $scrollStageID,
+                        anchor: .center
+                    )
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 4)
+                            .onEnded { _ in
+                                guard isTrailHydrated, isValidStageID(scrollStageID) else { return }
+                                container.homeTrailViewport.visibleStageID = scrollStageID
+                            }
+                    )
                     .frame(width: geo.size.width, height: geo.size.height)
+                    .opacity(isTrailHydrated ? 1 : 0)
+                    .allowsHitTesting(isTrailHydrated)
+                    .accessibilityHidden(!isTrailHydrated)
                     .onAppear {
                         if demoLevelUp { runLevelUpDemo(proxy) }
-                        else {
-                            // Abre JÁ na posição do nível atual (Duolingo-style) — Rafael 2026-07-14
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                                proxy.scrollTo("stage-\(currentStage.index)", anchor: .center)
-                            }
-                        }
                     }
                     }
                 }
@@ -451,6 +522,12 @@ struct HomeScreen: View {
                 withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) { hop = true }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                if isTrailHydrated { triggerPendingTrailCelebration() }
+            }
+        }
+        .onChange(of: isTrailHydrated) { _, hydrated in
+            guard hydrated else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 triggerPendingTrailCelebration()
             }
         }
@@ -542,6 +619,7 @@ struct HomeScreen: View {
                     trailRow(item, rowIndex: idx)
                 }
             }
+            .scrollTargetLayout()
             .padding(.top, Self.trailTopInset)
         }
         .frame(height: trailContentHeight, alignment: .top)
@@ -754,6 +832,8 @@ struct HomeScreen: View {
     private func stageNode(_ stage: Stage) -> some View {
         let state = stageState(stage)
         let tier = Self.tiers[stage.tierIdx]
+        let coinSize: CGFloat = state == .current ? 78 : 66
+        let coinLip = state == .locked ? Color(white: 0.45) : tier.dark
         return ZStack {
             VStack(spacing: 4) {
                 let chestOpenable: Bool = {
@@ -761,6 +841,7 @@ struct HomeScreen: View {
                     return ch.unlocked && !ch.claimed
                 }()
                 Button(action: {
+                    HapticManager.shared.fire(.soft)
                     if chestOpenable, let cl = chestLevel(for: stage) {
                         chestConfirmLevel = cl
                     } else {
@@ -769,13 +850,13 @@ struct HomeScreen: View {
                 }) {
                     coin(stage: stage, tier: tier, state: state)
                 }
-                .buttonStyle(TrailPressStyle())
+                .buttonStyle(TrailPressStyle(size: coinSize, lip: coinLip))
                 .disabled(state != .current && !chestOpenable)
 
                 stageCaption(stage, state: state)
             }
 
-            if contains(mascotLevel, in: stage) {
+            if isTrailHydrated, contains(mascotLevel, in: stage) {
                 mascot
                     .matchedGeometryEffect(id: "vita-trail-mascot", in: mascotTrail)
                     .background(Circle().fill(.white.opacity(0.24)).frame(width: 64, height: 64))
@@ -816,14 +897,13 @@ struct HomeScreen: View {
             : "Níveis \(stage.minLevel)-\(stage.maxLevel)"
     }
 
-    // Nó CHUNKY FLAT (ref Duolingo 077): círculo cor da seção + "lábio" mais escuro
-    // embaixo (profundidade de botão apertável) + sombra na grama + glifo branco.
-    // Sem glossy, sem metal, sem tilt — chapado e alegre como o Duolingo.
+    // Nó CHUNKY FLAT (ref Duolingo 077): face chapada + glifo vetorial rebaixado.
+    // Lábio, sombra e física vivem no TrailPressStyle para que todos os nós
+    // compartilhem exatamente o mesmo curso mecânico.
     private func coin(stage: Stage, tier: Tier, state: StageState) -> some View {
         let locked = state == .locked
         let size: CGFloat = state == .current ? 78 : 66
         let face: Color = locked ? Color(white: 0.62) : tier.mid
-        let lip:  Color = locked ? Color(white: 0.45) : tier.dark
         return ZStack {
             // anel pulsante (nível atual) — convite a tocar
             if state == .current {
@@ -832,17 +912,9 @@ struct HomeScreen: View {
                     .scaleEffect(pulse ? 1.08 : 0.95)
             }
             // sombra do botão na grama (aterra — não flutua)
-            Ellipse().fill(Color.black.opacity(0.18))
-                .frame(width: size * 0.82, height: size * 0.26)
-                .offset(y: size * 0.52)
-            // lábio (base mais escura deslocada = profundidade do botão)
-            Circle().fill(lip).frame(width: size, height: size).offset(y: 7)
-            // face (cor chapada + leve clareada no topo, sem brilho exagerado)
+            // Face 2D: cor sólida e contorno óptico mínimo, sem metal ou gloss.
             Circle().fill(face).frame(width: size, height: size)
-                .overlay(
-                    Circle().fill(LinearGradient(colors: [.white.opacity(0.20), .clear],
-                                                 startPoint: .top, endPoint: .center))
-                )
+                .overlay(Circle().stroke(.white.opacity(locked ? 0.10 : 0.16), lineWidth: 1))
             // Glifo: a cada 10 níveis, um BAÚ no lugar do cadeado/ícone — cinza
             // (bloqueado) ou dourado aceso (nível alcançado = abrível). Rafael 2026-07-14.
             if let cl = chestLevel(for: stage), let ch = skins.chest(level: cl), !ch.claimed {
@@ -851,10 +923,22 @@ struct HomeScreen: View {
                     .opacity(ch.unlocked ? 1 : 0.7)
                     .shadow(color: ch.unlocked ? Color(red: 1, green: 0.82, blue: 0.35).opacity(0.7) : .clear,  // ds-allow: baú na trilha (arte gamificada) — visual signature
                             radius: ch.unlocked ? 9 : 0)
-            } else {
-                Image(systemName: locked ? "lock.fill" : stage.icon)
+            } else if locked {
+                Image(systemName: "lock.fill")
                     .font(.system(size: size * 0.40, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
-                    .foregroundStyle(locked ? Color.white.opacity(0.85) : .white)
+                    .foregroundStyle(Color.white.opacity(0.85))
+            } else {
+                // Família vetorial 2D única. A sombra superior e a luz inferior
+                // fazem o desenho parecer gravado na face do botão.
+                Image(stage.art)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size * 0.44, height: size * 0.44)
+                    .foregroundStyle(tier.dark.opacity(0.90))
+                    .shadow(color: .black.opacity(0.24), radius: 0, x: 0, y: -1)
+                    .shadow(color: .white.opacity(0.24), radius: 0, x: 0, y: 1)
+                    .accessibilityLabel(stage.name)
             }
             // selo de concluído (check branco em disco escuro)
             if state == .completed {
@@ -1000,7 +1084,7 @@ struct HomeScreen: View {
     private struct Stage: Identifiable {
         let index: Int        // 1…20
         let name: String
-        let icon: String      // SF Symbol renderizado na trilha
+        let art: String       // arte canônica de progressão (Assets.xcassets)
         let minLevel: Int
         let maxLevel: Int
         let tierIdx: Int      // 0…4
@@ -1586,26 +1670,26 @@ struct HomeScreen: View {
     ]
 
     private static let stages: [Stage] = [
-        Stage(index: 1,  name: "Termômetro",   icon: "thermometer.medium", minLevel: 0,  maxLevel: 5,   tierIdx: 0),
-        Stage(index: 2,  name: "Seringa",      icon: "syringe.fill",       minLevel: 5,  maxLevel: 10,  tierIdx: 0),
-        Stage(index: 3,  name: "Bisturi",      icon: "cross.case.fill",    minLevel: 10, maxLevel: 15,  tierIdx: 0),
-        Stage(index: 4,  name: "Estetoscópio", icon: "stethoscope",        minLevel: 15, maxLevel: 20,  tierIdx: 0),
-        Stage(index: 5,  name: "Máscara",      icon: "facemask.fill",      minLevel: 20, maxLevel: 25,  tierIdx: 1),
-        Stage(index: 6,  name: "Microscópio",  icon: "microbe.fill",       minLevel: 25, maxLevel: 30,  tierIdx: 1),
-        Stage(index: 7,  name: "Martelo",      icon: "hammer.fill",        minLevel: 30, maxLevel: 35,  tierIdx: 1),
-        Stage(index: 8,  name: "Desfibrilador",icon: "bolt.heart.fill",    minLevel: 35, maxLevel: 40,  tierIdx: 1),
-        Stage(index: 9,  name: "DNA",          icon: "waveform.path.ecg",  minLevel: 40, maxLevel: 45,  tierIdx: 2),
-        Stage(index: 10, name: "Comprimido",   icon: "pills.fill",         minLevel: 45, maxLevel: 50,  tierIdx: 2),
-        Stage(index: 11, name: "Coração",      icon: "heart.fill",         minLevel: 50, maxLevel: 55,  tierIdx: 2),
-        Stage(index: 12, name: "Jaleco",       icon: "cross.case.fill",    minLevel: 55, maxLevel: 60,  tierIdx: 2),
-        Stage(index: 13, name: "Robô Da Vinci",icon: "gearshape.2.fill",   minLevel: 60, maxLevel: 65,  tierIdx: 3),
-        Stage(index: 14, name: "Cérebro",      icon: "brain.head.profile", minLevel: 65, maxLevel: 70,  tierIdx: 3),
-        Stage(index: 15, name: "Crânio",       icon: "staroflife.fill",    minLevel: 70, maxLevel: 75,  tierIdx: 3),
-        Stage(index: 16, name: "Escudo",       icon: "shield.fill",        minLevel: 75, maxLevel: 80,  tierIdx: 3),
-        Stage(index: 17, name: "Diploma",      icon: "graduationcap.fill", minLevel: 80, maxLevel: 85,  tierIdx: 4),
-        Stage(index: 18, name: "Caduceu",      icon: "cross.fill",         minLevel: 85, maxLevel: 90,  tierIdx: 4),
-        Stage(index: 19, name: "Coroa",        icon: "crown.fill",         minLevel: 90, maxLevel: 95,  tierIdx: 4),
-        Stage(index: 20, name: "Vita",         icon: "rosette",            minLevel: 95, maxLevel: 100, tierIdx: 4),
+        Stage(index: 1,  name: "Termômetro",   art: "level-01-thermometer",     minLevel: 0,  maxLevel: 5,   tierIdx: 0),
+        Stage(index: 2,  name: "Seringa",      art: "level-02-syringe",         minLevel: 5,  maxLevel: 10,  tierIdx: 0),
+        Stage(index: 3,  name: "Bisturi",      art: "level-03-scalpel",         minLevel: 10, maxLevel: 15,  tierIdx: 0),
+        Stage(index: 4,  name: "Estetoscópio", art: "level-04-stethoscope",     minLevel: 15, maxLevel: 20,  tierIdx: 0),
+        Stage(index: 5,  name: "Máscara",      art: "level-05-mask",            minLevel: 20, maxLevel: 25,  tierIdx: 1),
+        Stage(index: 6,  name: "Microscópio",  art: "level-06-microscope",      minLevel: 25, maxLevel: 30,  tierIdx: 1),
+        Stage(index: 7,  name: "Martelo",      art: "level-07-reflex-hammer",   minLevel: 30, maxLevel: 35,  tierIdx: 1),
+        Stage(index: 8,  name: "Desfibrilador",art: "level-08-defibrillator",   minLevel: 35, maxLevel: 40,  tierIdx: 1),
+        Stage(index: 9,  name: "DNA",          art: "level-09-dna",             minLevel: 40, maxLevel: 45,  tierIdx: 2),
+        Stage(index: 10, name: "Comprimido",   art: "level-10-pill",            minLevel: 45, maxLevel: 50,  tierIdx: 2),
+        Stage(index: 11, name: "Coração",      art: "level-11-heart",           minLevel: 50, maxLevel: 55,  tierIdx: 2),
+        Stage(index: 12, name: "Jaleco",       art: "level-12-labcoat",         minLevel: 55, maxLevel: 60,  tierIdx: 2),
+        Stage(index: 13, name: "Robô Da Vinci",art: "level-13-davinci-robot",   minLevel: 60, maxLevel: 65,  tierIdx: 3),
+        Stage(index: 14, name: "Cérebro",      art: "level-14-brain",           minLevel: 65, maxLevel: 70,  tierIdx: 3),
+        Stage(index: 15, name: "Crânio",       art: "level-15-skull",           minLevel: 70, maxLevel: 75,  tierIdx: 3),
+        Stage(index: 16, name: "Escudo",       art: "level-16-shield",          minLevel: 75, maxLevel: 80,  tierIdx: 3),
+        Stage(index: 17, name: "Diploma",      art: "level-17-diploma",         minLevel: 80, maxLevel: 85,  tierIdx: 4),
+        Stage(index: 18, name: "Caduceu",      art: "level-18-caduceus-staff",  minLevel: 85, maxLevel: 90,  tierIdx: 4),
+        Stage(index: 19, name: "Coroa",        art: "level-19-crown",           minLevel: 90, maxLevel: 95,  tierIdx: 4),
+        Stage(index: 20, name: "Vita",         art: "level-20-vita-caduceu",    minLevel: 95, maxLevel: 100, tierIdx: 4),
     ]
 
     private static let landmarks: [Landmark] = [
@@ -2007,10 +2091,37 @@ private struct TrailCritterView: View {
 // MARK: - Press style (afunda no toque)
 
 private struct TrailPressStyle: ButtonStyle {
+    let size: CGFloat
+    let lip: Color
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.93 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+        ZStack {
+            // Base fixa: a face desce 6 pt e comprime o lábio de 7 pt.
+            Ellipse()
+                .fill(Color.black.opacity(configuration.isPressed ? 0.10 : 0.18))
+                .frame(width: size * 0.82, height: size * 0.26)
+                .scaleEffect(x: configuration.isPressed ? 0.90 : 1, y: 1)
+                .offset(y: size * 0.52)
+
+            Circle()
+                .fill(lip)
+                .frame(width: size, height: size)
+                .offset(y: 7)
+
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.99 : 1)
+                .brightness(configuration.isPressed ? -0.05 : 0)
+                .offset(y: configuration.isPressed ? 6 : 0)
+        }
+        .frame(width: size + 22, height: size + 24)
+        .animation(
+            reduceMotion
+                ? .easeOut(duration: 0.08)
+                : .interactiveSpring(response: 0.22, dampingFraction: 0.78, blendDuration: 0),
+            value: configuration.isPressed
+        )
     }
 }
 

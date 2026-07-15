@@ -54,6 +54,11 @@ struct CreateCardSheet: View {
                             }
                         }
                     }
+                    if hasContent {
+                        section(title: "Prévia", subtitle: "Como o card vai aparecer no estudo.") {
+                            previewCard
+                        }
+                    }
                     if let errorMessage {
                         Text(errorMessage)
                             .font(VitaTypography.labelSmall)
@@ -236,32 +241,60 @@ struct CreateCardSheet: View {
         return t.trimmingCharacters(in: .whitespaces)
     }
 
-    /// TextEditor multi-linha com visual GlassTextField (glassBg + glassBorder).
+    /// Editor rico (barra negrito/itálico/listas) no visual GlassTextField.
     private func glassEditor(text: Binding<String>, placeholder: String) -> some View {
-        TextEditor(text: text)
-            .scrollContentBackground(.hidden)
-            .font(VitaTypography.bodyMedium)
-            .foregroundStyle(VitaColors.textPrimary)
-            .tint(VitaColors.accent)
-            .frame(minHeight: 96)
-            .padding(.horizontal, VitaTokens.Spacing.md)
-            .padding(.vertical, VitaTokens.Spacing.sm)
+        RichCardEditor(text: text, placeholder: placeholder)
+            .frame(minHeight: 110)
+            .padding(.horizontal, VitaTokens.Spacing.sm)
+            .padding(.vertical, VitaTokens.Spacing.xs)
             .background(VitaColors.glassBg)
             .clipShape(RoundedRectangle(cornerRadius: 14))  // ds-allow: espelha o radius 14 do GlassTextField canonico
             .overlay(
                 RoundedRectangle(cornerRadius: 14)  // ds-allow: espelha o radius 14 do GlassTextField canonico
                     .stroke(VitaColors.glassBorder, lineWidth: 1)
             )
-            .overlay(alignment: .topLeading) {
-                if text.wrappedValue.isEmpty {
-                    Text(placeholder)
-                        .font(VitaTypography.bodyMedium)
-                        .foregroundStyle(VitaColors.textTertiary)
-                        .padding(.horizontal, VitaTokens.Spacing.lg)
-                        .padding(.vertical, VitaTokens.Spacing.lg)
-                        .allowsHitTesting(false)
-                }
+    }
+
+    // MARK: - Prévia ao vivo (renderizador REAL do card → mesma tipografia/estrutura)
+
+    private var hasContent: Bool {
+        !front.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        !back.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var previewCard: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+            previewFace(label: "FRENTE", content: front)
+            Divider().background(VitaColors.glassBorder)
+            previewFace(label: "VERSO", content: back)
+        }
+        .padding(VitaTokens.Spacing.lg)
+        .background(VitaColors.glassBg)
+        .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg)
+                .stroke(VitaColors.glassBorder, lineWidth: 1)
+        )
+    }
+
+    private func previewFace(label: String, content: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.system(size: 10, weight: .bold))  // ds-allow: label da prévia (kerning)
+                .kerning(1)
+                .foregroundStyle(VitaColors.sectionLabel)
+            if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("—").font(VitaTypography.bodyMedium).foregroundStyle(VitaColors.textTertiary)
+            } else {
+                FlashcardContentView(
+                    content: content,
+                    fontSize: 16,
+                    textColor: VitaColors.textPrimary,
+                    alignment: .leading
+                )
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Section shell (mesmo padrão da FlashcardSettingsV2Sheet)

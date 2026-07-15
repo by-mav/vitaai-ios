@@ -6,16 +6,6 @@ import SwiftUI
 private let cardAccent  = VitaColors.accent
 private let cardLabel   = VitaColors.accentLight
 
-// Card gradient: linear-gradient(135deg, #100818 0%, #08040e 100%)
-private let cardGradient  = LinearGradient(
-    colors: [
-        VitaTokens.DarkColors.bgHover,
-        VitaColors.surface
-    ],
-    startPoint: .topLeading,
-    endPoint: .bottomTrailing
-)
-
 // MARK: - FlashcardCardView
 
 /// Animated flip card matching flashcard-session-v1.html mockup.
@@ -160,40 +150,13 @@ struct FlashcardCardView: View {
 
     // MARK: Card shell — border-radius 22, gradient bg, border rgba(148,75,220,0.20)
 
+    // Superfície canônica compartilhada (FlashcardCardSurface) — usada também pelo
+    // editor, pra o card editado ser idêntico ao estudado.
     @ViewBuilder
     private func cardShell<Content: View>(
         @ViewBuilder content: () -> Content
     ) -> some View {
-        ZStack {
-            // Background gradient
-            RoundedRectangle(cornerRadius: 22)
-                .fill(cardGradient)
-
-            // Border
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(cardAccent.opacity(0.20), lineWidth: 1)
-
-            // Top-right glow overlay
-            RoundedRectangle(cornerRadius: 22)
-                .fill(
-                    RadialGradient(
-                        colors: [cardAccent.opacity(0.18), .clear],
-                        center: UnitPoint(x: 0.85, y: 0.15),
-                        startRadius: 0,
-                        endRadius: 120
-                    )
-                )
-                .blendMode(.normal)
-
-            // Content
-            content()
-                .padding(.horizontal, 24)
-                .padding(.vertical, 28)
-        }
-        // Shadow approximating mockup box-shadow
-        .shadow(color: .black.opacity(0.45), radius: 30, x: 0, y: 12)
-        .shadow(color: cardAccent.opacity(0.20), radius: 24, x: 0, y: 0)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        content().flashcardCardSurface()
     }
 }
 
