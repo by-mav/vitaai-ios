@@ -93,6 +93,7 @@ enum MascotAccessory: String, CaseIterable {
     case beanie        // gorro de inverno com pompom
     case laurel        // coroa de louros (acadêmico)
     case capybaraHat   // chapéu de capivara (easter egg da capivara dourada)
+    case halo          // auréola dourada divina (LENDÁRIA — do baú)
     // — Rosto (olhos) —
     case glassesRound  // óculos redondos finos (estudo)
     case glassesRect   // óculos retos/estudioso
@@ -109,7 +110,7 @@ enum MascotAccessory: String, CaseIterable {
     /// Slot anatômico — pra galeria e (futuro) sistema de equipar por camada.
     var slot: String {
         switch self {
-        case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat:
+        case .bouffantCap, .gradCap, .crown, .headMirror, .beanie, .laurel, .capybaraHat, .halo:
             return "Cabeça"
         case .glassesRound, .glassesRect, .sunglasses, .surgicalMask, .monocle:
             return "Rosto"
@@ -128,6 +129,7 @@ enum MascotAccessory: String, CaseIterable {
         case .beanie:      return "Gorro"
         case .laurel:      return "Louros"
         case .capybaraHat: return "Capivara"
+        case .halo:        return "Auréola"
         case .glassesRound: return "Redondo"
         case .glassesRect:  return "Reto"
         case .sunglasses:   return "Sol"
@@ -334,6 +336,7 @@ struct OrbMascot: View {
         case .beanie:       beanieView(s)
         case .laurel:       laurelView(s)
         case .capybaraHat:  capybaraHatView(s)
+        case .halo:         haloView(s)
         case .stethoscope:  stethoscopeView(s)
         case .labCoat:      labCoatView(s)
         case .bowTie:       bowTieView(s)
@@ -440,6 +443,35 @@ struct OrbMascot: View {
     // MARK: Cabeça
 
     // Coroa — 5 pontas, gemas e aro dourado. Luz de cima. Status "Lenda".
+    // Auréola — anel dourado divino flutuando acima da cabeça (LENDÁRIA). Brilho
+    // forte + gradiente angular pra parecer luz, não metal.
+    private func haloView(_ s: CGFloat) -> some View {
+        let goldT = Color(red: 1.00, green: 0.92, blue: 0.58)   // ds-allow: skin color
+        let goldM = Color(red: 0.96, green: 0.74, blue: 0.26)   // ds-allow: skin color
+        return ZStack {
+            // Halo de luz difuso (aura).
+            Ellipse()
+                .stroke(goldT.opacity(0.55), lineWidth: s * 0.10)
+                .frame(width: s * 0.64, height: s * 0.20)
+                .offset(y: -s * 0.54)
+                .blur(radius: s * 0.06)
+            // Anel principal — gradiente angular = brilho girando.
+            Ellipse()
+                .stroke(
+                    AngularGradient(colors: [goldM, goldT, .white, goldT, goldM], center: .center),
+                    style: StrokeStyle(lineWidth: s * 0.05)
+                )
+                .frame(width: s * 0.58, height: s * 0.17)
+                .offset(y: -s * 0.54)
+                .shadow(color: goldT.opacity(0.85), radius: s * 0.06)
+            // Fagulha de destaque.
+            Circle().fill(Color.white)
+                .frame(width: s * 0.04, height: s * 0.04)
+                .offset(x: s * 0.18, y: -s * 0.58)
+                .blur(radius: 0.5)
+        }
+    }
+
     private func crownView(_ s: CGFloat) -> some View {
         let goldT = Color(red: 1.00, green: 0.87, blue: 0.55)   // ds-allow: skin color
         let goldM = Color(red: 0.86, green: 0.66, blue: 0.28)   // ds-allow: skin color

@@ -2235,7 +2235,7 @@ struct SkinAppearanceScreen: View {
                !didAutoBox, lootboxReveal == nil {
                 didAutoBox = true
                 lootboxReveal = LootboxResult(
-                    won: .init(id: "crown", slot: "head", name: "Coroa", rarity: "epic", unlockLevel: 92),
+                    won: .init(id: "halo", slot: "head", name: "Auréola", rarity: "legendary", unlockLevel: 100),
                     price: 150, balance: store.balance
                 )
             }
