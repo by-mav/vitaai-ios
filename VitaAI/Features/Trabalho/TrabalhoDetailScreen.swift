@@ -18,7 +18,9 @@ struct TrabalhoDetailScreen: View {
     @State private var cleanDescription: String?
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Trabalho", onBack: onBack)
+            ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 if isLoading {
                     ProgressView()
@@ -64,6 +66,7 @@ struct TrabalhoDetailScreen: View {
                     }
                 )
             }
+        }
         }
     }
 

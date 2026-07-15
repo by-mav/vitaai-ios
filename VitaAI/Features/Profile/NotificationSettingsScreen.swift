@@ -50,7 +50,9 @@ struct NotificationSettingsScreen: View {
     @State private var systemAuthDenied = false
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Notificações", onBack: { dismiss() })
+            ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 // Permission banner (shown when user has denied system permissions)
                 if systemAuthDenied {
@@ -167,17 +169,6 @@ struct NotificationSettingsScreen: View {
                 Spacer().frame(height: 100)
             }
             .padding(.top, 16)
-        }
-        .navigationTitle("Notificações")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(VitaColors.accent)
-                }
             }
         }
         .sheet(item: $timePickerTarget) { target in

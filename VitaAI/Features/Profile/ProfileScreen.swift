@@ -22,14 +22,20 @@ struct ProfileScreen: View {
     @State private var showPhoneSheet = false
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                // Shell §5.2.1: tab principal não tem chevron back nem cabeçalho redundante.
-                // Só ícone gear flutuante no canto direito.
-                gearFloatingButton
-                    .padding(.top, 8)
-                    .padding(.horizontal, 20)
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Perfil") {
+                Button(action: { onNavigateToConfiguracoes?() }) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 17, weight: .medium))  // ds-allow: engrenagem no header (chrome, alvo de toque 44pt)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Configurações")
+            }
 
+            ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
                 // AVATAR + NAME
                 profileHeader
                     .padding(.top, 12)
@@ -115,6 +121,7 @@ struct ProfileScreen: View {
                 Task { await loadWhatsAppStatus() }
             }
         }
+        }
     }
 
     // MARK: - WhatsApp Row
@@ -179,22 +186,6 @@ struct ProfileScreen: View {
         let body = isMobile ? String(chars[2..<7]) : String(chars[2..<6])
         let suffix = isMobile ? String(chars[7..<11]) : String(chars[6..<10])
         return "(\(ddd)) \(body)-\(suffix)"
-    }
-
-    // MARK: - Header (gear-only, sem chevron back, sem título redundante)
-
-    private var gearFloatingButton: some View {
-        HStack {
-            Spacer()
-            Button(action: { onNavigateToConfiguracoes?() }) {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(VitaColors.textSecondary)
-                    .frame(minWidth: 44, minHeight: 44)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Configurações")
-        }
     }
 
     // MARK: - Profile Header (avatar + name + email + uni)

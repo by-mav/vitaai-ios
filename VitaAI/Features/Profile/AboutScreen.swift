@@ -30,7 +30,10 @@ struct AboutScreen: View {
     ]
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Sobre", onBack: { dismiss() })
+
+            ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
                 // Logo + version block
                 VStack(spacing: 8) {
@@ -168,19 +171,9 @@ struct AboutScreen: View {
 
                 Spacer().frame(height: 100)
             }
-        }
-        .navigationTitle("Sobre")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(VitaColors.accent)
-                }
             }
         }
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .onAppear {
             withAnimation(.easeOut(duration: 0.4)) {
                 logoOpacity = 1

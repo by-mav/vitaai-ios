@@ -18,19 +18,22 @@ struct FaculdadeMateriasScreen: View {
     @State private var gradesTab = 0    // 0 = Notas, 1 = Freq
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                if let grades = appData.gradesResponse,
-                   (!grades.current.isEmpty || !grades.completed.isEmpty) {
-                    gradesCard(grades)
-                } else {
-                    emptyState
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Matérias", onBack: onBack)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    if let grades = appData.gradesResponse,
+                       (!grades.current.isEmpty || !grades.completed.isEmpty) {
+                        gradesCard(grades)
+                    } else {
+                        emptyState
+                    }
+                    Spacer().frame(height: 40)
                 }
-                Spacer().frame(height: 40)
+                .padding(.top, 8)
             }
-            .padding(.top, 8)
+            .refreshable { await appData.forceRefresh() }
         }
-        .refreshable { await appData.forceRefresh() }
         .onAppear { SentrySDK.reportFullyDisplayed() }
         .trackScreen("FaculdadeMateria")
     }

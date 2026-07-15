@@ -42,15 +42,17 @@ struct ConnectionsScreen: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Starry ambient background (same as all screens)
-            if let vm {
-                mainContent(vm: vm)
-            } else {
-                DashboardSkeleton()
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Conexões", onBack: onBack)
+            ZStack(alignment: .top) {
+                // Starry ambient background (same as all screens)
+                if let vm {
+                    mainContent(vm: vm)
+                } else {
+                    DashboardSkeleton()
+                }
             }
-        }
-        .onAppear {
+            .onAppear {
             if vm == nil {
                 let viewModel = ConnectorsViewModel(api: container.api, dataManager: container.dataManager)
                 vm = viewModel
@@ -92,7 +94,8 @@ struct ConnectionsScreen: View {
                 vm?.toastMessage = nil
             }
         }
-        .trackScreen("Connections")
+            .trackScreen("Connections")
+        }
     }
 
     // MARK: - Main Content

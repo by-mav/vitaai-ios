@@ -56,21 +56,7 @@ private struct CourseDetailContent: View {
         ZStack {
             VStack(spacing: 0) {
                 // Back bar
-                HStack {
-                    Button(action: onBack) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("Voltar")
-                                .font(VitaTypography.labelLarge)
-                        }
-                        .foregroundColor(VitaColors.textPrimary)
-                    }
-                    .accessibilityIdentifier("backButton")
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+                VitaScreenHeader(title: "Disciplina", onBack: onBack)
 
                 if vm.isLoading {
                     Spacer()

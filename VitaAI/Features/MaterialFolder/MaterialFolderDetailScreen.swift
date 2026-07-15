@@ -27,7 +27,9 @@ struct MaterialFolderDetailScreen: View {
     private var glassBorder: Color { VitaColors.textWarm.opacity(0.06) }
 
     var body: some View {
-        ScrollView {
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: folderName, onBack: onBack)
+            ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 header
                 if isLoading {
@@ -46,8 +48,9 @@ struct MaterialFolderDetailScreen: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
+            }
+            .refreshable { await load() }
         }
-        .refreshable { await load() }
         .task { await load() }
         .trackScreen("MaterialFolderDetail", extra: ["folder_id": folderId])
     }

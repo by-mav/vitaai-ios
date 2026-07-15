@@ -32,6 +32,8 @@ struct NotebookListScreen: View {
 
     var body: some View {
         NavigationStack {
+            VStack(spacing: 0) {
+            VitaScreenHeader(title: "Notebooks", onBack: onBack)
             ZStack {
                 Group {
                     if viewModel.isLoading && viewModel.notebooks.isEmpty {
@@ -98,20 +100,6 @@ struct NotebookListScreen: View {
                     }
                 }
             }
-            .navigationTitle("Notebooks")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        onBack()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(VitaColors.textPrimary)
-                    }
-                    .accessibilityLabel("Voltar")
-                }
-            }
             .task {
                 await viewModel.onAppear()
                 withAnimation { appeared = true }
@@ -127,6 +115,8 @@ struct NotebookListScreen: View {
                     )
                 }
             }
+            }
+            .navigationBarHidden(true)
         }
         .trackScreen("NotebookList")
     }

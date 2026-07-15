@@ -64,7 +64,9 @@ struct DisciplineDetailScreen: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: displayName, onBack: onBack)
+            ScrollView(showsIndicators: false) {
             if let vm {
                 if vm.isLoading {
                     DashboardSkeleton()
@@ -221,6 +223,7 @@ struct DisciplineDetailScreen: View {
                         withAnimation { studyToast = nil }
                     }
             }
+        }
         }
     }
 

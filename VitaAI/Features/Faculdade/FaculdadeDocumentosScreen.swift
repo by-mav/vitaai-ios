@@ -55,7 +55,9 @@ struct FaculdadeDocumentosScreen: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Documentos", onBack: onBack)
+            ScrollView(showsIndicators: false) {
             VStack(spacing: 14) {
                 // Search bar
                 if !docs.isEmpty {
@@ -106,6 +108,7 @@ struct FaculdadeDocumentosScreen: View {
             await loadDocs()
         }
         .trackScreen("FaculdadeDocumentos")
+        }
     }
 
     // MARK: - States

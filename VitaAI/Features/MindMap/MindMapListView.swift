@@ -32,6 +32,8 @@ struct MindMapListView: View {
 
     var body: some View {
         NavigationStack {
+            VStack(spacing: 0) {
+            VitaScreenHeader(title: "Mapas Mentais", onBack: onBack)
             ZStack {
                 Group {
                     if viewModel.isLoading && viewModel.mindMaps.isEmpty {
@@ -97,18 +99,6 @@ struct MindMapListView: View {
                     }
                 }
             }
-            .navigationTitle("Mapas Mentais")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        onBack()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .foregroundStyle(VitaColors.textPrimary)
-                    }
-                }
-            }
             .sheet(isPresented: $viewModel.showCreateDialog) {
                 VitaSheet(title: "Novo Mapa Mental") {
                     createDialog
@@ -117,6 +107,7 @@ struct MindMapListView: View {
             .task {
                 await viewModel.onAppear()
                 appeared = true
+            }
             }
         }
     }

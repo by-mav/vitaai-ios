@@ -16,12 +16,16 @@ struct TrabalhoScreen: View {
     private let segments = ["Tarefas", "Notas por Disciplina"]
 
     var body: some View {
-        Group {
-            if let vm = viewModel {
-                content(vm: vm)
-            } else {
-                ProgressView()
-                    .tint(VitaColors.accent)
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Trabalhos")
+
+            Group {
+                if let vm = viewModel {
+                    content(vm: vm)
+                } else {
+                    ProgressView()
+                        .tint(VitaColors.accent)
+                }
             }
         }
         .onAppear {
