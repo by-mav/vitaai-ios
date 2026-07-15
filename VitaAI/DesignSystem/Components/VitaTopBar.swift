@@ -122,20 +122,14 @@ struct VitaTopBar: View {
     @ViewBuilder
     private var levelBadge: some View {
         if blendsWithHome {
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(Color(red: 1.0, green: 0.82, blue: 0.38))
-                    .frame(width: 3.5, height: 3.5)
-
-                Text("NÍVEL \(level)")
-                    .font(.system(size: 8.5, weight: .heavy))
-                    .kerning(0.45)
-                    .foregroundStyle(Color(red: 1.0, green: 0.92, blue: 0.72))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-            }
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3.5)
+            // Selo CLEAN: só o número do nível (sem a palavra "NÍVEL") — Rafael 2026-07-14
+            Text("\(level)")
+                .font(.system(size: 12.5, weight: .heavy))
+                .foregroundStyle(Color(red: 1.0, green: 0.92, blue: 0.72))  // ds-allow: selo de nível (home)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
             .background(
                 Capsule()
                     .fill(

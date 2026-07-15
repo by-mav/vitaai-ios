@@ -295,7 +295,7 @@ struct MainTabView: View {
                                 userName: authManager.userName,
                                 userImageURL: authManager.userImage.flatMap(URL.init(string:)),
                                 subtitle: dashboardSubtitle,
-                                level: container.gamificationEvents.currentLevel,
+                                level: VitaDebug.forcedLevel ?? container.gamificationEvents.currentLevel,
                                 streak: container.dashboardViewModel.streakDays,
                                 xpProgress: container.gamificationEvents.currentXpProgress,
                                 xpToast: container.gamificationEvents.xpToast,

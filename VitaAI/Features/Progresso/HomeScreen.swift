@@ -1,5 +1,16 @@
 import SwiftUI
 
+// QA: flags de debug globais (args de launch). --vita-level=99 força o nível no
+// MAPA e no SELO do topo (VitaTopBar via AppRouter) — simulação consistente. Rafael 2026-07-14.
+enum VitaDebug {
+    static var forcedLevel: Int? {
+        for a in ProcessInfo.processInfo.arguments where a.hasPrefix("--vita-level=") {
+            return Int(a.dropFirst("--vita-level=".count))
+        }
+        return nil
+    }
+}
+
 // MARK: - HomeScreen — Mapa vivo da carreira médica (gold 3D, estilo Duolingo)
 //
 // 2026-06-16 (Rafael): home/mapa vivo do Vita. Uma tela só = gamificação no
@@ -68,7 +79,7 @@ struct HomeScreen: View {
     private var dash: DashboardViewModel { container.dashboardViewModel }
     private var gamify: GamificationEventManager { container.gamificationEvents }
 
-    private var userLevel: Int { demoLevel ?? max(0, gamify.currentLevel) }
+    private var userLevel: Int { VitaDebug.forcedLevel ?? demoLevel ?? max(0, gamify.currentLevel) }
     private var flashcardsDue: Int { dash.flashcardsDueTotal }
 
     private var currentStage: Stage {
@@ -1993,9 +2004,10 @@ struct SkinAppearanceScreen: View {
 
     private var itemsForSlot: [SkinStoreItem] {
         let all = store.items(slot: slot.api)
-        // Loja de fase: só os itens cujo nível cai na faixa do tier.
+        // ACUMULADO: a loja da fase mostra tudo desbloqueado ATÉ o teto do tier (não
+        // só a fatia) — assim Acadêmico/Residente/Lenda não ficam vazias. Rafael 2026-07-14.
         guard let range = shopTierInfo?.range else { return all }
-        return all.filter { range.contains($0.unlockLevel) }
+        return all.filter { $0.unlockLevel <= range.upperBound }
     }
 
     /// Item em foco no slot atual (dentro do que está VISÍVEL na aba/fase): o selecionado,
