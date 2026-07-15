@@ -35,28 +35,33 @@ struct FaculdadeDisciplinasScreen: View {
         // Subscreve a mudanças (renomear) pra re-render — mesmo motivo do FaculdadeHome.
         let _ = appData.enrolledDisciplines.count
 
-        return ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                let cursando = sortedByFavorite(appData.enrolledDisciplines)
-                let aprovadas = sortedByFavorite(appData.completedDisciplines)
+        return VStack(spacing: 0) {
+            // Voltar + título — cabeçalho canônico (a pessoa não fica presa).
+            VitaScreenHeader(title: "Disciplinas")
 
-                if cursando.isEmpty && aprovadas.isEmpty {
-                    emptyState
-                } else {
-                    if !cursando.isEmpty {
-                        section("Cursando", subjects: cursando, showAddButton: true)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 16) {
+                    let cursando = sortedByFavorite(appData.enrolledDisciplines)
+                    let aprovadas = sortedByFavorite(appData.completedDisciplines)
+
+                    if cursando.isEmpty && aprovadas.isEmpty {
+                        emptyState
+                    } else {
+                        if !cursando.isEmpty {
+                            section("Cursando", subjects: cursando, showAddButton: true)
+                        }
+                        if !aprovadas.isEmpty {
+                            section("Aprovadas", subjects: aprovadas, showAddButton: false)
+                        }
                     }
-                    if !aprovadas.isEmpty {
-                        section("Aprovadas", subjects: aprovadas, showAddButton: false)
-                    }
+                    Spacer().frame(height: 100)
                 }
-                Spacer().frame(height: 100)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .id(colorRefreshTrigger)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .id(colorRefreshTrigger)
+            .refreshable { await appData.forceRefresh() }
         }
-        .refreshable { await appData.forceRefresh() }
         .onAppear { SentrySDK.reportFullyDisplayed() }
         .trackScreen("FaculdadeDisciplinas")
         .sheet(item: $renameTarget) { t in
