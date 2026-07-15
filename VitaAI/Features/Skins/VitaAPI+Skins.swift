@@ -29,7 +29,8 @@ struct EquippedSkinDTO: Codable, Hashable, Sendable {
     var palette: String?
 }
 
-/// Item do catálogo. `slot` = head|face|neck|palette; `rarity` = common|rare|epic.
+/// Item do catálogo. `slot` = head|face|neck|palette;
+/// `rarity` = common|rare|epic|legendary.
 /// `unlockLevel` = nível mínimo pra desbloquear; `locked` = user ainda não atingiu;
 /// `owned` = já possui/liberado (acessório comprado, ou cor com nível atingido);
 /// `free` = não passa por compra (toda paleta + Vita puro).
@@ -125,7 +126,11 @@ extension VitaAPI {
     /// quando saldo insuficiente (402) / nível travado (403) / já possui (409) /
     /// id inválido ou é cor (400).
     func buySkin(id: String) async throws -> BuySkinResponse {
-        try await client.post("skins/buy", body: BuySkinRequest(skinId: id))
+        // Este endpoint segue o OpenAPI camelCase (`skinId`). O encoder global
+        // converte propriedades para snake_case e causava `skin_id` -> HTTP 400
+        // antes mesmo de o servidor conferir nível ou saldo.
+        let body = try JSONEncoder().encode(BuySkinRequest(skinId: id))
+        return try await client.postRaw("skins/buy", body: body)
     }
 
     /// POST /api/skins/equip — equipa o ESTADO COMPLETO. Slots nil são omitidos
@@ -194,14 +199,35 @@ final class SkinStore: ObservableObject {
     @discardableResult
     func buy(id: String, api: VitaAPI) async -> Bool {
         guard !isMutating else { return false }
+        let candidate = item(id: id)
         isMutating = true
         defer { isMutating = false }
         do {
             _ = try await api.buySkin(id: id)
             await load(api: api)
             return true
+        } catch APIError.serverError(409) {
+            // Estado local antigo: recarrega e trata como sucesso se a posse já
+            // estiver confirmada pelo servidor.
+            await load(api: api)
+            if item(id: id)?.owned == true { return true }
+            errorMessage = "Este item já foi comprado. Atualizei seu guarda-roupa."
+            return false
+        } catch let error as APIError {
+            switch error {
+            case .serverError(402):
+                let missing = max(0, (candidate?.price ?? 0) - balance)
+                errorMessage = "Saldo insuficiente. Faltam \(missing) moedas Vita."
+            case .serverError(403):
+                errorMessage = "Este item libera no nível \(candidate?.unlockLevel ?? level)."
+            case .serverError(400):
+                errorMessage = "A loja recusou este item. Atualize o Vita e tente novamente."
+            default:
+                errorMessage = error.localizedDescription
+            }
+            return false
         } catch {
-            errorMessage = "Não consegui comprar. Confira o saldo e o nível."
+            errorMessage = "Não consegui concluir a compra agora. Tente novamente."
             return false
         }
     }
@@ -276,9 +302,17 @@ final class SkinStore: ObservableObject {
 
     // MARK: - Helpers de leitura (a tela consome)
 
-    /// Itens de um slot (head|face|neck|palette), na ordem do catálogo.
+    /// Itens de um slot (head|face|neck|palette), sempre do nível mais baixo
+    /// para o mais alto. O sort defensivo preserva a progressão mesmo se um
+    /// backend antigo devolver o catálogo fora de ordem.
     func items(slot: String) -> [SkinStoreItem] {
-        catalog.filter { $0.slot == slot }
+        catalog
+            .filter { $0.slot == slot }
+            .sorted {
+                if $0.unlockLevel != $1.unlockLevel { return $0.unlockLevel < $1.unlockLevel }
+                if $0.price != $1.price { return $0.price < $1.price }
+                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
     }
 
     func item(id: String?) -> SkinStoreItem? {

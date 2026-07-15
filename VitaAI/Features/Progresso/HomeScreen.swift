@@ -2181,6 +2181,7 @@ struct SkinAppearanceScreen: View {
 
     private func rarityLabel(_ r: String) -> String {
         switch r {
+        case "legendary": return "Lendária"
         case "rare": return "Rara"
         case "epic": return "Épica"
         default: return "Comum"
@@ -2188,6 +2189,7 @@ struct SkinAppearanceScreen: View {
     }
     private func rarityColor(_ r: String) -> Color {
         switch r {
+        case "legendary": return Color(red: 1.0, green: 0.82, blue: 0.32)  // ds-allow: raridade lendária da loja
         case "rare": return Color(red: 0.42, green: 0.68, blue: 0.98)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
         case "epic": return Color(red: 0.80, green: 0.56, blue: 0.98)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
         default: return Color(red: 0.36, green: 0.84, blue: 0.64)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
@@ -2472,7 +2474,7 @@ struct SkinAppearanceScreen: View {
                     Image(systemName: "lock.fill").font(.system(size: 13, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     Text("Nível \(it?.unlockLevel ?? 0)")
                 } else if canBuy {
-                    Image(systemName: "seal.fill").font(.system(size: 13))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    CoinIcon(size: 13)
                     Text("Comprar \(it?.price ?? 0)")
                 } else if equippedNow {
                     Text("Equipado ✓")
@@ -2537,7 +2539,7 @@ struct SkinAppearanceScreen: View {
                 } else if !item.owned && item.slot != "palette" {
                     // Comprável: mostra o preço.
                     HStack(spacing: 3) {
-                        Image(systemName: "seal.fill").font(.system(size: 8))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                        CoinIcon(size: 10)
                         Text("\(item.price)").font(.system(size: 10, weight: .semibold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     }
                     .foregroundColor(gold.opacity(0.9))
@@ -2599,7 +2601,7 @@ struct SkinAppearanceScreen: View {
     }
 
     private func buySelected() {
-        guard let it = focusItem, !it.owned, !it.locked else { return }
+        guard let it = focusItem, !it.owned, !isLocked(it) else { return }
         Task { await store.buy(id: it.id, api: container.api) }
     }
 }
