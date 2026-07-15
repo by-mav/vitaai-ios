@@ -308,34 +308,30 @@ struct MainTabView: View {
                                     withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
                                         showSettingsPanel = true
                                     }
-                                }
+                                },
+                                leadingAccessory: isHomeRoot ? AnyView(
+                                    VitaHomeStudyRail(
+                                        onQBank: { openHomeStudy(.qbank) },
+                                        onFlashcards: { openHomeStudy(.flashcardHome()) },
+                                        onSimulados: { openHomeStudy(.simuladoHome) },
+                                        onTranscricao: { openHomeStudy(.transcricao) }
+                                    )
+                                ) : nil
                             )
                             .padding(.top, 8)
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
                     }
-                    .overlay(alignment: .bottom) {
-                        if isHomeRoot {
-                            VitaHomeStudyDock(
-                                onFlashcards: { openHomeStudy(.flashcardHome()) },
-                                onQBank: { openHomeStudy(.qbank) },
-                                onSimulados: { openHomeStudy(.simuladoHome) },
-                                onTranscricao: { openHomeStudy(.transcricao) }
-                            )
-                            .padding(.horizontal, 14)
-                            .padding(.bottom, 86)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        }
-                    }
-                    .overlay(alignment: .topLeading) {
+                    .overlay(alignment: .topTrailing) {
                         if isHomeRoot,
                            let activeSessionsVM,
                            !activeSessionsVM.sessions.isEmpty {
                             ContinueSessionDrawer(
                                 model: activeSessionsVM,
+                                maximumExpandedWidth: activeSessionsDrawerWidth(shellWidth: shellGeo.size.width),
                                 onResume: resumeStudySession
                             )
-                            .padding(.leading, VitaTokens.Spacing.lg)
+                            .padding(.trailing, VitaTokens.Spacing.lg)
                             .padding(.top, 88)
                             .zIndex(25)
                         }
@@ -587,6 +583,17 @@ struct MainTabView: View {
                 router.selectedTab = .estudos
             }
         }
+    }
+
+    private func activeSessionsDrawerWidth(shellWidth: CGFloat) -> CGFloat {
+        let reservedLeading = VitaTokens.Spacing._2xl
+            + VitaHomeStudyRail.width
+            + VitaTokens.Spacing.sm
+            + VitaTokens.Spacing.lg
+        return min(
+            ContinueSessionDrawer.defaultExpandedWidth,
+            max(ContinueSessionDrawer.minimumExpandedWidth, shellWidth - reservedLeading)
+        )
     }
 
     private func resumeStudySession(_ session: ActiveStudySession) {
@@ -1023,30 +1030,31 @@ struct MainTabView: View {
     }
 }
 
-private struct VitaHomeStudyDock: View {
-    let onFlashcards: () -> Void
+private struct VitaHomeStudyRail: View {
+    static let width: CGFloat = 56 // ds-allow: igual à largura visual do avatar da Home
+
     let onQBank: () -> Void
+    let onFlashcards: () -> Void
     let onSimulados: () -> Void
     let onTranscricao: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            actionButton("Cards", icon: "rectangle.on.rectangle.angled", tint: VitaColors.toolFlashcards, action: onFlashcards)
-            actionButton("Questões", icon: "checklist", tint: VitaColors.accent, action: onQBank)
-            actionButton("Simulados", icon: "doc.text.magnifyingglass", tint: VitaColors.toolSimulados, action: onSimulados)
-            actionButton("Áudio", icon: "waveform", tint: VitaColors.toolTranscricao, action: onTranscricao)
+        VStack(spacing: VitaTokens.Spacing.xs) {
+            actionButton("Questões", image: "home-quick-questoes", identifier: "homeQuickAction_questions", action: onQBank)
+            actionButton("Flashcards", image: "home-quick-flashcards", identifier: "homeQuickAction_flashcards", action: onFlashcards)
+            actionButton("Simulados", image: "home-quick-simulados", identifier: "homeQuickAction_simulados", action: onSimulados)
+            actionButton("Transcrição", image: "home-quick-transcricao", identifier: "homeQuickAction_transcricao", action: onTranscricao)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity)
+        .padding(VitaTokens.Spacing.xs)
+        .frame(width: Self.width)
         .background(
-            Capsule()
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
                 .fill(TrailWorld.dockFill.opacity(0.82))
                 .overlay(
-                    Capsule().fill(
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous).fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(0.20),
+                                Color.white.opacity(0.14),
                                 TrailWorld.dockFill.opacity(0.10),
                                 Color.black.opacity(0.08)
                             ],
@@ -1055,50 +1063,33 @@ private struct VitaHomeStudyDock: View {
                         )
                     )
                 )
-                .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 0.75))
+                .overlay(
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                        .stroke(Color.white.opacity(0.22), lineWidth: 0.75)
+                )
         )
     }
 
-    private func actionButton(_ title: String, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
+    private func actionButton(
+        _ title: String,
+        image: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
         Button {
             action()
         } label: {
-            VStack(spacing: 5) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.16))
-                        .overlay(
-                            Circle().fill(
-                                RadialGradient(
-                                    colors: [
-                                        Color.white.opacity(0.34),
-                                        tint.opacity(0.24),
-                                        Color.black.opacity(0.05)
-                                    ],
-                                    center: .topLeading,
-                                    startRadius: 2,
-                                    endRadius: 32
-                                )
-                            )
-                        )
-                        .overlay(Circle().stroke(Color.white.opacity(0.38), lineWidth: 0.75))
-                    Image(systemName: icon)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.96))
-                }
-                .frame(width: 38, height: 38)
-
-                Text(title)
-                    .font(.system(size: 8.5, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.88))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-            .frame(width: 66, height: 54)
-            .contentShape(Rectangle())
+            Image(image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 40, height: 40) // ds-allow: artwork óptico dentro de target Apple 48pt
+                .accessibilityHidden(true)
+                .frame(width: VitaTokens.Spacing._4xl, height: VitaTokens.Spacing._4xl)
+                .contentShape(Rectangle())
         }
         .buttonStyle(HomeQuickActionPressStyle())
         .accessibilityLabel(title)
+        .accessibilityIdentifier(identifier)
     }
 }
 

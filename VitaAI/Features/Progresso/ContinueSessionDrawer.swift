@@ -48,7 +48,11 @@ final class ActiveStudySessionsViewModel {
 }
 
 struct ContinueSessionDrawer: View {
+    static let minimumExpandedWidth: CGFloat = 240 // ds-allow: largura mínima para título e progresso legíveis
+    static let defaultExpandedWidth: CGFloat = 320 // ds-allow: largura original em telas sem rail lateral
+
     let model: ActiveStudySessionsViewModel
+    var maximumExpandedWidth: CGFloat = Self.defaultExpandedWidth
     let onResume: (ActiveStudySession) -> Void
 
     @State private var isExpanded = false
@@ -62,7 +66,7 @@ struct ContinueSessionDrawer: View {
             Group {
                 if isExpanded {
                     expandedDrawer
-                        .frame(width: 320)
+                        .frame(width: maximumExpandedWidth)
                         .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .topLeading)))
                 } else {
                     collapsedDrawer(primary)
