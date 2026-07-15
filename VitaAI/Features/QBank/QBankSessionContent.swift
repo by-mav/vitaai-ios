@@ -79,7 +79,7 @@ struct QBankSessionContent: View {
                     QBankQuestionPanel {
                         questionBadges(question: question)
 
-                        Text(question.statement.qbankPlainText)
+                        Text(question.statement.qbankPolishedText)
                             .font(PixioTypo.sans(size: 16, weight: .regular))
                             .foregroundStyle(VitaColors.textPrimary)
                             .lineSpacing(5)
@@ -269,12 +269,21 @@ struct QBankSessionContent: View {
             }
 
             Button { showFinishAlert = true } label: {
-                Text("Encerrar sessão")
-                    .font(PixioTypo.caption)
-                    .foregroundStyle(VitaColors.textTertiary)
-                    .frame(height: 24)
+                Label("Encerrar sessão", systemImage: "xmark.circle")
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(VitaColors.textWarm.opacity(0.72))
+                    .frame(maxWidth: .infinity, minHeight: 36)
+                    .background(
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                            .fill(VitaColors.glassBg.opacity(0.72))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                            .stroke(VitaColors.glassBorder.opacity(0.78), lineWidth: 0.75)
+                    )
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("finishQBankSessionButton")
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
@@ -446,7 +455,7 @@ private struct QBankActionButton: View {
         switch style {
         case .primary: return VitaColors.surface
         case .secondary: return VitaColors.accentLight
-        case .disabled: return VitaColors.surface.opacity(0.68)
+        case .disabled: return VitaColors.textWarm.opacity(0.62)
         }
     }
 
@@ -476,7 +485,7 @@ private struct QBankActionButton: View {
                 .fill(VitaColors.glassBg.opacity(0.78))
         case .disabled:
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(VitaColors.accent.opacity(0.36))
+                .fill(VitaColors.surfaceElevated.opacity(0.94))
         }
     }
 
@@ -491,7 +500,7 @@ private struct QBankActionButton: View {
                 .stroke(VitaColors.accent.opacity(0.34), lineWidth: 0.9)
         case .disabled:
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.clear, lineWidth: 0)
+                .stroke(VitaColors.glassBorder.opacity(0.78), lineWidth: 0.75)
         }
     }
 }
@@ -566,7 +575,7 @@ struct QBankAlternativeCard: View {
                     }
                 }
 
-                Text(alternative.text.qbankPlainText)
+                Text(alternative.text.qbankPolishedText)
                     .font(PixioTypo.sans(size: 14, weight: .medium))
                     .foregroundStyle(VitaColors.textPrimary)
                     .lineSpacing(3)
@@ -605,7 +614,7 @@ struct QBankAlternativeCard: View {
         .animation(.easeInOut(duration: 0.2), value: showFeedback)
         .animation(.easeInOut(duration: 0.2), value: isSelected)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Alternativa \(letter): \(alternative.text.qbankPlainText)\(accessibilityStateLabel)")
+        .accessibilityLabel("Alternativa \(letter): \(alternative.text.qbankPolishedText)\(accessibilityStateLabel)")
         .accessibilityHint(showFeedback ? "" : "Toque para selecionar esta alternativa")
         .accessibilityAddTraits(.isButton)
     }

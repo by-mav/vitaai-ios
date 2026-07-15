@@ -267,7 +267,7 @@ struct QBankResultReviewRow: View {
     private var statusIcon: String  { answer.map { $0.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill" } ?? "minus.circle" }
     private var statement: String {
         guard let d = detail else { return "Questão \(questionId)" }
-        let s = d.statement.qbankPlainText
+        let s = d.statement.qbankPolishedText
         return s.isEmpty ? "Questão \(questionId)" : s
     }
 

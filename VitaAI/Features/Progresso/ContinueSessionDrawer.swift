@@ -52,6 +52,8 @@ struct ContinueSessionDrawer: View {
     let onResume: (ActiveStudySession) -> Void
 
     @State private var isExpanded = false
+    @State private var showFinishAlert = false
+    @State private var pendingFinish: ActiveStudySession?
 
     private var primary: ActiveStudySession? { model.sessions.first }
 
@@ -71,8 +73,19 @@ struct ContinueSessionDrawer: View {
             .animation(.easeOut(duration: 0.20), value: isExpanded)
             .accessibilityIdentifier("continueSessionDrawer")
             .onChange(of: model.sessions.count) { _, count in
-                if count == 0 { isExpanded = false }
+                if count == 0 {
+                    isExpanded = false
+                    pendingFinish = nil
+                }
             }
+            .vitaAlert(
+                isPresented: $showFinishAlert,
+                title: "Encerrar sessão?",
+                message: pendingFinish.map { "O progresso de \($0.title) será encerrado." },
+                destructiveLabel: "Encerrar",
+                cancelLabel: "Continuar",
+                onConfirm: finishPendingSession
+            )
         }
     }
 
@@ -83,7 +96,7 @@ struct ContinueSessionDrawer: View {
         } label: {
             VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) {
                 HStack(spacing: VitaTokens.Spacing.md) {
-                    sessionIcon(session, size: 30)
+                    resumeIcon(size: 30)
 
                     VStack(alignment: .leading, spacing: VitaTokens.Spacing.xxs) {
                         Text("Continuar sessão")
@@ -123,13 +136,13 @@ struct ContinueSessionDrawer: View {
                     Button {
                         isExpanded = false
                     } label: {
-                        Image(systemName: "chevron.up")
+                        Image(systemName: "xmark")
                             .font(.system(size: 12, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
-                            .foregroundStyle(VitaColors.textSecondary)
+                            .foregroundStyle(VitaColors.textWarm.opacity(0.68))
                             .frame(width: 32, height: 32)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Recolher")
+                    .accessibilityLabel("Fechar sessões em andamento")
                 }
                 .padding(.leading, VitaTokens.Spacing.lg)
                 .padding(.trailing, VitaTokens.Spacing.sm)
@@ -157,7 +170,7 @@ struct ContinueSessionDrawer: View {
                 onResume(session)
             } label: {
                 HStack(spacing: VitaTokens.Spacing.md) {
-                    sessionIcon(session, size: 34)
+                    resumeIcon(size: 34)
 
                     VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
                         Text(session.title)
@@ -187,24 +200,23 @@ struct ContinueSessionDrawer: View {
             .accessibilityIdentifier("resumeSession_\(session.engine.rawValue)_\(session.id)")
             .accessibilityLabel("Continuar \(session.title), \(progressText(session))")
 
-            Menu {
-                Button(role: .destructive) {
-                    Task { await model.finish(session) }
-                } label: {
-                    Label("Encerrar sessão", systemImage: "xmark.circle")
-                }
+            Button {
+                pendingFinish = session
+                showFinishAlert = true
             } label: {
                 if model.finishingIds.contains(session.id) {
                     ProgressView()
                         .tint(VitaColors.accent)
                 } else {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
-                        .foregroundStyle(VitaColors.textSecondary)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
+                        .foregroundStyle(VitaColors.textWarm.opacity(0.64))
                 }
             }
+            .buttonStyle(.plain)
             .frame(width: 40, height: 44)
-            .accessibilityLabel("Opções de \(session.title)")
+            .disabled(model.finishingIds.contains(session.id))
+            .accessibilityLabel("Encerrar \(session.title)")
         }
         .padding(.leading, VitaTokens.Spacing.sm)
         .padding(.trailing, VitaTokens.Spacing.xs)
@@ -215,8 +227,8 @@ struct ContinueSessionDrawer: View {
         )
     }
 
-    private func sessionIcon(_ session: ActiveStudySession, size: CGFloat) -> some View {
-        Image(systemName: iconName(session.kind))
+    private func resumeIcon(size: CGFloat) -> some View {
+        Image(systemName: "play.fill")
             .font(.system(size: size * 0.42, weight: .semibold)) // ds-allow: ícone escala com o container
             .foregroundStyle(VitaColors.accentLight)
             .frame(width: size, height: size)
@@ -242,11 +254,11 @@ struct ContinueSessionDrawer: View {
         }
     }
 
-    private func iconName(_ kind: ActiveStudySessionKind) -> String {
-        switch kind {
-        case .questoes: return "checklist"
-        case .simulado: return "doc.text.magnifyingglass"
-        case .flashcards: return "rectangle.on.rectangle.angled"
+    private func finishPendingSession() {
+        guard let session = pendingFinish else { return }
+        pendingFinish = nil
+        Task {
+            await model.finish(session)
         }
     }
 }

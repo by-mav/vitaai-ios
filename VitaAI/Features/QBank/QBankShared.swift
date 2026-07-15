@@ -116,6 +116,28 @@ extension String {
             .filter { !$0.isEmpty }
         return lines.joined(separator: "\n\n")
     }
+
+    /// Polimento apenas de apresentação. O conteúdo acadêmico persistido continua verbatim.
+    var qbankPolishedText: String {
+        var text = qbankPlainText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return text }
+
+        if let firstLetter = text.firstIndex(where: { $0.isLetter }) {
+            text.replaceSubrange(firstLetter...firstLetter, with: String(text[firstLetter]).uppercased())
+        }
+
+        let terminalPunctuation: Set<Character> = [".", "!", "?", ":", ";", "…"]
+        let closingCharacters: Set<Character> = ["\"", "'", "”", "’", ")", "]", "}"]
+        var probe = text[...]
+        while let last = probe.last, closingCharacters.contains(last) {
+            probe = probe.dropLast()
+        }
+        if let last = probe.last, !terminalPunctuation.contains(last) {
+            text.append(".")
+        }
+
+        return text
+    }
 }
 
 // MARK: - Config Screen Helpers
