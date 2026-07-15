@@ -384,7 +384,15 @@ struct HomeScreen: View {
                     }
                     .scrollContentBackground(.hidden)
                     .frame(width: geo.size.width, height: geo.size.height)
-                    .onAppear { if demoLevelUp { runLevelUpDemo(proxy) } }
+                    .onAppear {
+                        if demoLevelUp { runLevelUpDemo(proxy) }
+                        else {
+                            // Abre JÁ na posição do nível atual (Duolingo-style) — Rafael 2026-07-14
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                proxy.scrollTo("stage-\(currentStage.index)", anchor: .center)
+                            }
+                        }
+                    }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
