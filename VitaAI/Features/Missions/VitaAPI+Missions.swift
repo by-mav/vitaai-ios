@@ -37,6 +37,26 @@ struct DailyMission: Codable, Identifiable, Hashable, Sendable {
 
     /// Pronta pra resgatar (o estado que acende a placa).
     var claimable: Bool { completed && !claimed }
+
+    /// Família da missão (prefixo do id: "questions_20" → "questions") — mapeia
+    /// pra tela onde o aluno faz a ação. Fonte: lib/missions/catalog.ts.
+    var family: String { String(id.prefix(while: { $0 != "_" })) }
+}
+
+/// Onde a missão leva ao ser tocada (quando ainda não concluída). Cada família
+/// aponta pra ferramenta que gera aquele progresso.
+enum MissionDestination {
+    case flashcards, qbank, simulado, transcricao
+
+    init?(family: String) {
+        switch family {
+        case "flashcards": self = .flashcards
+        case "questions", "correct": self = .qbank
+        case "simulado": self = .simulado
+        case "transcription": self = .transcricao
+        default: return nil
+        }
+    }
 }
 
 struct DailyMissionBonus: Codable, Hashable, Sendable {

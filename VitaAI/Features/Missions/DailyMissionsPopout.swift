@@ -20,6 +20,8 @@ import SwiftUI
 struct DailyMissionsPopout: View {
     @ObservedObject var store: MissionStore
     let onDismiss: () -> Void
+    /// Missão incompleta tocada → leva pra ferramenta que gera o progresso.
+    let onGo: (MissionDestination) -> Void
 
     @Environment(\.appContainer) private var container
     @State private var isVisible = false
@@ -284,10 +286,10 @@ struct DailyMissionsPopout: View {
                     MissionPlaque(
                         mission: m,
                         isClaiming: store.claimingId == m.id,
-                        burst: coinBurst == m.id
-                    ) {
-                        Task { await claim(m) }
-                    }
+                        burst: coinBurst == m.id,
+                        onClaim: { Task { await claim(m) } },
+                        onGo: { goTo(m) }
+                    )
                 }
                 bonusRow
             }
@@ -330,6 +332,14 @@ struct DailyMissionsPopout: View {
         )
     }
 
+    /// Vai fazer a missão: fecha o quadro e navega pra ferramenta.
+    private func goTo(_ m: DailyMission) {
+        guard let dest = MissionDestination(family: m.family) else { return }
+        HapticManager.shared.fire(.light)
+        onGo(dest)
+        dismiss()
+    }
+
     private func claim(_ m: DailyMission) async {
         HapticManager.shared.fire(.medium)
         let ok = await store.claim(id: m.id, api: container.api)
@@ -349,8 +359,23 @@ private struct MissionPlaque: View {
     let isClaiming: Bool
     let burst: Bool
     let onClaim: () -> Void
+    let onGo: () -> Void
+
+    /// Incompleta = a linha inteira leva pra ferramenta (fazer a missão).
+    /// Completa/resgatada = a linha não navega (o botão PEGAR / selo mandam).
+    private var isActionable: Bool { !mission.completed && !mission.claimed }
 
     var body: some View {
+        Group {
+            if isActionable {
+                Button(action: onGo) { row }.buttonStyle(.plain)
+            } else {
+                row
+            }
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: 11) {
             medal
             VStack(alignment: .leading, spacing: 5) {
@@ -465,10 +490,15 @@ private struct MissionPlaque: View {
             .disabled(isClaiming)
             .modifier(ClaimPulse())
         } else {
-            Image(systemName: "hourglass")
-                .font(.system(size: 13, weight: .semibold))  // ds-allow: arte gamificada (mundo da trilha)
-                .foregroundStyle(VitaColors.textTertiary)
-                .frame(width: 58)
+            // Incompleta → "Ir" (a linha inteira navega pra ferramenta).
+            HStack(spacing: 3) {
+                Text("IR")
+                    .font(.system(size: 10, weight: .black, design: .rounded))  // ds-allow: arte gamificada (mundo da trilha)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .black))  // ds-allow: arte gamificada (mundo da trilha)
+            }
+            .foregroundStyle(tierColor.opacity(0.9))
+            .frame(width: 58)
         }
     }
 

@@ -397,23 +397,34 @@ struct HomeScreen: View {
                     let signX = geo.size.width * (leading ? 0.37 : 0.63)
                     let houseY = Self.trailTopInset + (spot.row * Self.rowStride) - 60
 
-                    // Placa entre casa e rua
-                    TrailMissionSign(
-                        lit: isCurrent,
-                        pendingCount: isCurrent ? missions.pendingCount : 0
-                    )
-                    .frame(width: 122, height: 122)
-                    .contentShape(Rectangle())
-                    .onTapGesture { openIfCurrent(isCurrent) }
+                    // Placa entre casa e rua. Button (não onTapGesture) — hit-
+                    // testing confiável em elemento .position-ado dentro do
+                    // ScrollView; .allowsHitTesting(isCurrent) pra fase inativa
+                    // não roubar toque de nada.
+                    Button { openIfCurrent(isCurrent) } label: {
+                        TrailMissionSign(
+                            lit: isCurrent,
+                            pendingCount: isCurrent ? missions.pendingCount : 0
+                        )
+                        .frame(width: 122, height: 122)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .allowsHitTesting(isCurrent)
+                    .accessibilityIdentifier("trail_mission_sign")
                     .transaction { $0.animation = nil }
                     .position(x: signX, y: houseY + 40)
 
                     // Vita na frente da casa, junto à porta (base da casa)
-                    signNPC(active: isCurrent)
-                        .contentShape(Rectangle())
-                        .onTapGesture { openIfCurrent(isCurrent) }
-                        .transaction { $0.animation = nil }
-                        .position(x: houseX, y: houseY + 58)
+                    Button { openIfCurrent(isCurrent) } label: {
+                        signNPC(active: isCurrent)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .allowsHitTesting(isCurrent)
+                    .accessibilityIdentifier("trail_mission_npc")
+                    .transaction { $0.animation = nil }
+                    .position(x: houseX, y: houseY + 58)
                 }
             }
         }
@@ -633,8 +644,21 @@ struct HomeScreen: View {
         // vita-modals-ignore: popout de mundo (placa da trilha), não sheet de sistema
         .overlay {
             if showMissions {
-                DailyMissionsPopout(store: missions) { showMissions = false }
-                    .transition(.opacity)
+                DailyMissionsPopout(
+                    store: missions,
+                    onDismiss: { showMissions = false },
+                    onGo: { dest in
+                        // Missão incompleta tocada → abre a ferramenta que gera
+                        // o progresso (o SSE atualiza a barra ao voltar).
+                        switch dest {
+                        case .flashcards: router.navigate(to: .flashcardHome())
+                        case .qbank: router.navigate(to: .qbank)
+                        case .simulado: router.navigate(to: .simuladoHome)
+                        case .transcricao: router.navigate(to: .transcricao)
+                        }
+                    }
+                )
+                .transition(.opacity)
             }
         }
         .task {
@@ -709,7 +733,6 @@ struct HomeScreen: View {
         ZStack(alignment: .top) {
             grassField
             worldLandmarks
-            missionSigns
             dirtPath
                 .offset(y: Self.trailTopInset)
             critterLayer
@@ -722,6 +745,11 @@ struct HomeScreen: View {
             }
             .scrollTargetLayout()
             .padding(.top, Self.trailTopInset)
+            // POR CIMA de tudo: a placa fica em x≈0.37, dentro da faixa hit-
+            // testável do VStack das linhas da trilha — se ficar atrás, o VStack
+            // come o toque (as casas em 0.20 escapam, a placa não). Última
+            // camada garante o tap. É overlay lateral, não cobre a trilha.
+            missionSigns
         }
         .frame(height: trailContentHeight, alignment: .top)
         .task { await critterSpawnLoop() }
