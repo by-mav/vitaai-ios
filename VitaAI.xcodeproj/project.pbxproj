@@ -1350,6 +1350,7 @@
 		94CC00D0CF7ED87DB67D15BB /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4C7EE91AF90098D6FB1DAD0 /* PushManager.swift */; };
 		94DF276B4C0BBACDC689B00E /* paste-96bbe0e204c0b7092e0cc1a1a383734f3e3baadd.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E02C1A36117A326338B467EE /* paste-96bbe0e204c0b7092e0cc1a1a383734f3e3baadd.jpg */; };
 		94E0E631669EF41A2ECDA1BB /* paste-5d7b94f5cb50336382eb3b2b3a1c1407af10554e.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2F558E67930F799C7796E05A /* paste-5d7b94f5cb50336382eb3b2b3a1c1407af10554e.jpg */; };
+		94E8F696443685515B4D9682 /* DisciplineIconBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23EF57510023100BE6360FCB /* DisciplineIconBadge.swift */; };
 		94FB657CBA1170A3F4EB2675 /* StudyShellTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8B8F6A0A39DA9F089559142 /* StudyShellTheme.swift */; };
 		9519E0D1AC599AB5B6A90C2B /* tmp0u538mqk.png in Resources */ = {isa = PBXBuildFile; fileRef = 1F611A603232BC2E247DF889 /* tmp0u538mqk.png */; };
 		95251E997634E5A036393B62 /* NotchShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 353A7FFE89EFB93AC800FEF8 /* NotchShape.swift */; };
@@ -2553,6 +2554,7 @@
 		23C9E815F4C2338178AEEA7C /* q5Fx7imNaSfF9mmspu7dtg.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = q5Fx7imNaSfF9mmspu7dtg.png; sourceTree = "<group>"; };
 		23DAA075F0FAE1F389FA9351 /* paste-a4b2cddaa79948a6f5f6d971d127f6434a3a3a89.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-a4b2cddaa79948a6f5f6d971d127f6434a3a3a89.jpg"; sourceTree = "<group>"; };
 		23EDCF8D69F1059D5DBD0187 /* clip_image004.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = clip_image004.jpg; sourceTree = "<group>"; };
+		23EF57510023100BE6360FCB /* DisciplineIconBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisciplineIconBadge.swift; sourceTree = "<group>"; };
 		240B2DA9522124E7FBAC4743 /* JourneyType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyType.swift; sourceTree = "<group>"; };
 		2421F4FE9CE16A93CEF4288B /* RealtimeStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeStream.swift; sourceTree = "<group>"; };
 		246A4E31CD65E636A8EA3084 /* paste-fb7e861f74de825de1d9165c75f5518549a641f5.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-fb7e861f74de825de1d9165c75f5518549a641f5.jpg"; sourceTree = "<group>"; };
@@ -4630,6 +4632,7 @@
 				9B27D9B4C7F44B7779A43CE3 /* CachedAsyncImage.swift */,
 				966248B1D844ADD9960FEE17 /* DisciplineCircleButton.swift */,
 				9E7557D01511F8DFA457E786 /* DisciplineFolderCard.swift */,
+				23EF57510023100BE6360FCB /* DisciplineIconBadge.swift */,
 				6AA25EA393E9B3AA9F89CB2C /* DisciplineImages.swift */,
 				1BDFDAD7DC6888C96464781E /* FlowLayout.swift */,
 				4115858B2E1C1E3408712051 /* GlassAuthButton.swift */,
@@ -9264,6 +9267,7 @@
 				152C448FBAF7D17BB14C6F9E /* DisciplineDetailScreen.swift in Sources */,
 				320800F350C7D469E8AA928C /* DisciplineDetailViewModel.swift in Sources */,
 				06E94FB9C41A0031FD9D8556 /* DisciplineFolderCard.swift in Sources */,
+				94E8F696443685515B4D9682 /* DisciplineIconBadge.swift in Sources */,
 				75FD4C9F78B87E64D4F99EF0 /* DisciplineImages.swift in Sources */,
 				1503B7BB5D7623276C09EED9 /* DocumentModels.swift in Sources */,
 				B9B38B983D00E9900D33E00B /* DoneStep.swift in Sources */,
