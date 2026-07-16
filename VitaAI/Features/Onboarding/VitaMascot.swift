@@ -240,6 +240,9 @@ struct OrbMascot: View {
     // VitaOnboarding logo após o user acordar a Vita: ela fala "Oiii, não tinha
     // te visto aí" enquanto cora rapidamente. Rafael 2026-04-28.
     var isBlushing: Bool = false
+    // The planetary ring is part of the full mascot silhouette, but speech
+    // bubbles use the clean orb so the tail can read as a real connection.
+    var showsOrbit: Bool = true
 
     @State private var floatY: CGFloat = 0
     @State private var glowIntensity: Double = 0.3
@@ -304,7 +307,7 @@ struct OrbMascot: View {
     private var orbView: some View {
         ZStack {
             if animated { orbGlow; orbSparkles }
-            orbRing
+            if showsOrbit { orbRing }
             accessoryBehindLayer   // parte da skin que dá a volta (some atrás do corpo)
             orbBody
             accessoryLayer         // parte da skin na frente
@@ -1958,6 +1961,7 @@ struct VitaMascot: View {
     var showStaff: Bool = false
     var idleEnabled: Bool = true
     var isBlushing: Bool = false
+    var showsOrbit: Bool = true
 
     var body: some View {
         OrbMascot(
@@ -1965,7 +1969,8 @@ struct VitaMascot: View {
             state: state,
             size: size,
             idleEnabled: idleEnabled,
-            isBlushing: isBlushing
+            isBlushing: isBlushing,
+            showsOrbit: showsOrbit
         )
     }
 }

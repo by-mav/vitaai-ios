@@ -28,50 +28,136 @@ enum OnboardingStep: Int, CaseIterable {
 
 struct OnboardingSpeechBubble: View {
     let text: String
+    var reservedText: String? = nil
     var isTyping: Bool = false
     var isReaction: Bool = false
 
-    var body: some View {
-        HStack(alignment: .bottom) {
-            (Text(text)
-                .font(isReaction ? VitaTypography.headlineSmall : VitaTypography.bodyLarge)
-                .foregroundColor(VitaColors.textPrimary)
-            + Text(isTyping ? "\u{258D}" : "")
-                .font(VitaTypography.bodyMedium)
-                .foregroundColor(VitaColors.accent.opacity(0.78)))
-            .lineSpacing(VitaTokens.Spacing.xs)
-            .fixedSize(horizontal: false, vertical: true)
+    private var finalText: String { reservedText ?? text }
 
-            Spacer(minLength: 0)
+    private func speechText(_ value: String, showCursor: Bool) -> Text {
+        Text(value)
+            .font(isReaction ? VitaTypography.headlineSmall : VitaTypography.bodyLarge)
+            .foregroundColor(VitaColors.textPrimary)
+        + Text(showCursor ? "\u{258D}" : "")
+            .font(VitaTypography.bodyMedium)
+            .foregroundColor(VitaColors.accent.opacity(0.78))
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // Reserve the completed copy from the first frame. The glass keeps
+            // its final geometry while only the visible characters progress.
+            speechText(finalText, showCursor: false)
+                .lineSpacing(VitaTokens.Spacing.xs)
+                .fixedSize(horizontal: false, vertical: true)
+                .hidden()
+                .accessibilityHidden(true)
+
+            speechText(text, showCursor: isTyping)
+                .lineSpacing(VitaTokens.Spacing.xs)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, VitaTokens.Spacing.lg)
         .padding(.vertical, VitaTokens.Spacing.md)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) { EmptyView() }
         }
-        .overlay(alignment: .bottomLeading) {
+        .background(alignment: .bottomLeading) {
             OnboardingSpeechTail()
                 .fill(VitaColors.glassBg)
-                .frame(width: VitaTokens.Spacing.xl, height: VitaTokens.Spacing.lg)
-                .offset(x: -VitaTokens.Spacing.sm, y: VitaTokens.Spacing.sm)
+                .overlay {
+                    OnboardingSpeechTail()
+                        .stroke(VitaColors.glassBorder, lineWidth: 1)
+                }
+                .frame(width: VitaTokens.Spacing._4xl, height: VitaTokens.Spacing._3xl)
+                .offset(x: -VitaTokens.Spacing._2xl, y: VitaTokens.Spacing.md)
                 .allowsHitTesting(false)
         }
         .accessibilityElement(children: .combine)
     }
 }
 
+// MARK: - Canonical Vita speech composition
+
+/// The single source of truth for every conversational onboarding step.
+/// The bubble owns its mascot anchor and motion so screens never guess offsets.
+struct OnboardingVitaSpeech: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let text: String
+    let reservedText: String
+    let mascotNamespace: Namespace.ID
+    var showsBubble: Bool = true
+    var isTyping: Bool = false
+    var isReaction: Bool = false
+    var mascotState: VitaMascotState = .happy
+    var mascotScale: CGFloat = 1
+    var mascotBlushing: Bool = false
+
+    @State private var isPresented = false
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            OnboardingSpeechBubble(
+                text: text,
+                reservedText: reservedText,
+                isTyping: isTyping,
+                isReaction: isReaction
+            )
+            .padding(.leading, VitaTokens.Spacing._4xl + VitaTokens.Spacing.md)
+            .opacity(showsBubble && isPresented ? 1 : 0)
+            .scaleEffect(
+                showsBubble && (isPresented || reduceMotion) ? 1 : 0.985,
+                anchor: .bottomLeading
+            )
+            .allowsHitTesting(showsBubble)
+
+            VitaMascot(
+                state: mascotState,
+                size: 64,
+                idleEnabled: true,
+                isBlushing: mascotBlushing,
+                showsOrbit: false
+            )
+            .scaleEffect(mascotScale)
+            .offset(y: VitaTokens.Spacing.md)
+            .matchedGeometryEffect(
+                id: "onboarding-speaking-mascot",
+                in: mascotNamespace,
+                properties: .frame,
+                anchor: .center,
+                isSource: false
+            )
+        }
+        .padding(.bottom, VitaTokens.Spacing.md)
+        .task(id: "\(reservedText)|\(showsBubble)") {
+            isPresented = false
+            guard showsBubble else { return }
+            await Task.yield()
+            if reduceMotion {
+                isPresented = true
+            } else {
+                withAnimation(.easeOut(duration: 0.22)) {
+                    isPresented = true
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+}
+
 private struct OnboardingSpeechTail: Shape {
     func path(in rect: CGRect) -> Path {
         Path { path in
-            path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.move(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.08))
             path.addQuadCurve(
                 to: CGPoint(x: rect.minX, y: rect.maxY),
-                control: CGPoint(x: rect.width * 0.42, y: rect.height * 0.45)
+                control: CGPoint(x: rect.width * 0.62, y: rect.height * 0.62)
             )
             path.addQuadCurve(
-                to: CGPoint(x: rect.maxX, y: rect.height * 0.38),
-                control: CGPoint(x: rect.width * 0.50, y: rect.height * 0.78)
+                to: CGPoint(x: rect.maxX, y: rect.height * 0.46),
+                control: CGPoint(x: rect.width * 0.48, y: rect.height * 0.86)
             )
             path.closeSubpath()
         }

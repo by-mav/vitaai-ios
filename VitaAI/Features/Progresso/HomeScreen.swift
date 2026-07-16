@@ -80,6 +80,11 @@ struct HomeScreen: View {
     @State private var equipPalette: MascotPalette = .vita
     @Namespace private var mascotTrail
 
+    // Missões diárias (Rafael 2026-07-16): 1 placa por fase, com o Vita de NPC
+    // do lado; tap abre o quadro do dia. Estado 100% do backend (MissionStore).
+    @StateObject private var missions = MissionStore()
+    @State private var showMissions = false
+
     // Baús da trilha (Rafael 2026-07-14): estado vem do backend (nível/aberto).
     @StateObject private var skins = SkinStore()
     @State private var chestConfirmLevel: Int?   // baú tocado, aguardando confirmar a chave
@@ -351,6 +356,89 @@ struct HomeScreen: View {
         }
     }
 
+    // MARK: - Placas de missão (Rafael 2026-07-16)
+    //
+    // 1 por fase (5 no total, a cada 1/10 dos níveis), no lado OPOSTO à casa
+    // daquela fase pra não brigar com o prédio. O Vita fica de NPC ao lado da
+    // placa — é ele que "atende" o quadro (mesmo papel do Vita da loja).
+    // Só a placa da FASE ATUAL do aluno fica acesa e clicável; as outras são
+    // cenário apagado (a jornada tem passado e futuro visíveis).
+    private struct MissionSignSpot {
+        let tier: Int          // 0-4 = fase
+        let row: CGFloat       // linha da trilha (centro da fase)
+        let side: LandmarkSide // oposto à casa da mesma fase
+    }
+
+    // Casas: sec1 leading, sec2 trailing, sec3 leading, sec4 trailing, sec5 leading
+    // → placas espelham (trailing, leading, trailing, leading, trailing).
+    private static let missionSpots: [MissionSignSpot] = [
+        MissionSignSpot(tier: 0, row: 2,  side: .trailing),
+        MissionSignSpot(tier: 1, row: 6,  side: .leading),
+        MissionSignSpot(tier: 2, row: 10, side: .trailing),
+        MissionSignSpot(tier: 3, row: 14, side: .leading),
+        MissionSignSpot(tier: 4, row: 18, side: .trailing),
+    ]
+
+    /// Fase (0-4) do nível atual — a placa dessa fase é a viva.
+    private var currentTierIdx: Int {
+        Self.tiers.first(where: { userLevel >= $0.minLevel && userLevel < $0.maxLevel })?.idx
+            ?? (userLevel >= 100 ? 4 : 0)
+    }
+
+    private var missionSigns: some View {
+        let h = Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + 140
+        return GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                ForEach(Self.missionSpots, id: \.tier) { spot in
+                    let isCurrent = spot.tier == currentTierIdx
+                    // A tábua ocupa só o miolo do frame (coords 58…242 de 300),
+                    // então o NPC entra por CIMA da moldura com overlay em vez
+                    // de HStack — assim ele encosta na placa de verdade.
+                    TrailMissionSign(
+                        lit: isCurrent,
+                        pendingCount: isCurrent ? missions.pendingCount : 0
+                    )
+                    .frame(width: 150, height: 150)
+                    // NPC de pé ao LADO da placa, ABAIXO da tábua (no chão, meio
+                    // atrás do poste) — dentro da tábua ele tapava o "MISSÕES";
+                    // fora do frame ele batia na estrada/nós da trilha.
+                    .overlay(alignment: .bottomLeading) {
+                        signNPC(active: isCurrent)
+                            .offset(x: 22, y: -14)
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard isCurrent else { return }
+                        HapticManager.shared.fire(.medium)
+                        showMissions = true
+                    }
+                    .transaction { $0.animation = nil }   // estático (igual as casas)
+                    // Mesmas margens das casas (0.20/0.80) — a estrada corre no
+                    // miolo e os nós têm raio grande; mais pra dentro a placa
+                    // fica atropelada pela trilha.
+                    .position(
+                        x: spot.side == .leading ? geo.size.width * 0.20 : geo.size.width * 0.80,
+                        y: Self.trailTopInset + (spot.row * Self.rowStride) + 52
+                    )
+                }
+            }
+        }
+        .frame(height: h)
+    }
+
+    /// O Vita NPC que atende a placa. Na fase atual fica desperto e iluminado;
+    /// nas outras, dorme (cenário).
+    private func signNPC(active: Bool) -> some View {
+        VitaMascotEquipped(
+            state: active ? .awake : .sleeping,
+            size: 40,
+            bounceEnabled: false,
+            idleEnabled: active
+        )
+        .opacity(active ? 1 : 0.42)
+        .shadow(color: TrailWorld.fireflyGold.opacity(active ? 0.5 : 0), radius: 10)
+    }
+
     private var worldLandmarks: some View {
         let h = Self.trailTopInset + CGFloat(trailItems.count) * Self.rowStride + 140
         return GeometryReader { geo in
@@ -539,7 +627,18 @@ struct HomeScreen: View {
             }
         }
         .trackScreen("Progresso")
+        // Quadro de missões do dia (tap na placa). Overlay de MUNDO — fica por
+        // cima da trilha com o scrim próprio, não é sheet de sistema.
+        // vita-modals-ignore: popout de mundo (placa da trilha), não sheet de sistema
+        .overlay {
+            if showMissions {
+                DailyMissionsPopout(store: missions) { showMissions = false }
+                    .transition(.opacity)
+            }
+        }
         .task {
+            missions.startLiveUpdates(api: container.api)
+            await missions.load(api: container.api)
             await skins.load(api: container.api)
             // QA: abre o baú do nível N automaticamente (testar o fluxo sem tap).
             if !didAutoChest, chestReveal == nil,
@@ -609,6 +708,7 @@ struct HomeScreen: View {
         ZStack(alignment: .top) {
             grassField
             worldLandmarks
+            missionSigns
             dirtPath
                 .offset(y: Self.trailTopInset)
             critterLayer

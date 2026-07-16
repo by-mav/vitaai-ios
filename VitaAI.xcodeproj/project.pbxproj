@@ -209,6 +209,7 @@
 		150B65CFEA76528948C14A46 /* Screen Shot 2021-05-10 at 11.45.19 AM.png in Resources */ = {isa = PBXBuildFile; fileRef = E830943502AE2378965A0538 /* Screen Shot 2021-05-10 at 11.45.19 AM.png */; };
 		150EAC70F68E9DC56354A5ED /* BillingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F3C9143F545BC2D2CD800CD /* BillingModels.swift */; };
 		152C448FBAF7D17BB14C6F9E /* DisciplineDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5CBDEBE92E57751092C2AD1 /* DisciplineDetailScreen.swift */; };
+		155555AB3AA1B3F6894F0CD5 /* DailyMissionsPopout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03DF1128A2CC4443AB9669EB /* DailyMissionsPopout.swift */; };
 		15755005475D90E51534261F /* paste-209fc4329f02b21fe07a721f7dfbc4e52df8beb6.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0C796CC3959ABBAE3A1A259E /* paste-209fc4329f02b21fe07a721f7dfbc4e52df8beb6.jpg */; };
 		1584F920CE19ADBE3B37A3AA /* paste-7993af83a6840f2de8dc128f856eeef8dab8b22a.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 0E71A47E2D1B040635B7E0D9 /* paste-7993af83a6840f2de8dc128f856eeef8dab8b22a.jpg */; };
 		15B2DB6757B8CDB3B71F0460 /* paste-227fb1c603076c1d00c8de94359e0ba9edcc738e.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 14632B00C7D563C5ECD223A4 /* paste-227fb1c603076c1d00c8de94359e0ba9edcc738e.jpg */; };
@@ -1360,6 +1361,7 @@
 		9611FE032DF9C6B99F7EF3DB /* paste-252cc0d1b921bca21b1c68ecc634e68559020dcd.jpg in Resources */ = {isa = PBXBuildFile; fileRef = ABA083F0788A56EA4291BA44 /* paste-252cc0d1b921bca21b1c68ecc634e68559020dcd.jpg */; };
 		9623FB5B94DFDF78E3AF8816 /* paste-b484939664a6084f4891b2a96fe4a72087d46f2b.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7B329CAC4A7A9CFCA8F8D16E /* paste-b484939664a6084f4891b2a96fe4a72087d46f2b.jpg */; };
 		962E5E5E52514AFB76D3EE43 /* paste-490e54c258a4c4aae54b931c067f4caebd57b01a.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 5C46AFBC5322410DDF573401 /* paste-490e54c258a4c4aae54b931c067f4caebd57b01a.jpg */; };
+		9632897CDF1B929422B13B5A /* VitaAPI+Missions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F383FED5045548F393AC52AA /* VitaAPI+Missions.swift */; };
 		96962B9F2C427311E35421AB /* paste-b1b6b88a64490b479ef3feb6c9addc8efeeccdf7.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2E0FAA47B422EE31AE0EBA8F /* paste-b1b6b88a64490b479ef3feb6c9addc8efeeccdf7.jpg */; };
 		969AF1E3422B07E9FA8E5444 /* paste-54544baf7d11308eb68c6bb7e656148c666c7f1d.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6E0EF6534EBFA11408F21013 /* paste-54544baf7d11308eb68c6bb7e656148c666c7f1d.jpg */; };
 		96A6675115CF39E8D5DD300D /* paste-ed4ed62a9b85093a9a7431e0cdbc094403ce9964.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 1FA232461D1AF40D7F63FE90 /* paste-ed4ed62a9b85093a9a7431e0cdbc094403ce9964.jpg */; };
@@ -1813,7 +1815,6 @@
 		CA6F3588B095C9B2E5FD4436 /* tmpa2gg5imb.png in Resources */ = {isa = PBXBuildFile; fileRef = 8715C7388F58DEAD277B8384 /* tmpa2gg5imb.png */; };
 		CA8C4DBCF2E36CED72C5C8EB /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ACE155F51ED39EBBE513B7 /* LoginScreen.swift */; };
 		CACFB848E7D81DE40966E4E7 /* paste-d73ff45ace55693bc7f727907a66f0aedf95362c.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2E07F8A9C8F673C349A45E46 /* paste-d73ff45ace55693bc7f727907a66f0aedf95362c.jpg */; };
-		CAF29D17F62287767AF5430A /* Pods_VitaAI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 87E256974FB2224645608BD9 /* Pods_VitaAI.framework */; };
 		CAFC22F70859BC5E8856DE49 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 58B636EDE3D2FC8F4C739405 /* PrivacyInfo.xcprivacy */; };
 		CAFE64E3D70256CBE159C589 /* tmpo314nzs8.png in Resources */ = {isa = PBXBuildFile; fileRef = DEE89D419D1952D8B0631960 /* tmpo314nzs8.png */; };
 		CB04D5A2D418AF775FC33429 /* paste-0447fa2c631d3bd8674783197d69b1dff4c1611d.jpg in Resources */ = {isa = PBXBuildFile; fileRef = DEAD9DAC7C4B5C1B160293AB /* paste-0447fa2c631d3bd8674783197d69b1dff4c1611d.jpg */; };
@@ -2193,6 +2194,7 @@
 		FB6284160727161F3784595A /* Screen Shot 2021-04-26 at 10.45.27 AM.png in Resources */ = {isa = PBXBuildFile; fileRef = 366D4C93CEB70EE03B25B16D /* Screen Shot 2021-04-26 at 10.45.27 AM.png */; };
 		FB712DE1BACB3A37FE9C91CD /* paste-be0004781195c6d5ed9daa5f47dc610d308edd41.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C2E3DFBD7420D80F47E80594 /* paste-be0004781195c6d5ed9daa5f47dc610d308edd41.jpg */; };
 		FBACD444DEB4B6FCCE55607E /* paste-52bd8fecf5a0b257e377538780069386f67729af.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 7C562ED7C003BBE5283E0052 /* paste-52bd8fecf5a0b257e377538780069386f67729af.jpg */; };
+		FBB42A816CD7CB6117A13429 /* TrailMissionSign.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11C2A9E269A1E15EA71E3D38 /* TrailMissionSign.swift */; };
 		FBB8A959647FE76A77EA2FD2 /* paste-5ee9c38764045cd101a15867cd8257809d976c9e.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B70782DFA932D331D9BB4B52 /* paste-5ee9c38764045cd101a15867cd8257809d976c9e.jpg */; };
 		FBBB3706E84791ECABD6DC57 /* tmpg4c983gm.png in Resources */ = {isa = PBXBuildFile; fileRef = 0E560FF43D92386B2DE42F4C /* tmpg4c983gm.png */; };
 		FC01CEBBF73A4A5D3A5F06EF /* paste-8a9f695ab614c7bee24177bd3685f5fe8a85ed19.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 80484143519F32300AF7EED5 /* paste-8a9f695ab614c7bee24177bd3685f5fe8a85ed19.jpg */; };
@@ -2256,10 +2258,10 @@
 		01DFDA50B201CA706265F2EB /* GreetingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GreetingCard.swift; sourceTree = "<group>"; };
 		024B58C1B155077488B4F39B /* VitaXpBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitaXpBar.swift; sourceTree = "<group>"; };
 		0274A9CFFFAAF5221DD71F7A /* paste-94f2bfff498e245a7dddfc0ff91f0e74c60f0e2d.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-94f2bfff498e245a7dddfc0ff91f0e74c60f0e2d.jpg"; sourceTree = "<group>"; };
-		029455ACA61E5A8BC685B9B2 /* Pods-VitaAI.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-VitaAI.release.xcconfig"; path = "Target Support Files/Pods-VitaAI/Pods-VitaAI.release.xcconfig"; sourceTree = "<group>"; };
 		0344043ED8C7E793276DF0FC /* Screen Shot 2021-05-09 at 8.05.26 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-05-09 at 8.05.26 PM.png"; sourceTree = "<group>"; };
 		035C90C84556C85400235DBB /* paste-06c46afebb8ce4a56499774e453ee2b523fb7fa9.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-06c46afebb8ce4a56499774e453ee2b523fb7fa9.jpg"; sourceTree = "<group>"; };
 		038C52758DEB93CDA8ACF449 /* paste-24c212ae014163d06c6431cc7ed5662b909f36b2.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-24c212ae014163d06c6431cc7ed5662b909f36b2.jpg"; sourceTree = "<group>"; };
+		03DF1128A2CC4443AB9669EB /* DailyMissionsPopout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyMissionsPopout.swift; sourceTree = "<group>"; };
 		040107B918BCDD183BF1A817 /* paste-7b97a4082ef90a6e7aff58cb13b3f382e64103a2.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-7b97a4082ef90a6e7aff58cb13b3f382e64103a2.jpg"; sourceTree = "<group>"; };
 		0438FE6A71FF1FAD4362693E /* paste-4e0734aeaadd465c87a882eaf8e65c960fe5c65d.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-4e0734aeaadd465c87a882eaf8e65c960fe5c65d.jpg"; sourceTree = "<group>"; };
 		0457737C32714F4756CCDC2A /* paste-c5cf96a45fbde463a9fcfc1ae385c80280daaa9c.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-c5cf96a45fbde463a9fcfc1ae385c80280daaa9c.jpg"; sourceTree = "<group>"; };
@@ -2387,6 +2389,7 @@
 		11580161559B1A180991185E /* paste-67ea9ca3ea18855fd42f4761f1bb325457256466.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-67ea9ca3ea18855fd42f4761f1bb325457256466.jpg"; sourceTree = "<group>"; };
 		1185AED5CDE82803F8465034 /* Screen Shot 2021-03-27 at 12.30.18 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-03-27 at 12.30.18 PM.png"; sourceTree = "<group>"; };
 		11A1210B0D41DF494378651F /* paste-09be0512d1215b628756090081b0d41286269f13.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-09be0512d1215b628756090081b0d41286269f13.jpg"; sourceTree = "<group>"; };
+		11C2A9E269A1E15EA71E3D38 /* TrailMissionSign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrailMissionSign.swift; sourceTree = "<group>"; };
 		11D8838432E7D339DC641B48 /* Screen Shot 2021-05-10 at 9.42.47 AM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-05-10 at 9.42.47 AM.png"; sourceTree = "<group>"; };
 		11EE4A34C0FDEB61850355D3 /* paste-d7ffc26135cb69abeef372b3d0de68c90140954b.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-d7ffc26135cb69abeef372b3d0de68c90140954b.jpg"; sourceTree = "<group>"; };
 		11F5413BDC75D9091DC6D9D3 /* PixioMaterial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixioMaterial.swift; sourceTree = "<group>"; };
@@ -2826,7 +2829,6 @@
 		4024D03A1259BD4BC6F4388D /* tmpy31zeav7.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmpy31zeav7.png; sourceTree = "<group>"; };
 		4029A2F02A03F597CFA4269E /* paste-b7411e5a19537b2461ccaad48fa7cbc116569ea3.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-b7411e5a19537b2461ccaad48fa7cbc116569ea3.jpg"; sourceTree = "<group>"; };
 		402E69035BD0940CEB5D3673 /* paste-fd9b46e3ed204a61f25c87ec80fe68903502f4a5.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-fd9b46e3ed204a61f25c87ec80fe68903502f4a5.jpg"; sourceTree = "<group>"; };
-		404F768C22EC948A0CD77C1B /* Pods-VitaAI.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-VitaAI.debug.xcconfig"; path = "Target Support Files/Pods-VitaAI/Pods-VitaAI.debug.xcconfig"; sourceTree = "<group>"; };
 		4068282F90C7F3B5D50A132F /* paste-1c6547483d98aa43163dd6d13f0f18c535656c3f.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-1c6547483d98aa43163dd6d13f0f18c535656c3f.jpg"; sourceTree = "<group>"; };
 		407A64F295C1E3F98A7BF4BD /* RenameSubjectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenameSubjectSheet.swift; sourceTree = "<group>"; };
 		409712121A5E2B5A4828C9B8 /* QBankDisciplineContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankDisciplineContent.swift; sourceTree = "<group>"; };
@@ -3475,7 +3477,6 @@
 		87639718135969E925FF1DC8 /* paste-04411f16c59d9b15033ca58a53003283065f0710.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-04411f16c59d9b15033ca58a53003283065f0710.jpg"; sourceTree = "<group>"; };
 		87C9F93BF841CD13CA9136E4 /* SSEEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEEvent.swift; sourceTree = "<group>"; };
 		87E20BF239B36B096EDE143E /* paste-a2a0ccefe4de63fbeda1aa5f5d7b9b78997dbb05.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-a2a0ccefe4de63fbeda1aa5f5d7b9b78997dbb05.jpg"; sourceTree = "<group>"; };
-		87E256974FB2224645608BD9 /* Pods_VitaAI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_VitaAI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		87E3481A4420F0F941E8EE83 /* paste-855dd8eca877adc0b0c1f59bcfd756d108234cde.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-855dd8eca877adc0b0c1f59bcfd756d108234cde.jpg"; sourceTree = "<group>"; };
 		87EA1E56084FA3D11CAD0F7E /* TranscricaoScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscricaoScreen.swift; sourceTree = "<group>"; };
 		87F3D1BC9CBE762C9DD7B311 /* tmpea_5ctc8.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmpea_5ctc8.png; sourceTree = "<group>"; };
@@ -4382,6 +4383,7 @@
 		F323E7B94770EC2ADB4231E9 /* paste-84f89f9afa133be9fc45e4df9ca71ab3fc244576.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-84f89f9afa133be9fc45e4df9ca71ab3fc244576.jpg"; sourceTree = "<group>"; };
 		F3359A6103548410B3177D3E /* paste-b031894c4cf200443c6a436c292a2377a4ca60cf.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-b031894c4cf200443c6a436c292a2377a4ca60cf.jpg"; sourceTree = "<group>"; };
 		F36AD71C2EDD80E1ABAAFA6E /* paste-d0731284dd9f01c41b9d7f0b382593d3a758b354.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-d0731284dd9f01c41b9d7f0b382593d3a758b354.jpg"; sourceTree = "<group>"; };
+		F383FED5045548F393AC52AA /* VitaAPI+Missions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VitaAPI+Missions.swift"; sourceTree = "<group>"; };
 		F3A2E8416013D41D6309D645 /* paste-13afb0fd5c63afe1783d0d05ea2c8aaf5664da7a.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-13afb0fd5c63afe1783d0d05ea2c8aaf5664da7a.jpg"; sourceTree = "<group>"; };
 		F3A7D6C7912D855AB9D26042 /* CustomizeReferralCode200Response.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizeReferralCode200Response.swift; sourceTree = "<group>"; };
 		F3AFC7C652D25390B8DA5681 /* paste-ec6ba7d36a3608d2dd314b23871f5bcb86b5507d.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-ec6ba7d36a3608d2dd314b23871f5bcb86b5507d.jpg"; sourceTree = "<group>"; };
@@ -4472,7 +4474,6 @@
 				E032B7AB430B778EB2CC814E /* Sentry in Frameworks */,
 				65B3D9025C1304C171AA8537 /* SentrySwiftUI in Frameworks */,
 				A63BA82F96785DD38FE2EFD5 /* GLTFKit2 in Frameworks */,
-				CAF29D17F62287767AF5430A /* Pods_VitaAI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4862,6 +4863,7 @@
 				6F71827AC12B067D54B895F6 /* Jornada */,
 				A35AE1F82208A77D5AFA72A4 /* MaterialFolder */,
 				8480059B86D8BBA2329F28AC /* MindMap */,
+				E0681C6DE1376D9D7BF9B403 /* Missions */,
 				C809B6BD191B546298E1EB9A /* Notes */,
 				519CBD15C4F8C3F8DE74593E /* Onboarding */,
 				8245857DBC470A7D901B890D /* Osce */,
@@ -7142,16 +7144,6 @@
 			path = Navigation;
 			sourceTree = "<group>";
 		};
-		D571FD02CC9544C67C09A8A5 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				404F768C22EC948A0CD77C1B /* Pods-VitaAI.debug.xcconfig */,
-				029455ACA61E5A8BC685B9B2 /* Pods-VitaAI.release.xcconfig */,
-			);
-			name = Pods;
-			path = Pods;
-			sourceTree = "<group>";
-		};
 		D747BCF48E4301FD6A2F762C /* Insights */ = {
 			isa = PBXGroup;
 			children = (
@@ -7192,6 +7184,16 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		E0681C6DE1376D9D7BF9B403 /* Missions */ = {
+			isa = PBXGroup;
+			children = (
+				03DF1128A2CC4443AB9669EB /* DailyMissionsPopout.swift */,
+				11C2A9E269A1E15EA71E3D38 /* TrailMissionSign.swift */,
+				F383FED5045548F393AC52AA /* VitaAPI+Missions.swift */,
+			);
+			path = Missions;
+			sourceTree = "<group>";
+		};
 		E49B6A2236E62DB112EE89CF /* Atlas */ = {
 			isa = PBXGroup;
 			children = (
@@ -7215,14 +7217,6 @@
 				407A64F295C1E3F98A7BF4BD /* RenameSubjectSheet.swift */,
 			);
 			path = Faculdade;
-			sourceTree = "<group>";
-		};
-		EDE5722DC5FC99369FEDF192 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				87E256974FB2224645608BD9 /* Pods_VitaAI.framework */,
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		F3D841D6C399859CCEC8D101 /* Journey */ = {
@@ -7275,8 +7269,6 @@
 				3BE0254CCE43999AFC726DCD /* VitaAI */,
 				067354EBEA40CBE7A43750FE /* VitaAIUITests */,
 				DCD696659AC5F5DDCA830456 /* Products */,
-				D571FD02CC9544C67C09A8A5 /* Pods */,
-				EDE5722DC5FC99369FEDF192 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -7315,6 +7307,8 @@
 				3F7FD2A6B35DB3CF75D10AF9 /* PBXTargetDependency */,
 			);
 			name = VitaAIUITests;
+			packageProductDependencies = (
+			);
 			productName = VitaAIUITests;
 			productReference = 71A803CD05ACDB97E5A85BD7 /* VitaAIUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -7323,12 +7317,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = A6A02A75AB11A56D3892D836 /* Build configuration list for PBXNativeTarget "VitaAI" */;
 			buildPhases = (
-				45B382EF122A418529F9E70C /* [CP] Check Pods Manifest.lock */,
 				9DC411835BE7FBAD1D60620B /* Sources */,
 				DCF7F65E07A04D7E489F14CA /* Resources */,
 				8D316E3925B10FBADC3AE28A /* Frameworks */,
-				61943B825F020C73FFFB794D /* [CP] Embed Pods Frameworks */,
-				61E5B89891DE78FAA9F3D3E9 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -9185,65 +9176,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		45B382EF122A418529F9E70C /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-VitaAI-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		61943B825F020C73FFFB794D /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		61E5B89891DE78FAA9F3D3E9 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Copy Pods Resources";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-VitaAI/Pods-VitaAI-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		790C9D6C62C811C580545C8D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -9306,6 +9238,7 @@
 				8C2D38D73BB66B225ACC4CCE /* CreateDeckSheet.swift in Sources */,
 				D291A5C8F8E11FA25245CC5D /* CustomizeReferralCode200Response.swift in Sources */,
 				2A7F2650B2D8BAEFC373C03C /* CustomizeReferralCodeRequest.swift in Sources */,
+				155555AB3AA1B3F6894F0CD5 /* DailyMissionsPopout.swift in Sources */,
 				271D540E46AA5496E55DD23C /* Dashboard.swift in Sources */,
 				89DE9C4E45C859556AB97749 /* DashboardAgendaItem.swift in Sources */,
 				243DB0868BB6A019627AB054 /* DashboardHeroCard.swift in Sources */,
@@ -9602,6 +9535,7 @@
 				32A5334EB02F4EBE5B756188 /* TrabalhoViewModel.swift in Sources */,
 				AEDC3DAE0344D001528D5784 /* TrabalhosResponse.swift in Sources */,
 				EA369AAC6B59C5AE7B5607CB /* Tracked.swift in Sources */,
+				FBB42A816CD7CB6117A13429 /* TrailMissionSign.swift in Sources */,
 				4430640BF9F5F050C149368B /* TrailWorldPalette.swift in Sources */,
 				FE43857DB04F620C6AD212AE /* TranscricaoAudioPlayer.swift in Sources */,
 				AEEC20C37390C592A9616E30 /* TranscricaoClient.swift in Sources */,
@@ -9629,6 +9563,7 @@
 				A8FDB522F11FC791CD275E72 /* View+SwipeBack.swift in Sources */,
 				BBF4ED82CEAF15CA3051B066 /* VitaAIApp.swift in Sources */,
 				F41E3D2110C2D8BF29AAC6A4 /* VitaAPI+MaterialFolders.swift in Sources */,
+				9632897CDF1B929422B13B5A /* VitaAPI+Missions.swift in Sources */,
 				784057B2F96315E66887C158 /* VitaAPI+PdfMasks.swift in Sources */,
 				5FE8C746A47F31BDC8806A42 /* VitaAPI+QuickActions.swift in Sources */,
 				C897B6268A3FC77740999D85 /* VitaAPI+Skins.swift in Sources */,
@@ -9713,14 +9648,13 @@
 /* Begin XCBuildConfiguration section */
 		17F644E06A464C6E71D372DB /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 404F768C22EC948A0CD77C1B /* Pods-VitaAI.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "VitaAI/VitaAI-Simulator.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 160;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;
@@ -9759,14 +9693,13 @@
 		};
 		4DEDB9BDAC62FE99364DEFEE /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 029455ACA61E5A8BC685B9B2 /* Pods-VitaAI.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = VitaAI/VitaAI.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]" = "VitaAI/VitaAI-Simulator.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 160;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = PJ8972D48J;
 				ENABLE_PREVIEWS = YES;

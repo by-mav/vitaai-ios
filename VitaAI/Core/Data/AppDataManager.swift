@@ -189,6 +189,11 @@ final class AppDataManager {
                 await self.refreshProfile()
             case "calendar":
                 await self.refreshSchedule()
+            case "activity":
+                // XP/streak mudaram no servidor → perfil (barra de XP, saldo de
+                // moeda) e quem escuta progresso ao vivo (missões do dia).
+                await self.refreshProfile()
+                NotificationCenter.default.post(name: .activityLogged, object: nil)
             case "achievements", "notifications", "portal_status", "vita_chat", "mindmaps", "voice":
                 // Sem refresh dedicado em AppDataManager hoje — telas owners
                 // (NotificationsScreen, AchievementsScreen, etc) refetcham on-appear.

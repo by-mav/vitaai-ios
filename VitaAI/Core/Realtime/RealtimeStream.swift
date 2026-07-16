@@ -3,6 +3,10 @@ import Foundation
 extension Notification.Name {
     /// Posted quando o RealtimeStream (re)conecta — telas re-hidratam via refresh.
     static let realtimeReconnected = Notification.Name("realtimeReconnected")
+    /// Posted a cada atividade logada pelo servidor (domain "activity": XP,
+    /// flashcard revisado, questão respondida…). Quem depende de progresso ao
+    /// vivo escuta aqui em vez de abrir conexão nova — ex: MissionStore.
+    static let activityLogged = Notification.Name("activityLogged")
 }
 
 /// Single-connection SSE multiplexer pra GET /api/stream — gold-standard 2026

@@ -1,12 +1,21 @@
 import SwiftUI
 import UserNotifications
 
+private enum WakePresentationPhase {
+    case sleeping
+    case startled
+    case dismissingReaction
+    case movingToIntroduction
+}
+
 // MARK: - VitaOnboarding — Full onboarding flow coordinator
 // Steps (Onda 5b): Sleep -> StatusFaculdade -> Goal -> [RevalidaStage|Welcome] -> Connect -> Syncing -> Subjects -> Notifications -> Trial -> Done
 // Fork por journeyType (FACULDADE/INTERNATO/ENAMED/RESIDENCIA/REVALIDA). SOT: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md
 
 struct VitaOnboarding: View {
     @Environment(\.appContainer) private var container
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var mascotSpeechNamespace
     // Persist current step so if the app restarts mid-onboarding the user
     // resumes where they stopped instead of going back to the sleep intro.
     @AppStorage("vita_onboarding_last_step_v2") private var lastStepRaw: Int = OnboardingStep.sleep.rawValue
@@ -14,6 +23,10 @@ struct VitaOnboarding: View {
     @State private var mascotState: VitaMascotState = .sleeping
     @State private var viewModel: OnboardingViewModel?
     @State private var speechText = ""
+    @State private var speechTargetText = ""
+    @State private var speechBubbleVisible = false
+    @State private var isMovingMascotToSpeech = false
+    @State private var wakePresentationPhase: WakePresentationPhase = .sleeping
     @State private var showContent = false
     @State private var isTyping = false
     @State private var sleepOpacity: Double = 1.0
@@ -107,26 +120,14 @@ struct VitaOnboarding: View {
                     .transition(.opacity)
                 }
 
-                // Later steps retain the established centered mascot. The first
-                // conversation levels use the compact side-by-side composition.
-                let shrinkForSearch = step == .welcome
-                    && !(viewModel?.universityQuery.isEmpty ?? true)
-                    && viewModel?.selectedUniversity == nil
-                // Onda 5b refined: status precisa de mais espaço pras 3 opções
-                // de fase + speech bubble grande não cortar a 3ª opção.
-                let shrinkForCompactStep = step == .statusFaculdade
-                let mascotSize: CGFloat = {
-                    if step == .sleep { return 120 }
-                    if shrinkForSearch { return 44 }
-                    if shrinkForCompactStep { return 72 }
-                    return 100
-                }()
-
+                // Sleep keeps its original centered mascot. Spoken steps own
+                // their orb placement through OnboardingVitaSpeech.
                 if step == .sleep {
                     VitaMascot(
                         state: mascotState,
-                        size: mascotSize,
-                        isBlushing: mascotBlushing
+                        size: 120,
+                        isBlushing: mascotBlushing,
+                        showsOrbit: wakePresentationPhase == .sleeping
                     )
                     .scaleEffect(mascotScale)
                     .padding(.top, 60)
@@ -134,7 +135,7 @@ struct VitaOnboarding: View {
                     .overlay(alignment: .center) {
                         if mascotState == .sleeping {
                             OnboardingSleepingZs()
-                                .offset(x: mascotSize * 0.38, y: -mascotSize * 0.34)
+                                .offset(x: 120 * 0.38, y: -120 * 0.34)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -145,26 +146,48 @@ struct VitaOnboarding: View {
                                 .allowsHitTesting(false)
                         }
                     }
+                    .overlay(alignment: .topTrailing) {
+                        if wakePresentationPhase == .startled
+                            || wakePresentationPhase == .dismissingReaction {
+                            let reaction = String(localized: "onboarding_intro_reaction")
+                            OnboardingSpeechBubble(
+                                text: reaction,
+                                reservedText: reaction,
+                                isReaction: true
+                            )
+                            .frame(width: 244)
+                            .opacity(wakePresentationPhase == .startled ? 1 : 0)
+                            .scaleEffect(
+                                wakePresentationPhase == .startled ? 1 : 0.96,
+                                anchor: .bottomLeading
+                            )
+                            .offset(
+                                x: VitaTokens.Spacing._3xl,
+                                y: VitaTokens.Spacing._2xl
+                            )
+                            .allowsHitTesting(false)
+                        }
+                    }
+                    .matchedGeometryEffect(
+                        id: "onboarding-speaking-mascot",
+                        in: mascotSpeechNamespace,
+                        properties: .frame,
+                        anchor: .center,
+                        isSource: true
+                    )
                     .onTapGesture {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         wakeUp()
                     }
-                } else if step != .introduction && step != .statusFaculdade {
-                    VitaMascot(
-                        state: mascotState,
-                        size: mascotSize,
-                        isBlushing: mascotBlushing
-                    )
-                    .scaleEffect(mascotScale)
-                    .padding(.top, shrinkForSearch ? 0 : 16)
-                    .padding(.bottom, shrinkForSearch ? 0 : 8)
-                    .animation(.easeInOut(duration: 0.25), value: shrinkForSearch)
                 }
 
                 // Speech bubble + content
                 if step == .sleep {
-                    SleepStep(onWake: wakeUp)
-                        .padding(.top, VitaTokens.Spacing.lg)
+                    if wakePresentationPhase == .sleeping {
+                        SleepStep(onWake: wakeUp)
+                            .padding(.top, VitaTokens.Spacing.lg)
+                            .transition(.opacity)
+                    }
                     Spacer(minLength: VitaTokens.Spacing._4xl)
                 } else {
                     // Onda 5b refined (Rafael 2026-04-28): scroll indicator
@@ -173,34 +196,23 @@ struct VitaOnboarding: View {
                     // após escolher faculdade — sem indicador o user não vê).
                     ScrollView(showsIndicators: true) {
                         VStack(spacing: 0) {
-                            if !speechText.isEmpty {
-                                if step == .introduction || step == .statusFaculdade {
-                                    OnboardingSpeechBubble(
-                                        text: speechText,
-                                        isTyping: isTyping,
-                                        isReaction: isWakeReaction
-                                    )
-                                    .padding(.leading, 48)
-                                    .overlay(alignment: .bottomLeading) {
-                                        VitaMascot(
-                                            state: mascotState,
-                                            size: 64,
-                                            idleEnabled: true,
-                                            isBlushing: mascotBlushing
-                                        )
-                                        .scaleEffect(mascotScale)
-                                        .offset(x: -68, y: 62)
-                                    }
-                                    .layoutPriority(1)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.horizontal, VitaTokens.Spacing.lg)
-                                    .padding(.top, VitaTokens.Spacing._3xl)
-                                    .padding(.bottom, VitaTokens.Spacing.xl)
-                                } else {
-                                    OnboardingSpeechBubble(text: speechText, isTyping: isTyping)
-                                        .padding(.horizontal, 20)
-                                        .padding(.bottom, 16)
-                                }
+                            if isMovingMascotToSpeech || !speechTargetText.isEmpty {
+                                OnboardingVitaSpeech(
+                                    text: speechText,
+                                    reservedText: speechTargetText,
+                                    mascotNamespace: mascotSpeechNamespace,
+                                    showsBubble: speechBubbleVisible,
+                                    isTyping: isTyping,
+                                    isReaction: isWakeReaction,
+                                    mascotState: mascotState,
+                                    mascotScale: mascotScale,
+                                    mascotBlushing: mascotBlushing
+                                )
+                                .layoutPriority(1)
+                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, VitaTokens.Spacing.lg)
+                                .padding(.top, VitaTokens.Spacing._3xl)
+                                .padding(.bottom, VitaTokens.Spacing.xl)
                             }
 
                             if showContent && step != .introduction {
@@ -286,11 +298,17 @@ struct VitaOnboarding: View {
                 step = saved
                 mascotState = .awake
                 if saved == .introduction {
-                    speechText = String(localized: "onboarding_intro_message")
+                    let message = String(localized: "onboarding_intro_message")
+                    speechTargetText = message
+                    speechText = message
+                    speechBubbleVisible = true
                     isTyping = false
                     showContent = true
                 } else if saved == .statusFaculdade {
-                    speechText = String(localized: "onboarding_status_speech")
+                    let message = String(localized: "onboarding_status_speech")
+                    speechTargetText = message
+                    speechText = message
+                    speechBubbleVisible = true
                     isTyping = false
                     showContent = true
                 } else {
@@ -487,18 +505,25 @@ struct VitaOnboarding: View {
 
         if step == .introduction {
             speechText = ""
+            speechTargetText = ""
+            speechBubbleVisible = false
+            isMovingMascotToSpeech = false
             mascotBlushing = false
             withAnimation(.spring(response: 0.4)) {
                 step = .sleep
                 mascotState = .sleeping
                 mascotScale = 1.0
                 wakeFlash = 0
+                wakePresentationPhase = .sleeping
             }
             return
         }
 
         if step == .statusFaculdade {
-            speechText = String(localized: "onboarding_intro_message")
+            let message = String(localized: "onboarding_intro_message")
+            speechTargetText = message
+            speechText = message
+            speechBubbleVisible = true
             mascotBlushing = false
             withAnimation(.spring(response: 0.4)) {
                 step = .introduction
@@ -586,68 +611,91 @@ struct VitaOnboarding: View {
         wakeSequenceId = sequenceId
         typeTextId = UUID()
         speechText = ""
+        speechTargetText = ""
+        speechBubbleVisible = false
+        isMovingMascotToSpeech = false
         showContent = false
         isTyping = false
         isWakeReaction = false
 
-        // Phase 1: Mascot grows slightly
-        withAnimation(.spring(response: 0.26, dampingFraction: 0.62)) {
-            mascotScale = 1.10
+        // 1. Vita startles in place. The reaction is a complete bubble and is
+        // never typed, so the punchline lands at the exact wake moment.
+        withAnimation(.easeOut(duration: 0.18)) {
+            mascotScale = 1.12
             mascotState = .waking
         }
 
-        // Phase 2: Flash + mascot awake
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
             guard wakeSequenceId == sequenceId, step == .sleep else { return }
-            withAnimation(.easeOut(duration: 0.18)) {
-                wakeFlash = 1.0
-            }
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
+            withAnimation(.easeOut(duration: 0.16)) {
+                wakeFlash = 1
                 mascotState = .awake
+                wakePresentationPhase = .startled
             }
         }
 
-        // Phase 3: Flash fades, mascot settles
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.58) {
-            guard wakeSequenceId == sequenceId else { return }
-            withAnimation(.easeOut(duration: 0.34)) {
-                wakeFlash = 0
-                mascotScale = 1.0
-            }
-        }
-
-        // Phase 4: Transition to first real step (status — Onda 5b). A Vita
-        // entra envergonhada: bochechas acendem por ~2.5s enquanto fala
-        // "Oiii, não tinha te visto aí". Rafael 2026-04-28.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.78) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.48) {
             guard wakeSequenceId == sequenceId, step == .sleep else { return }
-            withAnimation {
-                step = .introduction
-                mascotState = .happy
-                mascotBlushing = true
-                isWakeReaction = true
+            withAnimation(.easeOut(duration: 0.28)) {
+                wakeFlash = 0
+                mascotScale = 1
             }
-            speechText = String(localized: "onboarding_intro_reaction")
-            // Bochechas mantêm cor por 2.5s e voltam ao normal.
+        }
+
+        // 2. The reaction leaves entirely before any introduction content.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.48) {
+            guard wakeSequenceId == sequenceId, step == .sleep else { return }
+            withAnimation(.easeIn(duration: 0.18)) {
+                wakePresentationPhase = .dismissingReaction
+            }
+        }
+
+        // 3. The same mascot glides into the canonical lower-left anchor with
+        // the bubble still hidden. Reduced Motion snaps instead of travelling.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.72) {
+            guard wakeSequenceId == sequenceId, step == .sleep else { return }
+            let message = String(localized: "onboarding_intro_message")
+            speechTargetText = message
+            speechText = ""
+            speechBubbleVisible = false
+            isMovingMascotToSpeech = true
+            wakePresentationPhase = .movingToIntroduction
+            mascotState = .happy
+            mascotBlushing = true
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.48)) {
+                step = .introduction
+            }
+        }
+
+        // 4. Once Vita has arrived, reveal the complete bubble first. Only the
+        // characters inside it begin progressing after the material settles.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.22) {
+            guard wakeSequenceId == sequenceId, step == .introduction else { return }
+            isMovingMascotToSpeech = false
+            speechBubbleVisible = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.46) {
+            guard wakeSequenceId == sequenceId, step == .introduction else { return }
+            let message = String(localized: "onboarding_intro_message")
+            typeText(message, bubbleAlreadySettled: true) {
+                guard wakeSequenceId == sequenceId, step == .introduction else { return }
+                withAnimation(.easeOut(duration: 0.2)) { showContent = true }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                 withAnimation(.easeInOut(duration: 0.7)) {
                     mascotBlushing = false
                 }
             }
         }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.82) {
-            guard wakeSequenceId == sequenceId, step == .introduction else { return }
-            isWakeReaction = false
-            typeText(String(localized: "onboarding_intro_message")) {
-                guard wakeSequenceId == sequenceId, step == .introduction else { return }
-                withAnimation { showContent = true }
-            }
-        }
     }
 
     private func nextStep() {
         showContent = false
+        speechText = ""
+        speechTargetText = ""
+        speechBubbleVisible = false
+        isMovingMascotToSpeech = false
 
         // Onda 5b refined (Rafael 2026-04-28): pra Graduando, Welcome+Connect
         // vêm DIRETO depois do Status. Goal de longo prazo é perguntado só
@@ -748,9 +796,15 @@ struct VitaOnboarding: View {
         }
     }
 
-    private func typeText(_ text: String, completion: (() -> Void)? = nil) {
+    private func typeText(
+        _ text: String,
+        bubbleAlreadySettled: Bool = false,
+        completion: (() -> Void)? = nil
+    ) {
         let currentId = UUID()
         typeTextId = currentId
+        speechTargetText = text
+        speechBubbleVisible = true
         speechText = ""
         isTyping = true
         guard !text.isEmpty else {
@@ -758,8 +812,11 @@ struct VitaOnboarding: View {
             completion?()
             return
         }
+        let typingDelay = bubbleAlreadySettled || reduceMotion ? 0 : 0.24
         for (index, char) in text.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.018) {
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + typingDelay + Double(index) * 0.018
+            ) {
                 guard self.typeTextId == currentId else { return }
                 speechText += String(char)
                 if index == text.count - 1 {
