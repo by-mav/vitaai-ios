@@ -22,7 +22,6 @@ struct VitaTopBar: View {
     var blendsWithHome: Bool = false
     var onAvatarTap: (() -> Void)?
     var onMenuTap: (() -> Void)?
-    var centerAccessory: AnyView?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -38,11 +37,6 @@ struct VitaTopBar: View {
             .buttonStyle(.plain)
             .frame(minWidth: 54, minHeight: 62)
             .accessibilityLabel("Perfil")
-
-            if let centerAccessory {
-                centerAccessory
-                    .padding(.top, VitaTokens.Spacing.xs)
-            }
 
             Spacer()
 

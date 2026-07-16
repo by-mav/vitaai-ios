@@ -308,15 +308,7 @@ struct MainTabView: View {
                                     withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
                                         showSettingsPanel = true
                                     }
-                                },
-                                centerAccessory: isHomeRoot ? AnyView(
-                                    VitaHomeQuickActions(
-                                        onQBank: { openHomeStudy(.qbank) },
-                                        onFlashcards: { openHomeStudy(.flashcardHome()) },
-                                        onSimulados: { openHomeStudy(.simuladoHome) },
-                                        onTranscricao: { openHomeStudy(.transcricao) }
-                                    )
-                                ) : nil
+                                }
                             )
                             .padding(.top, 8)
                             .transition(.move(edge: .top).combined(with: .opacity))
@@ -1008,52 +1000,6 @@ struct MainTabView: View {
         default:
             EmptyView()
         }
-    }
-}
-
-private struct VitaHomeQuickActions: View {
-    let onQBank: () -> Void
-    let onFlashcards: () -> Void
-    let onSimulados: () -> Void
-    let onTranscricao: () -> Void
-
-    var body: some View {
-        HStack(spacing: VitaTokens.Spacing.xxs) {
-            actionButton("Questões", image: "home-quick-questoes", identifier: "homeQuickAction_questions", action: onQBank)
-            actionButton("Flashcards", image: "home-quick-flashcards", identifier: "homeQuickAction_flashcards", action: onFlashcards)
-            actionButton("Simulados", image: "home-quick-simulados", identifier: "homeQuickAction_simulados", action: onSimulados)
-            actionButton("Transcrição", image: "home-quick-transcricao", identifier: "homeQuickAction_transcricao", action: onTranscricao)
-        }
-    }
-
-    private func actionButton(
-        _ title: String,
-        image: String,
-        identifier: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button {
-            action()
-        } label: {
-            Image(image)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 38, height: 38) // ds-allow: artwork maior no top bar; target segue com 44pt
-                .accessibilityHidden(true)
-                .frame(width: 44, height: 44) // ds-allow: alvo mínimo Apple
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(HomeQuickActionPressStyle())
-        .accessibilityLabel(title)
-        .accessibilityIdentifier(identifier)
-    }
-}
-
-private struct HomeQuickActionPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.94 : 1)
-            .animation(.spring(response: 0.24, dampingFraction: 0.62), value: configuration.isPressed)
     }
 }
 
