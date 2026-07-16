@@ -353,7 +353,10 @@
 "onboarding_btn_trial" = "Começar 7 dias grátis";
 "onboarding_btn_done" = "Bora estudar";
 "onboarding_btn_skip" = "Pular, configuro depois";
-"onboarding_btn_skip_short" = "Pular";
+"onboarding_logout_title" = "Sair da conta?";
+"onboarding_logout_message" = "Você será desconectado do VitaAI.";
+"onboarding_logout_confirm" = "Sair";
+"onboarding_logout_cancel" = "Cancelar";
 "onboarding_a11y_back" = "Voltar";
 
 /* Syncing step */
@@ -503,7 +506,7 @@ Sem cobrança nos primeiros 7 dias.";
 "onboarding_moodle_step_3" = "Toque em “Redefinir” para gerar um token";
 "onboarding_moodle_step_4" = "Copie o token e cole aqui";
 "onboarding_portal_open" = "Abrir %@";
-"onboarding_portal_open_hint" = "Abre o app instalado ou continua no Safari";
+"onboarding_portal_open_hint" = "Pelo desktop ou pelo navegador do celular";
 "onboarding_portal_connect" = "Conectar";
 "onboarding_portal_connected" = "%@ conectado!";
 "onboarding_portal_sync_started" = "O Vita já está organizando seus dados.";

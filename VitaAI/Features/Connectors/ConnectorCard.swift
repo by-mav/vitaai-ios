@@ -16,6 +16,7 @@ struct ConnectorCard: View {
     let status: ConnectionItemStatus
     let color: Color
     var iconAsset: String?           // optional asset name (mascot-google-calendar, etc) — fallback to letter if missing
+    var iconCornerRadius: CGFloat? = nil // App Store artwork crop; legacy mascot assets stay unchanged
     var subtitle: String?            // email, phone, or account info shown under name
     var lastSync: String?
     var lastPing: String?           // "sessao viva ha Xmin" — so quando status==connected e divergir do lastSync
@@ -97,6 +98,12 @@ struct ConnectorCard: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 40, height: 40)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: iconCornerRadius ?? 0,
+                            style: .continuous
+                        )
+                    )
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)

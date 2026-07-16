@@ -42,6 +42,7 @@ struct VitaOnboarding: View {
     @State private var waSending = false
     @State private var waError: String?
     @State private var isKeyboardVisible = false
+    @State private var showLogoutConfirmation = false
 
     var userName: String = ""
     var onLogout: (() -> Void)?
@@ -122,6 +123,15 @@ struct VitaOnboarding: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             withAnimation(.easeOut(duration: 0.2)) { isKeyboardVisible = false }
         }
+        .vitaAlert(
+            isPresented: $showLogoutConfirmation,
+            title: String(localized: "onboarding_logout_title"),
+            message: String(localized: "onboarding_logout_message"),
+            destructiveLabel: String(localized: "onboarding_logout_confirm"),
+            cancelLabel: String(localized: "onboarding_logout_cancel")
+        ) {
+            onLogout?()
+        }
     }
 
     // MARK: - Fixed shell
@@ -149,23 +159,10 @@ struct VitaOnboarding: View {
 
                 Spacer()
 
-                if step == .welcome, viewModel?.selectedUniversity == nil {
+                if onLogout != nil {
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        nextStep()
-                    } label: {
-                        Text(String(localized: "onboarding_btn_skip_short"))
-                            .font(VitaTypography.labelLarge)
-                            .foregroundStyle(VitaColors.accentLight)
-                            .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("onboardingTopSkipButton")
-                } else if let onLogout {
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        onLogout()
+                        showLogoutConfirmation = true
                     } label: {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                             .font(VitaTypography.labelLarge)
@@ -178,6 +175,7 @@ struct VitaOnboarding: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(String(localized: "onboarding_a11y_logout"))
+                    .accessibilityIdentifier("onboardingLogoutButton")
                 } else {
                     Color.clear.frame(width: 44, height: 44)
                 }
@@ -273,6 +271,13 @@ struct VitaOnboarding: View {
             }
 
             contentRegion
+
+            if step == .welcome {
+                skipButton
+                    .padding(.horizontal, VitaTokens.Spacing._2xl)
+                    .padding(.top, VitaTokens.Spacing.sm)
+                    .padding(.bottom, VitaTokens.Spacing._3xl)
+            }
 
             if showsBottomButton {
                 bottomButton
@@ -444,21 +449,25 @@ struct VitaOnboarding: View {
             )
             .accessibilityIdentifier("onboardingPrimaryButton")
 
-            if [.welcome, .connect, .extras, .subjects].contains(step) {
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    nextStep()
-                } label: {
-                    Text(String(localized: "onboarding_btn_skip"))
-                        .font(VitaTypography.bodySmall)
-                        .foregroundStyle(VitaColors.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, VitaTokens.Spacing.sm)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("onboardingSkipButton")
+            if [.connect, .extras, .subjects].contains(step) {
+                skipButton
             }
         }
+    }
+
+    private var skipButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            nextStep()
+        } label: {
+            Text(String(localized: "onboarding_btn_skip"))
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, VitaTokens.Spacing.sm)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("onboardingSkipButton")
     }
 
     private var showsBottomButton: Bool {

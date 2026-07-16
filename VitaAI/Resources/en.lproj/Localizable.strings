@@ -353,7 +353,10 @@
 "onboarding_btn_trial" = "Start 7-day free trial";
 "onboarding_btn_done" = "Let's study";
 "onboarding_btn_skip" = "Skip, I'll set up later";
-"onboarding_btn_skip_short" = "Skip";
+"onboarding_logout_title" = "Sign out?";
+"onboarding_logout_message" = "You will be signed out of VitaAI.";
+"onboarding_logout_confirm" = "Sign out";
+"onboarding_logout_cancel" = "Cancel";
 "onboarding_a11y_back" = "Back";
 
 /* Syncing step */
@@ -503,7 +506,7 @@ No charge for the first 7 days.";
 "onboarding_moodle_step_3" = "Tap “Reset” to generate a token";
 "onboarding_moodle_step_4" = "Copy the token and paste it here";
 "onboarding_portal_open" = "Open %@";
-"onboarding_portal_open_hint" = "Opens the installed app or continues in Safari";
+"onboarding_portal_open_hint" = "On desktop or in your phone's browser";
 "onboarding_portal_connect" = "Connect";
 "onboarding_portal_connected" = "%@ connected!";
 "onboarding_portal_sync_started" = "Vita is already organizing your data.";

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import SafariServices
 
 // MARK: - Connect Step — Canvas/Moodle API token entry
 
@@ -24,6 +25,10 @@ struct ConnectStep: View {
             case .canvas: return "canvas"
             case .moodle: return "moodle"
             }
+        }
+
+        var iconAsset: String {
+            "connector-\(apiType)"
         }
 
         var tutorialSteps: [String] {
@@ -63,12 +68,16 @@ struct ConnectStep: View {
                     letter: "G", name: "Google Calendar",
                     status: .disconnected,
                     color: Color(red: 0.26, green: 0.52, blue: 0.96),
+                    iconAsset: "connector-google-calendar",
+                    iconCornerRadius: VitaTokens.Radius.md,
                     onConnect: { onConnect?("google_calendar") }
                 )
                 ConnectorCard(
                     letter: "G", name: "Google Drive",
                     status: .disconnected,
                     color: Color(red: 0.13, green: 0.59, blue: 0.33),
+                    iconAsset: "connector-google-drive",
+                    iconCornerRadius: VitaTokens.Radius.md,
                     onConnect: { onConnect?("google_drive") }
                 )
             }
@@ -86,14 +95,16 @@ struct ConnectStep: View {
                     }
                 } label: {
                     HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(University.color(for: choice.apiType).opacity(0.15))
-                                .frame(width: 40, height: 40)
-                            Text(University.letter(for: choice.apiType))
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(University.color(for: choice.apiType))
-                        }
+                        Image(choice.iconAsset)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 40, height: 40)
+                            .clipShape(
+                                RoundedRectangle(
+                                    cornerRadius: VitaTokens.Radius.md,
+                                    style: .continuous
+                                )
+                            )
                         Text(choice.rawValue)
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.9))
@@ -141,7 +152,8 @@ struct ConnectStep: View {
                 Spacer()
             }
 
-            // Open portal button (app or Safari fallback)
+            // Open portal button. Token generation must stay in a browser;
+            // the installed LMS app does not expose this settings flow.
             Button {
                 openPortal(portal: portal)
             } label: {
@@ -266,6 +278,7 @@ struct ConnectStep: View {
     /// Abre o portal no Safari na rota de login certa pro SSO funcionar.
     /// Canvas: /login/google (SSO Google, padrão das faculdades brasileiras)
     /// Moodle: /login/index.php
+    @MainActor
     private func openPortal(portal: PortalChoice) {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let baseURL = portalURL(for: portal)
@@ -273,7 +286,7 @@ struct ConnectStep: View {
             let fallback = portal == .canvas
                 ? "https://www.instructure.com"
                 : "https://moodle.org"
-            if let u = URL(string: fallback) { UIApplication.shared.open(u) }
+            if let url = URL(string: fallback) { presentBrowser(url) }
             return
         }
         let trimmed = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
@@ -284,8 +297,25 @@ struct ConnectStep: View {
             }
         }()
         if let url = URL(string: trimmed + loginPath) {
-            UIApplication.shared.open(url, options: [.universalLinksOnly: false])
+            presentBrowser(url)
         }
+    }
+
+    @MainActor
+    private func presentBrowser(_ url: URL) {
+        guard
+            let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+            let root = scene.windows.first?.rootViewController
+        else { return }
+
+        let presenter = root.presentedViewController ?? root
+        let configuration = SFSafariViewController.Configuration()
+        configuration.barCollapsingEnabled = true
+        let safari = SFSafariViewController(url: url, configuration: configuration)
+        safari.preferredControlTintColor = UIColor(VitaColors.accent)
+        safari.dismissButtonStyle = .cancel
+        safari.modalPresentationStyle = .pageSheet
+        presenter.present(safari, animated: true)
     }
 
     private func portalURL(for portal: PortalChoice) -> String {

@@ -449,13 +449,12 @@ struct FaculdadePickerSheet: View {
     }
 
     private func comesBefore(_ lhs: University, _ rhs: University) -> Bool {
-        if presentation == .onboardingInline, normalizedQuery.isEmpty {
-            let lhsIsUSP = lhs.shortName.localizedCaseInsensitiveCompare("USP") == .orderedSame
-                && lhs.city.localizedCaseInsensitiveCompare("São Paulo") == .orderedSame
-            let rhsIsUSP = rhs.shortName.localizedCaseInsensitiveCompare("USP") == .orderedSame
-                && rhs.city.localizedCaseInsensitiveCompare("São Paulo") == .orderedSame
-            if lhsIsUSP != rhsIsUSP {
-                return lhsIsUSP
+        let isOnboardingDefault = presentation == .onboardingInline && normalizedQuery.isEmpty
+        if isOnboardingDefault {
+            let lhsRank = onboardingPinnedRank(lhs)
+            let rhsRank = onboardingPinnedRank(rhs)
+            if lhsRank != rhsRank {
+                return lhsRank < rhsRank
             }
         }
 
@@ -468,8 +467,32 @@ struct FaculdadePickerSheet: View {
             let lhsScore = lhs.enameConcept ?? Int.min
             let rhsScore = rhs.enameConcept ?? Int.min
             if lhsScore != rhsScore { return lhsScore > rhsScore }
+            if isOnboardingDefault, lhsScore == 5 {
+                let lhsIsPadreAlbino = isPadreAlbino(lhs)
+                let rhsIsPadreAlbino = isPadreAlbino(rhs)
+                if lhsIsPadreAlbino != rhsIsPadreAlbino {
+                    return !lhsIsPadreAlbino
+                }
+            }
             return alphabetical == .orderedAscending
         }
+    }
+
+    private func onboardingPinnedRank(_ university: University) -> Int {
+        if university.shortName.localizedCaseInsensitiveCompare("USP") == .orderedSame,
+           university.city.localizedCaseInsensitiveCompare("São Paulo") == .orderedSame {
+            return 0
+        }
+        if university.shortName.localizedCaseInsensitiveCompare("PUCRS") == .orderedSame {
+            return 1
+        }
+        return 2
+    }
+
+    private func isPadreAlbino(_ university: University) -> Bool {
+        let identity = "\(university.displayName) \(university.shortName) \(university.city)"
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        return identity.contains("padre albino") && identity.contains("catanduva")
     }
 
     private func loadCatalog(forceRemote: Bool = false) async {

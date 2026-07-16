@@ -66,9 +66,11 @@ struct ProgressoScreen: View {
             VStack(spacing: 18) {
                 heroCard(vm: vm)
                 medalhasSection(vm: vm)
-                if !vm.subjects.isEmpty {
-                    weakAreasSection(vm: vm)
-                }
+                // "Onde melhorar" REMOVIDO temporariamente: o dado disponível é
+                // por TÓPICO de questão (fallback qb.byTopic — "Endometriose",
+                // "Violência Sexual"…), não por disciplina canônica. Empurrar
+                // tópico como disciplina engana. Volta quando o backend entregar
+                // accuracy por disciplina (canonicalName). Rafael 2026-07-16.
                 leaderboardSection(vm: vm)
                 if !vm.heatmap.isEmpty {
                     heatmapSection(vm: vm)
