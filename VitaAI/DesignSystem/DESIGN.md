@@ -42,6 +42,7 @@ agent-brain/design-tokens.json      ← SOT dos VALORES (cor/fonte/espaço/raio/
 | Top bar / sub-abas | **`VitaTopBar`** / `VitaSubTabBar` | `Components/` |
 | Fundo da tela | **`VitaAmbientBackground`** / `PixioAuroraBackground` | `Components/` · `PixioPort/` |
 | Toast | **`VitaToast`** / `VitaXpToast` | `Components/` |
+| **Peça do MUNDO da trilha** (placa, quadro, medalha, NPC) | **estética "Quadro de Mundo"** (§5) — cores de `TrailWorld`, não glass gold | `Features/Missions/`, `Features/Progresso/` |
 
 **Existe componente → USE.** Bespoke (montar do zero o que já existe) é proibido — foi o que gerou a colcha de retalhos.
 
@@ -68,3 +69,19 @@ A fundação (tokens + codegen + componentes) é sólida, mas a **aderência é 
 3. **Telas migram por fase** — 1 tela = 1 commit = 1 screenshot. Piores primeiro: `ProgressoScreen`, `SimuladoResultScreen`.
 
 Enquanto uma linha legada não migrou, ela fica — o gate só olha o que você **adiciona**. Precisa de um caso legítimo fora do token? Justifique na linha com `// ds-allow: <motivo>`.
+
+---
+
+## 5. Estética "Quadro de Mundo" (trilha gamificada)
+
+> **O que é.** A Home (trilha de níveis) NÃO é glass-gold: é um **mundo físico** — campo noturno, estrada de ouro, casas de pedra, placas de madeira. Toda peça que vive DENTRO desse mundo (placa de missões, quadro de missões, medalhas, baús, o Vita de NPC) segue esta linguagem, não a §2/§3. É a exceção deliberada ao glass gold. Referências VIVAS: `Features/Missions/TrailMissionSign.swift` (placa) + `DailyMissionsPopout.swift` (quadro) + `Features/Progresso/Semi3DHouse.swift` (casa).
+
+**Regras (siga ao criar QUALQUER peça de mundo — placa, quadro, baú, banner):**
+
+1. **Cor = `TrailWorld` (`DesignSystem/Theme/TrailWorldPalette.swift`), não `VitaColors`.** É a paleta do mundo: `wood`, `roofTop/Bottom`, `stoneTop/Bottom`, `fireflyGold/Warm` (luz), `fieldTop/Bottom`, `windowGlow`. Mudar o clima do mundo = mudar esse arquivo. Fora do mundo (o resto do app) continua `VitaColors`. *(Cores cruas de mundo passam pelo gate com `// ds-allow: arte gamificada (mundo da trilha)`.)*
+2. **Desenho em `Canvas`, vista 3/4.** Peça sólida (placa/casa/baú) é desenhada em `Canvas` em coords lógicas e escalada pro frame — face frontal + face lateral (profundidade) + espessura de topo. Estática: `.transaction { $0.animation = nil }` (não re-avalia por frame, mata o "bob" do ScrollView).
+3. **Luz vem de CIMA-ESQUERDA, sempre (lei §2.12 — luz e matéria).** Todo elemento TÁTIL ocupa espaço sob essa luz: **gradiente** na superfície (pega luz de uma direção, nunca fill chapado) · **highlight especular** no topo (fio de luz = peça sólida) · **rim light** na quina viva · **sombra no chão** (ancora) · **recesso** (inner shadow) pra trilhos/afundados · **elevação** (drop shadow) pra botões/flutuantes. Texto e fundo ficam planos DE PROPÓSITO; só o tátil ganha matéria.
+4. **Medalha bronze/prata/ouro = tier por posição.** As 3 missões do dia vêm ordenadas por recompensa (bronze→prata→ouro); o cliente pinta pela posição (`missionTier(index)`). Ouro = `fireflyGold`; prata/bronze = ds-allow (não são tokens do app).
+5. **NPC + balão.** O Vita "atende" a peça (loja, missões): `VitaMascotEquipped` ao lado/na frente, com balão de fala em `fireflyWarm→fireflyGold`. Estado `.awake` na fase atual, `.sleeping` (apagado, opacity ~0.42) nas outras.
+6. **Interação.** Peça posicionada (`.position`) que abre algo = **`Button` + `.contentShape(Rectangle())`** (NÃO `onTapGesture` — não pega confiável em `.position` dentro do ScrollView) + `.accessibilityIdentifier` (pra QA tocar por id). E fique **por cima** das camadas da trilha (o `VStack` das linhas come o toque de quem estiver atrás).
+7. **Recompensa é SENTIDA.** Resgate = moeda voando pro saldo (`CoinBurst`) + `HapticManager.fire(.success)` + `contentTransition(.numericText())` no saldo. Botão de ação pulsa (respiração lenta, `repeatForever`), nunca pisca.
