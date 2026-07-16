@@ -659,24 +659,12 @@ struct QBankProgressResponse: Decodable {
 }
 
 struct QBankProgressByArea: Decodable, Identifiable {
-    var area: String = ""
+    var area: String = ""          // slug da grande área de prova (exam_great_areas)
+    var areaName: String = ""      // nome pronto do catálogo (ex "Clínica Médica")
     var answered: Int = 0
     var accuracy: Int = 0          // 0-100, média da área
     var disciplines: [QBankProgressByDiscipline] = []
     var id: String { area }
-
-    /// Nome PT da grande área (o backend manda o slug).
-    var areaName: String {
-        switch area {
-        case "basica": return "Ciências Básicas"
-        case "cirurgica": return "Cirurgia"
-        case "clinica": return "Clínica Médica"
-        case "humanidades": return "Humanidades"
-        case "internato": return "Internato"
-        case "saude-coletiva": return "Saúde Coletiva"
-        default: return area.capitalized
-        }
-    }
 }
 
 struct QBankProgressByDiscipline: Decodable, Identifiable {

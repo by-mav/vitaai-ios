@@ -20,6 +20,9 @@ struct ProgressoScreen: View {
     /// 0 = Alunos (.user), 1 = Faculdades (.university). Backend ganhou
     /// scope=user|university 2026-04-25 — Rafael pediu ranking de unis.
     @State private var selectedLeaderboardScope = 0
+    /// Áreas expandidas no "Onde melhorar" (accordion). Rafael 2026-07-16:
+    /// mostra as 6 grandes áreas fechadas; toca → abre as disciplinas.
+    @State private var expandedAreas: Set<String> = []
 
     var body: some View {
         let vm = container.progressoViewModel
@@ -103,68 +106,148 @@ struct ProgressoScreen: View {
             .max() ?? 0
     }
 
-    // MARK: - Onde melhorar (por ÁREA → disciplinas canônicas)
+    // MARK: - Onde melhorar (accordion por ÁREA → disciplinas)
+    //
+    // Rafael 2026-07-16: as 6 grandes áreas FECHADAS; toca uma → expande as
+    // disciplinas dela. Mesma linguagem visual das medalhas (surfaceElevated +
+    // relevo), sem o glassCard herdado que cortava o texto na borda.
+
+    /// As 6 grandes áreas de PROVA (exam_great_areas, CNRM/ENARE) — a mesma
+    /// taxonomia que flashcards/qbank/simulados usam (granularidade = disciplina).
+    /// O dado vem de vm.areaPerformance (só as com questões); as demais aparecem
+    /// "sem questões ainda". Rafael 2026-07-16.
+    private static let allAreas: [(slug: String, name: String, icon: String)] = [
+        ("clinica-medica", "Clínica Médica", "stethoscope"),
+        ("cirurgia-geral", "Cirurgia Geral", "scissors"),
+        ("ginecologia-obstetricia", "Ginecologia e Obstetrícia", "figure.stand.dress"),
+        ("pediatria", "Pediatria", "figure.child"),
+        ("medicina-preventiva-social", "Medicina Preventiva e Social", "shield.lefthalf.filled"),
+        ("ciclo-basico", "Ciclo Básico", "atom"),
+    ]
 
     private func areaPerformanceSection(vm: ProgressoViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        // Ordena: áreas com questões primeiro (mais fracas no topo), resto depois.
+        let bySlug = Dictionary(uniqueKeysWithValues: vm.areaPerformance.map { ($0.area, $0) })
+        let rows = Self.allAreas.sorted { a, b in
+            let da = bySlug[a.slug], db = bySlug[b.slug]
+            if (da == nil) != (db == nil) { return da != nil }        // com dado antes
+            if let da, let db { return da.accuracy < db.accuracy }     // mais fraca antes
+            return false
+        }
+        return VStack(alignment: .leading, spacing: 10) {
             sectionLabel("Onde melhorar")
-            VStack(spacing: 10) {
-                ForEach(vm.areaPerformance) { area in
-                    areaGroup(area)
+            VStack(spacing: 8) {
+                ForEach(rows, id: \.slug) { meta in
+                    areaCard(meta: meta, data: bySlug[meta.slug])
                 }
             }
         }
     }
 
-    private func areaGroup(_ area: QBankProgressByArea) -> some View {
-        glassCard {
-            VStack(spacing: 0) {
-                // Cabeçalho da grande área: nome + accuracy média.
-                HStack {
-                    Text(area.areaName)
-                        .font(VitaTypography.titleSmall)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Spacer()
-                    Text("\(area.accuracy)%")
-                        .font(VitaTypography.labelLarge)
-                        .foregroundStyle(accuracyColor(area.accuracy))
-                        .monospacedDigit()
+    private func areaCard(meta: (slug: String, name: String, icon: String), data: QBankProgressByArea?)
+        -> some View
+    {
+        let expanded = expandedAreas.contains(meta.slug)
+        let hasData = (data?.disciplines.isEmpty == false)
+        return VStack(spacing: 0) {
+            Button {
+                guard hasData else { return }
+                HapticManager.shared.fire(.light)
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.82)) {
+                    if expanded { expandedAreas.remove(meta.slug) } else { expandedAreas.insert(meta.slug) }
+                }
+            } label: {
+                areaHeader(meta: meta, data: data, expanded: expanded, hasData: hasData)
+            }
+            .buttonStyle(.plain)
+
+            if expanded, let data {
+                VStack(spacing: 0) {
+                    ForEach(data.disciplines) { disc in
+                        Rectangle().fill(VitaColors.surfaceBorder).frame(height: 1)
+                            .padding(.leading, 14)
+                        disciplineRow(disc)
+                    }
                 }
                 .padding(.bottom, 4)
-
-                ForEach(Array(area.disciplines.enumerated()), id: \.element.id) { idx, disc in
-                    dividerLine
-                    disciplineRow(disc)
-                        .padding(.top, idx == 0 ? 2 : 0)
-                }
             }
         }
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: card de área (mesma superfície das medalhas)
+                .fill(VitaColors.surfaceElevated)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: card de área
+                        .stroke(VitaColors.surfaceBorder, lineWidth: 1)
+                )
+        )
+    }
+
+    private func areaHeader(
+        meta: (slug: String, name: String, icon: String),
+        data: QBankProgressByArea?, expanded: Bool, hasData: Bool
+    ) -> some View {
+        HStack(spacing: 12) {
+            // Tile do ícone da área.
+            Image(systemName: meta.icon)
+                .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone de área (arte)
+                .foregroundStyle(hasData ? VitaColors.accentLight : VitaColors.textTertiary)
+                .frame(width: 34, height: 34)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)  // ds-allow: tile de ícone (arte)
+                        .fill(VitaColors.glassInnerLight.opacity(hasData ? 0.14 : 0.05))
+                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(meta.name)
+                    .font(VitaTypography.titleSmall)
+                    .foregroundStyle(hasData ? VitaColors.textPrimary : VitaColors.textSecondary)
+                    .lineLimit(1)
+                Text(hasData ? "\(data?.answered ?? 0) questões · \(data?.disciplines.count ?? 0) disciplinas"
+                             : "Sem questões ainda")
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+            Spacer(minLength: 8)
+            if hasData, let data {
+                Text("\(data.accuracy)%")
+                    .font(VitaTypography.titleSmall)
+                    .foregroundStyle(accuracyColor(data.accuracy))
+                    .monospacedDigit()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .bold))  // ds-allow: chevron do accordion
+                    .foregroundStyle(VitaColors.textTertiary)
+                    .rotationEffect(.degrees(expanded ? 180 : 0))
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
     }
 
     private func disciplineRow(_ disc: QBankProgressByDiscipline) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(disc.name)
-                    .font(VitaTypography.bodySmall)
-                    .foregroundStyle(VitaColors.textPrimary.opacity(0.9))
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textPrimary.opacity(0.92))
                     .lineLimit(1)
                 Text("\(disc.answered) \(disc.answered == 1 ? "questão" : "questões")")
                     .font(VitaTypography.labelSmall)
-                    .foregroundStyle(textSec)
+                    .foregroundStyle(VitaColors.textTertiary)
             }
-            Spacer(minLength: 8)
-            ZStack(alignment: .leading) {
-                Capsule().fill(VitaColors.glassInnerLight.opacity(0.10)).frame(width: 54, height: 5)
-                Capsule().fill(accuracyColor(disc.accuracy))
-                    .frame(width: 54 * CGFloat(disc.accuracy) / 100.0, height: 5)
-            }
+            Spacer(minLength: 10)
+            Capsule().fill(VitaColors.glassInnerLight.opacity(0.10)).frame(width: 60, height: 6)
+                .overlay(alignment: .leading) {
+                    Capsule().fill(accuracyColor(disc.accuracy))
+                        .frame(width: 60 * CGFloat(disc.accuracy) / 100.0, height: 6)
+                }
             Text("\(disc.accuracy)%")
-                .font(VitaTypography.labelMedium)
+                .font(VitaTypography.labelLarge)
                 .foregroundStyle(accuracyColor(disc.accuracy))
                 .monospacedDigit()
-                .frame(minWidth: 30, alignment: .trailing)
+                .frame(minWidth: 36, alignment: .trailing)
         }
-        .padding(.vertical, 9)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     private func accuracyColor(_ pct: Int) -> Color {
