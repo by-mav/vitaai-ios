@@ -8,6 +8,8 @@ final class OnboardingViewModel {
     private let draftKey = "vita_onboarding_draft_v3"
     private var isRestoringDraft = false
     private var pendingUniversityID: String?
+    private var requestedUniversityCity: String?
+    private var requestedUniversityState: String?
     var api: VitaAPI?
 
     // MARK: - Navigation
@@ -46,6 +48,8 @@ final class OnboardingViewModel {
             targetInstitutions = []
             selectedUniversity = nil
             universityQuery = ""
+            requestedUniversityCity = nil
+            requestedUniversityState = nil
             selectedSemester = 0
             activeSyncId = nil
             syncedSubjects = []
@@ -144,8 +148,45 @@ final class OnboardingViewModel {
     }
 
     func selectUniversity(_ university: University) {
+        if !university.id.hasPrefix("requested-") {
+            requestedUniversityCity = nil
+            requestedUniversityState = nil
+        }
         selectedUniversity = university
         universityQuery = university.shortName
+    }
+
+    func selectRequestedUniversity(name: String, city: String, state: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let slug = trimmedName
+            .folding(
+                options: [.diacriticInsensitive, .caseInsensitive],
+                locale: .current
+            )
+            .lowercased()
+            .map { $0.isLetter || $0.isNumber ? $0 : "-" }
+            .reduce(into: "") { result, character in
+                if character != "-" || result.last != "-" {
+                    result.append(character)
+                }
+            }
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+
+        requestedUniversityCity = city.trimmingCharacters(in: .whitespacesAndNewlines)
+        requestedUniversityState = state
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        selectUniversity(
+            University(
+                id: "requested-\(slug)",
+                name: trimmedName,
+                shortName: trimmedName,
+                city: requestedUniversityCity ?? "",
+                state: requestedUniversityState ?? "",
+                enameConcept: nil,
+                portals: []
+            )
+        )
     }
 
     func clearUniversity() {
@@ -243,6 +284,8 @@ final class OnboardingViewModel {
             nickname: nickname,
             universityQuery: universityQuery,
             selectedUniversityID: selectedUniversity?.id ?? pendingUniversityID,
+            requestedUniversityCity: requestedUniversityCity,
+            requestedUniversityState: requestedUniversityState,
             selectedSemester: selectedSemester,
             academicPhase: academicPhase?.rawValue,
             inFaculdade: inFaculdade?.rawValue,
@@ -272,6 +315,8 @@ final class OnboardingViewModel {
         nickname = draft.nickname
         universityQuery = draft.universityQuery
         pendingUniversityID = draft.selectedUniversityID
+        requestedUniversityCity = draft.requestedUniversityCity
+        requestedUniversityState = draft.requestedUniversityState
         selectedSemester = draft.selectedSemester
         academicPhase = draft.academicPhase.flatMap { AcademicPhase(rawValue: $0) }
         inFaculdade = draft.inFaculdade.flatMap { InFaculdadeStatus(rawValue: $0) }
@@ -292,9 +337,22 @@ final class OnboardingViewModel {
     }
 
     private func restoreSelectedUniversityIfPossible() {
-        guard let pendingUniversityID,
-              let university = allUniversities.first(where: { $0.id == pendingUniversityID }) else { return }
-        selectedUniversity = university
+        guard let pendingUniversityID else { return }
+        if let university = allUniversities.first(where: { $0.id == pendingUniversityID }) {
+            selectedUniversity = university
+            return
+        }
+        if pendingUniversityID.hasPrefix("requested-"), !universityQuery.isEmpty {
+            selectedUniversity = University(
+                id: pendingUniversityID,
+                name: universityQuery,
+                shortName: universityQuery,
+                city: requestedUniversityCity ?? "",
+                state: requestedUniversityState ?? "",
+                enameConcept: nil,
+                portals: []
+            )
+        }
     }
 
     private func clearDraft() {
@@ -338,7 +396,12 @@ final class OnboardingViewModel {
 
         let semesterValue = inFaculdade == .yes && selectedSemester > 0 ? selectedSemester : nil
         let universityName = inFaculdade == .yes ? selectedUniversity?.shortName : nil
-        let universityID = inFaculdade == .yes ? selectedUniversity?.id : nil
+        let selectedUniversityID = selectedUniversity?.id
+        let isLocalUniversity = selectedUniversityID?.hasPrefix("local-") == true
+            || selectedUniversityID?.hasPrefix("requested-") == true
+        let universityID = inFaculdade == .yes && !isLocalUniversity
+            ? selectedUniversityID
+            : nil
         let universityLMS = inFaculdade == .yes
             ? selectedUniversity?.primaryPortal?.portalType
             : nil
@@ -426,6 +489,8 @@ private struct OnboardingDraft: Codable {
     let nickname: String
     let universityQuery: String
     let selectedUniversityID: String?
+    let requestedUniversityCity: String?
+    let requestedUniversityState: String?
     let selectedSemester: Int
     let academicPhase: String?
     let inFaculdade: String?

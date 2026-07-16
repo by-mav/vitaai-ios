@@ -70,7 +70,12 @@ final class AppDataManager {
         (try? await api.getUniversities(query: query.isEmpty ? nil : query))?.universities ?? []
     }
     func selectUniversity(_ uni: University) async {
-        let req = UpdateProfileRequest(university: uni.name, universityState: uni.state, universityId: uni.id)
+        let isLocalUniversity = uni.id.hasPrefix("local-") || uni.id.hasPrefix("requested-")
+        let req = UpdateProfileRequest(
+            university: uni.name,
+            universityState: uni.state,
+            universityId: isLocalUniversity ? nil : uni.id
+        )
         _ = try? await api.updateProfile(req)
         await refreshProfile()
     }

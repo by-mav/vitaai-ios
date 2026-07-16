@@ -1,0 +1,1163 @@
+[
+  {
+    "id": "uni-ufac-rio-branco",
+    "name": "Universidade Federal do Acre",
+    "shortName": "UFAC",
+    "state": "AC",
+    "city": "Rio Branco",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufal-macei-",
+    "name": "Universidade Federal de Alagoas",
+    "shortName": "UFAL",
+    "state": "AL",
+    "city": "Maceió",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uncisal-macei-",
+    "name": "Universidade Estadual de Ciências da Saúde de Alagoas",
+    "shortName": "UNCISAL",
+    "state": "AL",
+    "city": "Maceió",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-cesmac-macei-",
+    "name": "Centro Universitário CESMAC",
+    "shortName": "CESMAC",
+    "state": "AL",
+    "city": "Maceió",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufam-manaus",
+    "name": "Universidade Federal do Amazonas",
+    "shortName": "UFAM",
+    "state": "AM",
+    "city": "Manaus",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uea-manaus",
+    "name": "Universidade do Estado do Amazonas",
+    "shortName": "UEA",
+    "state": "AM",
+    "city": "Manaus",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-nilton-lins-manaus",
+    "name": "Universidade Nilton Lins",
+    "shortName": "NILTON LINS",
+    "state": "AM",
+    "city": "Manaus",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unifap-macap-",
+    "name": "Universidade Federal do Amapá",
+    "shortName": "UNIFAP",
+    "state": "AP",
+    "city": "Macapá",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufba-salvador",
+    "name": "Universidade Federal da Bahia",
+    "shortName": "UFBA",
+    "state": "BA",
+    "city": "Salvador",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-uefs-feira-de-santana",
+    "name": "Universidade Estadual de Feira de Santana",
+    "shortName": "UEFS",
+    "state": "BA",
+    "city": "Feira de Santana",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-uesc-ilh-us",
+    "name": "Universidade Estadual de Santa Cruz",
+    "shortName": "UESC",
+    "state": "BA",
+    "city": "Ilhéus",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-uesb-vit-ria-da-conquista",
+    "name": "Universidade Estadual do Sudoeste da Bahia",
+    "shortName": "UESB",
+    "state": "BA",
+    "city": "Vitória da Conquista",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ebmsp-salvador",
+    "name": "Escola Bahiana de Medicina e Saúde Pública",
+    "shortName": "EBMSP",
+    "state": "BA",
+    "city": "Salvador",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufrb-santo-ant-nio-de-jesus",
+    "name": "Universidade Federal do Recôncavo da Bahia",
+    "shortName": "UFRB",
+    "state": "BA",
+    "city": "Santo Antônio de Jesus",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufsb-teixeira-de-freitas",
+    "name": "Universidade Federal do Sul da Bahia",
+    "shortName": "UFSB",
+    "state": "BA",
+    "city": "Teixeira de Freitas",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unifacs-salvador",
+    "name": "Universidade Salvador",
+    "shortName": "UNIFACS",
+    "state": "BA",
+    "city": "Salvador",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufc-fortaleza",
+    "name": "Universidade Federal do Ceará",
+    "shortName": "UFC",
+    "state": "CE",
+    "city": "Fortaleza",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-uece-fortaleza",
+    "name": "Universidade Estadual do Ceará",
+    "shortName": "UECE",
+    "state": "CE",
+    "city": "Fortaleza",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unifor-fortaleza",
+    "name": "Universidade de Fortaleza",
+    "shortName": "UNIFOR",
+    "state": "CE",
+    "city": "Fortaleza",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unichristus-fortaleza",
+    "name": "Centro Universitário Christus",
+    "shortName": "UNICHRISTUS",
+    "state": "CE",
+    "city": "Fortaleza",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufca-barbalha",
+    "name": "Universidade Federal do Cariri",
+    "shortName": "UFCA",
+    "state": "CE",
+    "city": "Barbalha",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unb-bras-lia",
+    "name": "Universidade de Brasília",
+    "shortName": "UnB",
+    "state": "DF",
+    "city": "Brasília",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-ceub-bras-lia",
+    "name": "Centro Universitário de Brasília",
+    "shortName": "CEUB",
+    "state": "DF",
+    "city": "Brasília",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-escs-bras-lia",
+    "name": "Escola Superior de Ciências da Saúde",
+    "shortName": "ESCS",
+    "state": "DF",
+    "city": "Brasília",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufes-vit-ria",
+    "name": "Universidade Federal do Espírito Santo",
+    "shortName": "UFES",
+    "state": "ES",
+    "city": "Vitória",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-emescam-vit-ria",
+    "name": "Escola Superior de Ciências da Santa Casa de Misericórdia de Vitória",
+    "shortName": "EMESCAM",
+    "state": "ES",
+    "city": "Vitória",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uvv-vila-velha",
+    "name": "Universidade Vila Velha",
+    "shortName": "UVV",
+    "state": "ES",
+    "city": "Vila Velha",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufg-goi-nia",
+    "name": "Universidade Federal de Goiás",
+    "shortName": "UFG",
+    "state": "GO",
+    "city": "Goiânia",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufj-jata-",
+    "name": "Universidade Federal de Jataí",
+    "shortName": "UFJ",
+    "state": "GO",
+    "city": "Jataí",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-puc-goi-s-goi-nia",
+    "name": "Pontifícia Universidade Católica de Goiás",
+    "shortName": "PUC Goiás",
+    "state": "GO",
+    "city": "Goiânia",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unirv-rio-verde",
+    "name": "Universidade de Rio Verde",
+    "shortName": "UniRV",
+    "state": "GO",
+    "city": "Rio Verde",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unievang-lica-an-polis",
+    "name": "UniEVANGÉLICA",
+    "shortName": "UniEVANGÉLICA",
+    "state": "GO",
+    "city": "Anápolis",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufma-s-o-lu-s",
+    "name": "Universidade Federal do Maranhão",
+    "shortName": "UFMA",
+    "state": "MA",
+    "city": "São Luís",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ceuma-s-o-lu-s",
+    "name": "Universidade Ceuma",
+    "shortName": "CEUMA",
+    "state": "MA",
+    "city": "São Luís",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufmg-belo-horizonte",
+    "name": "Universidade Federal de Minas Gerais",
+    "shortName": "UFMG",
+    "state": "MG",
+    "city": "Belo Horizonte",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-ufu-uberl-ndia",
+    "name": "Universidade Federal de Uberlândia",
+    "shortName": "UFU",
+    "state": "MG",
+    "city": "Uberlândia",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufjf-juiz-de-fora",
+    "name": "Universidade Federal de Juiz de Fora",
+    "shortName": "UFJF",
+    "state": "MG",
+    "city": "Juiz de Fora",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufop-ouro-preto",
+    "name": "Universidade Federal de Ouro Preto",
+    "shortName": "UFOP",
+    "state": "MG",
+    "city": "Ouro Preto",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uftm-uberaba",
+    "name": "Universidade Federal do Triângulo Mineiro",
+    "shortName": "UFTM",
+    "state": "MG",
+    "city": "Uberaba",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufla-lavras",
+    "name": "Universidade Federal de Lavras",
+    "shortName": "UFLA",
+    "state": "MG",
+    "city": "Lavras",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufsj-s-o-jo-o-del-rei",
+    "name": "Universidade Federal de São João del-Rei",
+    "shortName": "UFSJ",
+    "state": "MG",
+    "city": "São João del-Rei",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufvjm-diamantina",
+    "name": "Universidade Federal dos Vales do Jequitinhonha e Mucuri",
+    "shortName": "UFVJM",
+    "state": "MG",
+    "city": "Diamantina",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unimontes-montes-claros",
+    "name": "Universidade Estadual de Montes Claros",
+    "shortName": "UNIMONTES",
+    "state": "MG",
+    "city": "Montes Claros",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-puc-minas-belo-horizonte",
+    "name": "Pontifícia Universidade Católica de Minas Gerais",
+    "shortName": "PUC Minas",
+    "state": "MG",
+    "city": "Belo Horizonte",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unifenas-alfenas",
+    "name": "Universidade José do Rosário Vellano",
+    "shortName": "UNIFENAS",
+    "state": "MG",
+    "city": "Alfenas",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-fcmmg-belo-horizonte",
+    "name": "Faculdade de Ciências Médicas de Minas Gerais",
+    "shortName": "FCMMG",
+    "state": "MG",
+    "city": "Belo Horizonte",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unibh-belo-horizonte",
+    "name": "Centro Universitário de Belo Horizonte",
+    "shortName": "UniBH",
+    "state": "MG",
+    "city": "Belo Horizonte",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufms-campo-grande",
+    "name": "Universidade Federal de Mato Grosso do Sul",
+    "shortName": "UFMS",
+    "state": "MS",
+    "city": "Campo Grande",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufgd-dourados",
+    "name": "Universidade Federal da Grande Dourados",
+    "shortName": "UFGD",
+    "state": "MS",
+    "city": "Dourados",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-uniderp-campo-grande",
+    "name": "Universidade Anhanguera-Uniderp",
+    "shortName": "UNIDERP",
+    "state": "MS",
+    "city": "Campo Grande",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufmt-cuiab-",
+    "name": "Universidade Federal de Mato Grosso",
+    "shortName": "UFMT",
+    "state": "MT",
+    "city": "Cuiabá",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unic-cuiab-",
+    "name": "Universidade de Cuiabá",
+    "shortName": "UNIC",
+    "state": "MT",
+    "city": "Cuiabá",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufpa-bel-m",
+    "name": "Universidade Federal do Pará",
+    "shortName": "UFPA",
+    "state": "PA",
+    "city": "Belém",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uepa-bel-m",
+    "name": "Universidade do Estado do Pará",
+    "shortName": "UEPA",
+    "state": "PA",
+    "city": "Belém",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-cesupa-bel-m",
+    "name": "Centro Universitário do Estado do Pará",
+    "shortName": "CESUPA",
+    "state": "PA",
+    "city": "Belém",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufpb-jo-o-pessoa",
+    "name": "Universidade Federal da Paraíba",
+    "shortName": "UFPB",
+    "state": "PB",
+    "city": "João Pessoa",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufcg-campina-grande",
+    "name": "Universidade Federal de Campina Grande",
+    "shortName": "UFCG",
+    "state": "PB",
+    "city": "Campina Grande",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-famene-jo-o-pessoa",
+    "name": "Faculdade de Medicina Nova Esperança",
+    "shortName": "FAMENE",
+    "state": "PB",
+    "city": "João Pessoa",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufpe-recife",
+    "name": "Universidade Federal de Pernambuco",
+    "shortName": "UFPE",
+    "state": "PE",
+    "city": "Recife",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-upe-recife",
+    "name": "Universidade de Pernambuco",
+    "shortName": "UPE",
+    "state": "PE",
+    "city": "Recife",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-univasf-petrolina",
+    "name": "Universidade Federal do Vale do São Francisco",
+    "shortName": "UNIVASF",
+    "state": "PE",
+    "city": "Petrolina",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-fps-recife",
+    "name": "Faculdade Pernambucana de Saúde",
+    "shortName": "FPS",
+    "state": "PE",
+    "city": "Recife",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufpi-teresina",
+    "name": "Universidade Federal do Piauí",
+    "shortName": "UFPI",
+    "state": "PI",
+    "city": "Teresina",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uespi-teresina",
+    "name": "Universidade Estadual do Piauí",
+    "shortName": "UESPI",
+    "state": "PI",
+    "city": "Teresina",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-uninovafapi-teresina",
+    "name": "Centro Universitário UNINOVAFAPI",
+    "shortName": "UNINOVAFAPI",
+    "state": "PI",
+    "city": "Teresina",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufpr-curitiba",
+    "name": "Universidade Federal do Paraná",
+    "shortName": "UFPR",
+    "state": "PR",
+    "city": "Curitiba",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-uel-londrina",
+    "name": "Universidade Estadual de Londrina",
+    "shortName": "UEL",
+    "state": "PR",
+    "city": "Londrina",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-uem-maring-",
+    "name": "Universidade Estadual de Maringá",
+    "shortName": "UEM",
+    "state": "PR",
+    "city": "Maringá",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uepg-ponta-grossa",
+    "name": "Universidade Estadual de Ponta Grossa",
+    "shortName": "UEPG",
+    "state": "PR",
+    "city": "Ponta Grossa",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unioeste-cascavel",
+    "name": "Universidade Estadual do Oeste do Paraná",
+    "shortName": "UNIOESTE",
+    "state": "PR",
+    "city": "Cascavel",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-pucpr-curitiba",
+    "name": "Pontifícia Universidade Católica do Paraná",
+    "shortName": "PUCPR",
+    "state": "PR",
+    "city": "Curitiba",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-fempar-curitiba",
+    "name": "Faculdade Evangélica Mackenzie do Paraná",
+    "shortName": "FEMPAR",
+    "state": "PR",
+    "city": "Curitiba",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-up-curitiba",
+    "name": "Universidade Positivo",
+    "shortName": "UP",
+    "state": "PR",
+    "city": "Curitiba",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufrj-rio-de-janeiro",
+    "name": "Universidade Federal do Rio de Janeiro",
+    "shortName": "UFRJ",
+    "state": "RJ",
+    "city": "Rio de Janeiro",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-uff-niter-i",
+    "name": "Universidade Federal Fluminense",
+    "shortName": "UFF",
+    "state": "RJ",
+    "city": "Niterói",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uerj-rio-de-janeiro",
+    "name": "Universidade do Estado do Rio de Janeiro",
+    "shortName": "UERJ",
+    "state": "RJ",
+    "city": "Rio de Janeiro",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unirio-rio-de-janeiro",
+    "name": "Universidade Federal do Estado do Rio de Janeiro",
+    "shortName": "UNIRIO",
+    "state": "RJ",
+    "city": "Rio de Janeiro",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-puc-rio-rio-de-janeiro",
+    "name": "Pontifícia Universidade Católica do Rio de Janeiro",
+    "shortName": "PUC-Rio",
+    "state": "RJ",
+    "city": "Rio de Janeiro",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-est-cio-rio-de-janeiro",
+    "name": "Universidade Estácio de Sá",
+    "shortName": "ESTÁCIO",
+    "state": "RJ",
+    "city": "Rio de Janeiro",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-souza-marques-rio-de-janeiro",
+    "name": "Fundação Técnico-Educacional Souza Marques",
+    "shortName": "SOUZA MARQUES",
+    "state": "RJ",
+    "city": "Rio de Janeiro",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufrn-natal",
+    "name": "Universidade Federal do Rio Grande do Norte",
+    "shortName": "UFRN",
+    "state": "RN",
+    "city": "Natal",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-uern-mossor-",
+    "name": "Universidade do Estado do Rio Grande do Norte",
+    "shortName": "UERN",
+    "state": "RN",
+    "city": "Mossoró",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unp-natal",
+    "name": "Universidade Potiguar",
+    "shortName": "UnP",
+    "state": "RN",
+    "city": "Natal",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unir-porto-velho",
+    "name": "Universidade Federal de Rondônia",
+    "shortName": "UNIR",
+    "state": "RO",
+    "city": "Porto Velho",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unisl-porto-velho",
+    "name": "Centro Universitário São Lucas",
+    "shortName": "UniSL",
+    "state": "RO",
+    "city": "Porto Velho",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufrr-boa-vista",
+    "name": "Universidade Federal de Roraima",
+    "shortName": "UFRR",
+    "state": "RR",
+    "city": "Boa Vista",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufrgs-porto-alegre",
+    "name": "Universidade Federal do Rio Grande do Sul",
+    "shortName": "UFRGS",
+    "state": "RS",
+    "city": "Porto Alegre",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-ufcspa-porto-alegre",
+    "name": "Universidade Federal de Ciências da Saúde de Porto Alegre",
+    "shortName": "UFCSPA",
+    "state": "RS",
+    "city": "Porto Alegre",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-ufsm-santa-maria",
+    "name": "Universidade Federal de Santa Maria",
+    "shortName": "UFSM",
+    "state": "RS",
+    "city": "Santa Maria",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufpel-pelotas",
+    "name": "Universidade Federal de Pelotas",
+    "shortName": "UFPel",
+    "state": "RS",
+    "city": "Pelotas",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-uffs-passo-fundo",
+    "name": "Universidade Federal da Fronteira Sul",
+    "shortName": "UFFS",
+    "state": "RS",
+    "city": "Passo Fundo",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-pucrs-porto-alegre",
+    "name": "Pontifícia Universidade Católica do Rio Grande do Sul",
+    "shortName": "PUCRS",
+    "state": "RS",
+    "city": "Porto Alegre",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ucs-caxias-do-sul",
+    "name": "Universidade de Caxias do Sul",
+    "shortName": "UCS",
+    "state": "RS",
+    "city": "Caxias do Sul",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-cesuca-cachoeirinha",
+    "name": "Centro Universitário CESUCA",
+    "shortName": "CESUCA",
+    "state": "RS",
+    "city": "Cachoeirinha",
+    "enameConcept": null,
+    "portals": []
+  },
+  {
+    "id": "uni-ulbra-canoas-canoas",
+    "name": "Universidade Luterana do Brasil - Canoas",
+    "shortName": "ULBRA Canoas",
+    "state": "RS",
+    "city": "Canoas",
+    "enameConcept": 2,
+    "portals": []
+  },
+  {
+    "id": "uni-ulbra-porto-alegre-porto-alegre",
+    "name": "Universidade Luterana do Brasil - Porto Alegre",
+    "shortName": "ULBRA Porto Alegre",
+    "state": "RS",
+    "city": "Porto Alegre",
+    "enameConcept": null,
+    "portals": []
+  },
+  {
+    "id": "uni-ulbra-s-o-jer-nimo-s-o-jer-nimo",
+    "name": "Universidade Luterana do Brasil - São Jerônimo",
+    "shortName": "ULBRA São Jerônimo",
+    "state": "RS",
+    "city": "São Jerônimo",
+    "enameConcept": null,
+    "portals": []
+  },
+  {
+    "id": "uni-ulbra-gravata--gravata-",
+    "name": "Universidade Luterana do Brasil - Gravataí",
+    "shortName": "ULBRA Gravataí",
+    "state": "RS",
+    "city": "Gravataí",
+    "enameConcept": null,
+    "portals": []
+  },
+  {
+    "id": "uni-ufsc-florian-polis",
+    "name": "Universidade Federal de Santa Catarina",
+    "shortName": "UFSC",
+    "state": "SC",
+    "city": "Florianópolis",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-uffs-chapec-",
+    "name": "Universidade Federal da Fronteira Sul",
+    "shortName": "UFFS",
+    "state": "SC",
+    "city": "Chapecó",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unisul-tubar-o",
+    "name": "Universidade do Sul de Santa Catarina",
+    "shortName": "UNISUL",
+    "state": "SC",
+    "city": "Tubarão",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-univali-itaja-",
+    "name": "Universidade do Vale do Itajaí",
+    "shortName": "UNIVALI",
+    "state": "SC",
+    "city": "Itajaí",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-univille-joinville",
+    "name": "Universidade da Região de Joinville",
+    "shortName": "UNIVILLE",
+    "state": "SC",
+    "city": "Joinville",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-ufs-aracaju",
+    "name": "Universidade Federal de Sergipe",
+    "shortName": "UFS",
+    "state": "SE",
+    "city": "Aracaju",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-unit-aracaju",
+    "name": "Universidade Tiradentes",
+    "shortName": "UNIT",
+    "state": "SE",
+    "city": "Aracaju",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-usp-s-o-paulo",
+    "name": "Universidade de São Paulo",
+    "shortName": "USP",
+    "state": "SP",
+    "city": "São Paulo",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-usp-rp-ribeir-o-preto",
+    "name": "Universidade de São Paulo — Ribeirão Preto",
+    "shortName": "USP-RP",
+    "state": "SP",
+    "city": "Ribeirão Preto",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-unifesp-s-o-paulo",
+    "name": "Universidade Federal de São Paulo",
+    "shortName": "UNIFESP",
+    "state": "SP",
+    "city": "São Paulo",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-unicamp-campinas",
+    "name": "Universidade Estadual de Campinas",
+    "shortName": "UNICAMP",
+    "state": "SP",
+    "city": "Campinas",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-unesp-botucatu",
+    "name": "Universidade Estadual Paulista — Botucatu",
+    "shortName": "UNESP",
+    "state": "SP",
+    "city": "Botucatu",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-ufscar-s-o-carlos",
+    "name": "Universidade Federal de São Carlos",
+    "shortName": "UFSCar",
+    "state": "SP",
+    "city": "São Carlos",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-ufabc-santo-andr-",
+    "name": "Universidade Federal do ABC",
+    "shortName": "UFABC",
+    "state": "SP",
+    "city": "Santo André",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-fcmscsp-s-o-paulo",
+    "name": "Faculdade de Ciências Médicas da Santa Casa de São Paulo",
+    "shortName": "FCMSCSP",
+    "state": "SP",
+    "city": "São Paulo",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-puc-sp-sorocaba",
+    "name": "Pontifícia Universidade Católica de São Paulo",
+    "shortName": "PUC-SP",
+    "state": "SP",
+    "city": "Sorocaba",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-puc-campinas-campinas",
+    "name": "Pontifícia Universidade Católica de Campinas",
+    "shortName": "PUC-Campinas",
+    "state": "SP",
+    "city": "Campinas",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-fmabc-santo-andr-",
+    "name": "Faculdade de Medicina do ABC",
+    "shortName": "FMABC",
+    "state": "SP",
+    "city": "Santo André",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-fmj-jundia-",
+    "name": "Faculdade de Medicina de Jundiaí",
+    "shortName": "FMJ",
+    "state": "SP",
+    "city": "Jundiaí",
+    "enameConcept": 4,
+    "portals": []
+  },
+  {
+    "id": "uni-famema-mar-lia",
+    "name": "Faculdade de Medicina de Marília",
+    "shortName": "FAMEMA",
+    "state": "SP",
+    "city": "Marília",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-famerp-s-o-jos--do-rio-preto",
+    "name": "Faculdade de Medicina de São José do Rio Preto",
+    "shortName": "FAMERP",
+    "state": "SP",
+    "city": "São José do Rio Preto",
+    "enameConcept": 5,
+    "portals": []
+  },
+  {
+    "id": "uni-unitau-taubat-",
+    "name": "Universidade de Taubaté",
+    "shortName": "UNITAU",
+    "state": "SP",
+    "city": "Taubaté",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unaerp-ribeir-o-preto",
+    "name": "Universidade de Ribeirão Preto",
+    "shortName": "UNAERP",
+    "state": "SP",
+    "city": "Ribeirão Preto",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unimar-mar-lia",
+    "name": "Universidade de Marília",
+    "shortName": "UNIMAR",
+    "state": "SP",
+    "city": "Marília",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-uam-s-o-paulo",
+    "name": "Universidade Anhembi Morumbi",
+    "shortName": "UAM",
+    "state": "SP",
+    "city": "São Paulo",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unilus-santos",
+    "name": "Centro Universitário Lusíada",
+    "shortName": "UNILUS",
+    "state": "SP",
+    "city": "Santos",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-uninove-s-o-paulo",
+    "name": "Universidade Nove de Julho",
+    "shortName": "UNINOVE",
+    "state": "SP",
+    "city": "São Paulo",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unisa-s-o-paulo",
+    "name": "Universidade Santo Amaro",
+    "shortName": "UNISA",
+    "state": "SP",
+    "city": "São Paulo",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-usf-bragan-a-paulista",
+    "name": "Universidade São Francisco",
+    "shortName": "USF",
+    "state": "SP",
+    "city": "Bragança Paulista",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-uft-palmas",
+    "name": "Universidade Federal do Tocantins",
+    "shortName": "UFT",
+    "state": "TO",
+    "city": "Palmas",
+    "enameConcept": 3,
+    "portals": []
+  },
+  {
+    "id": "uni-unirg-gurupi",
+    "name": "Centro Universitário de Gurupi",
+    "shortName": "UnirG",
+    "state": "TO",
+    "city": "Gurupi",
+    "enameConcept": 3,
+    "portals": []
+  }
+]

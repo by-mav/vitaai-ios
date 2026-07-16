@@ -78,8 +78,20 @@ struct VitaOnboarding: View {
                     do {
                         try await container.api.requestUniversity(name: name, city: city, state: state)
                         await MainActor.run {
+                            viewModel?.selectRequestedUniversity(
+                                name: name,
+                                city: city,
+                                state: state
+                            )
                             mascotState = .happy
-                            presentMessage(String(localized: "onboarding_uni_request_sent"))
+                            showContent = false
+                            typeText(String(localized: "onboarding_uni_request_sent")) {
+                                guard step == .welcome else { return }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                                    guard step == .welcome else { return }
+                                    enterStep(.connect)
+                                }
+                            }
                         }
                     } catch {
                         print("[Onboarding] University request failed: \(error)")
@@ -260,6 +272,16 @@ struct VitaOnboarding: View {
     @ViewBuilder
     private var contentRegion: some View {
         if step == .introduction {
+            VStack(spacing: 0) {
+                Spacer(minLength: VitaTokens.Spacing.lg)
+                if showContent {
+                    stepContent
+                        .padding(.horizontal, VitaTokens.Spacing._2xl)
+                        .transition(.opacity)
+                }
+            }
+            .frame(maxHeight: .infinity)
+        } else if step == .welcome {
             VStack(spacing: 0) {
                 Spacer(minLength: VitaTokens.Spacing.lg)
                 if showContent {
@@ -810,14 +832,6 @@ struct VitaOnboarding: View {
                 withAnimation(.easeInOut(duration: 0.7)) {
                     mascotBlushing = false
                 }
-            }
-        }
-    }
-
-    private func presentMessage(_ message: String) {
-        typeText(message) {
-            withAnimation(.easeOut(duration: 0.18)) {
-                showContent = true
             }
         }
     }
