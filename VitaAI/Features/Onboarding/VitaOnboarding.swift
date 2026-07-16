@@ -127,11 +127,11 @@ struct VitaOnboarding: View {
                 )
                     .scaleEffect(mascotScale)
                     .padding(.top, step == .sleep ? 60 : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 4 : 16)))
-                    .padding(.bottom, step == .sleep ? 0 : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 2 : 8)))
-                    .overlay(alignment: .top) {
+                    .padding(.bottom, step == .sleep ? VitaTokens.Spacing.sm : (shrinkForSearch ? 0 : (shrinkForCompactStep ? 2 : 8)))
+                    .overlay(alignment: .center) {
                         if step == .sleep && mascotState == .sleeping {
                             SleepingZs()
-                                .offset(x: 34, y: 6)
+                                .offset(x: mascotSize * 0.38, y: -mascotSize * 0.34)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -146,6 +146,8 @@ struct VitaOnboarding: View {
                 // Speech bubble + content
                 if step == .sleep {
                     SleepStep(onWake: { wakeUp() })
+                        .padding(.top, VitaTokens.Spacing.lg)
+                    Spacer(minLength: VitaTokens.Spacing._4xl)
                 } else {
                     // Onda 5b refined (Rafael 2026-04-28): scroll indicator
                     // visível pra avisar quando tem conteúdo abaixo do botão
@@ -702,11 +704,17 @@ private struct SleepingZs: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            zLetter(size: 12, delay: 0.0)
-            zLetter(size: 16, delay: 0.6).offset(x: 9)
-            zLetter(size: 20, delay: 1.2).offset(x: 20)
+            zLetter(size: VitaTokens.Typography.fontSizeXs, delay: 0.0)
+            zLetter(size: VitaTokens.Typography.fontSizeBase, delay: 0.9)
+                .offset(x: VitaTokens.Spacing.sm)
+            zLetter(size: VitaTokens.Typography.fontSizeLg, delay: 1.8)
+                .offset(x: VitaTokens.Spacing.lg)
         }
-        .frame(width: 52, height: 36, alignment: .bottomLeading)
+        .frame(
+            width: VitaTokens.Spacing._4xl,
+            height: VitaTokens.Spacing._3xl,
+            alignment: .bottomLeading
+        )
         .onAppear { animate = true }
     }
 
@@ -714,11 +722,11 @@ private struct SleepingZs: View {
     private func zLetter(size: CGFloat, delay: Double) -> some View {
         Text("Z")
             .font(.system(size: size, weight: .heavy, design: .rounded))
-            .foregroundStyle(Color.white.opacity(0.55))
-            .offset(y: animate ? -26 : 0)
+            .foregroundStyle(VitaColors.textSecondary)
+            .offset(y: animate ? -VitaTokens.Spacing.lg : 0)
             .opacity(animate ? 0 : 1)
             .animation(
-                .easeOut(duration: 1.8)
+                .easeOut(duration: 2.7)
                     .repeatForever(autoreverses: false)
                     .delay(delay),
                 value: animate

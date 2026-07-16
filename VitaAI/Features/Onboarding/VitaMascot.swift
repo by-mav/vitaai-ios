@@ -203,6 +203,8 @@ private enum OrbGeo {
 }
 
 struct OrbMascot: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var palette: MascotPalette = .vita
     var state: VitaMascotState = .awake
     var size: CGFloat = 120
@@ -271,19 +273,12 @@ struct OrbMascot: View {
         .scaleEffect(x: breathScale * squishX, y: breathScale * squishY)
         .offset(x: idleDriftX, y: bounceY)
         .onAppear { startAnimations() }
-        .onDisappear {
-            loopTask?.cancel()
-            loopTask = nil
-            floatY = 0; glowIntensity = 0.3; sparklePhase = 0; breathScale = 1.0
-            ringRotation = 0; auraHue = 0
-            eyeAngle = 0; bounceY = 0; squishY = 1.0; squishX = 1.0
-            eyeLookX = 0; blinking = false
-            headTilt = 0; idleDriftX = 0; pulseBoost = 0; slowBlink = false
-            happyEyes = false
-        }
+        .onDisappear { stopAnimations() }
         .onChange(of: state) { newState in
-            if newState == .happy { triggerBounce() }
+            restartAnimations()
+            if newState == .happy && !reduceMotion { triggerBounce() }
         }
+        .onChange(of: reduceMotion) { _ in restartAnimations() }
         .animation(.spring(response: 0.7, dampingFraction: 0.7), value: state)
     }
 
@@ -1753,10 +1748,12 @@ struct OrbMascot: View {
     private func startAnimations() {
         // Thumbnail estático (galeria/provador) — ZERO animação em loop pra não
         // afundar o FPS quando há dezenas de orbs na tela. Prototype 2026-07-05.
-        guard animated else {
+        guard animated && !reduceMotion else {
             glowIntensity = state == .sleeping ? 0.2 : 0.5
             return
         }
+        let allowsCharacterMotion = idleEnabled && state != .sleeping
+
         // Subtle background rotations + glow always on (sells "alive" even when idle off).
         withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
             glowIntensity = state == .sleeping ? 0.2 : 0.55
@@ -1765,22 +1762,26 @@ struct OrbMascot: View {
         withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) { ringRotation = .pi * 2 }
         withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) { auraHue = 1.0 }
 
-        // Idle motion — only when idleEnabled (LoginScreen passes false to "freeze" the orb).
-        if idleEnabled {
+        // Sleeping stays grounded: only the internal glow/ring remains alive.
+        // Character motion starts after the orb wakes.
+        if allowsCharacterMotion {
             if bob {
-                withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) { floatY = -8 }
+                withAnimation(.easeInOut(duration: 5.0).repeatForever(autoreverses: true)) { floatY = -4 }
             }
-            withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) { breathScale = 1.025 }
-            withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) { eyeAngle = 5 }
+            withAnimation(.easeInOut(duration: 5.0).repeatForever(autoreverses: true)) { breathScale = 1.015 }
+            withAnimation(.easeInOut(duration: 6.0).repeatForever(autoreverses: true)) { eyeAngle = 3 }
         }
 
         loopTask?.cancel()
+        guard allowsCharacterMotion else {
+            loopTask = nil
+            return
+        }
         loopTask = Task { @MainActor in
             await withTaskGroup(of: Void.self) { group in
-                guard self.idleEnabled else { return }
                 group.addTask { await self.eyeLookLoop() }
                 group.addTask { await self.blinkLoop() }
-                if self.bounceEnabled {
+                if self.bounceEnabled && (self.state == .awake || self.state == .happy) {
                     group.addTask { await self.bounceLoop() }
                 }
                 group.addTask { await self.headTiltLoop() }
@@ -1789,6 +1790,22 @@ struct OrbMascot: View {
                 group.addTask { await self.slowBlinkLoop() }
             }
         }
+    }
+
+    private func restartAnimations() {
+        stopAnimations()
+        startAnimations()
+    }
+
+    private func stopAnimations() {
+        loopTask?.cancel()
+        loopTask = nil
+        floatY = 0; glowIntensity = 0.3; sparklePhase = 0; breathScale = 1.0
+        ringRotation = 0; auraHue = 0
+        eyeAngle = 0; bounceY = 0; squishY = 1.0; squishX = 1.0
+        eyeLookX = 0; blinking = false
+        headTilt = 0; idleDriftX = 0; pulseBoost = 0; slowBlink = false
+        happyEyes = false
     }
 
     // MARK: - New behavior loops
@@ -1866,7 +1883,7 @@ struct OrbMascot: View {
             try? await Task.sleep(for: .milliseconds(100))
             guard !Task.isCancelled else { return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.4)) {
-                bounceY = -25; squishY = 1.1; squishX = 0.92
+                bounceY = -18; squishY = 1.08; squishX = 0.94
             }
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
@@ -1890,7 +1907,7 @@ struct OrbMascot: View {
     @MainActor
     private func bounceLoop() async {
         while !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(Int.random(in: 4000...8000)))
+            try? await Task.sleep(for: .milliseconds(Int.random(in: 8000...14000)))
             guard !Task.isCancelled else { break }
             triggerBounce()
         }
