@@ -5,76 +5,103 @@ import Observation
 @Observable
 final class OnboardingViewModel {
     private let tokenStore: TokenStore
+    private let draftKey = "vita_onboarding_draft_v3"
+    private var isRestoringDraft = false
+    private var pendingUniversityID: String?
     var api: VitaAPI?
 
     // MARK: - Navigation
+
     var isSaving = false
 
-    // MARK: - Welcome
-    var nickname: String = ""
-    var universityQuery: String = ""
-    var selectedUniversity: University? = nil
-    var selectedSemester: Int = 0
+    // MARK: - Identity and university
+
+    var nickname: String = "" { didSet { persistDraft() } }
+    var universityQuery: String = "" { didSet { persistDraft() } }
+    var selectedUniversity: University? {
+        didSet {
+            pendingUniversityID = selectedUniversity?.id
+            persistDraft()
+        }
+    }
+    var selectedSemester = 0 { didSet { persistDraft() } }
     var allUniversities: [University] = []
 
-    // MARK: - Onboarding v2 (Onda 5b, Rafael 2026-04-27)
-    // Fork por journeyType (REVALIDA/RESIDENCIA/ENAMED/FACULDADE).
-    // SOT do payload: vitaai-web/src/lib/validators.ts onboardingV2Schema.
+    // MARK: - Journey branch
 
-    // Onda 5b refined (Rafael 2026-04-28): a primeira pergunta "fase na jornada"
-    // tem 3 opções macro (vestibulando/graduando/residencia). `inFaculdade` é
-    // derivado dessa fase pra compatibilidade com o backend `onboardingV2Schema`
-    // (que ainda fala em yes/graduated). Quando `vestibulando`, ainda não temos
-    // jornada própria — fica `nil` e o GoalStep filtra um caminho próprio.
-    var academicPhase: AcademicPhase? = nil {
+    var academicPhase: AcademicPhase? {
         didSet {
+            guard !isRestoringDraft, academicPhase != oldValue else {
+                persistDraft()
+                return
+            }
+
+            // A phase is the root branch. Changing it invalidates all answers
+            // from the previous branch before the next screen is rendered.
             inFaculdade = academicPhase?.derivedInFaculdade
-            // Reset goal — filtragem dos goals depende da fase.
-            selectedGoal = nil
+            selectedGoal = academicPhase?.automaticGoal
+            revalidaStage = nil
+            revalidaFocusAreas = []
+            targetSpecialtySlug = nil
+            targetInstitutions = []
+            selectedUniversity = nil
+            universityQuery = ""
+            selectedSemester = 0
+            activeSyncId = nil
+            syncedSubjects = []
+            subjectDifficulties = [:]
+            persistDraft()
         }
     }
 
-    var inFaculdade: InFaculdadeStatus? = nil
-    var selectedGoal: OnboardingGoal? = nil
-    var revalidaStage: RevalidaStage? = nil
-    var revalidaFocusAreas: [String] = []
-    var targetSpecialtySlug: String? = nil
-    var targetInstitutions: [String] = []
+    var inFaculdade: InFaculdadeStatus? { didSet { persistDraft() } }
+    var selectedGoal: OnboardingGoal? {
+        didSet {
+            if !isRestoringDraft, academicPhase == .other {
+                inFaculdade = selectedGoal == .faculdade
+                    ? .notStarted
+                    : (selectedGoal == nil ? nil : .graduated)
+            }
+            persistDraft()
+        }
+    }
+    var revalidaStage: RevalidaStage? { didSet { persistDraft() } }
+    var revalidaFocusAreas: [String] = [] { didSet { persistDraft() } }
+    var targetSpecialtySlug: String? { didSet { persistDraft() } }
+    var targetInstitutions: [String] = [] { didSet { persistDraft() } }
 
-    // MARK: - Sync (shared between Connect → Syncing → Subjects → Done)
-    var activeSyncId: String?
-    var syncedSubjects: [SyncedSubject] = []
-    var syncGrades: Int = 0
-    var syncSchedule: Int = 0
-    var syncCourses: Int = 0
+    // MARK: - Sync
 
-    // MARK: - Subjects (difficulty selection — data from API)
-    var subjectDifficulties: [String: String] = [:]  // subjectName → "fácil"|"medio"|"difícil"
+    var activeSyncId: String? { didSet { persistDraft() } }
+    var syncedSubjects: [SyncedSubject] = [] { didSet { persistDraft() } }
+    var syncGrades = 0 { didSet { persistDraft() } }
+    var syncSchedule = 0 { didSet { persistDraft() } }
+    var syncCourses = 0 { didSet { persistDraft() } }
+    var subjectDifficulties: [String: String] = [:] { didSet { persistDraft() } }
 
     // MARK: - Derived
 
     var filteredUniversities: [University] {
         let query = universityQuery.trimmingCharacters(in: .whitespaces).lowercased()
         guard !query.isEmpty else { return [] }
-        return allUniversities.filter { uni in
-            uni.name.lowercased().contains(query) ||
-            uni.shortName.lowercased().contains(query) ||
-            uni.city.lowercased().contains(query)
+        return allUniversities.filter { university in
+            university.name.lowercased().contains(query)
+                || university.shortName.lowercased().contains(query)
+                || university.city.lowercased().contains(query)
         }
     }
 
-    /// All distinct portal types derived from loaded universities (no hardcoded list)
     var allPortalTypes: [PortalTypeInfo] {
         var seen = Set<String>()
         var result: [PortalTypeInfo] = []
-        for uni in allUniversities {
-            if let portals = uni.portals {
-                for p in portals where !p.portalType.isEmpty && !seen.contains(p.portalType) {
-                    seen.insert(p.portalType)
-                    result.append(PortalTypeInfo(type: p.portalType))
+        for university in allUniversities {
+            if let portals = university.portals {
+                for portal in portals
+                    where !portal.portalType.isEmpty && !seen.contains(portal.portalType) {
+                    seen.insert(portal.portalType)
+                    result.append(PortalTypeInfo(type: portal.portalType))
                 }
             }
-            // portals array from API is the source of truth
         }
         return result.sorted { $0.displayName < $1.displayName }
     }
@@ -84,8 +111,12 @@ final class OnboardingViewModel {
     init(tokenStore: TokenStore, api: VitaAPI? = nil) {
         self.tokenStore = tokenStore
         self.api = api
+        restoreDraft()
+
         Task {
-            if let name = await tokenStore.userName, !name.isEmpty {
+            if self.nickname.isEmpty,
+               let name = await tokenStore.userName,
+               !name.isEmpty {
                 self.nickname = name.split(separator: " ").first.map(String.init) ?? name
             }
         }
@@ -94,17 +125,23 @@ final class OnboardingViewModel {
     func loadUniversities() async {
         guard let api else { return }
         do {
-            let resp = try await api.getUniversities()
-            allUniversities = resp.universities
+            let response = try await api.getUniversities()
+            allUniversities = response.universities
+            restoreSelectedUniversityIfPossible()
         } catch {
             try? await Task.sleep(for: .seconds(2))
-            if let resp = try? await api.getUniversities() {
-                allUniversities = resp.universities
+            if let response = try? await api.getUniversities() {
+                allUniversities = response.universities
+                restoreSelectedUniversityIfPossible()
             }
         }
     }
 
-    // MARK: - University
+    // MARK: - Answers
+
+    func selectAcademicPhase(_ phase: AcademicPhase) {
+        academicPhase = phase
+    }
 
     func selectUniversity(_ university: University) {
         selectedUniversity = university
@@ -120,53 +157,44 @@ final class OnboardingViewModel {
         selectedSemester = semester
     }
 
-    // MARK: - Subjects
-
     func setDifficulty(_ subject: String, difficulty: String) {
         subjectDifficulties[subject] = difficulty
     }
-
-    // MARK: - Sync results
 
     func setSyncId(_ syncId: String) {
         activeSyncId = syncId
     }
 
-    /// Fetch subjects from API after Canvas sync.
+    // MARK: - Sync results
+
     func fetchSubjectsFromAPI() async {
         guard let api else { return }
 
-        // 2026-04-23: removido `api.getCourses()` (rota Canvas legacy retornava
-        // 404 em 9.7s, atrasava onboarding inteiro). Onboarding sempre usa
-        // canonical academic data from Canvas and document extraction.
-
-        // Portal grades (subjects come from grade entries)
         do {
-            let gradesResp = try await api.getGradesCurrent()
-            let allSubjects = gradesResp.current + gradesResp.completed
-            let uniqueSubjects = Set(allSubjects.map(\.subjectName).filter { !$0.isEmpty }).sorted()
-            if !uniqueSubjects.isEmpty {
-                syncedSubjects = uniqueSubjects.map { SyncedSubject(name: $0, source: "portal") }
-                syncGrades = allSubjects.count
+            let gradesResponse = try await api.getGradesCurrent()
+            let subjects = gradesResponse.current + gradesResponse.completed
+            let names = Set(subjects.map(\.subjectName).filter { !$0.isEmpty }).sorted()
+            if !names.isEmpty {
+                syncedSubjects = names.map { SyncedSubject(name: $0, source: "portal") }
+                syncGrades = subjects.count
                 return
             }
         } catch {
             print("[Onboarding] Portal grades fetch failed: \(error)")
         }
 
-        // Fallback: agenda schedule
         do {
             let agenda = try await api.getAgenda()
-            let uniqueSubjects = Set(agenda.schedule.map(\.subjectName).filter { !$0.isEmpty }).sorted()
-            if !uniqueSubjects.isEmpty {
-                syncedSubjects = uniqueSubjects.map { SyncedSubject(name: $0, source: "portal") }
+            let names = Set(agenda.schedule.map(\.subjectName).filter { !$0.isEmpty }).sorted()
+            if !names.isEmpty {
+                syncedSubjects = names.map { SyncedSubject(name: $0, source: "portal") }
             }
         } catch {
             print("[Onboarding] Agenda fetch failed: \(error)")
         }
     }
 
-    // MARK: - Save
+    // MARK: - Final save
 
     func complete() async {
         isSaving = true
@@ -179,32 +207,106 @@ final class OnboardingViewModel {
             subjects: subjects,
             subjectDifficulties: subjectDifficulties
         )
+
         AnalyticsTracker.shared.event(.onboardingCompleted, properties: [
             "university_name": data.universityName,
             "semester": data.semester,
             "disciplines_count": subjects.count,
             "portal_connected": !syncedSubjects.isEmpty,
+            "academic_phase": academicPhase?.rawValue ?? "n/a",
             "goal": selectedGoal?.rawValue ?? "legacy",
             "in_faculdade": inFaculdade?.rawValue ?? "n/a",
         ])
         await tokenStore.saveOnboardingData(data)
 
+        let didSyncBackend: Bool
         if selectedGoal != nil {
-            // Onda 5b — onboarding v2 (fork journey)
-            await postOnboardingV2ToBackend(data: data)
+            didSyncBackend = await postOnboardingV2ToBackend(data: data)
         } else {
-            // Legacy fallback (mid-flow users sem selectedGoal)
-            await postOnboardingToBackend(data: data)
+            didSyncBackend = await postOnboardingToBackend(data: data)
         }
+
+        // Local completion remains available offline, but the durable answers
+        // are only discarded after the canonical backend accepted them.
+        if didSyncBackend { clearDraft() }
         isSaving = false
     }
 
-    // MARK: - Backend Sync
+    // MARK: - Durable draft
 
-    private func postOnboardingToBackend(data: OnboardingData) async {
+    /// The backend endpoint is a finalizing write: it marks onboarding
+    /// complete. Until that moment, every answer is encoded locally after the
+    /// mutation so an app kill resumes the exact branch with no data loss.
+    private func persistDraft() {
+        guard !isRestoringDraft else { return }
+        let draft = OnboardingDraft(
+            nickname: nickname,
+            universityQuery: universityQuery,
+            selectedUniversityID: selectedUniversity?.id ?? pendingUniversityID,
+            selectedSemester: selectedSemester,
+            academicPhase: academicPhase?.rawValue,
+            inFaculdade: inFaculdade?.rawValue,
+            selectedGoal: selectedGoal?.rawValue,
+            revalidaStage: revalidaStage?.rawValue,
+            revalidaFocusAreas: revalidaFocusAreas,
+            targetSpecialtySlug: targetSpecialtySlug,
+            targetInstitutions: targetInstitutions,
+            activeSyncId: activeSyncId,
+            syncedSubjects: syncedSubjects.map {
+                OnboardingDraft.DraftSubject(name: $0.name, source: $0.source)
+            },
+            syncGrades: syncGrades,
+            syncSchedule: syncSchedule,
+            syncCourses: syncCourses,
+            subjectDifficulties: subjectDifficulties
+        )
+        guard let encoded = try? JSONEncoder().encode(draft) else { return }
+        UserDefaults.standard.set(encoded, forKey: draftKey)
+    }
+
+    private func restoreDraft() {
+        guard let data = UserDefaults.standard.data(forKey: draftKey),
+              let draft = try? JSONDecoder().decode(OnboardingDraft.self, from: data) else { return }
+
+        isRestoringDraft = true
+        nickname = draft.nickname
+        universityQuery = draft.universityQuery
+        pendingUniversityID = draft.selectedUniversityID
+        selectedSemester = draft.selectedSemester
+        academicPhase = draft.academicPhase.flatMap { AcademicPhase(rawValue: $0) }
+        inFaculdade = draft.inFaculdade.flatMap { InFaculdadeStatus(rawValue: $0) }
+        selectedGoal = draft.selectedGoal.flatMap { OnboardingGoal(rawValue: $0) }
+        revalidaStage = draft.revalidaStage.flatMap { RevalidaStage(rawValue: $0) }
+        revalidaFocusAreas = draft.revalidaFocusAreas
+        targetSpecialtySlug = draft.targetSpecialtySlug
+        targetInstitutions = draft.targetInstitutions
+        activeSyncId = draft.activeSyncId
+        syncedSubjects = draft.syncedSubjects.map {
+            SyncedSubject(name: $0.name, source: $0.source)
+        }
+        syncGrades = draft.syncGrades
+        syncSchedule = draft.syncSchedule
+        syncCourses = draft.syncCourses
+        subjectDifficulties = draft.subjectDifficulties
+        isRestoringDraft = false
+    }
+
+    private func restoreSelectedUniversityIfPossible() {
+        guard let pendingUniversityID,
+              let university = allUniversities.first(where: { $0.id == pendingUniversityID }) else { return }
+        selectedUniversity = university
+    }
+
+    private func clearDraft() {
+        UserDefaults.standard.removeObject(forKey: draftKey)
+    }
+
+    // MARK: - Backend sync
+
+    private func postOnboardingToBackend(data: OnboardingData) async -> Bool {
         guard let api else {
             print("[OnboardingVM] No API available to post onboarding data")
-            return
+            return false
         }
 
         let body = OnboardingPostRequest(
@@ -217,36 +319,39 @@ final class OnboardingViewModel {
 
         do {
             try await api.postOnboarding(body)
+            return true
         } catch {
             print("[OnboardingVM] Failed to post onboarding data: \(error.localizedDescription)")
+            return false
         }
     }
 
-    /// Onda 5b — POST /api/onboarding/v2 (backend deriva journeyType + journeyConfig + contentOrganizationMode)
-    private func postOnboardingV2ToBackend(data: OnboardingData) async {
+    private func postOnboardingV2ToBackend(data: OnboardingData) async -> Bool {
         guard let api else {
             print("[OnboardingVM] No API available to post onboarding v2 data")
-            return
+            return false
         }
         guard let goal = selectedGoal else {
-            print("[OnboardingVM] postOnboardingV2 called without selectedGoal — skipping")
-            return
+            print("[OnboardingVM] postOnboardingV2 called without selectedGoal")
+            return false
         }
 
         let semesterValue = inFaculdade == .yes && selectedSemester > 0 ? selectedSemester : nil
         let universityName = inFaculdade == .yes ? selectedUniversity?.shortName : nil
-        let universityIdValue = inFaculdade == .yes ? selectedUniversity?.id : nil
-        let universityLmsValue = inFaculdade == .yes ? selectedUniversity?.primaryPortal?.portalType : nil
-        let subjectsValue = data.subjects.isEmpty ? nil : data.subjects
+        let universityID = inFaculdade == .yes ? selectedUniversity?.id : nil
+        let universityLMS = inFaculdade == .yes
+            ? selectedUniversity?.primaryPortal?.portalType
+            : nil
+        let subjects = data.subjects.isEmpty ? nil : data.subjects
 
         let body = OnboardingV2Request(
             goal: goal.rawValue,
             inFaculdade: inFaculdade?.rawValue,
             semester: semesterValue,
             university: universityName,
-            universityId: universityIdValue,
-            universityLms: universityLmsValue,
-            selectedSubjects: subjectsValue,
+            universityId: universityID,
+            universityLms: universityLMS,
+            selectedSubjects: subjects,
             studyGoal: nil,
             targetSpecialty: targetSpecialtySlug,
             targetInstitutions: targetInstitutions.isEmpty ? nil : targetInstitutions,
@@ -256,13 +361,15 @@ final class OnboardingViewModel {
 
         do {
             _ = try await api.postOnboardingV2(body)
+            return true
         } catch {
             print("[OnboardingVM] Failed to post onboarding v2 data: \(error.localizedDescription)")
+            return false
         }
     }
 }
 
-// MARK: - Onboarding v2 enums (Onda 5b)
+// MARK: - Journey choices
 
 enum OnboardingGoal: String, CaseIterable, Hashable {
     case faculdade = "FACULDADE"
@@ -272,34 +379,65 @@ enum OnboardingGoal: String, CaseIterable, Hashable {
 }
 
 enum InFaculdadeStatus: String, Hashable {
+    case notStarted = "not_started"
     case yes
     case graduated
 }
 
-// Onda 5b refined (Rafael 2026-04-28): fase macro na jornada acadêmica, exibida
-// como primeira pergunta do onboarding. `vestibulando` ainda não tem jornada
-// dedicada no backend — mapeamento fica em aberto até bater o suporte. Por
-// enquanto deriva pra `nil` (sem inFaculdade) e o flow segue só pelo Goal step.
 enum AcademicPhase: String, Hashable, CaseIterable {
     case vestibulando
     case graduando
     case residencia
+    case professional
+    case other
 
     var derivedInFaculdade: InFaculdadeStatus? {
         switch self {
-        case .vestibulando: return nil
-        case .graduando:    return .yes
-        case .residencia:   return .graduated
+        case .vestibulando: return .notStarted
+        case .graduando: return .yes
+        case .residencia, .professional: return .graduated
+        case .other: return nil
+        }
+    }
+
+    var automaticGoal: OnboardingGoal? {
+        switch self {
+        case .vestibulando: return .faculdade
+        case .residencia: return .residencia
+        case .graduando, .professional, .other: return nil
         }
     }
 }
 
-// RevalidaStage definido em Core/Models/Journey/JourneyType.swift (Codable)
-
-// MARK: - Synced Subject (from API)
+// MARK: - Draft models
 
 struct SyncedSubject: Identifiable {
     var id: String { name }
     let name: String
-    let source: String  // canvas | manual | pdf-extraction
+    let source: String
+}
+
+private struct OnboardingDraft: Codable {
+    struct DraftSubject: Codable {
+        let name: String
+        let source: String
+    }
+
+    let nickname: String
+    let universityQuery: String
+    let selectedUniversityID: String?
+    let selectedSemester: Int
+    let academicPhase: String?
+    let inFaculdade: String?
+    let selectedGoal: String?
+    let revalidaStage: String?
+    let revalidaFocusAreas: [String]
+    let targetSpecialtySlug: String?
+    let targetInstitutions: [String]
+    let activeSyncId: String?
+    let syncedSubjects: [DraftSubject]
+    let syncGrades: Int
+    let syncSchedule: Int
+    let syncCourses: Int
+    let subjectDifficulties: [String: String]
 }

@@ -38,21 +38,36 @@ struct DoneStep: View {
                 let semester = viewModel.selectedSemester
 
                 if subjectsCount > 0 {
-                    DoneStat(value: "\(subjectsCount)", label: "Matérias")
+                    DoneStat(
+                        value: "\(subjectsCount)",
+                        label: String(localized: "onboarding_done_subjects")
+                    )
                 }
                 if gradesCount > 0 {
-                    DoneStat(value: "\(gradesCount)", label: "Notas")
+                    DoneStat(
+                        value: "\(gradesCount)",
+                        label: String(localized: "onboarding_done_grades")
+                    )
                 }
                 if viewModel.syncSchedule > 0 {
-                    DoneStat(value: "\(viewModel.syncSchedule)", label: "Horários")
+                    DoneStat(
+                        value: "\(viewModel.syncSchedule)",
+                        label: String(localized: "onboarding_done_schedule")
+                    )
                 }
                 if semester > 0 {
-                    DoneStat(value: "\(semester)\u{00BA}", label: "Semestre")
+                    DoneStat(
+                        value: "\(semester)\u{00BA}",
+                        label: String(localized: "onboarding_done_semester")
+                    )
                 }
                 // If nothing was synced, show university
                 if subjectsCount == 0 && gradesCount == 0 && viewModel.syncSchedule == 0 {
                     if let uni = viewModel.selectedUniversity {
-                        DoneStat(value: uni.shortName, label: "Universidade")
+                        DoneStat(
+                            value: uni.shortName,
+                            label: String(localized: "onboarding_done_university")
+                        )
                     }
                 }
             }

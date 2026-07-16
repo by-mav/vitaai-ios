@@ -12,31 +12,26 @@ struct ExtrasStep: View {
     let onConnectIntegration: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            OnboardingSpeechBubble(
-                text: "O Vita também consegue conectar com WhatsApp, Spotify e mais coisas pra te ajudar fora do app — recomendo o WhatsApp pra falar comigo direto pelo zap!"
-            )
-
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
             VStack(spacing: 10) {
                 extraCard(
                     letter: "W",
                     name: "WhatsApp",
-                    subtitle: "Receba lembretes e fale comigo pelo zap",
+                    subtitle: String(localized: "onboarding_extras_whatsapp_subtitle"),
                     color: Color(red: 0.15, green: 0.68, blue: 0.38),
-                    badge: "RECOMENDADO",
+                    badge: String(localized: "onboarding_extras_recommended"),
                     action: onConnectWhatsApp
                 )
                 extraCard(
                     letter: "♫",
                     name: "Spotify",
-                    subtitle: "Música de foco durante a transcrição",
+                    subtitle: String(localized: "onboarding_extras_spotify_subtitle"),
                     color: Color(red: 0.11, green: 0.73, blue: 0.33),
                     badge: nil,
                     action: { onConnectIntegration("spotify") }
                 )
             }
         }
-        .padding(.horizontal, 20)
     }
 
     @ViewBuilder

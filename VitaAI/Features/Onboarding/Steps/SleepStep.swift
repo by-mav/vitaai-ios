@@ -90,15 +90,15 @@ struct IntroductionNameStep: View {
     let onSubmit: () -> Void
 
     var body: some View {
-        VitaInput(
+        OnboardingTextInput(
             value: $viewModel.nickname,
             placeholder: String(localized: "onboarding_intro_name_placeholder"),
             leadingSystemImage: "person",
             submitLabel: .continue,
+            accessibilityIdentifier: "onboardingNameInput",
             onSubmit: onSubmit
         )
         .textContentType(.name)
-        .accessibilityIdentifier("onboardingNameInput")
     }
 }
 

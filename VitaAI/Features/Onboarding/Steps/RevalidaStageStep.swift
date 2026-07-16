@@ -13,13 +13,15 @@ struct RevalidaStageStep: View {
     @Bindable var viewModel: OnboardingViewModel
 
     // Areas focais alinhadas com great-areas + grandes especialidades clinicas
-    private let focusAreaOptions: [(slug: String, label: String)] = [
-        ("clinica-medica", "Clinica Medica"),
-        ("cirurgia", "Cirurgia"),
-        ("ginecologia-obstetricia", "G.O."),
-        ("pediatria", "Pediatria"),
-        ("medicina-familia", "MFC"),
-    ]
+    private var focusAreaOptions: [(slug: String, label: String)] {
+        [
+            ("clinica-medica", String(localized: "onboarding_focus_clinical_medicine")),
+            ("cirurgia", String(localized: "onboarding_focus_surgery")),
+            ("ginecologia-obstetricia", String(localized: "onboarding_focus_obgyn")),
+            ("pediatria", String(localized: "onboarding_focus_pediatrics")),
+            ("medicina-familia", String(localized: "onboarding_focus_family_medicine")),
+        ]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -27,23 +29,35 @@ struct RevalidaStageStep: View {
             // Stage selector
             VStack(alignment: .leading, spacing: 8) {
                 Text(String(localized: "onboarding_revalida_stage_question"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(VitaColors.textPrimary.opacity(0.68))
 
-                HStack(spacing: 10) {
-                    stageButton(stage: .primeira, label: String(localized: "onboarding_revalida_stage_primeira"))
-                    stageButton(stage: .segunda, label: String(localized: "onboarding_revalida_stage_segunda"))
+                OnboardingChoiceRow(
+                    title: String(localized: "onboarding_revalida_stage_primeira"),
+                    systemImage: "doc.text",
+                    isSelected: viewModel.revalidaStage == .primeira,
+                    accessibilityIdentifier: "onboardingRevalidaPrimeira"
+                ) {
+                    viewModel.revalidaStage = .primeira
+                }
+                OnboardingChoiceRow(
+                    title: String(localized: "onboarding_revalida_stage_segunda"),
+                    systemImage: "person.2.badge.gearshape",
+                    isSelected: viewModel.revalidaStage == .segunda,
+                    accessibilityIdentifier: "onboardingRevalidaSegunda"
+                ) {
+                    viewModel.revalidaStage = .segunda
                 }
             }
 
             // Focus areas (optional)
             VStack(alignment: .leading, spacing: 8) {
                 Text(String(localized: "onboarding_revalida_focus_question"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(VitaColors.textPrimary.opacity(0.68))
                 Text(String(localized: "onboarding_revalida_focus_hint"))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.35))
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textPrimary.opacity(0.48))
 
                 FlowLayout(spacing: 8) {
                     ForEach(focusAreaOptions, id: \.slug) { area in
@@ -52,29 +66,6 @@ struct RevalidaStageStep: View {
                 }
             }
         }
-    }
-
-    private func stageButton(stage: RevalidaStage, label: String) -> some View {
-        let isSelected = viewModel.revalidaStage == stage
-        return Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            viewModel.revalidaStage = stage
-        } label: {
-            Text(label)
-                .font(.system(size: 13, weight: isSelected ? .bold : .medium))
-                .foregroundStyle(isSelected ? VitaColors.accent : .white.opacity(0.6))
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isSelected ? VitaColors.accent.opacity(0.12) : Color.white.opacity(0.03))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(isSelected ? VitaColors.accent.opacity(0.30) : Color.white.opacity(0.06), lineWidth: 1)
-                        )
-                )
-        }
-        .buttonStyle(.plain)
     }
 
     private func focusChip(slug: String, label: String) -> some View {
@@ -88,8 +79,12 @@ struct RevalidaStageStep: View {
             }
         } label: {
             Text(label)
-                .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
-                .foregroundStyle(isSelected ? VitaColors.accent : .white.opacity(0.55))
+                .font(VitaTypography.labelMedium)
+                .foregroundStyle(
+                    isSelected
+                        ? VitaColors.accent
+                        : VitaColors.textPrimary.opacity(0.66)
+                )
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(

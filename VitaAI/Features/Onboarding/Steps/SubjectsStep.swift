@@ -37,13 +37,25 @@ struct SubjectsStep: View {
                         }
                         Spacer()
                         HStack(spacing: 6) {
-                            DifficultyPill(label: "Fácil", selected: difficulty == "facil") {
+                            DifficultyPill(
+                                label: String(localized: "onboarding_difficulty_easy"),
+                                kind: "facil",
+                                selected: difficulty == "facil"
+                            ) {
                                 viewModel.setDifficulty(subject.name, difficulty: "facil")
                             }
-                            DifficultyPill(label: "Medio", selected: difficulty == "medio") {
+                            DifficultyPill(
+                                label: String(localized: "onboarding_difficulty_medium"),
+                                kind: "medio",
+                                selected: difficulty == "medio"
+                            ) {
                                 viewModel.setDifficulty(subject.name, difficulty: "medio")
                             }
-                            DifficultyPill(label: "Difícil", selected: difficulty == "dificil") {
+                            DifficultyPill(
+                                label: String(localized: "onboarding_difficulty_hard"),
+                                kind: "dificil",
+                                selected: difficulty == "dificil"
+                            ) {
                                 viewModel.setDifficulty(subject.name, difficulty: "dificil")
                             }
                         }
@@ -65,11 +77,12 @@ struct SubjectsStep: View {
 
 private struct DifficultyPill: View {
     let label: String
+    let kind: String
     let selected: Bool
     let action: () -> Void
 
     private var activeColor: Color {
-        switch label.lowercased() {
+        switch kind {
         case "facil": return Color(red: 0.51, green: 0.78, blue: 0.55)
         case "medio": return Color(red: 1.0, green: 0.71, blue: 0.31)
         default: return Color(red: 1.0, green: 0.39, blue: 0.31)

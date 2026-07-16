@@ -11,6 +11,8 @@ enum OnboardingStep: Int, CaseIterable {
     // statusFaculdade + goal sao SEMPRE mostrados (P2 + P1 do onboarding v2).
     // revalidaStage so aparece se goal=REVALIDA. welcome/connect so se inFaculdade=yes.
     case statusFaculdade = 1
+    // New value preserves every historical AppStorage raw value.
+    case phaseResponse = 14
     case goal = 2
     case revalidaStage = 3
     case residenciaSpecialty = 12  // Slice 4: so se goal=RESIDENCIA. Numero alto pra nao quebrar AppStorage migration legacy.
@@ -88,6 +90,7 @@ struct OnboardingVitaSpeech: View {
     let text: String
     let reservedText: String
     let mascotNamespace: Namespace.ID
+    var usesWakeTransition: Bool = false
     var showsBubble: Bool = true
     var isTyping: Bool = false
     var isReaction: Bool = false
@@ -98,39 +101,38 @@ struct OnboardingVitaSpeech: View {
     @State private var isPresented = false
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+        HStack(alignment: .bottom, spacing: -VitaTokens.Spacing.sm) {
+            // A measured, non-negotiable column prevents the mascot and its
+            // oversized aura from ever consuming the bubble's text region.
+            ZStack(alignment: .bottom) {
+                speakingMascot
+            }
+            .frame(width: 76, height: 76, alignment: .bottom)
+            // OrbMascot deliberately paints a 2.2x atmospheric canvas around
+            // its 64pt body. This measured compensation aligns the visible
+            // sphere (not the invisible aura canvas) with the bubble tail.
+            .offset(y: 96)
+            .zIndex(1)
+
             OnboardingSpeechBubble(
                 text: text,
                 reservedText: reservedText,
                 isTyping: isTyping,
                 isReaction: isReaction
             )
-            .padding(.leading, VitaTokens.Spacing._4xl + VitaTokens.Spacing.md)
             .opacity(showsBubble && isPresented ? 1 : 0)
             .scaleEffect(
                 showsBubble && (isPresented || reduceMotion) ? 1 : 0.985,
                 anchor: .bottomLeading
             )
             .allowsHitTesting(showsBubble)
-
-            VitaMascot(
-                state: mascotState,
-                size: 64,
-                idleEnabled: true,
-                isBlushing: mascotBlushing,
-                showsOrbit: false
-            )
-            .scaleEffect(mascotScale)
-            .offset(y: VitaTokens.Spacing.md)
-            .matchedGeometryEffect(
-                id: "onboarding-speaking-mascot",
-                in: mascotNamespace,
-                properties: .frame,
-                anchor: .center,
-                isSource: false
-            )
+            .layoutPriority(1)
         }
-        .padding(.bottom, VitaTokens.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        // The visible orb intentionally hangs below the bubble. Reserve that
+        // footprint so the first control of the next section can never sit
+        // underneath the mascot.
+        .padding(.bottom, VitaTokens.Spacing._3xl)
         .task(id: "\(reservedText)|\(showsBubble)") {
             isPresented = false
             guard showsBubble else { return }
@@ -144,6 +146,206 @@ struct OnboardingVitaSpeech: View {
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var speakingMascot: some View {
+        let mascot = VitaMascot(
+            state: mascotState,
+            size: 64,
+            idleEnabled: true,
+            isBlushing: mascotBlushing,
+            showsOrbit: false
+        )
+        .scaleEffect(mascotScale)
+
+        if usesWakeTransition {
+            mascot.matchedGeometryEffect(
+                id: "onboarding-speaking-mascot",
+                in: mascotNamespace,
+                properties: .frame,
+                anchor: .center,
+                isSource: false
+            )
+        } else {
+            mascot
+        }
+    }
+}
+
+// MARK: - Canonical onboarding input
+
+/// Every value typed during onboarding uses this exact control. Keeping the
+/// field local to the flow avoids drifting university, token and code inputs.
+struct OnboardingTextInput: View {
+    @Binding var value: String
+    var label: String? = nil
+    let placeholder: String
+    var leadingSystemImage: String? = nil
+    var errorMessage: String? = nil
+    var keyboardType: UIKeyboardType = .default
+    var submitLabel: SubmitLabel = .done
+    var autocapitalization: TextInputAutocapitalization = .sentences
+    var autocorrectionDisabled = false
+    var showClearButton = true
+    var accessibilityIdentifier: String? = nil
+    var onSubmit: (() -> Void)? = nil
+
+    @FocusState private var isFocused: Bool
+
+    private var borderColor: Color {
+        if errorMessage != nil { return VitaColors.dataRed.opacity(0.8) }
+        if isFocused { return VitaColors.accent.opacity(0.78) }
+        return VitaColors.accent.opacity(0.28)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+            if let label {
+                Text(label)
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+
+            HStack(spacing: VitaTokens.Spacing.md) {
+                if let leadingSystemImage {
+                    Image(systemName: leadingSystemImage)
+                        .font(VitaTypography.titleLarge)
+                        .foregroundStyle(isFocused ? VitaColors.accent : VitaColors.textSecondary)
+                        .frame(width: 22)
+                }
+
+                TextField(placeholder, text: $value)
+                    .font(VitaTypography.bodyLarge)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .tint(VitaColors.accent)
+                    .keyboardType(keyboardType)
+                    .textInputAutocapitalization(autocapitalization)
+                    .autocorrectionDisabled(autocorrectionDisabled)
+                    .submitLabel(submitLabel)
+                    .focused($isFocused)
+                    .accessibilityIdentifier(accessibilityIdentifier ?? "")
+                    .onSubmit { onSubmit?() }
+
+                if showClearButton && !value.isEmpty {
+                    Button {
+                        value = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(VitaTypography.titleMedium)
+                            .foregroundStyle(VitaColors.textTertiary)
+                            .frame(width: 32, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(String(localized: "onboarding_a11y_clear_field"))
+                }
+            }
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .frame(minHeight: 56)
+            .background {
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                    .fill(VitaColors.surfaceElevated.opacity(0.78))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                    .stroke(borderColor, lineWidth: isFocused ? 1.25 : 1)
+            }
+            .shadow(
+                color: isFocused ? VitaColors.accent.opacity(0.16) : .black.opacity(0.18),
+                radius: isFocused ? 16 : 8,
+                y: isFocused ? 4 : 3
+            )
+            .animation(.easeInOut(duration: 0.18), value: isFocused)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.dataRed)
+                    .padding(.leading, VitaTokens.Spacing.sm)
+            }
+        }
+    }
+}
+
+// MARK: - Canonical onboarding choice
+
+struct OnboardingChoiceRow: View {
+    let title: String
+    var subtitle: String? = nil
+    let systemImage: String
+    let isSelected: Bool
+    var accessibilityIdentifier: String = ""
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            action()
+        } label: {
+            HStack(spacing: VitaTokens.Spacing.md) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                        .fill(isSelected ? VitaColors.accent.opacity(0.14) : VitaColors.glassBg)
+                        .frame(width: 34, height: 34)
+                    Image(systemName: systemImage)
+                        .font(PixioTypo.body)
+                        .foregroundStyle(
+                            isSelected
+                                ? VitaColors.accent
+                                : VitaColors.textPrimary.opacity(0.52)
+                        )
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(VitaTypography.labelLarge)
+                        .foregroundStyle(
+                            isSelected
+                                ? VitaColors.textPrimary
+                                : VitaColors.textPrimary.opacity(0.82)
+                        )
+                        .multilineTextAlignment(.leading)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle(VitaColors.textTertiary)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+
+                Spacer(minLength: VitaTokens.Spacing.sm)
+
+                ZStack {
+                    Circle()
+                        .stroke(
+                            isSelected ? VitaColors.accent : VitaColors.textTertiary.opacity(0.7),
+                            lineWidth: 1.25
+                        )
+                        .frame(width: 19, height: 19)
+                    if isSelected {
+                        Circle()
+                            .fill(VitaColors.accent)
+                            .frame(width: 9, height: 9)
+                    }
+                }
+            }
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .padding(.vertical, VitaTokens.Spacing.md)
+            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                    .fill(isSelected ? VitaColors.accent.opacity(0.09) : VitaColors.glassBg)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                    .stroke(
+                        isSelected ? VitaColors.accent.opacity(0.42) : VitaColors.glassBorder,
+                        lineWidth: 1
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 

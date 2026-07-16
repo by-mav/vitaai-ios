@@ -26,30 +26,23 @@ struct ConnectStep: View {
             }
         }
 
-        var tokenPlaceholder: String {
-            switch self {
-            case .canvas: return "Cole seu token aqui"
-            case .moodle: return "Cole seu token aqui"
-            }
-        }
-
         var tutorialSteps: [String] {
             switch self {
             case .canvas:
                 return [
-                    "Abra o Canvas da sua faculdade no navegador",
-                    "Vá em Conta → Configurações",
-                    "Role até \"Tokens de Acesso\"",
-                    "Clique em \"+ Novo Token de Acesso\"",
-                    "Dê um nome (ex: Vita) e clique em Gerar",
-                    "Copie o token e cole aqui",
+                    String(localized: "onboarding_canvas_step_1"),
+                    String(localized: "onboarding_canvas_step_2"),
+                    String(localized: "onboarding_canvas_step_3"),
+                    String(localized: "onboarding_canvas_step_4"),
+                    String(localized: "onboarding_canvas_step_5"),
+                    String(localized: "onboarding_canvas_step_6"),
                 ]
             case .moodle:
                 return [
-                    "Abra o Moodle da sua faculdade no navegador",
-                    "Vá em Preferências → Chaves de Segurança",
-                    "Clique em \"Redefinir\" pra gerar um token",
-                    "Copie o token e cole aqui",
+                    String(localized: "onboarding_moodle_step_1"),
+                    String(localized: "onboarding_moodle_step_2"),
+                    String(localized: "onboarding_moodle_step_3"),
+                    String(localized: "onboarding_moodle_step_4"),
                 ]
             }
         }
@@ -162,10 +155,13 @@ struct ConnectStep: View {
                             .foregroundStyle(University.color(for: portal.apiType))
                     }
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Abrir \(portal.rawValue)")
+                        Text(
+                            String(localized: "onboarding_portal_open")
+                                .replacingOccurrences(of: "%@", with: portal.rawValue)
+                        )
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.85))
-                        Text("Abre o app (se tiver) ou no Safari")
+                        Text(String(localized: "onboarding_portal_open_hint"))
                             .font(.system(size: 11))
                             .foregroundStyle(.white.opacity(0.4))
                     }
@@ -179,41 +175,6 @@ struct ConnectStep: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(University.color(for: portal.apiType).opacity(0.05))
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(University.color(for: portal.apiType).opacity(0.15), lineWidth: 1))
-                )
-            }
-            .buttonStyle(.plain)
-
-            // Video tutorial placeholder
-            Button {
-                // TODO: abrir vídeo tutorial
-            } label: {
-                HStack(spacing: 10) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(VitaColors.accent.opacity(0.1))
-                            .frame(width: 48, height: 48)
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(VitaColors.accent)
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Como pegar seu token")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.85))
-                        Text("Veja o passo a passo em 30 segundos")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.white.opacity(0.4))
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.2))
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(VitaColors.accent.opacity(0.04))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VitaColors.accent.opacity(0.12), lineWidth: 1))
                 )
             }
             .buttonStyle(.plain)
@@ -234,58 +195,26 @@ struct ConnectStep: View {
                 }
             }
 
-            // Token input
-            VStack(alignment: .leading, spacing: 6) {
-                Text("TOKEN DE ACESSO")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.35))
-                    .tracking(0.8)
-                TextField(portal.tokenPlaceholder, text: $token)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.04))
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(
-                                errorMessage != nil ? Color.red.opacity(0.3) : Color.white.opacity(0.08),
-                                lineWidth: 1
-                            ))
-                    )
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
+            OnboardingTextInput(
+                value: $token,
+                label: String(localized: "onboarding_portal_token_label"),
+                placeholder: String(localized: "onboarding_portal_token_placeholder"),
+                leadingSystemImage: "key",
+                errorMessage: errorMessage,
+                autocapitalization: .never,
+                autocorrectionDisabled: true,
+                accessibilityIdentifier: "onboardingPortalTokenInput"
+            )
 
-            if let error = errorMessage {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11))
-                    Text(error)
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .foregroundStyle(.red.opacity(0.8))
-            }
-
-            Button {
-                Task { await connectWithToken(portal: portal) }
-            } label: {
-                HStack(spacing: 8) {
-                    if isConnecting {
-                        ProgressView().tint(VitaColors.surface).scaleEffect(0.8)
-                    }
-                    Text(isConnecting ? "Conectando..." : "Conectar")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .foregroundStyle(VitaColors.surface)
-                .frame(maxWidth: .infinity)
-                .frame(height: 46)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(canConnect ? .white : .white.opacity(0.3))
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(!canConnect || isConnecting)
+            VitaButton(
+                text: String(localized: "onboarding_portal_connect"),
+                action: { Task { await connectWithToken(portal: portal) } },
+                variant: .primary,
+                size: .md,
+                isEnabled: canConnect,
+                isLoading: isConnecting,
+                fillsWidth: true
+            )
         }
         .padding(16)
         .background(
@@ -308,11 +237,14 @@ struct ConnectStep: View {
                     .foregroundStyle(VitaColors.dataGreen)
             }
 
-            Text("\(portal.rawValue) conectado!")
+            Text(
+                String(localized: "onboarding_portal_connected")
+                    .replacingOccurrences(of: "%@", with: portal.rawValue)
+            )
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(.white.opacity(0.9))
 
-            Text("Vita já tá puxando seus dados")
+            Text(String(localized: "onboarding_portal_sync_started"))
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.45))
         }
@@ -367,6 +299,14 @@ struct ConnectStep: View {
 
     private func connectWithToken(portal: PortalChoice) async {
         guard canConnect, let api else { return }
+        await MainActor.run {
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+        }
         isConnecting = true
         errorMessage = nil
 
@@ -387,14 +327,14 @@ struct ConnectStep: View {
                     withAnimation(.spring(response: 0.4)) { isConnected = true }
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } else {
-                    errorMessage = result.error ?? "Token inválido"
+                    errorMessage = result.error ?? String(localized: "onboarding_portal_invalid_token")
                     UINotificationFeedbackGenerator().notificationOccurred(.error)
                 }
                 isConnecting = false
             }
         } catch {
             await MainActor.run {
-                errorMessage = "Erro de conexão. Verifique o token."
+                errorMessage = String(localized: "onboarding_portal_connection_error")
                 isConnecting = false
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
             }

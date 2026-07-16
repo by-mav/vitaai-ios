@@ -5,7 +5,6 @@ import SwiftUI
 struct WelcomeStep: View {
     @Bindable var viewModel: OnboardingViewModel
     @Binding var showManualEntry: Bool
-    @FocusState private var searchFocused: Bool
     @State private var showDropdown = false
 
     // Semester picker mora aqui (Rafael 2026-04-28): saiu do StatusFaculdadeStep
@@ -15,28 +14,20 @@ struct WelcomeStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Search field
-            TextField("Digite sua universidade...", text: $viewModel.universityQuery)
-                .foregroundStyle(Color.white.opacity(0.9))
-                .font(.system(size: 14))
-                .tint(VitaColors.accent)
-                .focused($searchFocused)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
+            OnboardingTextInput(
+                value: $viewModel.universityQuery,
+                placeholder: String(localized: "onboarding_university_placeholder"),
+                leadingSystemImage: "building.columns",
+                autocapitalization: .words,
+                autocorrectionDisabled: true,
+                accessibilityIdentifier: "onboardingUniversityInput"
+            )
                 .onChange(of: viewModel.universityQuery) { newValue in
                     if viewModel.selectedUniversity == nil || newValue != viewModel.selectedUniversity?.shortName {
                         showDropdown = true
                         if newValue.isEmpty { viewModel.selectedUniversity = nil }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 13)
-                .background(Color.white.opacity(0.03))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(searchFocused ? VitaColors.accent.opacity(0.3) : Color.white.opacity(0.06), lineWidth: 1)
-                )
 
             // Dropdown results
             let results = viewModel.filteredUniversities.prefix(6)
@@ -47,7 +38,12 @@ struct WelcomeStep: View {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             viewModel.selectUniversity(uni)
                             showDropdown = false
-                            searchFocused = false
+                            UIApplication.shared.sendAction(
+                                #selector(UIResponder.resignFirstResponder),
+                                to: nil,
+                                from: nil,
+                                for: nil
+                            )
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -164,7 +160,12 @@ struct WelcomeStep: View {
                             .font(.system(size: 10))
                             .foregroundStyle(.white.opacity(0.2))
                         if portals.count > 1 {
-                            Text("\(portals.count) portais")
+                            Text(
+                                String(
+                                    format: String(localized: "onboarding_portals_count"),
+                                    portals.count
+                                )
+                            )
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundStyle(University.color(for: portals.first?.portalType ?? "").opacity(0.7))
                         } else if let p = portals.first {
@@ -215,29 +216,41 @@ struct ManualUniversitySheet: View {
                     .foregroundStyle(.white.opacity(0.4))
                     .multilineTextAlignment(.center)
 
-                VStack(spacing: 12) {
-                    onboardingTextField("Nome da faculdade", text: $name)
-                    onboardingTextField("Cidade", text: $city)
-                    onboardingTextField("Estado (UF)", text: $state)
-                        .textInputAutocapitalization(.characters)
+                VStack(spacing: VitaTokens.Spacing.md) {
+                    OnboardingTextInput(
+                        value: $name,
+                        placeholder: String(localized: "onboarding_add_uni_name_placeholder"),
+                        leadingSystemImage: "building.columns",
+                        autocapitalization: .words
+                    )
+                    OnboardingTextInput(
+                        value: $city,
+                        placeholder: String(localized: "onboarding_add_uni_city_placeholder"),
+                        leadingSystemImage: "mappin.and.ellipse",
+                        autocapitalization: .words
+                    )
+                    OnboardingTextInput(
+                        value: $state,
+                        placeholder: String(localized: "onboarding_add_uni_state_placeholder"),
+                        leadingSystemImage: "map",
+                        autocapitalization: .characters
+                    )
                 }
                 .padding(.horizontal, 20)
 
-                Button {
-                    guard !name.isEmpty else { return }
-                    onSubmit(name, city, state)
-                    dismiss()
-                } label: {
-                    Text(String(localized: "onboarding_add_uni_submit"))
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(VitaColors.surface)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(.white))
-                }
+                VitaButton(
+                    text: String(localized: "onboarding_add_uni_submit"),
+                    action: {
+                        guard !name.isEmpty else { return }
+                        onSubmit(name, city, state)
+                        dismiss()
+                    },
+                    variant: .primary,
+                    size: .md,
+                    isEnabled: !name.isEmpty,
+                    fillsWidth: true
+                )
                 .padding(.horizontal, 20)
-                .disabled(name.isEmpty)
-                .opacity(name.isEmpty ? 0.5 : 1)
 
                 Spacer()
             }
@@ -246,16 +259,4 @@ struct ManualUniversitySheet: View {
         }
     }
 
-    private func onboardingTextField(_ placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
-            .foregroundStyle(Color.white.opacity(0.9))
-            .font(.system(size: 14))
-            .tint(VitaColors.accent)
-            .autocorrectionDisabled()
-            .padding(.horizontal, 16)
-            .padding(.vertical, 13)
-            .background(Color.white.opacity(0.03))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.06), lineWidth: 1))
-    }
 }

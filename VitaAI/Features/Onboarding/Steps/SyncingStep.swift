@@ -39,7 +39,12 @@ struct SyncingStep: View {
                         if viewModel.syncGrades > 0 || viewModel.syncSchedule > 0 || viewModel.syncCourses > 0 {
                             HStack(spacing: 6) {
                                 if viewModel.syncCourses > 0 {
-                                    Text("\(viewModel.syncCourses) disciplinas")
+                                    Text(
+                                        String(
+                                            format: String(localized: "onboarding_sync_courses_count"),
+                                            viewModel.syncCourses
+                                        )
+                                    )
                                         .font(.system(size: 11))
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
@@ -47,7 +52,12 @@ struct SyncingStep: View {
                                     if viewModel.syncCourses > 0 {
                                         Text("\u{00B7}").font(.system(size: 11)).foregroundStyle(.white.opacity(0.2))
                                     }
-                                    Text("\(viewModel.syncGrades) notas")
+                                    Text(
+                                        String(
+                                            format: String(localized: "onboarding_sync_grades_count"),
+                                            viewModel.syncGrades
+                                        )
+                                    )
                                         .font(.system(size: 11))
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
@@ -55,7 +65,12 @@ struct SyncingStep: View {
                                     if viewModel.syncCourses > 0 || viewModel.syncGrades > 0 {
                                         Text("\u{00B7}").font(.system(size: 11)).foregroundStyle(.white.opacity(0.2))
                                     }
-                                    Text("\(viewModel.syncSchedule) horÃ¡rios")
+                                    Text(
+                                        String(
+                                            format: String(localized: "onboarding_sync_schedule_count"),
+                                            viewModel.syncSchedule
+                                        )
+                                    )
                                         .font(.system(size: 11))
                                         .foregroundStyle(.white.opacity(0.4))
                                 }
@@ -175,7 +190,10 @@ struct SyncingStep: View {
                     withAnimation {
                         viewModel.syncCourses = result.courses
                         viewModel.syncSchedule = result.calendarEvents
-                        label = "\(result.courses) disciplinas encontradas"
+                        label = String(
+                            format: String(localized: "onboarding_sync_courses_found"),
+                            result.courses
+                        )
                         percent = 85
                     }
                 }
@@ -196,9 +214,24 @@ struct SyncingStep: View {
         await MainActor.run {
             withAnimation {
                 let parts: [String] = [
-                    viewModel.syncCourses > 0 ? "\(viewModel.syncCourses) disciplinas" : nil,
-                    viewModel.syncGrades > 0 ? "\(viewModel.syncGrades) notas" : nil,
-                    viewModel.syncSchedule > 0 ? "\(viewModel.syncSchedule) horÃ¡rios" : nil,
+                    viewModel.syncCourses > 0
+                        ? String(
+                            format: String(localized: "onboarding_sync_courses_count"),
+                            viewModel.syncCourses
+                        )
+                        : nil,
+                    viewModel.syncGrades > 0
+                        ? String(
+                            format: String(localized: "onboarding_sync_grades_count"),
+                            viewModel.syncGrades
+                        )
+                        : nil,
+                    viewModel.syncSchedule > 0
+                        ? String(
+                            format: String(localized: "onboarding_sync_schedule_count"),
+                            viewModel.syncSchedule
+                        )
+                        : nil,
                 ].compactMap { $0 }
 
                 label = parts.isEmpty ? String(localized: "sync_done") : parts.joined(separator: " \u{00B7} ")

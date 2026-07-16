@@ -36,26 +36,13 @@ struct ResidenciaSpecialtyStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
 
-            // Search box
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.white.opacity(0.4))
-                    .font(.system(size: 13))
-                TextField("", text: $query, prompt: Text(String(localized: "onboarding_residencia_search_placeholder")).foregroundColor(.white.opacity(0.35)))
-                    .foregroundStyle(.white)
-                    .font(.system(size: 14))
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.04))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
-                    )
+            OnboardingTextInput(
+                value: $query,
+                placeholder: String(localized: "onboarding_residencia_search_placeholder"),
+                leadingSystemImage: "magnifyingglass",
+                autocapitalization: .words,
+                autocorrectionDisabled: true,
+                accessibilityIdentifier: "onboardingSpecialtySearch"
             )
 
             if isLoading {
@@ -67,8 +54,8 @@ struct ResidenciaSpecialtyStep: View {
                 .padding(.vertical, 32)
             } else if let err = loadError {
                 Text(err)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.red.opacity(0.7))
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.dataRed)
             } else {
                 // Acesso Direto (22)
                 if !filteredDirect.isEmpty {
@@ -107,12 +94,12 @@ struct ResidenciaSpecialtyStep: View {
     private func sectionHeader(title: String, count: Int) -> some View {
         HStack {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.5))
+                .font(VitaTypography.labelMedium)
+                .foregroundStyle(VitaColors.textPrimary.opacity(0.72))
             Spacer()
             Text("\(count)")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.white.opacity(0.35))
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textPrimary.opacity(0.56))
         }
         .padding(.top, 8)
     }
@@ -122,11 +109,21 @@ struct ResidenciaSpecialtyStep: View {
         return Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             viewModel.targetSpecialtySlug = spec.slug
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
         } label: {
             HStack(spacing: 12) {
                 Text(spec.name)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? .white : .white.opacity(0.82))
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(
+                        isSelected
+                            ? VitaColors.textPrimary
+                            : VitaColors.textPrimary.opacity(0.78)
+                    )
                 Spacer(minLength: 0)
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
@@ -152,7 +149,7 @@ struct ResidenciaSpecialtyStep: View {
 
     private func loadSpecialties() async {
         guard let api else {
-            loadError = "API indisponível"
+            loadError = String(localized: "onboarding_residencia_api_unavailable")
             isLoading = false
             return
         }
@@ -162,7 +159,7 @@ struct ResidenciaSpecialtyStep: View {
             withPrerequisite = resp.withPrerequisite
             isLoading = false
         } catch {
-            loadError = "Falha ao carregar especialidades: \(error.localizedDescription)"
+            loadError = String(localized: "onboarding_residencia_load_error")
             isLoading = false
             print("[ResidenciaSpecialty] load failed: \(error)")
         }
