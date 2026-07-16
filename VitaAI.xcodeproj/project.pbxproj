@@ -256,6 +256,7 @@
 		1A2B6BBC2912EBBA84B727D5 /* FeedbackScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FA8B37E247D62A4DC64032E /* FeedbackScreen.swift */; };
 		1AA8C9086A063006549974DC /* paste-c8919b3a0896a9f1d11b17ad5e6563259b8e663f.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 680BA410D2DA5BD794FA2ACB /* paste-c8919b3a0896a9f1d11b17ad5e6563259b8e663f.jpg */; };
 		1ABD1595A83B90BC00DE363E /* QBankPreviewResponseTopGroupsInner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DCE3DF83F6E4CB8288F40DB /* QBankPreviewResponseTopGroupsInner.swift */; };
+		1AD22A18E548EC0B0DEBECCE /* RankMedal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EECD7CEB9701842A86F3C6 /* RankMedal.swift */; };
 		1AEB311357BB9789F7AC28E5 /* Screen Shot 2021-03-27 at 12.22.29 PM.png in Resources */ = {isa = PBXBuildFile; fileRef = 3AC9BA92F49FB386C50BC01F /* Screen Shot 2021-03-27 at 12.22.29 PM.png */; };
 		1AFFBC16681CED1E25E2EAAB /* QBankCoordinatorScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 564E8E7192471F3F1E0AD40A /* QBankCoordinatorScreen.swift */; };
 		1B0ABDFA4944F6EBD22C5047 /* tmps3bxkdj9.png in Resources */ = {isa = PBXBuildFile; fileRef = 9568EC08793EF602AA7C7322 /* tmps3bxkdj9.png */; };
@@ -2685,6 +2686,7 @@
 		30B6EFE07E93FC568E63CB7B /* paste-7c821441f38279d6bb9533e2f224c9d49db61848.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-7c821441f38279d6bb9533e2f224c9d49db61848.jpg"; sourceTree = "<group>"; };
 		30DCA538B8B6308DA3358E42 /* paste-aff604664855561e37fbde302b578b3c3b75abe5.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-aff604664855561e37fbde302b578b3c3b75abe5.jpg"; sourceTree = "<group>"; };
 		30EC93DD81E3E1CACB40DB7C /* Screen Shot 2021-05-09 at 8.45.27 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-05-09 at 8.45.27 PM.png"; sourceTree = "<group>"; };
+		30EECD7CEB9701842A86F3C6 /* RankMedal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RankMedal.swift; sourceTree = "<group>"; };
 		30FC424407BF54E75206B1FF /* Screen Shot 2021-05-09 at 7.59.29 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-05-09 at 7.59.29 PM.png"; sourceTree = "<group>"; };
 		31121385A718A1B088F6AF1A /* Screen Shot 2021-03-18 at 8.06.29 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-03-18 at 8.06.29 PM.png"; sourceTree = "<group>"; };
 		3132CDD10EBE95F1F9E623F0 /* paste-cbde01046e05a58debe6e823dcdf5ad3f2c857d5.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-cbde01046e05a58debe6e823dcdf5ad3f2c857d5.jpg"; sourceTree = "<group>"; };
@@ -7026,6 +7028,7 @@
 				3CBBBFC9B58E9F7552AF6C9C /* HomeScreen.swift */,
 				7993D339523EA36C4CC8B25C /* ProgressoScreen.swift */,
 				54C5921B1E7D6773BE496440 /* ProgressoViewModel.swift */,
+				30EECD7CEB9701842A86F3C6 /* RankMedal.swift */,
 				4F8AC9778344B95E60323B13 /* Semi3DHouse.swift */,
 			);
 			path = Progresso;
@@ -9462,6 +9465,7 @@
 				03B1902B188BAD5462614042 /* QBankTopicsContent.swift in Sources */,
 				BA27F6EA1D9730F758DCB46F /* QBankViewModel.swift in Sources */,
 				D5C1B8E677AE0F6942FCE7B2 /* QuickActionsModels.swift in Sources */,
+				1AD22A18E548EC0B0DEBECCE /* RankMedal.swift in Sources */,
 				C69655D848D9D73894AB57E5 /* RatingButtons.swift in Sources */,
 				020E485AF747D79CCC87351F /* RealtimeStream.swift in Sources */,
 				A4BFE9461B76DB354A6536CA /* RedeemReferralCode200Response.swift in Sources */,

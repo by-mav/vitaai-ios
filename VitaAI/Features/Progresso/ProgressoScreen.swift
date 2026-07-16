@@ -57,24 +57,17 @@ struct ProgressoScreen: View {
         .trackScreen("Progresso")
     }
 
+    // Redesign 2026-07-16 (Rafael): uma história — "quão longe você chegou e o
+    // que conquistou". Cada dado UMA vez. Herói (nível+XP+streak) → Medalhas de
+    // rank (o coração) → Desempenho → Ranking → Consistência. Cortados: statsGrid,
+    // weeklyChart, desempenhoButton, achievements-emoji e activity (redundantes).
     private func content(vm: ProgressoViewModel) -> some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 14) {
+            VStack(spacing: 18) {
                 heroCard(vm: vm)
-                if hasAnyStats(vm: vm) {
-                    statsGrid(vm: vm)
-                }
-                if hasWeeklyData(vm: vm) {
-                    weeklyChart(vm: vm)
-                }
-                if vm.totalQuestions > 0 {
-                    desempenhoButton
-                }
-                if !vm.badges.isEmpty {
-                    achievementsSection(vm: vm)
-                }
-                if !vm.activity.isEmpty {
-                    activitySection(vm: vm)
+                medalhasSection(vm: vm)
+                if !vm.subjects.isEmpty {
+                    weakAreasSection(vm: vm)
                 }
                 leaderboardSection(vm: vm)
                 if !vm.heatmap.isEmpty {
@@ -84,6 +77,30 @@ struct ProgressoScreen: View {
             .padding(.horizontal, 16)
             // Sem padding-bottom: passa por trás da TabBar Liquid Glass.
         }
+    }
+
+    // MARK: - Medalhas de rank (o coração da tela)
+
+    private func medalhasSection(vm: ProgressoViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Medalhas")
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                RankMedalView(axis: RankAxes.questions, count: vm.totalQuestions)
+                RankMedalView(axis: RankAxes.streak, count: vm.streakDays)
+                RankMedalView(axis: RankAxes.simulados, count: badgeCount(vm, prefix: "simulados"))
+                RankMedalView(axis: RankAxes.flashcards, count: badgeCount(vm, prefix: "cards"))
+            }
+        }
+    }
+
+    /// Fase 1: sem contador exato por eixo, derivamos o piso do maior badge
+    /// desbloqueado da categoria (id "simulados_25" → 25). Fase 2 = contador real
+    /// do backend. 0 = medalha bloqueada.
+    private func badgeCount(_ vm: ProgressoViewModel, prefix: String) -> Int {
+        vm.badges
+            .filter { $0.unlocked && $0.id.hasPrefix(prefix + "_") }
+            .compactMap { Int($0.id.split(separator: "_").last ?? "") }
+            .max() ?? 0
     }
 
     // MARK: - Hero Card (unified with Dashboard/Faculdade style)
@@ -100,14 +117,13 @@ struct ProgressoScreen: View {
             ? "Faltam \(missing) XP pra Nível \(level + 1)"
             : "Pronto pra Nível \(level + 1)"
 
+        // Enxuto (Rafael 2026-07-16): o herói guarda só XP total + streak. O resto
+        // (respondidas, acerto) virou medalha/desempenho — cada dado uma vez.
         var stats: [(text: String, icon: String?)] = [
             ("\(totalXp) XP total", nil)
         ]
         if vm.streakDays > 0 {
-            stats.append(("\(vm.streakDays) \(vm.streakDays == 1 ? "dia" : "dias") seguidos", nil))
-        }
-        if vm.totalQuestions > 0 {
-            stats.append(("\(vm.totalQuestions) respondidas", nil))
+            stats.append(("\(vm.streakDays) \(vm.streakDays == 1 ? "dia" : "dias") seguidos", "flame.fill"))
         }
 
         return VitaHeroCard(
