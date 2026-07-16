@@ -119,7 +119,21 @@ struct VitaAIApp: App {
             #if GALLERY_MODE
             GalleryView()
             #else
-            AppRouter(authManager: container.authManager)
+            Group {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--preview-onboarding") {
+                    VitaOnboarding(
+                        userName: "Rafael",
+                        onLogout: nil,
+                        onComplete: {}
+                    )
+                } else {
+                    AppRouter(authManager: container.authManager)
+                }
+                #else
+                AppRouter(authManager: container.authManager)
+                #endif
+            }
                 .environment(\.appContainer, container)
                 .environment(\.appData, container.dataManager)
                 .environment(\.subscriptionStatus, container.subscriptionStatus)

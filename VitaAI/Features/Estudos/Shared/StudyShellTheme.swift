@@ -88,69 +88,36 @@ struct StudyShellCTA: View {
     let action: () -> Void
     var systemImage: String? = nil
 
+    private var chromePalette: VitaCTAChromePalette {
+        VitaCTAChromePalette(
+            foreground: theme.primaryLight.opacity(0.96),
+            tint: theme.primary,
+            highlight: theme.primaryLight,
+            rim: theme.primaryLight,
+            glow: theme.glow
+        )
+    }
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: VitaTokens.Spacing.sm) {
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: 14, weight: .semibold))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
+                        .font(.system(
+                            size: VitaTokens.Typography.fontSizeMd,
+                            weight: .medium
+                        ))
                 }
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
-                    .tracking(0)
+                    .font(VitaTypography.buttonMedium)
+                    .tracking(VitaTokens.Typography.letterSpacingWide * 0.5)
             }
-            .foregroundStyle(theme.primaryLight.opacity(0.98))
+            .foregroundStyle(chromePalette.foreground)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
-                        .fill(Color(red: 0.08, green: 0.085, blue: 0.10).opacity(0.92))  // ds-allow: tema signature por-ferramenta (pre-existente; tokenizar em refactor dedicado)
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    theme.primary.opacity(0.28),
-                                    theme.primary.opacity(0.16),
-                                    Color.white.opacity(0.025),
-                                ],
-                                startPoint: .topLeading, endPoint: .bottomTrailing
-                            )
-                        )
-                }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
-            .overlay(alignment: .top) {
-                // Top inner highlight — overhead light simulation
-                RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.18), .clear],
-                            startPoint: .top, endPoint: .init(x: 0.5, y: 0.20)
-                        )
-                    )
-                    .frame(height: 10)
-                    .padding(.horizontal, 1)
-                    .allowsHitTesting(false)
-            }
-            .overlay(
-                // Thin gradient stroke — liquid-glass rim, low contrast
-                RoundedRectangle(cornerRadius: 14, style: .continuous)  // ds-allow: componente compartilhado pre-existente (tokenizar em refactor dedicado)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                theme.primaryLight.opacity(0.45),
-                                theme.primary.opacity(0.08),
-                                theme.primaryLight.opacity(0.22),
-                            ],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.75
-                    )
-            )
-            .shadow(color: theme.primary.opacity(0.16), radius: 12, y: 6)
+            .padding(.vertical, VitaTokens.Spacing.lg)
+            .vitaPrimaryCTAChrome(palette: chromePalette)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(VitaButtonPressStyle())
     }
 }
 

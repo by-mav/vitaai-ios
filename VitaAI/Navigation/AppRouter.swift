@@ -113,6 +113,21 @@ struct AppRouter: View {
                 needsOnboarding = false
                 return
             }
+
+            #if DEBUG
+            // QA must be able to exercise and resume onboarding with an account
+            // that has already completed it on the backend. The explicit launch
+            // flag is authoritative only in Debug and never mutates production data.
+            if AppConfig.shouldResetOnboarding {
+                needsOnboarding = true
+                isOnboardedStored = false
+                legacyOnboardingStored = false
+                profileChecked = true
+                NSLog("[AppRouter] Debug onboarding override active")
+                return
+            }
+            #endif
+
             do {
                 let profile = try await container.api.getProfile()
                 NSLog("[AppRouter] getProfile OK onboardingCompleted=\(String(describing: profile.onboardingCompleted)) university=\(String(describing: profile.university))")

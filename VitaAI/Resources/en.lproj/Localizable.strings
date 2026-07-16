@@ -381,6 +381,17 @@ Vita captures the session automatically.";
 "onboarding_notif_disclaimer" = "You can disable this anytime in settings.";
 "onboarding_sleep_wake" = "Wake Vita";
 "onboarding_sleep_hint" = "tap to wake";
+"onboarding_dream_plexus" = "Brachial... plexus...";
+"onboarding_dream_c5_c7" = "C5... C6... C7...";
+"onboarding_dream_mitochondria" = "The mitochondria is the powerhouse of the cell...";
+"onboarding_dream_cranial_nerves" = "12 cranial nerve pairs...";
+"onboarding_dream_sodium_potassium" = "Sodium... potassium pump...";
+"onboarding_dream_raas" = "Renin... angiotensin... aldosterone...";
+"onboarding_intro_reaction" = "AAAH, MY KREBS CYCLE!";
+"onboarding_intro_message" = "I mean… hi! I hadn't seen you around.\n\nI'm Vita, your copilot for medical studies.\n\nAnd you, what's your name?";
+"onboarding_intro_name_placeholder" = "Your name";
+"onboarding_intro_name_cta" = "That's what you can call me";
+"onboarding_intro_name_cta_named" = "Call me %@";
 "onboarding_subjects_empty" = "No subjects found";
 "onboarding_subjects_empty_hint" = "Connect your academic portal to import your courses automatically.";
 "onboarding_trial_badge" = "VITA PRO";
@@ -406,7 +417,7 @@ No charge for the first 7 days.";
 "sync_timeout" = "Timeout reached. Using partial data.";
 
 /* Onboarding v2 — Onda 5b */
-"onboarding_status_speech" = "Hii, didn't see you there 😳\n\nI'm Vita, your study assistant! So you're studying medicine? Tell me more — I'll set up the app based on where you are in your academic journey!";
+"onboarding_status_speech" = "Now tell me: what stage of your medical journey are you in?";
 "onboarding_status_phase_vestibulando" = "Pre-med (entrance exam)";
 "onboarding_status_phase_graduando" = "In med school";
 "onboarding_status_phase_residencia" = "Residency";

@@ -23,4 +23,10 @@ enum VitaTypography {
     static let labelLarge = Font.system(size: 14, weight: .medium)
     static let labelMedium = Font.system(size: 12, weight: .medium)
     static let labelSmall = Font.system(size: 10, weight: .medium)
+
+    // Primary action labels — intentionally calmer than headings, but with
+    // enough weight to stay crisp over translucent Vita glass.
+    static let buttonSmall = Font.system(size: 12, weight: .medium)
+    static let buttonMedium = Font.system(size: 15, weight: .regular)
+    static let buttonLarge = Font.system(size: 16, weight: .medium)
 }
