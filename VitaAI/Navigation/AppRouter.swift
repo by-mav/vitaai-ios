@@ -1038,7 +1038,7 @@ private struct VitaHomeQuickActions: View {
             Image(image)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 34, height: 34) // ds-allow: ícone compacto no top bar; target segue com 44pt
+                .frame(width: 38, height: 38) // ds-allow: artwork maior no top bar; target segue com 44pt
                 .accessibilityHidden(true)
                 .frame(width: 44, height: 44) // ds-allow: alvo mínimo Apple
                 .contentShape(Rectangle())
