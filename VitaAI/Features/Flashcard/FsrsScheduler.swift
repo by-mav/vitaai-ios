@@ -73,14 +73,6 @@ struct FsrsSchedulePreview {
     let good:  Int
     let easy:  Int
 
-    func interval(for rating: ReviewRating) -> Int {
-        switch rating {
-        case .again: return again
-        case .hard:  return hard
-        case .good:  return good
-        case .easy:  return easy
-        }
-    }
 }
 
 // MARK: - FSRS Parameters

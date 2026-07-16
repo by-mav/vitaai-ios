@@ -67,7 +67,6 @@ final class FlashcardSettings {
     static let reviewLimitOptions = [50, 100, 150, 200, 300, 500, 999]
     static let retentionOptions = [0.80, 0.85, 0.90, 0.92, 0.95, 0.97]
     static let leechOptions = [4, 6, 8, 10, 15, 999]
-    static let autoAdvanceOptions = [0, 5, 10, 15, 30, 60]
 }
 
 // MARK: - Settings Screen (pushed route within shell)

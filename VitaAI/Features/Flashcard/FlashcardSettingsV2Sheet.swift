@@ -17,7 +17,6 @@ struct FlashcardStudySettings: Codable, Equatable {
 /// Espelha as opções de deck do Anki (alta prioridade do gap). Rafael 2026-07-10.
 struct FlashcardSettingsV2Sheet: View {
     @Environment(\.appContainer) private var container
-    @Environment(\.dismiss) private var dismiss
 
     @State private var settings = FlashcardStudySettings()
     @State private var loaded = FlashcardStudySettings()

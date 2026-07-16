@@ -67,13 +67,6 @@ final class FlashcardViewModel {
         cards.indices.contains(currentIndex) ? cards[currentIndex] : nil
     }
 
-    var progress: Double {
-        guard !cards.isEmpty else { return 0 }
-        return Double(totalReviewed + 1) / Double(cards.count)
-    }
-
-    var progressLabel: String { "\(min(totalReviewed + 1, cards.count))/\(cards.count)" }
-
     var elapsedSeconds: Int {
         accumulatedElapsedSeconds + Int(Date().timeIntervalSince(sessionStartDate))
     }
@@ -262,10 +255,6 @@ final class FlashcardViewModel {
             try? await Task.sleep(for: .milliseconds(300))
             advanceCard(rating: rating)
         }
-    }
-
-    func clearError() {
-        if case .error = phase { phase = .studying }
     }
 
     /// Persiste a fila e o ponto exato da sessão. Fechar a tela ou matar o app

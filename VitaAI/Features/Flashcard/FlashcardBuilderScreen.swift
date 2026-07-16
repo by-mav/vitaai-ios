@@ -51,7 +51,7 @@ struct FlashcardBuilderScreen: View {
         }
         .onAppear {
             if vm == nil {
-                vm = FlashcardBuilderViewModel(api: container.api, dataManager: container.dataManager)
+                vm = FlashcardBuilderViewModel(api: container.api)
                 vm?.boot()
                 vm?.setInitialSubject(slug: initialSubjectId)
                 SentrySDK.reportFullyDisplayed()

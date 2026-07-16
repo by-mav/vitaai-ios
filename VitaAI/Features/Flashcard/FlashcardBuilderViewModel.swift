@@ -1,183 +1,38 @@
 import Foundation
 import Observation
 
-// MARK: - FlashcardBuilderViewModel — Fase 5 reescrita gold-standard
+// MARK: - FlashcardBuilderViewModel
 //
-// Substitui o builder embutido em FlashcardsListScreen.
-// Tela única: Hero + ModeSelector (Revisão/Específico/Novos) + (se Específico)
-// Lente + drill-down + Origem + Avançadas + Decks grid + CTA sticky.
-// SOT: agent-brain/specs/2026-04-28_estudos-3-paginas-spec.md §3.3 + §11.3
+// Carrega os baralhos (Biblioteca + do aluno) pra home de flashcards. O builder
+// rico antigo (modo/lente/filtro/preview/criação de sessão) foi removido — a home
+// hoje é lista limpa de baralhos que abre a sessão ao tocar o baralho.
+// SOT: agent-brain/specs/2026-04-28_estudos-3-paginas-spec.md §3.3
 //
-// API:
-//  - GET  /api/study/flashcards?subjectId&due&cardsLimit&deckLimit  → [FlashcardDeckEntry]
-//  - GET  /api/study/flashcards/stats                               → FlashcardStatsResponse
-//  - POST /api/study/flashcards/generate (autoSeed)                 → AutoSeedResponse
-//
-// `POST /api/study/flashcards/session` (A5 wave) ainda não existe; createSession()
-// faz fallback graceful: se 404, abre primeiro deck due via `firstDueDeckId()`.
+// API: GET /api/study/flashcards?deckLimit&summary → [FlashcardDeckEntry]
 
 // MARK: - Mode
 
 enum FlashcardSessionMode: String, CaseIterable, Identifiable {
     case due       // SRS — revisão pendente (default)
-    case specific  // filtros lente-aware
+    case specific  // disciplina pré-selecionada (entrada por DisciplineDetailScreen)
     case newCards  // nunca vistos
 
     var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .due: return "Revisão Pendente"
-        case .specific: return "Estudar Específico"
-        case .newCards: return "Cards Novos"
-        }
-    }
-
-    var systemIcon: String {
-        switch self {
-        case .due: return "clock.arrow.circlepath"
-        case .specific: return "slider.horizontal.3"
-        case .newCards: return "sparkles"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .due: return "SRS"
-        case .specific: return "Filtros"
-        case .newCards: return "Nunca vistos"
-        }
-    }
-}
-
-enum FlashcardOrigin: String, CaseIterable, Identifiable {
-    case all
-    case ai          // Vita gerou via IA
-    case manual      // criado pelo aluno
-    case overlays    // overlays (anotações próprias)
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .all: return "Todas"
-        case .ai: return "Vita IA"
-        case .manual: return "Eu criei"
-        case .overlays: return "Overlays"
-        }
-    }
-
-    var systemIcon: String {
-        switch self {
-        case .all: return "square.stack.3d.up"
-        case .ai: return "sparkles"
-        case .manual: return "pencil"
-        case .overlays: return "highlighter"
-        }
-    }
-}
-
-enum FlashcardSessionLimit: Int, CaseIterable, Identifiable {
-    case ten = 10
-    case twenty = 20
-    case forty = 40
-    case unlimited = 0  // 0 = sem limite
-
-    var id: Int { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .ten: return "10"
-        case .twenty: return "20"
-        case .forty: return "40"
-        case .unlimited: return "Sem limite"
-        }
-    }
 }
 
 // MARK: - State
 
 struct FlashcardBuilderState {
-    // Mode
     var mode: FlashcardSessionMode = .due
-
-    // Lente (só vale quando mode = .specific)
-    var lens: ContentOrganizationMode = .greatAreas
-
-    // Filtros (só `.specific`)
-    var groups: [QBankGroup] = []                       // populado via QBank filters (compartilhado)
+    /// Disciplina(s) pré-selecionada(s) ao entrar por DisciplineDetailScreen.
     var selectedGroupSlugs: Set<String> = []
-    var selectedSubgroupIds: Set<String> = []           // "parent/child"
-    var origin: FlashcardOrigin = .all
 
-    // Avançadas
-    var sessionLimit: FlashcardSessionLimit = .twenty
-    var showHints: Bool = true
-    var skipTooEasy: Bool = false
-
-    // Hero / stats
-    // dueNow DERIVADO dos decks (computed) — elimina a corrida loadStats vs
-    // loadDecks (rodavam em paralelo; se stats chegava antes, dueNow=0 e nunca
-    // recalculava). Rafael 2026-07-09.
-    var dueNow: Int { decks.reduce(0) { $0 + ($1.dueCount ?? 0) } }
-    /// Cards NEW (nunca estudados): por deck (total - due), somado. Vao pro modo "Novos".
-    var newNow: Int { decks.reduce(0) { $0 + max(0, ($1.totalCards ?? 0) - ($1.dueCount ?? 0)) } }
-    // totalCards (no baralho) DERIVADO dos decks (inclui Biblioteca), consistente com
-    // dueNow/newNow. Antes vinha do /stats (só do usuario) e ficava < novos. Rafael 2026-07-10.
-    var totalCards: Int { decks.reduce(0) { $0 + $1.cardCount } }
-    var reviewedToday: Int = 0
-    var streakDays: Int = 0
-
-    // Preview (GET /api/study/flashcards/preview) — render no Hero/CTA
-    var previewDue: Int = 0
-    var previewLearning: Int = 0
-    var previewNew: Int = 0
-    var previewProjectedMinutes: Int = 0
-    var previewLoading: Bool = false
-    var previewLoaded: Bool = false
-
-    // Sessão criada (POST /api/study/flashcards/session)
-    var lastSessionId: String? = nil
-    var lastSessionCardIds: [String] = []
-
-    // Decks
     var decks: [FlashcardDeckEntry] = []
-
-    // Loading flags
-    var statsLoading: Bool = true
     var decksLoading: Bool = true
-    var creatingSession: Bool = false
-    var error: String? = nil
 
-    /// Display count pro CTA: muda conforme mode.
-    var displayCount: Int {
-        switch mode {
-        case .due: return dueNow
-        case .specific:
-            // Soma dueCount dos decks que casam com selectedGroupSlugs (best-effort).
-            // Se nada selecionado, usa total visível.
-            if selectedGroupSlugs.isEmpty {
-                return decks.reduce(0) { $0 + ($1.dueCount ?? 0) }
-            }
-            return decks
-                .filter { d in
-                    guard let slug = d.disciplineSlug else { return false }
-                    return selectedGroupSlugs.contains(slug)
-                }
-                .reduce(0) { $0 + ($1.dueCount ?? 0) }
-        case .newCards:
-            // Cards novos = total - dueNow - reviewedToday (proxy).
-            return max(0, totalCards - dueNow - reviewedToday)
-        }
-    }
-
-    var hasActiveFilters: Bool {
-        mode == .specific && (
-            !selectedGroupSlugs.isEmpty ||
-            !selectedSubgroupIds.isEmpty ||
-            origin != .all
-        )
-    }
+    // Derivados dos decks (elimina a corrida stats-vs-decks). Rafael 2026-07-09.
+    var dueNow: Int { decks.reduce(0) { $0 + ($1.dueCount ?? 0) } }
+    var newNow: Int { decks.reduce(0) { $0 + max(0, ($1.totalCards ?? 0) - ($1.dueCount ?? 0)) } }
 }
 
 // MARK: - ViewModel
@@ -188,14 +43,12 @@ final class FlashcardBuilderViewModel {
     var state = FlashcardBuilderState()
 
     private let api: VitaAPI
-    private let dataManager: AppDataManager
     nonisolated(unsafe) private var reconnectObserver: NSObjectProtocol?
 
-    init(api: VitaAPI, dataManager: AppDataManager) {
+    init(api: VitaAPI) {
         self.api = api
-        self.dataManager = dataManager
-        // Auto-heal: quando o SSE reconecta (servidor voltou), re-carrega tudo —
-        // heroi + decks frescos, sem o aluno reabrir o app. Rafael 2026-07-09.
+        // Auto-heal: SSE reconectou (servidor voltou) -> re-carrega decks frescos
+        // sem o aluno reabrir o app. Rafael 2026-07-09.
         reconnectObserver = NotificationCenter.default.addObserver(
             forName: .realtimeReconnected, object: nil, queue: .main
         ) { [weak self] _ in
@@ -209,75 +62,31 @@ final class FlashcardBuilderViewModel {
 
     // MARK: - Boot
 
-    /// Re-busca stats+decks. Chamado quando a tela REAPARECE (volta da sessao) —
-    /// senao "hoje"/"pendentes" ficam congelados no valor do boot. Rafael 2026-07-10.
+    /// Re-busca decks quando a tela REAPARECE (volta da sessão) — senão a
+    /// contagem "hoje" fica congelada no valor do boot. Rafael 2026-07-10.
     func refresh() async {
         await loadAll()
     }
 
     func boot() {
-        if let lens = dataManager.profile?.contentOrganizationMode {
-            state.lens = lens
-        }
         Task { await loadAll() }
     }
 
     /// Pré-seleciona uma disciplina (vem de DisciplineDetailScreen → flashcardHome).
-    /// Switcha mode pra `.specific` (faz sentido — user veio de tela de disciplina,
-    /// quer estudar AQUELA disciplina, não revisão geral). Idempotente: chamar 2x
-    /// não duplica nem volta a desmarcar.
-    /// Onda 5 (2026-04-29) — restaura comportamento perdido na Onda 3 router rewire.
+    /// Idempotente: chamar 2x não duplica. Onda 5 (2026-04-29).
     func setInitialSubject(slug: String?) {
         guard let slug, !slug.isEmpty else { return }
         guard !state.selectedGroupSlugs.contains(slug) else { return }
         state.mode = .specific
         state.selectedGroupSlugs.insert(slug)
-        Task { await refreshPreview() }
     }
 
     private func loadAll() async {
-        // Boot paralelo (decks + stats + filters/groups + preview). Render progressivo
-        // assim que cada um chega — Hero render imediato com stats, decks
-        // hidratam grid embaixo, filtros lente-aware ficam prontos pro modo
-        // .specific. Se algum falha, o resto continua.
-        async let decksTask: Void = loadDecks()
-        async let statsTask: Void = loadStats()
-        async let filtersTask: Void = loadFilters()
-        async let previewTask: Void = refreshPreview()
-        _ = await (decksTask, statsTask, filtersTask, previewTask)
+        await loadDecks()
         // Default inteligente: sem pendentes mas com novos -> abre em "Novos"
-        // (senao o aluno cai em "Pendentes" vazio com milhares de cards novos esperando).
+        // (senão o aluno cai em "Pendentes" vazio com milhares de cards novos).
         if state.mode == .due, state.dueNow == 0, state.newNow > 0 {
             state.mode = .newCards
-        }
-    }
-
-    /// GET /api/study/flashcards/preview — atualiza counts due/learning/new
-    /// + projectedSessionTime sem criar sessão. Chamar quando mode/lens/groupSlug
-    /// mudar. Spec: openapi.yaml linha 5132.
-    func refreshPreview() async {
-        state.previewLoading = true
-        defer { state.previewLoading = false }
-        let firstGroup = state.selectedGroupSlugs.first
-        let modeStr: String
-        switch state.mode {
-        case .due: modeStr = "due"
-        case .specific: modeStr = "specific"
-        case .newCards: modeStr = "new"
-        }
-        do {
-            let resp = try await api.previewFlashcards(
-                lens: state.lens.rawValue,
-                groupSlug: firstGroup,
-                mode: modeStr
-            )
-            state.previewDue = resp.due
-            state.previewLearning = resp.learning
-            state.previewNew = resp.new
-            state.previewProjectedMinutes = resp.projectedSessionTime
-            state.previewLoaded = true
-        } catch {
-            NSLog("[FlashcardBuilder] previewFlashcards error: %@", String(describing: error))
         }
     }
 
@@ -285,49 +94,20 @@ final class FlashcardBuilderViewModel {
         state.decksLoading = true
         defer { state.decksLoading = false }
         do {
-            // summary=true: 182KB pra ~530 decks. Hidratação on-demand
-            // quando user tapa o deck (FlashcardSessionScreen carrega cards).
-            // deckLimit alto: o aluno pode ter centenas de baralhos; default 100
-            // cortava a conta (Rafael 2026-07-09: heroi somava so 100 de 621 decks).
+            // summary=true: hidratação on-demand ao tocar o deck. deckLimit alto:
+            // o aluno pode ter centenas de baralhos. Rafael 2026-07-09.
             let decks = try await api.getFlashcardDecks(deckLimit: 2000, summary: true)
-            // Baralho VAZIO criado pelo aluno fica visível (acabou de criar no "+"
-            // e precisa aparecer em "Meus baralhos"). Só a Biblioteca esconde vazios.
+            // Baralho vazio do aluno fica visível (acabou de criar no "+"); só a
+            // Biblioteca esconde vazios.
             state.decks = decks.filter { $0.cardCount > 0 || !($0.userId ?? "").isEmpty }
         } catch {
             NSLog("[FlashcardBuilder] loadDecks error: %@", String(describing: error))
-            state.error = "Não foi possível carregar baralhos"
         }
     }
 
-    private func loadStats() async {
-        state.statsLoading = true
-        defer { state.statsLoading = false }
-        do {
-            let stats = try await api.getFlashcardStats()
-            // totalCards agora e computed dos decks (nao atribui aqui)
-            state.reviewedToday = stats.todayReviews
-            state.streakDays = stats.streakDays
-            // dueNow agora e computed (derivado de state.decks) — sem corrida.
-        } catch {
-            NSLog("[FlashcardBuilder] loadStats error: %@", String(describing: error))
-        }
-    }
+    // MARK: - Decks filtering (grid / seleção múltipla pro estudo em conjunto)
 
-    /// Carrega groups do endpoint QBank (compartilhado entre as 3 telas Estudos).
-    /// Lens-aware: tradicional/pbl/great-areas. Não bloqueia render — só usado
-    /// quando mode = .specific.
-    private func loadFilters() async {
-        do {
-            let resp = try await api.getQBankFilters(lens: state.lens.rawValue)
-            state.groups = resp.groups
-        } catch {
-            NSLog("[FlashcardBuilder] loadFilters error: %@", String(describing: error))
-        }
-    }
-
-    // MARK: - Decks filtering (pro grid embaixo)
-
-    /// Decks visíveis no grid considerando mode + filtros.
+    /// Decks visíveis considerando mode + disciplina pré-selecionada.
     func visibleDecks() -> [FlashcardDeckEntry] {
         switch state.mode {
         case .due:

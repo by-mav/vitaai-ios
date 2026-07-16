@@ -1,11 +1,6 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Card accent colors (ouro Vita — roxo do mockup v1 aposentado 2026-07-10)
-
-private let cardAccent  = VitaColors.accent
-private let cardLabel   = VitaColors.accentLight
-
 // MARK: - FlashcardCardView
 
 /// Animated flip card matching flashcard-session-v1.html mockup.

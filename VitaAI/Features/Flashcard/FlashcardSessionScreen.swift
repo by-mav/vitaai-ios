@@ -5,9 +5,6 @@ import Sentry
 // MARK: - Flashcard Session accent colors (from flashcard-session-v1.html mockup)
 // Gold accent (Vita mono-ouro; roxo do mockup v1 aposentado — Rafael 2026-07-10)
 private let flashcardAccent     = VitaColors.accent
-private let flashcardAccentDark = VitaColors.accentDark
-// Screen bg: VitaColors.surface + ambient ouro
-private let flashcardScreenBg   = VitaColors.surface
 
 // MARK: - Flashcard Session Screen
 
@@ -288,14 +285,6 @@ struct FlashcardSessionScreen: View {
         }
     }
 
-    // MARK: Timer
-
-    private var timerLabel: some View {
-        Text(formattedTimer)
-            .font(VitaTypography.labelSmall)
-            .foregroundStyle(VitaColors.textTertiary)
-            .monospacedDigit()
-    }
 
     private var formattedTimer: String {
         let m = elapsedSeconds / 60

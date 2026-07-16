@@ -10,17 +10,11 @@ import Foundation
 @Observable
 final class FlashcardsListCache {
     private let api: VitaAPI
-    private let cacheTTL: TimeInterval = 60
 
     private(set) var decks: [FlashcardDeckEntry] = []
     private(set) var lastFetched: Date?
 
     init(api: VitaAPI) { self.api = api }
-
-    var isFresh: Bool {
-        guard let lastFetched else { return false }
-        return Date().timeIntervalSince(lastFetched) < cacheTTL && !decks.isEmpty
-    }
 
     func refresh() async throws -> [FlashcardDeckEntry] {
         // scope=current: backend filtra só decks das disciplinas em curso.
