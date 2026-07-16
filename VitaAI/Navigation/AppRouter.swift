@@ -906,11 +906,6 @@ struct MainTabView: View {
             )
         case .achievements:
             AchievementsScreen(onBack: { router.goBack() })
-        case .planner:
-            PlannerScreen(
-                onBack: { router.goBack() },
-                onNavigate: { route in router.navigate(to: route) }
-            )
         case .toolManager:
             ToolManagerScreen(
                 onBack: { router.goBack() },

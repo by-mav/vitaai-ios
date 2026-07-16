@@ -900,12 +900,6 @@ actor VitaAPI {
         let _: EmptyResponse = try await client.post("universities/request", body: body)
     }
 
-    // MARK: - Study Plan
-
-    func getStudyPlan() async throws -> StudyPlanResponse {
-        try await client.get("estudos/plan")
-    }
-
     // MARK: - Trabalhos (assignments)
 
     func getTrabalhos() async throws -> TrabalhosResponse {

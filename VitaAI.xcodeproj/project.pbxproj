@@ -1374,7 +1374,6 @@
 		972B4376A696A265EDC882C8 /* Screen Shot 2021-03-18 at 1.39.01 PM.png in Resources */ = {isa = PBXBuildFile; fileRef = 826E25FB3113FBF213BC3AEF /* Screen Shot 2021-03-18 at 1.39.01 PM.png */; };
 		972F7FB6DA7401A80487D07E /* Screen Shot 2021-03-27 at 12.30.46 PM.png in Resources */ = {isa = PBXBuildFile; fileRef = BD7B74AC1C2FAA3A4D2A0DDA /* Screen Shot 2021-03-27 at 12.30.46 PM.png */; };
 		973C46B90507B8367F871FDF /* paste-3be09ecc5fd7879d1f07200f218fecc62a8b17fb.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 3DAABA0B8DCFB3538F3C925E /* paste-3be09ecc5fd7879d1f07200f218fecc62a8b17fb.jpg */; };
-		97696D66B15AF9A50675CF64 /* PlannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B6F86F91AABF4862EB5F25 /* PlannerViewModel.swift */; };
 		97A610F2CDA061E9F38C43F8 /* pneumo 6.png in Resources */ = {isa = PBXBuildFile; fileRef = 85DF66380F8E4E451057450B /* pneumo 6.png */; };
 		97A9156B3ECB3278CCEBA039 /* paste-33f48e2059c3d39113a7ce18701d22521a5be5c3.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 441C375F8E768F03FB448F31 /* paste-33f48e2059c3d39113a7ce18701d22521a5be5c3.jpg */; };
 		97D4AC36C5CD77B6B25660EF /* 07 Apex, Mid Sys Mur, Supine, Bell.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7DE3CD100FBA08B172D7AA9D /* 07 Apex, Mid Sys Mur, Supine, Bell.mp3 */; };
@@ -1700,7 +1699,6 @@
 		BC4584F6696FD7D57BF1AB52 /* paste-015d50838ce40f7762dc15b19948209a7eb109f1.jpg in Resources */ = {isa = PBXBuildFile; fileRef = A2F44F45E4C9ACFBDC1BB318 /* paste-015d50838ce40f7762dc15b19948209a7eb109f1.jpg */; };
 		BC5018DFB48B591FDDE8BBAF /* tmp4_q1qa3h.png in Resources */ = {isa = PBXBuildFile; fileRef = E99223BEB69799FBBB3CFB17 /* tmp4_q1qa3h.png */; };
 		BC82F6C428E586B5AB90FEBD /* View+FadeUpAppear.swift in Sources */ = {isa = PBXBuildFile; fileRef = B822D051C685233CF51426E3 /* View+FadeUpAppear.swift */; };
-		BCAD8532DDAE7A626FCB6341 /* PlannerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A9DDDAB81FFA603D1D3F6B /* PlannerScreen.swift */; };
 		BCD034CB3A0E27D1C4AE4EB6 /* NotebookListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25016496DB7CB8AF6A989AE9 /* NotebookListScreen.swift */; };
 		BCE2B78862DD789BA9EAA21E /* tmpntkhaxyj.png in Resources */ = {isa = PBXBuildFile; fileRef = 54679D757FF560009C0B315F /* tmpntkhaxyj.png */; };
 		BCF5FE31D2472DD09C06C884 /* paste-2167c9aa7b91f427ab7da4477792868c8cda81cc.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B4438C63BCAB3B35F09C373E /* paste-2167c9aa7b91f427ab7da4477792868c8cda81cc.jpg */; };
@@ -2442,7 +2440,6 @@
 		1691024BFB1457BA618094FA /* tmpmuztjzp7.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmpmuztjzp7.png; sourceTree = "<group>"; };
 		16B4E6171DD72A7B7AC4F27C /* SubjectColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubjectColors.swift; sourceTree = "<group>"; };
 		16B6B69A669C70365BC0D583 /* paste-0b49307518c3622e02d1a09397d0e01a1d9ffe4a.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-0b49307518c3622e02d1a09397d0e01a1d9ffe4a.jpg"; sourceTree = "<group>"; };
-		16B6F86F91AABF4862EB5F25 /* PlannerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerViewModel.swift; sourceTree = "<group>"; };
 		16DF9F83FF2CA7CEA585596E /* Screen Shot 2021-05-10 at 9.50.38 AM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-05-10 at 9.50.38 AM.png"; sourceTree = "<group>"; };
 		16EC6E79053DC4BBEC5CA30C /* Screen Shot 2021-03-18 at 5.08.15 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-03-18 at 5.08.15 PM.png"; sourceTree = "<group>"; };
 		16ED8558ADA3DECC58C09EF0 /* PdfAudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdfAudioRecorder.swift; sourceTree = "<group>"; };
@@ -3591,7 +3588,6 @@
 		956379BDBDC76DDB8FF3A72D /* paste-f36155b261a895d4eb1452442ce28824078ed72a.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-f36155b261a895d4eb1452442ce28824078ed72a.jpg"; sourceTree = "<group>"; };
 		9568EC08793EF602AA7C7322 /* tmps3bxkdj9.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmps3bxkdj9.png; sourceTree = "<group>"; };
 		95735CAB01DF316CA65FEE76 /* paste-8e589b73c3f3a35feaed0b013a5d96c35b1b1baa.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-8e589b73c3f3a35feaed0b013a5d96c35b1b1baa.jpg"; sourceTree = "<group>"; };
-		95A9DDDAB81FFA603D1D3F6B /* PlannerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerScreen.swift; sourceTree = "<group>"; };
 		95E77AF54FB3BCA30FCC131D /* Screen Shot 2021-03-27 at 12.07.05 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-03-27 at 12.07.05 PM.png"; sourceTree = "<group>"; };
 		95EB6BC0C85E92AB27B4320C /* SimuladoReviewScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimuladoReviewScreen.swift; sourceTree = "<group>"; };
 		95FBED9E0079C9BE46C52D8C /* tmpmrqfc6z8.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmpmrqfc6z8.png; sourceTree = "<group>"; };
@@ -4873,7 +4869,6 @@
 				519CBD15C4F8C3F8DE74593E /* Onboarding */,
 				8245857DBC470A7D901B890D /* Osce */,
 				0B0FAB0B9742C793BF68895C /* PdfViewer */,
-				F657ECBE1514D51BF470AD9B /* Planner */,
 				070C5CE7AD0F480232D01115 /* Professor */,
 				C4AA4490209618547A33144B /* Profile */,
 				BF075C4FA8D29B17090241DC /* Progresso */,
@@ -7234,15 +7229,6 @@
 			path = Journey;
 			sourceTree = "<group>";
 		};
-		F657ECBE1514D51BF470AD9B /* Planner */ = {
-			isa = PBXGroup;
-			children = (
-				95A9DDDAB81FFA603D1D3F6B /* PlannerScreen.swift */,
-				16B6F86F91AABF4862EB5F25 /* PlannerViewModel.swift */,
-			);
-			path = Planner;
-			sourceTree = "<group>";
-		};
 		F67298E3C7A450E1CD520258 /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -9425,8 +9411,6 @@
 				A9D402C21E86585F19A28313 /* PixioSettingsKit.swift in Sources */,
 				B54B167017265D015EF990F2 /* PixioSheetDismissButton.swift in Sources */,
 				A6161AAAF2B0EA0C96DFD659 /* PixioVoiceRecordingBar.swift in Sources */,
-				BCAD8532DDAE7A626FCB6341 /* PlannerScreen.swift in Sources */,
-				97696D66B15AF9A50675CF64 /* PlannerViewModel.swift in Sources */,
 				E67209EEF1E9AE724E3BF80E /* PortalIcon.swift in Sources */,
 				3DEF0CCEDB2734FE8B6A366C /* PortalModels.swift in Sources */,
 				8A1DC8F306C03A7324680161 /* PreviewDTOs.swift in Sources */,

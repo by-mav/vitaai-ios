@@ -57,7 +57,6 @@ extension Route {
         case .insights:            return "Insights"
         case .activityFeed:        return "Atividade"
         case .leaderboard:         return "Ranking"
-        case .planner:             return "Planner"
 
         // MARK: - Páginas reais acessadas via menu popout
         case .paywall:             return "Assinatura"

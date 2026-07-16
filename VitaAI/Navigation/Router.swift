@@ -102,7 +102,6 @@ final class Router {
             "/study/trabalhos": (.faculdade, .trabalhos),
             "/study/provas": (.faculdade, .faculdadeMaterias),
             "/materiais": (.faculdade, .faculdadeDocumentos),
-            "/planner": (.estudos, .planner),
             "/faculdade": (.faculdade, nil),
             "/progress": (.progresso, nil),
             "/achievements": (.progresso, .achievements),
