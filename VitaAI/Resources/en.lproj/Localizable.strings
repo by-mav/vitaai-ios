@@ -336,7 +336,7 @@
 
 /* ═══ Mascot speech (interpolated) ═══ */
 "onboarding_welcome_speech" = "Ahh, med student! Tell me where you study?\n\nThat way I can find your portal and help you organize your schedule, track your grades and attendance, and even work on assignments with you!";
-"onboarding_welcome_speech_name" = "Ahh, %@! Tell me where you study?\n\nThat way I can find your portal and help you organize your schedule, track your grades and attendance, and even work on assignments with you!";
+"onboarding_welcome_speech_name" = "The famous “I'll catch up later” phase.\n\nTell me, %@: where do you study?";
 "onboarding_connect_multi" = "Nice, %1$@! I detected %2$d systems you use. Connect and I'll pull everything automatically.";
 "onboarding_connect_single" = "Nice, %1$@! I detected you use %2$@. Connect and I'll pull your courses and grades.";
 "onboarding_connect_none" = "Nice, %@! I don't know your university's portals yet, but connect any and I'll figure it out automatically.";
@@ -447,7 +447,7 @@ No charge for the first 7 days.";
 "onboarding_residencia_section_direct" = "Direct access";
 "onboarding_phase_prompt" = "Nice to meet you, %@!\nI got that one right away.\nThe Krebs cycle… let's not talk about that.\n\nNow tell me: where are you in this journey?";
 "onboarding_phase_reaction_vestibulando" = "Ah, the beginning of the saga. Breathe — one question at a time.";
-"onboarding_phase_reaction_graduando" = "The famous “I'll catch up later” phase. No judgment.";
+"onboarding_phase_reaction_graduando" = "The famous “I'll catch up later” phase.";
 "onboarding_phase_reaction_residencia" = "Got it. I'll respect your sleep whenever it shows up.";
 "onboarding_phase_reaction_professional" = "Look at you, all grown up. I promise to do more than just glow.";
 "onboarding_phase_reaction_other" = "Perfect. Not every path fits inside a button.";

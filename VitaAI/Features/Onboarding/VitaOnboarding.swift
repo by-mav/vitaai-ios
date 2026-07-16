@@ -177,13 +177,6 @@ struct VitaOnboarding: View {
             .scaleEffect(mascotScale)
             .padding(.top, 60)
             .padding(.bottom, VitaTokens.Spacing.sm)
-            .overlay(alignment: .center) {
-                if mascotState == .sleeping {
-                    OnboardingSleepingZs()
-                        .offset(x: 46, y: -41)
-                        .allowsHitTesting(false)
-                }
-            }
             .overlay(alignment: .topTrailing) {
                 if wakePresentationPhase == .startled
                     || wakePresentationPhase == .dismissingReaction {
@@ -474,7 +467,11 @@ struct VitaOnboarding: View {
         guard let saved = OnboardingStep(rawValue: lastStepRaw),
               saved != .sleep,
               saved != .done else { return }
-        restoreStep(saved)
+        let restoredStep: OnboardingStep = saved == .phaseResponse
+            && viewModel?.academicPhase == .graduando
+            ? .welcome
+            : saved
+        restoreStep(restoredStep)
     }
 
     private func handleBottomButton() {
@@ -516,7 +513,10 @@ struct VitaOnboarding: View {
         switch current {
         case .sleep: return .introduction
         case .introduction: return .statusFaculdade
-        case .statusFaculdade: return .phaseResponse
+        case .statusFaculdade:
+            return viewModel.academicPhase == .graduando
+                ? .welcome
+                : .phaseResponse
         case .phaseResponse:
             switch viewModel.academicPhase {
             case .vestibulando: return .notifications
@@ -560,7 +560,10 @@ struct VitaOnboarding: View {
         case .introduction: return .sleep
         case .statusFaculdade: return .introduction
         case .phaseResponse: return .statusFaculdade
-        case .welcome: return .phaseResponse
+        case .welcome:
+            return viewModel.academicPhase == .graduando
+                ? .statusFaculdade
+                : .phaseResponse
         case .connect: return .welcome
         case .extras: return .connect
         case .syncing: return .extras

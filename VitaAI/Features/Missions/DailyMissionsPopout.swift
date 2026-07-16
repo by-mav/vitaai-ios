@@ -48,6 +48,23 @@ struct DailyMissionsPopout: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { onDismiss() }
     }
 
+    /// Quanto falta até o corte diário (meia-noite America/Sao_Paulo, mesmo do
+    /// backend). "2h 14m" · "43m" na última hora · "agora" no fio.
+    static func timeLeft(from now: Date) -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/Sao_Paulo") ?? .current
+        guard let midnight = cal.nextDate(
+            after: now,
+            matching: DateComponents(hour: 0, minute: 0, second: 0),
+            matchingPolicy: .nextTime
+        ) else { return "—" }
+        let secs = max(0, Int(midnight.timeIntervalSince(now)))
+        let h = secs / 3600, m = (secs % 3600) / 60
+        if secs < 60 { return "agora" }
+        if h == 0 { return "\(m)m" }
+        return "\(h)h \(m)m"
+    }
+
     // MARK: - O quadro
 
     private var board: some View {
@@ -180,9 +197,14 @@ struct DailyMissionsPopout: View {
                     .font(.system(size: 15, weight: .black, design: .rounded))  // ds-allow: arte gamificada (mundo da trilha)
                     .foregroundStyle(TrailWorld.fireflyWarm)
                     .shadow(color: .black.opacity(0.5), radius: 1, y: 1)
-                Text("Trocam à meia-noite")
-                    .font(.system(size: 9.5, weight: .semibold))  // ds-allow: arte gamificada (mundo da trilha)
-                    .foregroundStyle(VitaColors.textSecondary)
+                // Contagem regressiva viva até o corte (meia-noite BRT) — atualiza
+                // a cada minuto via TimelineView.
+                TimelineView(.periodic(from: .now, by: 60)) { ctx in
+                    Text("Encerra em \(Self.timeLeft(from: ctx.date))")
+                        .font(.system(size: 9.5, weight: .semibold))  // ds-allow: arte gamificada (mundo da trilha)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .monospacedDigit()
+                }
             }
             Spacer()
             coinPill

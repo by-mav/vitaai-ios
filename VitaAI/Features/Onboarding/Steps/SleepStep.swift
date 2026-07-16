@@ -43,6 +43,8 @@ struct OnboardingDreamThoughts: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            OnboardingDreamZs()
+
             Text(phrases[phraseIndex])
                 .font(VitaTypography.bodyMedium)
                 .foregroundStyle(VitaColors.textPrimary)
@@ -57,29 +59,38 @@ struct OnboardingDreamThoughts: View {
             VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) { EmptyView() }
         }
         .overlay(alignment: .bottomLeading) {
-            HStack(alignment: .bottom, spacing: VitaTokens.Spacing.xs) {
-                Circle()
-                    .fill(VitaColors.glassBg)
-                    .frame(width: VitaTokens.Spacing.md, height: VitaTokens.Spacing.md)
-                Circle()
-                    .fill(VitaColors.glassBg)
-                    .frame(width: VitaTokens.Spacing.sm, height: VitaTokens.Spacing.sm)
-                    .offset(y: VitaTokens.Spacing.md)
+            ZStack(alignment: .topLeading) {
+                thoughtDot(size: VitaTokens.Spacing.md)
+                thoughtDot(size: VitaTokens.Spacing.sm)
+                    .offset(
+                        x: -VitaTokens.Spacing.md,
+                        y: VitaTokens.Spacing.md
+                    )
             }
-            .offset(x: -VitaTokens.Spacing.md, y: VitaTokens.Spacing.md)
+            .offset(x: -VitaTokens.Spacing.sm, y: VitaTokens.Spacing.sm)
         }
         .task(id: reduceMotion) {
             guard !reduceMotion else { return }
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2.7))
+                try? await Task.sleep(for: .seconds(4))
                 guard !Task.isCancelled else { return }
-                withAnimation(.easeOut(duration: 0.22)) { phraseVisible = false }
-                try? await Task.sleep(for: .milliseconds(240))
+                withAnimation(.easeOut(duration: 0.26)) { phraseVisible = false }
+                try? await Task.sleep(for: .milliseconds(280))
                 guard !Task.isCancelled else { return }
                 phraseIndex = (phraseIndex + 1) % phrases.count
-                withAnimation(.easeIn(duration: 0.28)) { phraseVisible = true }
+                withAnimation(.easeIn(duration: 0.32)) { phraseVisible = true }
             }
         }
+    }
+
+    private func thoughtDot(size: CGFloat) -> some View {
+        Circle()
+            .fill(VitaColors.glassBg)
+            .overlay {
+                Circle()
+                    .stroke(VitaColors.glassBorder, lineWidth: 1)
+            }
+            .frame(width: size, height: size)
     }
 }
 
@@ -102,40 +113,63 @@ struct IntroductionNameStep: View {
     }
 }
 
-// MARK: - Original sleeping indicator
+// MARK: - Dream sleeping indicator
 
-struct OnboardingSleepingZs: View {
+/// The sleep cue belongs to the thought itself. Keeping it inside the glass
+/// prevents the bubble from ever occluding an independently positioned Z.
+struct OnboardingDreamZs: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animate = false
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            zLetter(size: VitaTokens.Typography.fontSizeXs, delay: 0.0)
-            zLetter(size: VitaTokens.Typography.fontSizeBase, delay: 0.9)
-                .offset(x: VitaTokens.Spacing.sm)
-            zLetter(size: VitaTokens.Typography.fontSizeLg, delay: 1.8)
-                .offset(x: VitaTokens.Spacing.lg)
+        HStack(alignment: .bottom, spacing: VitaTokens.Spacing.xs) {
+            zLetter(
+                font: VitaTypography.labelSmall,
+                rise: 0,
+                delay: 0
+            )
+            zLetter(
+                font: VitaTypography.labelMedium,
+                rise: VitaTokens.Spacing.xs,
+                delay: 0.45
+            )
+            zLetter(
+                font: VitaTypography.titleSmall,
+                rise: VitaTokens.Spacing.sm,
+                delay: 0.9
+            )
         }
         .frame(
-            width: VitaTokens.Spacing._4xl,
-            height: VitaTokens.Spacing._3xl,
+            height: VitaTokens.Spacing._2xl,
             alignment: .bottomLeading
         )
-        .onAppear { animate = true }
+        .onAppear { animate = !reduceMotion }
+        .onChange(of: reduceMotion) { isReduced in
+            animate = !isReduced
+        }
         .accessibilityHidden(true)
     }
 
     @ViewBuilder
-    private func zLetter(size: CGFloat, delay: Double) -> some View {
-        Text("Z")
-            .font(.system(size: size, weight: .heavy, design: .rounded)) // ds-allow: restore original mascot sleep lettering
-            .foregroundStyle(VitaColors.textSecondary)
-            .offset(y: animate ? -VitaTokens.Spacing.lg : 0)
-            .opacity(animate ? 0 : 1)
+    private func zLetter(font: Font, rise: CGFloat, delay: Double) -> some View {
+        let letter = Text("Z")
+            .font(font)
+            .foregroundStyle(VitaColors.accentLight)
+            .offset(
+                y: -rise - (animate ? VitaTokens.Spacing.xs : 0)
+            )
+            .opacity(reduceMotion ? 0.56 : (animate ? 0.28 : 0.72))
+
+        if reduceMotion {
+            letter
+        } else {
+            letter
             .animation(
-                .easeOut(duration: 2.7)
-                    .repeatForever(autoreverses: false)
+                .easeInOut(duration: 1.8)
+                    .repeatForever(autoreverses: true)
                     .delay(delay),
                 value: animate
             )
+        }
     }
 }

@@ -336,7 +336,7 @@
 
 /* ═══ Mascot speech (interpolated) ═══ */
 "onboarding_welcome_speech" = "¡Ahh, estudiante de medicina! ¿Dónde estudias?\n\nAsí puedo encontrar tu portal y ayudarte a organizar tu agenda, seguir tus notas y asistencia, ¡y hasta hacer trabajos contigo!";
-"onboarding_welcome_speech_name" = "¡Ahh, %@! ¿Dónde estudias?\n\nAsí puedo encontrar tu portal y ayudarte a organizar tu agenda, seguir tus notas y asistencia, ¡y hasta hacer trabajos contigo!";
+"onboarding_welcome_speech_name" = "La famosa etapa de “después me pongo al día”.\n\nCuéntame, %@: ¿dónde estudias?";
 "onboarding_connect_multi" = "¡Genial, %1$@! Detecté %2$d sistemas que usan. Conecta y traigo todo automáticamente.";
 "onboarding_connect_single" = "¡Genial, %1$@! Detecté que usan %2$@. Conecta y traigo tus materias y notas.";
 "onboarding_connect_none" = "¡Genial, %@! Aún no conozco los portales de tu universidad, pero conecta cualquiera y lo descubro automáticamente.";
@@ -447,7 +447,7 @@ Sin cobro los primeros 7 dias.";
 "onboarding_residencia_section_direct" = "Acceso directo";
 "onboarding_phase_prompt" = "¡Mucho gusto, %@!\nEse lo memoricé a la primera.\nEl ciclo de Krebs… mejor no hablar de eso.\n\nAhora cuéntame: ¿en qué etapa de este camino estás?";
 "onboarding_phase_reaction_vestibulando" = "Ah, el comienzo de la saga. Respira — una pregunta a la vez.";
-"onboarding_phase_reaction_graduando" = "La famosa etapa de “después me pongo al día”. Sin juzgar.";
+"onboarding_phase_reaction_graduando" = "La famosa etapa de “después me pongo al día”.";
 "onboarding_phase_reaction_residencia" = "Entendido. Respetaré tu sueño cada vez que aparezca.";
 "onboarding_phase_reaction_professional" = "Mira nada más, una persona adulta. Prometo hacer más que solo brillar.";
 "onboarding_phase_reaction_other" = "Perfecto. No todos los caminos caben dentro de un botón.";
