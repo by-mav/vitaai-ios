@@ -309,8 +309,8 @@ struct MainTabView: View {
                                         showSettingsPanel = true
                                     }
                                 },
-                                leadingAccessory: isHomeRoot ? AnyView(
-                                    VitaHomeStudyRail(
+                                centerAccessory: isHomeRoot ? AnyView(
+                                    VitaHomeQuickActions(
                                         onQBank: { openHomeStudy(.qbank) },
                                         onFlashcards: { openHomeStudy(.flashcardHome()) },
                                         onSimulados: { openHomeStudy(.simuladoHome) },
@@ -322,16 +322,15 @@ struct MainTabView: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
                     }
-                    .overlay(alignment: .topTrailing) {
+                    .overlay(alignment: .topLeading) {
                         if isHomeRoot,
                            let activeSessionsVM,
                            !activeSessionsVM.sessions.isEmpty {
                             ContinueSessionDrawer(
                                 model: activeSessionsVM,
-                                maximumExpandedWidth: activeSessionsDrawerWidth(shellWidth: shellGeo.size.width),
                                 onResume: resumeStudySession
                             )
-                            .padding(.trailing, VitaTokens.Spacing.lg)
+                            .padding(.leading, VitaTokens.Spacing.lg)
                             .padding(.top, 88)
                             .zIndex(25)
                         }
@@ -575,25 +574,7 @@ struct MainTabView: View {
     private func openHomeStudy(_ route: Route) {
         PixioHaptics.tap()
         router.popToRoot()
-        if router.selectedTab == .estudos {
-            router.navigate(to: route)
-        } else {
-            router.pendingRouteAfterTabChange = route
-            withAnimation(.easeInOut(duration: 0.24)) {
-                router.selectedTab = .estudos
-            }
-        }
-    }
-
-    private func activeSessionsDrawerWidth(shellWidth: CGFloat) -> CGFloat {
-        let reservedLeading = VitaTokens.Spacing._2xl
-            + VitaHomeStudyRail.width
-            + VitaTokens.Spacing.sm
-            + VitaTokens.Spacing.lg
-        return min(
-            ContinueSessionDrawer.defaultExpandedWidth,
-            max(ContinueSessionDrawer.minimumExpandedWidth, shellWidth - reservedLeading)
-        )
+        router.navigate(to: route)
     }
 
     private func resumeStudySession(_ session: ActiveStudySession) {
@@ -1030,44 +1011,19 @@ struct MainTabView: View {
     }
 }
 
-private struct VitaHomeStudyRail: View {
-    static let width: CGFloat = 56 // ds-allow: igual à largura visual do avatar da Home
-
+private struct VitaHomeQuickActions: View {
     let onQBank: () -> Void
     let onFlashcards: () -> Void
     let onSimulados: () -> Void
     let onTranscricao: () -> Void
 
     var body: some View {
-        VStack(spacing: VitaTokens.Spacing.xs) {
+        HStack(spacing: VitaTokens.Spacing.xxs) {
             actionButton("Questões", image: "home-quick-questoes", identifier: "homeQuickAction_questions", action: onQBank)
             actionButton("Flashcards", image: "home-quick-flashcards", identifier: "homeQuickAction_flashcards", action: onFlashcards)
             actionButton("Simulados", image: "home-quick-simulados", identifier: "homeQuickAction_simulados", action: onSimulados)
             actionButton("Transcrição", image: "home-quick-transcricao", identifier: "homeQuickAction_transcricao", action: onTranscricao)
         }
-        .padding(VitaTokens.Spacing.xs)
-        .frame(width: Self.width)
-        .background(
-            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
-                .fill(TrailWorld.dockFill.opacity(0.82))
-                .overlay(
-                    RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous).fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.14),
-                                TrailWorld.dockFill.opacity(0.10),
-                                Color.black.opacity(0.08)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
-                        .stroke(Color.white.opacity(0.22), lineWidth: 0.75)
-                )
-        )
     }
 
     private func actionButton(
@@ -1082,9 +1038,9 @@ private struct VitaHomeStudyRail: View {
             Image(image)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 40, height: 40) // ds-allow: artwork óptico dentro de target Apple 48pt
+                .frame(width: 34, height: 34) // ds-allow: ícone compacto no top bar; target segue com 44pt
                 .accessibilityHidden(true)
-                .frame(width: VitaTokens.Spacing._4xl, height: VitaTokens.Spacing._4xl)
+                .frame(width: 44, height: 44) // ds-allow: alvo mínimo Apple
                 .contentShape(Rectangle())
         }
         .buttonStyle(HomeQuickActionPressStyle())

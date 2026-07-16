@@ -22,27 +22,26 @@ struct VitaTopBar: View {
     var blendsWithHome: Bool = false
     var onAvatarTap: (() -> Void)?
     var onMenuTap: (() -> Void)?
-    var leadingAccessory: AnyView?
+    var centerAccessory: AnyView?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: leadingAccessory == nil ? 0 : VitaTokens.Spacing.sm) {
-                Button(action: { onAvatarTap?() }) {
-                    VStack(spacing: blendsWithHome ? 2 : 4) {
-                        avatarBadge
+            Button(action: { onAvatarTap?() }) {
+                VStack(spacing: blendsWithHome ? 2 : 4) {
+                    avatarBadge
 
-                        if level > 0 {
-                            levelBadge
-                        }
+                    if level > 0 {
+                        levelBadge
                     }
                 }
-                .buttonStyle(.plain)
-                .frame(minWidth: 54, minHeight: 62)
-                .accessibilityLabel("Perfil")
+            }
+            .buttonStyle(.plain)
+            .frame(minWidth: 54, minHeight: 62)
+            .accessibilityLabel("Perfil")
 
-                if let leadingAccessory {
-                    leadingAccessory
-                }
+            if let centerAccessory {
+                centerAccessory
+                    .padding(.top, VitaTokens.Spacing.xs)
             }
 
             Spacer()
