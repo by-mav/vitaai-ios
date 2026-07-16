@@ -1,0 +1,222 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - onboarding
+  - audit
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+
+- extendedWaitUntil:
+    visible:
+      id: "onboardingWakeButton"
+    timeout: 15000
+- tapOn:
+    id: "onboardingWakeButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingNameInput"
+    timeout: 15000
+- tapOn:
+    id: "onboardingNameInput"
+- inputText: "Rafael QA"
+- tapOn:
+    point: "50%,18%"
+- tapOn:
+    id: "onboardingPrimaryButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPhase_vestibulando"
+    timeout: 12000
+
+# 1/5 Vestibular: every connector is available without a university.
+- tapOn:
+    id: "onboardingPhase_vestibulando"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPortal_canvas"
+    timeout: 12000
+- assertVisible:
+    id: "onboardingPortal_moodle"
+- assertVisible:
+    id: "onboardingConnectorAction_google_calendar"
+- assertVisible:
+    id: "onboardingConnectorAction_google_drive"
+- assertVisible: "WhatsApp"
+- takeScreenshot: "audit-onboarding-01-vestibular-connectors"
+- tapOn:
+    id: "onboardingSkipButton"
+- extendedWaitUntil:
+    visible: "Permitir notificações"
+    timeout: 12000
+- takeScreenshot: "audit-onboarding-02-vestibular-notifications"
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPhase_graduando"
+    timeout: 12000
+
+# 2/5 Graduation: university is optional and the exact draft survives an app kill.
+- tapOn:
+    id: "onboardingPhase_graduando"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingSkipButton"
+    timeout: 12000
+- stopApp
+- launchApp:
+    clearState: false
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "onboardingSkipButton"
+    timeout: 15000
+- takeScreenshot: "audit-onboarding-03-graduation-resumed-university"
+- tapOn:
+    id: "onboardingSkipButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPortal_canvas"
+    timeout: 12000
+- assertVisible:
+    id: "onboardingPortal_moodle"
+- tapOn:
+    id: "onboardingSkipButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingGoal_ENAMED"
+    timeout: 12000
+- tapOn:
+    id: "onboardingGoal_ENAMED"
+- extendedWaitUntil:
+    visible: "Permitir notificações"
+    timeout: 12000
+- takeScreenshot: "audit-onboarding-04-graduation-goal"
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPhase_residencia"
+    timeout: 12000
+
+# 3/5 Residency/specialization: goal, required specialty, then universal connectors.
+- tapOn:
+    id: "onboardingPhase_residencia"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingGoal_RESIDENCIA"
+    timeout: 12000
+- tapOn:
+    id: "onboardingGoal_RESIDENCIA"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingSpecialtySearch"
+    timeout: 15000
+- tapOn:
+    id: "onboardingSpecialtySearch"
+- inputText: "Cardiologia"
+- tapOn:
+    point: "50%,18%"
+- extendedWaitUntil:
+    visible: "Cardiologia"
+    timeout: 12000
+- tapOn:
+    id: "onboardingSpecialty_cardiologia"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPortal_canvas"
+    timeout: 12000
+- assertVisible:
+    id: "onboardingPortal_moodle"
+- takeScreenshot: "audit-onboarding-05-residency-connectors"
+- tapOn:
+    id: "onboardingSkipButton"
+- extendedWaitUntil:
+    visible: "Permitir notificações"
+    timeout: 12000
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPhase_professional"
+    timeout: 12000
+
+# 4/5 Working professional.
+- tapOn:
+    id: "onboardingPhase_professional"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingGoal_ENAMED"
+    timeout: 12000
+- tapOn:
+    id: "onboardingGoal_ENAMED"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPortal_canvas"
+    timeout: 12000
+- assertVisible:
+    id: "onboardingPortal_moodle"
+- takeScreenshot: "audit-onboarding-06-professional-connectors"
+- tapOn:
+    id: "onboardingSkipButton"
+- extendedWaitUntil:
+    visible: "Permitir notificações"
+    timeout: 12000
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- tapOn:
+    id: "onboardingBackButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPhase_other"
+    timeout: 12000
+
+# 5/5 Other phase through Revalida. Leave the app on notifications for
+# the backend-failure and successful-completion E2E checks.
+- tapOn:
+    id: "onboardingPhase_other"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingGoal_REVALIDA"
+    timeout: 12000
+- tapOn:
+    id: "onboardingGoal_REVALIDA"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingRevalidaPrimeira"
+    timeout: 12000
+- tapOn:
+    id: "onboardingRevalidaPrimeira"
+- tapOn:
+    id: "onboardingPrimaryButton"
+- extendedWaitUntil:
+    visible:
+      id: "onboardingPortal_canvas"
+    timeout: 12000
+- assertVisible:
+    id: "onboardingPortal_moodle"
+- takeScreenshot: "audit-onboarding-07-other-revalida-connectors"
+- tapOn:
+    id: "onboardingSkipButton"
+- extendedWaitUntil:
+    visible: "Permitir notificações"
+    timeout: 12000
+- takeScreenshot: "audit-onboarding-08-ready-to-complete"

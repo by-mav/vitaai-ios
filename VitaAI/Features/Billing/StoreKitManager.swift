@@ -2,6 +2,14 @@ import StoreKit
 import Foundation
 import Observation
 
+struct StoreKitVerifiedPurchase: Sendable {
+    let transaction: Transaction
+    let signedTransaction: String
+
+    var transactionId: String { String(transaction.id) }
+    var productId: String { transaction.productID }
+}
+
 // MARK: - StoreKitManager
 /// @Observable singleton managing StoreKit 2 subscription lifecycle.
 /// Handles product loading, purchase flow, restoration, and entitlement checks.
@@ -27,6 +35,13 @@ final class StoreKitManager {
     private(set) var isPurchasing = false
     private(set) var isLoadingProducts = false
     private(set) var purchaseError: String? = nil
+    private(set) var purchaseNotice: String? = nil
+    private(set) var isProEligibleForIntroOffer = false
+
+    func isEligibleForIntroOffer(productID: String) -> Bool {
+        products.contains { $0.id == productID && $0.subscription?.introductoryOffer != nil }
+            && isProEligibleForIntroOffer
+    }
 
     // MARK: - Computed Helpers
 
@@ -62,20 +77,34 @@ final class StoreKitManager {
         do {
             let fetched = try await Product.products(for: Self.allProductIDs)
             print("[StoreKit] Loaded \(fetched.count) products: \(fetched.map { "\($0.id) = \($0.displayPrice)" })")
+            guard !fetched.isEmpty else {
+                purchaseError = String(localized: "billing_products_load_error")
+                return
+            }
             // Premium first (cheaper), Pro second
             products = fetched.sorted {
                 $0.id == Self.premiumProductID && $1.id != Self.premiumProductID
             }
+            purchaseError = nil
+            purchaseNotice = nil
+            if let subscription = proProduct?.subscription,
+               subscription.introductoryOffer != nil {
+                isProEligibleForIntroOffer = await subscription.isEligibleForIntroOffer
+            } else {
+                isProEligibleForIntroOffer = false
+            }
             await refreshSubscriptionStatus()
         } catch {
-            purchaseError = "Não foi possível carregar os planos disponíveis."
+            purchaseError = String(localized: "billing_products_load_error")
         }
     }
 
     /// Launch App Store purchase sheet for the given product.
-    func purchase(_ product: Product) async {
+    @discardableResult
+    func purchase(_ product: Product) async -> StoreKitVerifiedPurchase? {
         isPurchasing = true
         purchaseError = nil
+        purchaseNotice = nil
         defer { isPurchasing = false }
         VitaAnalytics.capture(event: "checkout_started", properties: [
             "plan_id": product.id,
@@ -95,39 +124,68 @@ final class StoreKitManager {
                     "provider": "apple_iap",
                 ])
                 await refreshSubscriptionStatus()
-                await transaction.finish()
+                return StoreKitVerifiedPurchase(
+                    transaction: transaction,
+                    signedTransaction: verification.jwsRepresentation
+                )
             case .userCancelled:
                 VitaAnalytics.capture(event: "checkout_failed", properties: [
                     "plan_id": product.id,
                     "reason": "user_cancelled",
                 ])
-                break   // silent — user tapped Cancel
+                return nil   // silent — user tapped Cancel
             case .pending:
-                break   // awaiting parental approval
+                purchaseNotice = String(localized: "billing_purchase_pending")
+                return nil
             @unknown default:
-                break
+                return nil
             }
         } catch {
-            purchaseError = "Ocorreu um erro ao processar o pagamento. Tente novamente."
+            purchaseError = String(localized: "billing_purchase_error")
             VitaAnalytics.capture(event: "checkout_failed", properties: [
                 "plan_id": product.id,
                 "reason": error.localizedDescription,
             ])
+            return nil
         }
     }
 
     /// Restore previous purchases via AppStore.sync().
-    func restorePurchases() async {
+    @discardableResult
+    func restorePurchases() async -> [StoreKitVerifiedPurchase] {
         isPurchasing = true
         purchaseError = nil
+        purchaseNotice = nil
         defer { isPurchasing = false }
 
         do {
             try await AppStore.sync()
             await refreshSubscriptionStatus()
+            let purchases = await activePurchases()
+            if purchases.isEmpty {
+                purchaseNotice = String(localized: "billing_restore_none")
+            }
+            return purchases
         } catch {
-            purchaseError = "Não foi possível restaurar as compras anteriores."
+            purchaseError = String(localized: "billing_restore_error")
+            return []
         }
+    }
+
+    func activePurchases() async -> [StoreKitVerifiedPurchase] {
+        var purchases: [StoreKitVerifiedPurchase] = []
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result,
+                  transaction.revocationDate == nil,
+                  Self.allProductIDs.contains(transaction.productID) else { continue }
+            purchases.append(
+                StoreKitVerifiedPurchase(
+                    transaction: transaction,
+                    signedTransaction: result.jwsRepresentation
+                )
+            )
+        }
+        return purchases
     }
 
     /// Check current entitlements and update isSubscribed / activeProductID.
@@ -148,7 +206,10 @@ final class StoreKitManager {
         }
     }
 
-    func clearError() { purchaseError = nil }
+    func clearError() {
+        purchaseError = nil
+        purchaseNotice = nil
+    }
 
     // MARK: - Private
 
@@ -156,7 +217,7 @@ final class StoreKitManager {
         do {
             let transaction = try checkVerified(result)
             await refreshSubscriptionStatus()
-            await transaction.finish()
+            _ = transaction
         } catch {
             // Ignore unverified transactions
         }

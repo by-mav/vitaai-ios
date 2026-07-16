@@ -512,8 +512,11 @@ struct MainTabView: View {
             Task { await activeSessionsVM.refresh() }
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active, isHomeRoot, let activeSessionsVM else { return }
-            Task { await activeSessionsVM.refresh() }
+            guard phase == .active, isHomeRoot else { return }
+            Task {
+                await subStatus.refresh()
+                await activeSessionsVM?.refresh()
+            }
         }
         .overlay {
             ZStack {

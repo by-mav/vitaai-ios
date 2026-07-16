@@ -8,12 +8,27 @@ struct ConnectStep: View {
     var university: University?
     var allPortalTypes: [PortalTypeInfo]
     var api: VitaAPI?
+    var calendarStatus: ConnectionItemStatus
+    var driveStatus: ConnectionItemStatus
+    var whatsappStatus: ConnectionItemStatus
+    var whatsappSubtitle: String?
+    @Binding var whatsappPhone: String
+    @Binding var whatsappCode: String
+    @Binding var whatsappStep: Int
+    @Binding var whatsappSending: Bool
+    @Binding var whatsappError: String?
     var onConnect: ((String) -> Void)?
+    var onDisconnect: ((String) -> Void)?
+    var onLoad: (() async -> Void)?
+    let onSendWhatsAppCode: () -> Void
+    let onVerifyWhatsAppCode: () -> Void
 
     @State private var selectedPortal: PortalChoice?
     @State private var token = ""
+    @State private var instanceURL = ""
     @State private var isConnecting = false
-    @State private var isConnected = false
+    @State private var connectedPortals = Set<PortalChoice>()
+    @State private var isWhatsAppExpanded = false
     @State private var errorMessage: String?
 
     enum PortalChoice: String, CaseIterable {
@@ -54,42 +69,26 @@ struct ConnectStep: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            if isConnected, let portal = selectedPortal {
-                connectedView(portal: portal)
-            } else if let portal = selectedPortal {
+        VStack(spacing: VitaTokens.Spacing.xl) {
+            if let portal = selectedPortal {
                 tokenEntry(portal: portal)
             } else {
                 portalPicker
-            }
-
-            if !isConnected && selectedPortal == nil {
-                ConnectorCard(
-                    letter: "G", name: "Google Calendar",
-                    status: .disconnected,
-                    color: Color(red: 0.26, green: 0.52, blue: 0.96),
-                    iconAsset: "connector-google-calendar",
-                    iconCornerRadius: VitaTokens.Radius.md,
-                    onConnect: { onConnect?("google_calendar") }
-                )
-                ConnectorCard(
-                    letter: "G", name: "Google Drive",
-                    status: .disconnected,
-                    color: Color(red: 0.13, green: 0.59, blue: 0.33),
-                    iconAsset: "connector-google-drive",
-                    iconCornerRadius: VitaTokens.Radius.md,
-                    onConnect: { onConnect?("google_drive") }
-                )
+                additionalConnectors
             }
         }
+        .task { await onLoad?() }
     }
 
     // MARK: - Portal picker
 
     private var portalPicker: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            sectionLabel(String(localized: "onboarding_connect_portals_section"))
+
             ForEach(PortalChoice.allCases, id: \.rawValue) { choice in
                 Button {
+                    instanceURL = configuredPortalURL(for: choice)
                     withAnimation(.spring(response: 0.3)) {
                         selectedPortal = choice
                     }
@@ -105,23 +104,127 @@ struct ConnectStep: View {
                                     style: .continuous
                                 )
                             )
-                        Text(choice.rawValue)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.9))
+                        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                            Text(choice.rawValue)
+                                .font(VitaTypography.titleSmall)
+                                .foregroundStyle(VitaColors.textPrimary)
+                            Text(String(localized: "onboarding_connect_portal_subtitle"))
+                                .font(VitaTypography.labelSmall)
+                                .foregroundStyle(VitaColors.textSecondary)
+                        }
                         Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.3))
+                        Image(
+                            systemName: connectedPortals.contains(choice)
+                                ? "checkmark.circle.fill"
+                                : "chevron.right"
+                        )
+                        .font(VitaTypography.labelMedium)
+                        .foregroundStyle(
+                            connectedPortals.contains(choice)
+                                ? VitaColors.success
+                                : VitaColors.textSecondary
+                        )
                     }
-                    .padding(14)
+                    .padding(VitaTokens.Spacing.lg)
                     .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color.white.opacity(0.04))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                            .fill(VitaColors.glassBg)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                                    .stroke(VitaColors.glassBorder, lineWidth: 1)
+                            )
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("onboardingPortal_\(choice.apiType)")
             }
+        }
+    }
+
+    // MARK: - Optional connectors
+
+    private var additionalConnectors: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            sectionLabel(String(localized: "onboarding_connect_additional_section"))
+
+            ConnectorCard(
+                letter: "G",
+                name: "Google Calendar",
+                status: calendarStatus,
+                color: VitaColors.dataBlue,
+                iconAsset: "connector-google-calendar",
+                iconCornerRadius: VitaTokens.Radius.md,
+                actionAccessibilityIdentifier: "onboardingConnectorAction_google_calendar",
+                onConnect: { onConnect?("google_calendar") },
+                onDisconnect: { onDisconnect?("google_calendar") }
+            )
+
+            ConnectorCard(
+                letter: "G",
+                name: "Google Drive",
+                status: driveStatus,
+                color: VitaColors.success,
+                iconAsset: "connector-google-drive",
+                iconCornerRadius: VitaTokens.Radius.md,
+                actionAccessibilityIdentifier: "onboardingConnectorAction_google_drive",
+                onConnect: { onConnect?("google_drive") },
+                onDisconnect: { onDisconnect?("google_drive") }
+            )
+
+            ConnectorCard(
+                letter: "W",
+                name: "WhatsApp",
+                status: effectiveWhatsAppStatus,
+                color: VitaColors.success,
+                iconAsset: "connector-whatsapp",
+                iconCornerRadius: VitaTokens.Radius.md,
+                subtitle: whatsappSubtitle ?? String(localized: "onboarding_whatsapp_card_subtitle"),
+                actionAccessibilityIdentifier: "onboardingConnectorAction_whatsapp",
+                onConnect: toggleWhatsApp,
+                onDisconnect: { onDisconnect?("whatsapp") },
+                onTapConnected: toggleWhatsApp
+            )
+
+            if isWhatsAppExpanded || whatsappStep > 0 {
+                OnboardingWhatsAppLinkContent(
+                    phone: $whatsappPhone,
+                    code: $whatsappCode,
+                    stepIndex: $whatsappStep,
+                    sending: $whatsappSending,
+                    error: $whatsappError,
+                    onSendCode: onSendWhatsAppCode,
+                    onVerify: onVerifyWhatsAppCode
+                )
+                .padding(VitaTokens.Spacing.lg)
+                .background {
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.xl, style: .continuous)
+                        .fill(VitaColors.glassBg.opacity(0.72))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: VitaTokens.Radius.xl, style: .continuous)
+                                .stroke(VitaColors.glassBorder, lineWidth: 1)
+                        }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    private var effectiveWhatsAppStatus: ConnectionItemStatus {
+        whatsappStep == 2 ? .connected : whatsappStatus
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(VitaTypography.labelSmall)
+            .foregroundStyle(VitaColors.sectionLabel)
+            .tracking(0.8)
+            .padding(.leading, VitaTokens.Spacing.xs)
+    }
+
+    private func toggleWhatsApp() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+            isWhatsAppExpanded.toggle()
         }
     }
 
@@ -134,6 +237,7 @@ struct ConnectStep: View {
                     withAnimation(.spring(response: 0.3)) {
                         selectedPortal = nil
                         token = ""
+                        instanceURL = ""
                         errorMessage = nil
                     }
                 } label: {
@@ -150,6 +254,19 @@ struct ConnectStep: View {
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white.opacity(0.9))
                 Spacer()
+            }
+
+            if configuredPortalURL(for: portal).isEmpty {
+                OnboardingTextInput(
+                    value: $instanceURL,
+                    label: String(localized: "onboarding_portal_url_label"),
+                    placeholder: String(localized: "onboarding_portal_url_placeholder"),
+                    leadingSystemImage: "link",
+                    keyboardType: .URL,
+                    autocapitalization: .never,
+                    autocorrectionDisabled: true,
+                    accessibilityIdentifier: "onboardingPortalURLInput"
+                )
             }
 
             // Open portal button. Token generation must stay in a browser;
@@ -190,6 +307,8 @@ struct ConnectStep: View {
                 )
             }
             .buttonStyle(.plain)
+            .disabled(portalURL(for: portal).isEmpty)
+            .opacity(portalURL(for: portal).isEmpty ? 0.46 : 1)
 
             // Step-by-step text instructions
             VStack(alignment: .leading, spacing: 8) {
@@ -236,67 +355,18 @@ struct ConnectStep: View {
         )
     }
 
-    // MARK: - Connected
-
-    private func connectedView(portal: PortalChoice) -> some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(VitaColors.dataGreen.opacity(0.12))
-                    .frame(width: 64, height: 64)
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(VitaColors.dataGreen)
-            }
-
-            Text(
-                String(localized: "onboarding_portal_connected")
-                    .replacingOccurrences(of: "%@", with: portal.rawValue)
-            )
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(.white.opacity(0.9))
-
-            Text(String(localized: "onboarding_portal_sync_started"))
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.45))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(VitaColors.dataGreen.opacity(0.04))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(VitaColors.dataGreen.opacity(0.12), lineWidth: 1))
-        )
-    }
-
     // MARK: - Logic
 
     private var canConnect: Bool {
         !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !portalURL(for: selectedPortal ?? .canvas).isEmpty
     }
 
-    /// Abre o portal no Safari na rota de login certa pro SSO funcionar.
-    /// Canvas: /login/google (SSO Google, padrão das faculdades brasileiras)
-    /// Moodle: /login/index.php
     @MainActor
     private func openPortal(portal: PortalChoice) {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let baseURL = portalURL(for: portal)
-        guard !baseURL.isEmpty else {
-            let fallback = portal == .canvas
-                ? "https://www.instructure.com"
-                : "https://moodle.org"
-            if let url = URL(string: fallback) { presentBrowser(url) }
-            return
-        }
-        let trimmed = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
-        let loginPath: String = {
-            switch portal {
-            case .canvas: return "/login/google"
-            case .moodle: return "/login/index.php"
-            }
-        }()
-        if let url = URL(string: trimmed + loginPath) {
+        if let url = URL(string: baseURL), !baseURL.isEmpty {
             presentBrowser(url)
         }
     }
@@ -319,6 +389,14 @@ struct ConnectStep: View {
     }
 
     private func portalURL(for portal: PortalChoice) -> String {
+        let enteredURL = instanceURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !enteredURL.isEmpty {
+            return enteredURL.hasPrefix("http") ? enteredURL : "https://\(enteredURL)"
+        }
+        return configuredPortalURL(for: portal)
+    }
+
+    private func configuredPortalURL(for portal: PortalChoice) -> String {
         if let portals = university?.portals,
            let match = portals.first(where: { $0.portalType == portal.apiType }),
            let url = match.instanceUrl, !url.isEmpty {
@@ -354,7 +432,10 @@ struct ConnectStep: View {
 
             await MainActor.run {
                 if result.success {
-                    withAnimation(.spring(response: 0.4)) { isConnected = true }
+                    connectedPortals.insert(portal)
+                    selectedPortal = nil
+                    token = ""
+                    instanceURL = ""
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } else {
                     errorMessage = result.error ?? String(localized: "onboarding_portal_invalid_token")

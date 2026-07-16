@@ -23,6 +23,7 @@ struct ConnectorCard: View {
     var isStale: Bool = false        // conectado mas dados > 12h → dot e texto ficam ambar
     var stats: [(value: Int, label: String)] = []
     var isPrimary: Bool = false
+    var actionAccessibilityIdentifier: String? = nil
     var onConnect: (() -> Void)?
     var onDisconnect: (() -> Void)?
     var onTapConnected: (() -> Void)?
@@ -191,6 +192,7 @@ struct ConnectorCard: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(actionAccessibilityIdentifier ?? "")
     }
 
     private var buttonLabel: String {

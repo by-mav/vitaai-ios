@@ -1,0 +1,19 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - onboarding
+  - billing
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- extendedWaitUntil:
+    visible: "VITA PRO"
+    timeout: 20000
+- assertVisible: "Começar 7 dias grátis"
+- assertVisible: "Restaurar compras"
+- tapOn:
+    id: "onboardingPrimaryButton"
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: "audit-onboarding-trial-purchase-sheet"

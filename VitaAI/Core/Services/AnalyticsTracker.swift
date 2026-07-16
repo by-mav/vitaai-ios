@@ -19,6 +19,7 @@ enum VitaEvent: String {
 
     // Onboarding funnel
     case onboardingStepViewed = "onboarding_step_viewed"
+    case onboardingChoiceSelected = "onboarding_choice_selected"
     case onboardingCompleted = "onboarding_completed"
 
     // Monetization

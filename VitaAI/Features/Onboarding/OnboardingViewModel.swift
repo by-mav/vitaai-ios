@@ -237,8 +237,11 @@ final class OnboardingViewModel {
 
     // MARK: - Final save
 
-    func complete() async {
+    @discardableResult
+    func complete() async -> Bool {
+        guard !isSaving else { return false }
         isSaving = true
+        defer { isSaving = false }
         let subjects = syncedSubjects.map(\.name)
         let data = OnboardingData(
             nickname: nickname.trimmingCharacters(in: .whitespaces),
@@ -249,6 +252,19 @@ final class OnboardingViewModel {
             subjectDifficulties: subjectDifficulties
         )
 
+        let didSyncBackend: Bool
+        if selectedGoal != nil {
+            didSyncBackend = await postOnboardingV2ToBackend(data: data)
+        } else {
+            didSyncBackend = await postOnboardingToBackend(data: data)
+        }
+
+        guard didSyncBackend else { return false }
+
+        // The backend is the completion authority. Local state only flips after
+        // it accepted every answer, so a failed request can always be retried.
+        await tokenStore.saveOnboardingData(data)
+        clearDraft()
         AnalyticsTracker.shared.event(.onboardingCompleted, properties: [
             "university_name": data.universityName,
             "semester": data.semester,
@@ -258,19 +274,7 @@ final class OnboardingViewModel {
             "goal": selectedGoal?.rawValue ?? "legacy",
             "in_faculdade": inFaculdade?.rawValue ?? "n/a",
         ])
-        await tokenStore.saveOnboardingData(data)
-
-        let didSyncBackend: Bool
-        if selectedGoal != nil {
-            didSyncBackend = await postOnboardingV2ToBackend(data: data)
-        } else {
-            didSyncBackend = await postOnboardingToBackend(data: data)
-        }
-
-        // Local completion remains available offline, but the durable answers
-        // are only discarded after the canonical backend accepted them.
-        if didSyncBackend { clearDraft() }
-        isSaving = false
+        return true
     }
 
     // MARK: - Durable draft
@@ -416,6 +420,8 @@ final class OnboardingViewModel {
             universityLms: universityLMS,
             selectedSubjects: subjects,
             studyGoal: nil,
+            academicPhase: academicPhase?.rawValue,
+            preferredName: data.nickname.isEmpty ? nil : data.nickname,
             targetSpecialty: targetSpecialtySlug,
             targetInstitutions: targetInstitutions.isEmpty ? nil : targetInstitutions,
             currentStage: revalidaStage?.rawValue,
@@ -466,8 +472,7 @@ enum AcademicPhase: String, Hashable, CaseIterable {
     var automaticGoal: OnboardingGoal? {
         switch self {
         case .vestibulando: return .faculdade
-        case .residencia: return .residencia
-        case .graduando, .professional, .other: return nil
+        case .graduando, .residencia, .professional, .other: return nil
         }
     }
 }

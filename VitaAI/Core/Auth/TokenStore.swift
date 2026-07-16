@@ -20,6 +20,8 @@ actor TokenStore {
         static let onboardingSubjects = "vita_onboarding_subjects"
         static let onboardingGoals = "vita_onboarding_goals"
         static let onboardingDailyMinutes = "vita_onboarding_daily_minutes"
+        static let onboardingDraftV3 = "vita_onboarding_draft_v3"
+        static let onboardingLastStepV3 = "vita_onboarding_last_step_v3"
         static let fcmToken = "vita_fcm_token"
     }
 
@@ -93,7 +95,8 @@ actor TokenStore {
             Keys.userName, Keys.userEmail, Keys.userImage,
             Keys.isOnboarded, Keys.legacyIsOnboarded, Keys.onboardingNickname, Keys.onboardingUniversity,
             Keys.onboardingState, Keys.onboardingSemester, Keys.onboardingSubjects,
-            Keys.onboardingGoals, Keys.onboardingDailyMinutes
+            Keys.onboardingGoals, Keys.onboardingDailyMinutes, Keys.onboardingDraftV3,
+            Keys.onboardingLastStepV3
         ]
         keysToRemove.forEach { defaults.removeObject(forKey: $0) }
         // Preserve FCM token across logouts

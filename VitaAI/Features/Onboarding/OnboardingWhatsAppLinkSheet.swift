@@ -1,7 +1,6 @@
 import SwiftUI
 
-// vita-modals-ignore: onboarding-multistep — phone, code and success.
-struct OnboardingWhatsAppLinkSheet: View {
+struct OnboardingWhatsAppLinkContent: View {
     @Binding var phone: String
     @Binding var code: String
     @Binding var stepIndex: Int
@@ -9,51 +8,59 @@ struct OnboardingWhatsAppLinkSheet: View {
     @Binding var error: String?
     let onSendCode: () -> Void
     let onVerify: () -> Void
-    let onClose: () -> Void
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: VitaTokens.Spacing.lg) {
-                Image(systemName: stepIndex == 2 ? "checkmark.circle.fill" : "message.fill")
-                    .font(VitaTypography.displayLarge)
-                    .foregroundStyle(stepIndex == 2 ? VitaColors.success : VitaColors.accent)
-                    .padding(.top, VitaTokens.Spacing.lg)
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
+            HStack(alignment: .top, spacing: VitaTokens.Spacing.md) {
+                Image("connector-whatsapp")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: VitaTokens.Radius.md,
+                            style: .continuous
+                        )
+                    )
 
-                switch stepIndex {
-                case 0: phoneEntry
-                case 1: codeEntry
-                default: connectedState
+                VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                    Text(String(localized: "onboarding_whatsapp_title"))
+                        .font(VitaTypography.titleMedium)
+                        .foregroundStyle(VitaColors.textPrimary)
+
+                    if stepIndex == 0 {
+                        Text(String(localized: "onboarding_whatsapp_subtitle"))
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, VitaTokens.Spacing._2xl)
-            .background(VitaColors.surface.ignoresSafeArea())
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "onboarding_close"), action: onClose)
-                        .foregroundStyle(VitaColors.textSecondary)
-                }
+
+            switch stepIndex {
+            case 0:
+                phoneEntry
+            case 1:
+                codeEntry
+            default:
+                connectedState
             }
         }
     }
 
     @ViewBuilder
     private var phoneEntry: some View {
-        heading(
-            title: String(localized: "onboarding_whatsapp_title"),
-            subtitle: String(localized: "onboarding_whatsapp_subtitle")
-        )
-
         OnboardingTextInput(
             value: $phone,
             placeholder: String(localized: "onboarding_whatsapp_phone_placeholder"),
-            leadingSystemImage: "phone",
+            leadingSystemImage: "phone.fill",
             errorMessage: error,
             keyboardType: .phonePad,
             autocapitalization: .never,
-            autocorrectionDisabled: true
+            autocorrectionDisabled: true,
+            accessibilityIdentifier: "onboardingWhatsAppPhoneInput"
         )
         .textContentType(.telephoneNumber)
 
@@ -67,14 +74,19 @@ struct OnboardingWhatsAppLinkSheet: View {
             isEnabled: phone.filter(\.isNumber).count >= 8 && !sending,
             fillsWidth: true
         )
+        .accessibilityIdentifier("onboardingWhatsAppSendCodeButton")
     }
 
     @ViewBuilder
     private var codeEntry: some View {
-        heading(
-            title: String(localized: "onboarding_whatsapp_code_title"),
-            subtitle: String(localized: "onboarding_whatsapp_code_subtitle")
-        )
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+            Text(String(localized: "onboarding_whatsapp_code_title"))
+                .font(VitaTypography.titleSmall)
+                .foregroundStyle(VitaColors.textPrimary)
+            Text(String(localized: "onboarding_whatsapp_code_subtitle"))
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+        }
 
         OnboardingTextInput(
             value: $code,
@@ -83,7 +95,8 @@ struct OnboardingWhatsAppLinkSheet: View {
             errorMessage: error,
             keyboardType: .numberPad,
             autocapitalization: .never,
-            autocorrectionDisabled: true
+            autocorrectionDisabled: true,
+            accessibilityIdentifier: "onboardingWhatsAppCodeInput"
         )
         .textContentType(.oneTimeCode)
 
@@ -97,30 +110,29 @@ struct OnboardingWhatsAppLinkSheet: View {
             isEnabled: code.filter(\.isNumber).count == 6 && !sending,
             fillsWidth: true
         )
+        .accessibilityIdentifier("onboardingWhatsAppVerifyButton")
 
         Button(String(localized: "onboarding_whatsapp_resend"), action: onSendCode)
             .font(VitaTypography.bodySmall)
             .foregroundStyle(VitaColors.textSecondary)
             .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
     private var connectedState: some View {
-        heading(
-            title: String(localized: "onboarding_whatsapp_connected"),
-            subtitle: String(localized: "onboarding_whatsapp_connected_subtitle")
-        )
-    }
-
-    private func heading(title: String, subtitle: String) -> some View {
-        VStack(spacing: VitaTokens.Spacing.sm) {
-            Text(title)
-                .font(VitaTypography.headlineSmall)
-                .foregroundStyle(VitaColors.textPrimary)
-            Text(subtitle)
-                .font(VitaTypography.bodyMedium)
-                .foregroundStyle(VitaColors.textSecondary)
-                .multilineTextAlignment(.center)
+        HStack(alignment: .top, spacing: VitaTokens.Spacing.sm) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(VitaTypography.titleLarge)
+                .foregroundStyle(VitaColors.success)
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                Text(String(localized: "onboarding_whatsapp_connected"))
+                    .font(VitaTypography.titleSmall)
+                    .foregroundStyle(VitaColors.textPrimary)
+                Text(String(localized: "onboarding_whatsapp_connected_subtitle"))
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
         }
     }
 }

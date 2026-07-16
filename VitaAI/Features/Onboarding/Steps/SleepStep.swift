@@ -19,6 +19,7 @@ struct SleepStep: View {
             fillsWidth: true
         )
         .padding(.horizontal, VitaTokens.Spacing._4xl + VitaTokens.Spacing._3xl)
+        .accessibilityIdentifier("onboardingWakeButton")
         .accessibilityHint(String(localized: "onboarding_sleep_hint"))
     }
 }

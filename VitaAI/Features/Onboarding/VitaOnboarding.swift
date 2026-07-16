@@ -35,7 +35,6 @@ struct VitaOnboarding: View {
     @State private var typeTextID = UUID()
     @State private var wakeSequenceID = UUID()
     @State private var isWakeReaction = false
-    @State private var showExtrasWASheet = false
     @State private var waPhone = ""
     @State private var waCode = ""
     @State private var waStep = 0
@@ -43,6 +42,9 @@ struct VitaOnboarding: View {
     @State private var waError: String?
     @State private var isKeyboardVisible = false
     @State private var showLogoutConfirmation = false
+    @State private var connectorsViewModel: ConnectorsViewModel?
+    @State private var toastState = VitaToastState()
+    @State private var storeKit = StoreKitManager()
 
     var userName: String = ""
     var onLogout: (() -> Void)?
@@ -99,23 +101,15 @@ struct VitaOnboarding: View {
                 }
             }
         }
-        .sheet(isPresented: $showExtrasWASheet) {
-            OnboardingWhatsAppLinkSheet(
-                phone: $waPhone,
-                code: $waCode,
-                stepIndex: $waStep,
-                sending: $waSending,
-                error: $waError,
-                onSendCode: sendWACode,
-                onVerify: verifyWACode,
-                onClose: { showExtrasWASheet = false }
-            )
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-        }
         .onAppear(perform: prepareOnboarding)
         .onChange(of: step) { newStep in
             lastStepRaw = newStep.rawValue
+            trackStepViewed(newStep)
+        }
+        .onChange(of: connectorsViewModel?.toastMessage) { message in
+            guard let message else { return }
+            toastState.show(message, type: connectorsViewModel?.toastType ?? .info)
+            connectorsViewModel?.toastMessage = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             withAnimation(.easeOut(duration: 0.2)) { isKeyboardVisible = true }
@@ -132,6 +126,7 @@ struct VitaOnboarding: View {
         ) {
             onLogout?()
         }
+        .vitaToastHost(toastState)
     }
 
     // MARK: - Fixed shell
@@ -318,7 +313,12 @@ struct VitaOnboarding: View {
                     stepContent
                         .padding(.horizontal, VitaTokens.Spacing.lg)
                         .padding(.top, VitaTokens.Spacing.sm)
-                        .padding(.bottom, VitaTokens.Spacing.lg)
+                        .padding(
+                            .bottom,
+                            step == .connect
+                                ? VitaTokens.Spacing._4xl * 4
+                                : VitaTokens.Spacing.lg
+                        )
                         .transition(.opacity)
                 }
             }
@@ -345,6 +345,10 @@ struct VitaOnboarding: View {
         case .statusFaculdade:
             if let viewModel {
                 StatusFaculdadeStep(viewModel: viewModel) { _ in
+                    trackChoice(
+                        name: "academic_phase",
+                        value: viewModel.academicPhase?.rawValue ?? "unknown"
+                    )
                     advanceAfterSelection(from: .statusFaculdade)
                 }
             }
@@ -352,6 +356,10 @@ struct VitaOnboarding: View {
         case .goal:
             if let viewModel {
                 GoalStep(viewModel: viewModel) { _ in
+                    trackChoice(
+                        name: "goal",
+                        value: viewModel.selectedGoal?.rawValue ?? "unknown"
+                    )
                     advanceAfterSelection(from: .goal)
                 }
             }
@@ -367,6 +375,10 @@ struct VitaOnboarding: View {
                     viewModel: viewModel,
                     api: container.api
                 ) { _ in
+                    trackChoice(
+                        name: "target_specialty",
+                        value: viewModel.targetSpecialtySlug ?? "unknown"
+                    )
                     advanceAfterSelection(from: .residenciaSpecialty)
                 }
             }
@@ -377,37 +389,39 @@ struct VitaOnboarding: View {
                     viewModel: viewModel,
                     showManualEntry: $showManualEntry
                 ) {
+                    trackChoice(
+                        name: "university",
+                        value: viewModel.selectedUniversity?.id ?? "requested"
+                    )
                     advanceAfterSelection(from: .welcome)
                 }
             }
 
-        case .connect:
+        case .connect, .extras:
             ConnectStep(
                 university: viewModel?.selectedUniversity,
                 allPortalTypes: viewModel?.allPortalTypes ?? [],
                 api: container.api,
+                calendarStatus: connectorsViewModel?.calendar.status ?? .disconnected,
+                driveStatus: connectorsViewModel?.drive.status ?? .disconnected,
+                whatsappStatus: connectorsViewModel?.whatsapp.status ?? .disconnected,
+                whatsappSubtitle: connectorsViewModel?.whatsapp.subtitle,
+                whatsappPhone: $waPhone,
+                whatsappCode: $waCode,
+                whatsappStep: $waStep,
+                whatsappSending: $waSending,
+                whatsappError: $waError,
                 onConnect: { provider in
-                    Task { _ = try? await container.api.startIntegrationOAuth(provider) }
-                }
-            )
-
-        case .extras:
-            ExtrasStep(
-                api: container.api,
-                onConnectWhatsApp: {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    waStep = 0
-                    waPhone = ""
-                    waCode = ""
-                    waError = nil
-                    showExtrasWASheet = true
+                    trackChoice(name: "oauth_provider", value: provider)
+                    Task { await connectorsViewModel?.connectIntegration(provider) }
                 },
-                onConnectIntegration: { provider in
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    Task {
-                        _ = try? await container.api.startIntegrationOAuth(provider)
-                    }
-                }
+                onDisconnect: { provider in
+                    trackChoice(name: "disconnect_provider", value: provider)
+                    Task { await connectorsViewModel?.disconnect(provider) }
+                },
+                onLoad: { await connectorsViewModel?.loadAll() },
+                onSendWhatsAppCode: sendWACode,
+                onVerifyWhatsAppCode: verifyWACode
             )
 
         case .syncing:
@@ -424,7 +438,16 @@ struct VitaOnboarding: View {
             NotificationsStep()
 
         case .trial:
-            TrialStep()
+            TrialStep(
+                product: storeKit.proProduct,
+                isLoading: storeKit.isLoadingProducts,
+                isEligibleForTrial: storeKit.isProEligibleForIntroOffer,
+                errorMessage: storeKit.purchaseError,
+                noticeMessage: storeKit.purchaseNotice,
+                onRestore: {
+                    Task { @MainActor in await restoreTrialPurchase() }
+                }
+            )
 
         case .done:
             if let viewModel {
@@ -444,12 +467,14 @@ struct VitaOnboarding: View {
                 variant: .primary,
                 size: .md,
                 isEnabled: !isContinueDisabled,
+                isLoading: viewModel?.isSaving == true
+                    || (step == .trial && (storeKit.isPurchasing || storeKit.isLoadingProducts)),
                 trailingSystemImage: step == .done ? "arrow.right" : nil,
                 fillsWidth: true
             )
             .accessibilityIdentifier("onboardingPrimaryButton")
 
-            if [.connect, .extras, .subjects].contains(step) {
+            if [.connect, .subjects, .trial].contains(step) {
                 skipButton
             }
         }
@@ -458,11 +483,22 @@ struct VitaOnboarding: View {
     private var skipButton: some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            nextStep()
+            trackChoice(name: "skip", value: String(describing: step))
+            if step == .welcome {
+                skipUniversity()
+            } else if step == .trial {
+                Task { @MainActor in await finishOnboarding() }
+            } else {
+                nextStep()
+            }
         } label: {
             Text(String(localized: "onboarding_btn_skip"))
                 .font(VitaTypography.bodySmall)
-                .foregroundStyle(VitaColors.textSecondary)
+                .foregroundStyle(
+                    step == .trial
+                        ? VitaColors.textPrimary.opacity(0.68)
+                        : VitaColors.textSecondary
+                )
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, VitaTokens.Spacing.sm)
         }
@@ -476,6 +512,7 @@ struct VitaOnboarding: View {
 
     private var isContinueDisabled: Bool {
         guard let viewModel else { return true }
+        if viewModel.isSaving { return true }
         switch step {
         case .introduction:
             return viewModel.nickname.filter(\.isLetter).count < 3
@@ -489,12 +526,17 @@ struct VitaOnboarding: View {
             return viewModel.targetSpecialtySlug == nil
         case .welcome:
             return viewModel.selectedUniversity == nil || viewModel.selectedSemester < 1
+        case .trial:
+            return storeKit.isPurchasing || storeKit.isLoadingProducts
         default:
             return false
         }
     }
 
     private var buttonText: String {
+        if viewModel?.isSaving == true {
+            return String(localized: "onboarding_saving")
+        }
         switch step {
         case .sleep:
             return ""
@@ -510,7 +552,12 @@ struct VitaOnboarding: View {
         case .notifications:
             return String(localized: "onboarding_btn_notifications")
         case .trial:
-            return String(localized: "onboarding_btn_trial")
+            if storeKit.isSubscribed {
+                return String(localized: "onboarding_btn_continue")
+            }
+            return storeKit.isProEligibleForIntroOffer
+                ? String(localized: "onboarding_btn_trial")
+                : String(localized: "onboarding_btn_subscribe")
         default:
             return String(localized: "onboarding_btn_continue")
         }
@@ -526,14 +573,25 @@ struct VitaOnboarding: View {
             )
             Task { await viewModel?.loadUniversities() }
         }
+        if connectorsViewModel == nil {
+            connectorsViewModel = ConnectorsViewModel(
+                api: container.api,
+                dataManager: container.dataManager
+            )
+        }
+        trackStepViewed(step)
 
         guard let saved = OnboardingStep(rawValue: lastStepRaw),
               saved != .sleep,
               saved != .done else { return }
-        let restoredStep: OnboardingStep = saved == .phaseResponse
-            && viewModel?.academicPhase == .graduando
-            ? .welcome
-            : saved
+        let restoredStep: OnboardingStep
+        if saved == .phaseResponse {
+            restoredStep = nextStep(after: .statusFaculdade) ?? .statusFaculdade
+        } else if saved == .extras {
+            restoredStep = .connect
+        } else {
+            restoredStep = saved
+        }
         restoreStep(restoredStep)
     }
 
@@ -541,8 +599,12 @@ struct VitaOnboarding: View {
         guard !isContinueDisabled else { return }
         switch step {
         case .notifications:
-            requestNotificationPermission()
-            nextStep()
+            Task { @MainActor in
+                _ = await requestNotificationPermission()
+                enterStep(.trial)
+            }
+        case .trial:
+            Task { @MainActor in await startTrial() }
         case .done:
             withAnimation(.easeIn(duration: 0.4)) {
                 mascotScale = 0.3
@@ -571,6 +633,13 @@ struct VitaOnboarding: View {
         enterStep(next)
     }
 
+    private func skipUniversity() {
+        guard let viewModel else { return }
+        viewModel.selectSemester(0)
+        viewModel.clearUniversity()
+        enterStep(.connect)
+    }
+
     private func advanceAfterSelection(from current: OnboardingStep) {
         UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder),
@@ -592,32 +661,33 @@ struct VitaOnboarding: View {
         case .sleep: return .introduction
         case .introduction: return .statusFaculdade
         case .statusFaculdade:
-            return viewModel.academicPhase == .graduando
-                ? .welcome
-                : .phaseResponse
-        case .phaseResponse:
             switch viewModel.academicPhase {
-            case .vestibulando: return .notifications
             case .graduando: return .welcome
-            case .residencia: return .residenciaSpecialty
-            case .professional, .other, nil: return .goal
+            case .vestibulando: return .connect
+            case .residencia, .professional, .other: return .goal
+            case nil: return nil
             }
+        case .phaseResponse:
+            return nextStep(after: .statusFaculdade)
         case .goal:
             switch viewModel.selectedGoal {
             case .revalida: return .revalidaStage
             case .residencia: return .residenciaSpecialty
-            case .faculdade, .enamed, nil: return .notifications
+            case .faculdade, .enamed:
+                return viewModel.academicPhase == .graduando ? .notifications : .connect
+            case nil: return nil
             }
         case .revalidaStage, .residenciaSpecialty:
-            return .notifications
+            return .connect
         case .welcome:
             return .connect
         case .connect:
-            return .extras
-        case .extras:
+            guard viewModel.academicPhase == .graduando else { return .notifications }
             if viewModel.activeSyncId != nil { return .syncing }
             if !viewModel.syncedSubjects.isEmpty { return .subjects }
             return .goal
+        case .extras:
+            return nextStep(after: .connect)
         case .syncing:
             return viewModel.syncedSubjects.isEmpty ? .goal : .subjects
         case .subjects:
@@ -642,24 +712,27 @@ struct VitaOnboarding: View {
             return viewModel.academicPhase == .graduando
                 ? .statusFaculdade
                 : .phaseResponse
-        case .connect: return .welcome
-        case .extras: return .connect
-        case .syncing: return .extras
-        case .subjects: return .syncing
-        case .goal:
-            if viewModel.academicPhase == .graduando {
-                return viewModel.syncedSubjects.isEmpty ? .extras : .subjects
-            }
-            return .phaseResponse
-        case .revalidaStage:
-            return .goal
-        case .residenciaSpecialty:
-            return viewModel.academicPhase == .residencia ? .phaseResponse : .goal
-        case .notifications:
-            if viewModel.academicPhase == .vestibulando { return .phaseResponse }
+        case .connect:
+            if viewModel.academicPhase == .graduando { return .welcome }
+            if viewModel.academicPhase == .vestibulando { return .statusFaculdade }
             if viewModel.selectedGoal == .revalida { return .revalidaStage }
             if viewModel.selectedGoal == .residencia { return .residenciaSpecialty }
             return .goal
+        case .extras:
+            return .connect
+        case .syncing: return .connect
+        case .subjects: return .syncing
+        case .goal:
+            if viewModel.academicPhase == .graduando {
+                return viewModel.syncedSubjects.isEmpty ? .connect : .subjects
+            }
+            return .statusFaculdade
+        case .revalidaStage:
+            return .goal
+        case .residenciaSpecialty:
+            return .goal
+        case .notifications:
+            return viewModel.academicPhase == .graduando ? .goal : .connect
         case .trial: return .notifications
         case .done: return .trial
         }
@@ -721,8 +794,8 @@ struct VitaOnboarding: View {
             }
         }
 
-        if next == .done {
-            Task { await saveOnboarding() }
+        if next == .trial {
+            Task { await storeKit.loadProducts() }
         }
     }
 
@@ -736,6 +809,9 @@ struct VitaOnboarding: View {
         speechBubbleVisible = !message.isEmpty
         showContent = true
         isTyping = false
+        if restored == .trial {
+            Task { await storeKit.loadProducts() }
+        }
     }
 
     private func cancelPresentation() {
@@ -759,9 +835,13 @@ struct VitaOnboarding: View {
             return String(localized: "onboarding_phase_prompt")
                 .replacingOccurrences(of: "%@", with: name)
         case .phaseResponse:
-            return viewModel?.academicPhase?.reaction ?? ""
+            return speechMessage(for: nextStep(after: .statusFaculdade) ?? .statusFaculdade)
         case .goal:
-            return String(localized: "onboarding_goal_speech")
+            let prompt = String(localized: "onboarding_goal_speech")
+            guard let reaction = viewModel?.academicPhase?.reaction, !reaction.isEmpty else {
+                return prompt
+            }
+            return "\(reaction)\n\n\(prompt)"
         case .revalidaStage:
             return String(localized: "onboarding_revalida_speech")
         case .residenciaSpecialty:
@@ -778,7 +858,7 @@ struct VitaOnboarding: View {
             return String(localized: "onboarding_connect_speech")
                 .replacingOccurrences(of: "%@", with: university)
         case .extras:
-            return String(localized: "onboarding_extras_speech")
+            return speechMessage(for: .connect)
         case .syncing:
             let university = viewModel?.selectedUniversity?.shortName
                 ?? String(localized: "onboarding_university_fallback")
@@ -943,23 +1023,141 @@ struct VitaOnboarding: View {
 
     // MARK: - Completion and permissions
 
-    private func saveOnboarding() async {
-        guard let viewModel else { return }
-        await viewModel.complete()
-        AppConfig.setOnboardingComplete(true)
+    @MainActor
+    private func finishOnboarding() async {
+        guard let viewModel, !viewModel.isSaving else { return }
+
+        guard await viewModel.complete() else {
+            toastState.show(
+                String(localized: "onboarding_save_error"),
+                type: .error,
+                duration: 4
+            )
+            return
+        }
+
         lastStepRaw = OnboardingStep.sleep.rawValue
+        enterStep(.done)
     }
 
-    private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(
-            options: [.alert, .badge, .sound]
-        ) { granted, _ in
-            if granted {
-                DispatchQueue.main.async {
-                    UIApplication.shared.registerForRemoteNotifications()
-                }
+    @MainActor
+    private func startTrial() async {
+        if storeKit.isSubscribed {
+            await finishOnboarding()
+            return
+        }
+
+        if storeKit.proProduct == nil {
+            await storeKit.loadProducts()
+        }
+        guard let product = storeKit.proProduct else {
+            toastState.show(String(localized: "onboarding_trial_load_error"), type: .error)
+            return
+        }
+
+        storeKit.clearError()
+        guard let purchase = await storeKit.purchase(product) else {
+            if let error = storeKit.purchaseError {
+                toastState.show(error, type: .error)
+            } else if let notice = storeKit.purchaseNotice {
+                toastState.show(notice, type: .info)
+            }
+            return
+        }
+
+        if await verifyApplePurchase(purchase) {
+            trackChoice(name: "trial", value: product.id)
+            await finishOnboarding()
+        }
+    }
+
+    @MainActor
+    private func restoreTrialPurchase() async {
+        let purchases = await storeKit.restorePurchases()
+        for purchase in purchases {
+            if await verifyApplePurchase(purchase) {
+                trackChoice(name: "trial_restore", value: purchase.productId)
+                await finishOnboarding()
+                return
             }
         }
+        if let error = storeKit.purchaseError {
+            toastState.show(error, type: .error)
+        } else if let notice = storeKit.purchaseNotice {
+            toastState.show(notice, type: .info)
+        }
+    }
+
+    @MainActor
+    private func verifyApplePurchase(_ purchase: StoreKitVerifiedPurchase) async -> Bool {
+        do {
+            let response = try await container.api.verifyAppleReceipt(
+                transactionId: purchase.transactionId,
+                productId: purchase.productId,
+                signedTransaction: purchase.signedTransaction
+            )
+            guard response.ok else {
+                toastState.show(
+                    response.error ?? String(localized: "onboarding_trial_verify_error"),
+                    type: .error
+                )
+                return false
+            }
+            await purchase.transaction.finish()
+            await storeKit.refreshSubscriptionStatus()
+            return true
+        } catch {
+            toastState.show(String(localized: "onboarding_trial_verify_error"), type: .error)
+            return false
+        }
+    }
+
+    @MainActor
+    private func requestNotificationPermission() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let current = await center.notificationSettings().authorizationStatus
+        let granted: Bool
+
+        switch current {
+        case .authorized, .provisional, .ephemeral:
+            granted = true
+        case .notDetermined:
+            do {
+                granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+            } catch {
+                granted = false
+            }
+        case .denied:
+            granted = false
+        @unknown default:
+            granted = false
+        }
+
+        if granted {
+            UIApplication.shared.registerForRemoteNotifications()
+        } else {
+            toastState.show(String(localized: "onboarding_notifications_denied"), type: .info)
+        }
+        trackChoice(name: "notifications", value: granted ? "granted" : "denied")
+        return granted
+    }
+
+    // MARK: - Funnel analytics
+
+    private func trackStepViewed(_ step: OnboardingStep) {
+        AnalyticsTracker.shared.event(.onboardingStepViewed, properties: [
+            "step": String(describing: step),
+            "academic_phase": viewModel?.academicPhase?.rawValue ?? "unknown",
+            "goal": viewModel?.selectedGoal?.rawValue ?? "unknown",
+        ])
+    }
+
+    private func trackChoice(name: String, value: String) {
+        AnalyticsTracker.shared.event(.onboardingChoiceSelected, properties: [
+            "step": String(describing: step),
+            "choice": name,
+            "value": value,
+        ])
     }
 
     // MARK: - WhatsApp
@@ -993,13 +1191,10 @@ struct VitaOnboarding: View {
             }
             do {
                 _ = try await container.api.verifyWhatsApp(code: waCode)
+                await connectorsViewModel?.loadWhatsAppStatus()
                 await MainActor.run {
                     waStep = 2
                     waSending = false
-                }
-                try? await Task.sleep(for: .seconds(2))
-                await MainActor.run {
-                    showExtrasWASheet = false
                 }
             } catch {
                 await MainActor.run {

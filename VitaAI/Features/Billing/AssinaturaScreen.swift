@@ -593,9 +593,12 @@ struct AssinaturaScreen: View {
         defer { isRestoring = false }
         do {
             try await AppStore.sync()
-            restoreMessage = "Compras sincronizadas com sua conta Apple."
+            await subStatus.refresh()
+            restoreMessage = subStatus.isPro
+                ? String(localized: "billing_restore_success")
+                : String(localized: "billing_restore_none")
         } catch {
-            restoreMessage = "Não foi possível sincronizar agora. Tente em instantes."
+            restoreMessage = String(localized: "billing_restore_error")
         }
     }
 

@@ -2117,7 +2117,6 @@
 		F1EE17FE0D9D01C999B65267 /* paste-fe0ae5cfc6a5ccb5f97a0b4f0ad1678ac779cbc9.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C9EF0C9F15E453CA8D0EA0D6 /* paste-fe0ae5cfc6a5ccb5f97a0b4f0ad1678ac779cbc9.jpg */; };
 		F2342E813EA84CC78C896312 /* Screen Shot 2021-03-20 at 12.02.34 PM.png in Resources */ = {isa = PBXBuildFile; fileRef = 7949761C5E69A2942BEACFFA /* Screen Shot 2021-03-20 at 12.02.34 PM.png */; };
 		F2619E0F62211A7D128FB9B9 /* paste-a6656d2fdb5be8c9fef6a27f979610e7c2760c06.jpg in Resources */ = {isa = PBXBuildFile; fileRef = D542BAB294C58A5671339663 /* paste-a6656d2fdb5be8c9fef6a27f979610e7c2760c06.jpg */; };
-		F26A1A794273B9DAC041774D /* ExtrasStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 547830FC76948B3C5AB77457 /* ExtrasStep.swift */; };
 		F2B4BA5405D05D769EAE733A /* tmpzsb6312d.png in Resources */ = {isa = PBXBuildFile; fileRef = 0D6C960D30EF4B40997907E5 /* tmpzsb6312d.png */; };
 		F2CF022DE6A67A5FE2AB2CD7 /* clip_image010.jpg in Resources */ = {isa = PBXBuildFile; fileRef = EEED0E899C455BA173B5D41E /* clip_image010.jpg */; };
 		F2ECE5449BDE2034B4C64D96 /* paste-9327f194916f0e1d209cf87d40a68283d2012458.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B89DE8CC6B3434EB25789755 /* paste-9327f194916f0e1d209cf87d40a68283d2012458.jpg */; };
@@ -3004,7 +3003,6 @@
 		5463DA383A1EEE5615B5A816 /* Screen Shot 2021-05-09 at 8.47.21 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-05-09 at 8.47.21 PM.png"; sourceTree = "<group>"; };
 		54679D757FF560009C0B315F /* tmpntkhaxyj.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmpntkhaxyj.png; sourceTree = "<group>"; };
 		5472ABFDD35DAD2DDB948577 /* paste-bfff2fa8bc9b9d72d879e56e5119786d9781a815.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-bfff2fa8bc9b9d72d879e56e5119786d9781a815.jpg"; sourceTree = "<group>"; };
-		547830FC76948B3C5AB77457 /* ExtrasStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtrasStep.swift; sourceTree = "<group>"; };
 		54B21BD8B226F00715FC5D96 /* paste-cb748dbe7d7c0a66f05f4a35145d29b4efcb0a85.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-cb748dbe7d7c0a66f05f4a35145d29b4efcb0a85.jpg"; sourceTree = "<group>"; };
 		54B90CE30245C968FB8B0D24 /* Screen Shot 2021-03-18 at 5.10.08 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-03-18 at 5.10.08 PM.png"; sourceTree = "<group>"; };
 		54C5921B1E7D6773BE496440 /* ProgressoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressoViewModel.swift; sourceTree = "<group>"; };
@@ -4485,7 +4483,6 @@
 			children = (
 				8F5D2349C35D3C9097489379 /* ConnectStep.swift */,
 				9CFD863579290BBEF37373EC /* DoneStep.swift */,
-				547830FC76948B3C5AB77457 /* ExtrasStep.swift */,
 				1932770114A7CA5357AACE7C /* GoalStep.swift */,
 				CC2CEACE238BB315B6B8609E /* NotificationsStep.swift */,
 				A57D0183814DE65B727ED2AB /* ResidenciaSpecialtyStep.swift */,
@@ -9273,7 +9270,6 @@
 				0B365CDE13A4800E325112F4 /* EstudosViewModel.swift in Sources */,
 				4CD50558070536A9288C915A /* ExamUploadSheet.swift in Sources */,
 				93734B7529EAB73C1AE36F07 /* ExportDataScreen.swift in Sources */,
-				F26A1A794273B9DAC041774D /* ExtrasStep.swift in Sources */,
 				415661B3051F6F606DF8CDBD /* FaculdadeDisciplinasScreen.swift in Sources */,
 				81B66187877A6E96C341E66C /* FaculdadeDocumentosScreen.swift in Sources */,
 				823D5C5A43B0CE111F2B2A87 /* FaculdadeHomeScreen.swift in Sources */,

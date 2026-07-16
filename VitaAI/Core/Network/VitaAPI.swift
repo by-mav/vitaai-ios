@@ -1186,13 +1186,18 @@ actor VitaAPI {
         try await client.post("billing/checkout", body: CheckoutRequest(plan: plan))
     }
 
-    func verifyAppleReceipt(transactionId: String, productId: String) async throws -> VerifyAppleReceiptResponse {
+    func verifyAppleReceipt(
+        transactionId: String,
+        productId: String,
+        signedTransaction: String
+    ) async throws -> VerifyAppleReceiptResponse {
         try await client.post(
             "billing/verify/apple",
             body: VerifyAppleReceiptRequest(
                 transactionId: transactionId,
                 productId: productId,
-                bundleId: "com.bymav.vitaai"
+                bundleId: "com.bymav.vitaai",
+                signedTransaction: signedTransaction
             )
         )
     }
@@ -1319,6 +1324,10 @@ struct OnboardingV2Request: Encodable {
     var universityLms: String?
     var selectedSubjects: [String]?
     var studyGoal: String?
+    /// Conversational phase selected before the canonical journey goal.
+    var academicPhase: String?
+    /// Name the user explicitly asked Vita to use.
+    var preferredName: String?
     /// slug de medical_specialties â€” so se goal=RESIDENCIA
     var targetSpecialty: String?
     var targetInstitutions: [String]?

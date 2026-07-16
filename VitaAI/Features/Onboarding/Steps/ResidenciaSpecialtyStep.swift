@@ -145,6 +145,7 @@ struct ResidenciaSpecialtyStep: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("onboardingSpecialty_\(spec.slug)")
     }
 
     // MARK: - Data loading

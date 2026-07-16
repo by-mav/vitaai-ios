@@ -18,7 +18,9 @@ enum OnboardingStep: Int, CaseIterable {
     case residenciaSpecialty = 12  // Slice 4: so se goal=RESIDENCIA. Numero alto pra nao quebrar AppStorage migration legacy.
     case welcome = 4
     case connect = 5
-    case extras = 6           // WhatsApp, Google Drive, Calendar, Spotify — tudo opcional
+    // Legacy raw value kept only so an interrupted older onboarding can resume.
+    // It is redirected to `.connect`; there is no separate extras screen.
+    case extras = 6
     case syncing = 7
     case subjects = 8
     case notifications = 9
@@ -86,6 +88,7 @@ struct OnboardingSpeechBubble: View {
 /// The bubble owns its mascot anchor and motion so screens never guess offsets.
 struct OnboardingVitaSpeech: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let text: String
     let reservedText: String
@@ -101,32 +104,12 @@ struct OnboardingVitaSpeech: View {
     @State private var isPresented = false
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: -VitaTokens.Spacing.sm) {
-            // A measured, non-negotiable column prevents the mascot and its
-            // oversized aura from ever consuming the bubble's text region.
-            ZStack(alignment: .bottom) {
-                speakingMascot
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                accessibilitySpeechLayout
+            } else {
+                standardSpeechLayout
             }
-            .frame(width: 76, height: 76, alignment: .bottom)
-            // OrbMascot deliberately paints a 2.2x atmospheric canvas around
-            // its 64pt body. This measured compensation aligns the visible
-            // sphere (not the invisible aura canvas) with the bubble tail.
-            .offset(y: 96)
-            .zIndex(1)
-
-            OnboardingSpeechBubble(
-                text: text,
-                reservedText: reservedText,
-                isTyping: isTyping,
-                isReaction: isReaction
-            )
-            .opacity(showsBubble && isPresented ? 1 : 0)
-            .scaleEffect(
-                showsBubble && (isPresented || reduceMotion) ? 1 : 0.985,
-                anchor: .bottomLeading
-            )
-            .allowsHitTesting(showsBubble)
-            .layoutPriority(1)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         // The visible orb intentionally hangs below the bubble. Reserve that
@@ -146,6 +129,56 @@ struct OnboardingVitaSpeech: View {
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private var standardSpeechLayout: some View {
+        HStack(alignment: .bottom, spacing: -VitaTokens.Spacing.sm) {
+            // A measured, non-negotiable column prevents the mascot and its
+            // oversized aura from ever consuming the bubble's text region.
+            ZStack(alignment: .bottom) {
+                speakingMascot
+            }
+            .frame(width: 76, height: 76, alignment: .bottom)
+            // OrbMascot deliberately paints a 2.2x atmospheric canvas around
+            // its 64pt body. This measured compensation aligns the visible
+            // sphere (not the invisible aura canvas) with the bubble tail.
+            .offset(y: 96)
+            .zIndex(1)
+
+            speechBubble
+        }
+    }
+
+    /// Accessibility text sizes need a vertical composition. It keeps Vita at
+    /// the bubble tail without letting a taller paragraph collide with the orb.
+    private var accessibilitySpeechLayout: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
+            speechBubble
+
+            speakingMascot
+                .frame(
+                    width: VitaTokens.Spacing._4xl + VitaTokens.Spacing.lg,
+                    height: VitaTokens.Spacing._4xl + VitaTokens.Spacing.lg,
+                    alignment: .bottom
+                )
+                .padding(.leading, VitaTokens.Spacing.lg)
+        }
+    }
+
+    private var speechBubble: some View {
+        OnboardingSpeechBubble(
+            text: text,
+            reservedText: reservedText,
+            isTyping: isTyping,
+            isReaction: isReaction
+        )
+        .opacity(showsBubble && isPresented ? 1 : 0)
+        .scaleEffect(
+            showsBubble && (isPresented || reduceMotion) ? 1 : 0.985,
+            anchor: .bottomLeading
+        )
+        .allowsHitTesting(showsBubble)
+        .layoutPriority(1)
     }
 
     @ViewBuilder

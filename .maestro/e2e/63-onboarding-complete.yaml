@@ -1,0 +1,36 @@
+appId: com.bymav.vitaai
+tags:
+  - e2e
+  - onboarding
+  - audit
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Permitir notificações"
+    timeout: 15000
+- tapOn:
+    id: "onboardingPrimaryButton"
+- tapOn:
+    text: "Permitir"
+    optional: true
+- tapOn:
+    text: "Allow"
+    optional: true
+- extendedWaitUntil:
+    visible: "VITA PRO"
+    timeout: 20000
+- takeScreenshot: "audit-onboarding-09-trial"
+- tapOn:
+    id: "onboardingSkipButton"
+- extendedWaitUntil:
+    visible: "Bora estudar"
+    timeout: 20000
+- takeScreenshot: "audit-onboarding-10-backend-complete"
+- tapOn:
+    id: "onboardingPrimaryButton"
+- extendedWaitUntil:
+    notVisible: "Bora estudar"
+    timeout: 20000
+- takeScreenshot: "audit-onboarding-11-dashboard"

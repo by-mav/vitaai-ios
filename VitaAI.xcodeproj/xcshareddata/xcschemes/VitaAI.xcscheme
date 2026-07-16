@@ -74,6 +74,9 @@
             ReferencedContainer = "container:VitaAI.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <StoreKitConfigurationFileReference
+         identifier = "../VitaAI/VitaAI.storekit">
+      </StoreKitConfigurationFileReference>
       <CommandLineArguments>
       </CommandLineArguments>
    </LaunchAction>

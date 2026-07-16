@@ -22,6 +22,7 @@ struct VerifyAppleReceiptRequest: Codable {
     let transactionId: String
     let productId: String
     let bundleId: String
+    let signedTransaction: String
 }
 
 struct VerifyAppleReceiptResponse: Codable {

@@ -1,6 +1,5 @@
 import SwiftUI
 import StoreKit
-import SafariServices
 import Sentry
 
 // MARK: - VitaPaywallScreen
@@ -160,8 +159,8 @@ struct VitaPaywallScreen: View {
     let onDismiss: () -> Void
 
     @State private var selectedTier: PlanTier = .premium
-    @State private var isLoadingStripe = false
-    @State private var stripeError: String? = nil
+    @State private var isVerifyingPurchase = false
+    @State private var billingError: String? = nil
     @State private var showSuccess = false
     @State private var selectedFeature: PaywallFeature? = nil
 
@@ -185,10 +184,17 @@ struct VitaPaywallScreen: View {
 
                 featuresList
 
-                if let err = storeKit.purchaseError ?? stripeError {
+                if let err = storeKit.purchaseError ?? billingError {
                     Text(err)
                         .font(VitaTypography.bodySmall)
                         .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
+                }
+                if let notice = storeKit.purchaseNotice {
+                    Text(notice)
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle(VitaColors.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 12)
                 }
@@ -206,15 +212,6 @@ struct VitaPaywallScreen: View {
         .onAppear {
             AnalyticsTracker.shared.event(.paywallShown, properties: ["screen": "VitaPaywall"])
             SentrySDK.reportFullyDisplayed()
-        }
-        .onChange(of: storeKit.isSubscribed) { _, newValue in
-            if newValue {
-                showSuccess = true
-                Task {
-                    try? await Task.sleep(for: .seconds(1.8))
-                    onDismiss()
-                }
-            }
         }
         .overlay(alignment: .top) {
             if showSuccess {
@@ -237,7 +234,9 @@ struct VitaPaywallScreen: View {
             Text("Escolha seu plano")
                 .font(VitaTypography.headlineLarge)
                 .foregroundStyle(VitaColors.textPrimary)
-            Text("7 dias grátis · cancele quando quiser")
+            Text(storeKit.isProEligibleForIntroOffer
+                ? "7 dias grátis · depois renova mensalmente"
+                : "Assinatura mensal · cancele quando quiser")
                 .font(VitaTypography.bodySmall)
                 .foregroundStyle(VitaColors.textSecondary)
         }
@@ -331,7 +330,7 @@ struct VitaPaywallScreen: View {
     private var ctaButton: some View {
         Button(action: { handleSubscribe(selectedTier) }) {
             HStack(spacing: 8) {
-                if storeKit.isPurchasing || isLoadingStripe {
+                if storeKit.isPurchasing || isVerifyingPurchase {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: VitaColors.accent))
                         .scaleEffect(0.85)
@@ -348,7 +347,7 @@ struct VitaPaywallScreen: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(storeKit.isPurchasing || isLoadingStripe)
+        .disabled(storeKit.isPurchasing || isVerifyingPurchase)
     }
 
     private var legalLinks: some View {
@@ -357,7 +356,7 @@ struct VitaPaywallScreen: View {
             Text("·").foregroundStyle(VitaColors.textTertiary)
             Link("Privacidade", destination: URL(string: "https://vita-ai.cloud/privacy")!)
             Text("·").foregroundStyle(VitaColors.textTertiary)
-            Button("Restaurar") { Task { await storeKit.restorePurchases() } }
+            Button("Restaurar") { Task { await restoreApplePurchases() } }
         }
         .font(VitaTypography.bodySmall)
         .foregroundStyle(VitaColors.textTertiary)
@@ -366,8 +365,11 @@ struct VitaPaywallScreen: View {
     private var ctaLabel: String {
         switch selectedTier {
         case .free:    return "Continuar grátis"
-        case .premium: return "Começar 7 dias grátis"
-        case .pro:     return "Começar 7 dias grátis"
+        case .premium, .pro:
+            guard let productID = selectedTier.productID else { return "Assinar" }
+            return storeKit.isEligibleForIntroOffer(productID: productID)
+                ? "Começar 7 dias grátis"
+                : "Assinar agora"
         }
     }
 
@@ -391,32 +393,62 @@ struct VitaPaywallScreen: View {
         guard tier != .free else { onDismiss(); return }
         if let product = product(for: tier) {
             storeKit.clearError()
-            Task { await storeKit.purchase(product) }
+            Task { await purchaseWithApple(product) }
         } else {
-            Task { await openStripeCheckout(plan: tier.rawValue) }
+            billingError = "Não foi possível carregar este plano na App Store. Tente novamente."
+            Task { await storeKit.loadProducts() }
         }
     }
 
-    private func openStripeCheckout(plan: String) async {
-        isLoadingStripe = true
-        stripeError = nil
-        defer { isLoadingStripe = false }
-        do {
-            let response = try await container.api.getCheckoutUrl(plan: plan)
-            guard let urlStr = response.url, let url = URL(string: urlStr) else {
-                stripeError = "URL de checkout inválida."
+    @MainActor
+    private func purchaseWithApple(_ product: Product) async {
+        billingError = nil
+        guard let purchase = await storeKit.purchase(product) else { return }
+        guard await verifyApplePurchase(purchase) else { return }
+        showSuccessAndDismiss()
+    }
+
+    @MainActor
+    private func restoreApplePurchases() async {
+        billingError = nil
+        let purchases = await storeKit.restorePurchases()
+        for purchase in purchases {
+            if await verifyApplePurchase(purchase) {
+                showSuccessAndDismiss()
                 return
             }
-            guard
-                let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                let root  = scene.windows.first?.rootViewController
-            else { return }
-            let safari = SFSafariViewController(url: url)
-            safari.preferredControlTintColor = UIColor(VitaColors.accent)
-            safari.dismissButtonStyle = .close
-            root.present(safari, animated: true)
+        }
+    }
+
+    @MainActor
+    private func verifyApplePurchase(_ purchase: StoreKitVerifiedPurchase) async -> Bool {
+        isVerifyingPurchase = true
+        defer { isVerifyingPurchase = false }
+        do {
+            let response = try await container.api.verifyAppleReceipt(
+                transactionId: purchase.transactionId,
+                productId: purchase.productId,
+                signedTransaction: purchase.signedTransaction
+            )
+            guard response.ok else {
+                billingError = response.error ?? "Não foi possível validar a assinatura."
+                return false
+            }
+            await purchase.transaction.finish()
+            await storeKit.refreshSubscriptionStatus()
+            return true
         } catch {
-            stripeError = "Não foi possível abrir o checkout. Tente novamente."
+            billingError = "Não foi possível validar a assinatura. Tente novamente."
+            return false
+        }
+    }
+
+    @MainActor
+    private func showSuccessAndDismiss() {
+        showSuccess = true
+        Task {
+            try? await Task.sleep(for: .seconds(1.8))
+            onDismiss()
         }
     }
 }
