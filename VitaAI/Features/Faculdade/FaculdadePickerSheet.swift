@@ -17,16 +17,22 @@ private enum UniversitySortMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum FaculdadePickerPresentation {
+    case sheet
+    case onboardingInline
+}
+
 // MARK: - FaculdadePickerSheet
 
 /// Canonical university catalog used both by Faculdade and onboarding.
-/// The default mode saves directly to the profile; onboarding injects an
-/// `onSelect` closure so the same list writes to its durable draft instead.
+/// Settings presents the full sheet; onboarding embeds the same search and
+/// catalog directly inside its ambient scene without sheet-only chrome.
 struct FaculdadePickerSheet: View {
     @Environment(\.appData) private var appData
     @Environment(\.dismiss) private var dismiss
 
     private let initialUniversities: [University]
+    private let presentation: FaculdadePickerPresentation
     private let onLoaded: (([University]) -> Void)?
     private let onSelect: ((University) -> Void)?
     private let onAddCustom: (() -> Void)?
@@ -46,6 +52,7 @@ struct FaculdadePickerSheet: View {
 
     init(
         initialUniversities: [University] = [],
+        presentation: FaculdadePickerPresentation = .sheet,
         onLoaded: (([University]) -> Void)? = nil,
         onSelect: ((University) -> Void)? = nil,
         onAddCustom: (() -> Void)? = nil
@@ -56,6 +63,7 @@ struct FaculdadePickerSheet: View {
                 : initialUniversities
         )
         self.initialUniversities = initialUniversities
+        self.presentation = presentation
         self.onLoaded = onLoaded
         self.onSelect = onSelect
         self.onAddCustom = onAddCustom
@@ -94,7 +102,9 @@ struct FaculdadePickerSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
-            header
+            if presentation == .sheet {
+                header
+            }
 
             VitaInput(
                 value: $query,
@@ -105,13 +115,25 @@ struct FaculdadePickerSheet: View {
             )
             .accessibilityIdentifier("universityPickerSearch")
 
-            sortControl
+            if presentation == .sheet {
+                sortControl
+            }
 
             catalog
         }
-        .padding(.horizontal, VitaTokens.Spacing._2xl)
-        .padding(.top, VitaTokens.Spacing._2xl)
-        .background(VitaColors.surface.ignoresSafeArea())
+        .padding(
+            .horizontal,
+            presentation == .sheet ? VitaTokens.Spacing._2xl : 0
+        )
+        .padding(
+            .top,
+            presentation == .sheet ? VitaTokens.Spacing._2xl : 0
+        )
+        .background {
+            if presentation == .sheet {
+                VitaColors.surface.ignoresSafeArea()
+            }
+        }
         .task { await loadCatalog() }
     }
 
@@ -260,7 +282,9 @@ struct FaculdadePickerSheet: View {
 
             if let onSelect {
                 onSelect(university)
-                dismiss()
+                if presentation == .sheet {
+                    dismiss()
+                }
                 return
             }
 
@@ -299,6 +323,10 @@ struct FaculdadePickerSheet: View {
                         .foregroundStyle(VitaColors.textTertiary)
                 }
             }
+            .padding(
+                .horizontal,
+                presentation == .onboardingInline ? VitaTokens.Spacing.sm : 0
+            )
             .frame(
                 minHeight: VitaTokens.Spacing._4xl + VitaTokens.Spacing.xs,
                 alignment: .center
@@ -352,7 +380,15 @@ struct FaculdadePickerSheet: View {
 
             Button {
                 if let onAddCustom {
-                    dismiss()
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
+                    if presentation == .sheet {
+                        dismiss()
+                    }
                     DispatchQueue.main.async { onAddCustom() }
                     return
                 }
@@ -413,6 +449,16 @@ struct FaculdadePickerSheet: View {
     }
 
     private func comesBefore(_ lhs: University, _ rhs: University) -> Bool {
+        if presentation == .onboardingInline, normalizedQuery.isEmpty {
+            let lhsIsUSP = lhs.shortName.localizedCaseInsensitiveCompare("USP") == .orderedSame
+                && lhs.city.localizedCaseInsensitiveCompare("São Paulo") == .orderedSame
+            let rhsIsUSP = rhs.shortName.localizedCaseInsensitiveCompare("USP") == .orderedSame
+                && rhs.city.localizedCaseInsensitiveCompare("São Paulo") == .orderedSame
+            if lhsIsUSP != rhsIsUSP {
+                return lhsIsUSP
+            }
+        }
+
         let alphabetical = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
 
         switch sortMode {

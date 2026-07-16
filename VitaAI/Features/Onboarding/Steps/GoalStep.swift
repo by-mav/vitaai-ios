@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GoalStep: View {
     @Bindable var viewModel: OnboardingViewModel
+    var onSelect: (OnboardingGoal) -> Void
 
     private var visibleGoals: [OnboardingGoal] {
         switch viewModel.academicPhase {
@@ -27,6 +28,7 @@ struct GoalStep: View {
                     accessibilityIdentifier: "onboardingGoal_\(goal.rawValue)"
                 ) {
                     viewModel.selectedGoal = goal
+                    onSelect(goal)
                 }
             }
         }

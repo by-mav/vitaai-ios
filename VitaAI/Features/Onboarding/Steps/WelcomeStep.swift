@@ -5,7 +5,8 @@ import SwiftUI
 struct WelcomeStep: View {
     @Bindable var viewModel: OnboardingViewModel
     @Binding var showManualEntry: Bool
-    @State private var showUniversityPicker = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var onComplete: () -> Void
 
     private let semesterColumns = Array(
         repeating: GridItem(.flexible(), spacing: VitaTokens.Spacing.sm),
@@ -13,17 +14,14 @@ struct WelcomeStep: View {
     )
 
     var body: some View {
-        VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
-            if viewModel.selectedUniversity != nil {
-                semesterPicker
-            }
-
-            universitySelector
-        }
-        .sheet(isPresented: $showUniversityPicker) {
-            VitaSheet(detents: [.large]) {
+        Group {
+            if let selected = viewModel.selectedUniversity {
+                semesterSelection(for: selected)
+                    .transition(.opacity)
+            } else {
                 FaculdadePickerSheet(
                     initialUniversities: viewModel.allUniversities,
+                    presentation: .onboardingInline,
                     onLoaded: { universities in
                         viewModel.allUniversities = universities
                     },
@@ -31,101 +29,70 @@ struct WelcomeStep: View {
                         viewModel.selectUniversity(university)
                     },
                     onAddCustom: {
-                        showUniversityPicker = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                            showManualEntry = true
-                        }
+                        showManualEntry = true
                     }
                 )
+                .transition(.opacity)
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.2),
+            value: viewModel.selectedUniversity?.id
+        )
     }
 
-    private var universitySelector: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            showUniversityPicker = true
-        } label: {
+    private func semesterSelection(for university: University) -> some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
             HStack(spacing: VitaTokens.Spacing.md) {
                 Image(systemName: "building.columns")
-                    .font(VitaTypography.titleLarge)
-                    .foregroundStyle(
-                        viewModel.selectedUniversity == nil
-                            ? VitaColors.textSecondary
-                            : VitaColors.accent
-                    )
+                    .font(VitaTypography.titleMedium)
+                    .foregroundStyle(VitaColors.accent)
                     .frame(width: VitaTokens.Spacing._2xl)
 
-                if let selected = viewModel.selectedUniversity {
-                    VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
-                        HStack(spacing: VitaTokens.Spacing.sm) {
-                            Text(selected.displayName)
-                                .font(VitaTypography.bodyLarge)
-                                .foregroundStyle(VitaColors.textPrimary)
-                                .lineLimit(1)
-
-                            if let score = selected.enameConcept, score > 0 {
-                                ENAMEDBadge(score: score)
-                            }
-                        }
-
-                        Text("\(selected.city) · \(selected.state)")
-                            .font(VitaTypography.bodySmall)
-                            .foregroundStyle(VitaColors.textSecondary)
+                VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                    HStack(spacing: VitaTokens.Spacing.sm) {
+                        Text(university.displayName)
+                            .font(VitaTypography.titleSmall)
+                            .foregroundStyle(VitaColors.textPrimary)
                             .lineLimit(1)
+
+                        if let score = university.enameConcept, score > 0 {
+                            ENAMEDBadge(score: score)
+                        }
                     }
-                } else {
-                    Text(String(localized: "onboarding_university_placeholder"))
-                        .font(VitaTypography.bodyLarge)
-                        .foregroundStyle(VitaColors.textSecondary)
+
+                    Text("\(university.city) · \(university.state)")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textTertiary)
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
 
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(VitaTypography.labelMedium)
-                    .foregroundStyle(VitaColors.textSecondary)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(VitaTypography.titleMedium)
+                    .foregroundStyle(VitaColors.accent)
             }
-            .padding(.horizontal, VitaTokens.Spacing.lg)
-            .frame(
-                minHeight: VitaTokens.Spacing._4xl + VitaTokens.Spacing.sm
-            )
-            .background {
-                RoundedRectangle(
-                    cornerRadius: VitaTokens.Radius.lg,
-                    style: .continuous
-                )
-                .fill(VitaColors.surfaceElevated.opacity(0.78))
-            }
-            .overlay {
-                RoundedRectangle(
-                    cornerRadius: VitaTokens.Radius.lg,
-                    style: .continuous
-                )
-                .stroke(
-                    viewModel.selectedUniversity == nil
-                        ? VitaColors.accent.opacity(0.28)
-                        : VitaColors.accent.opacity(0.58),
-                    lineWidth: 1
-                )
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("onboardingUniversityPickerButton")
-    }
+            .padding(.vertical, VitaTokens.Spacing.md)
 
-    private var semesterPicker: some View {
-        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            Divider()
+                .overlay(VitaColors.glassBorder)
+
             Text(String(localized: "onboarding_semester_question"))
                 .font(VitaTypography.labelMedium)
                 .foregroundStyle(VitaColors.textSecondary)
+                .padding(.top, VitaTokens.Spacing.md)
 
             LazyVGrid(columns: semesterColumns, spacing: VitaTokens.Spacing.sm) {
                 ForEach(1...12, id: \.self) { semester in
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         viewModel.selectSemester(semester)
+                        DispatchQueue.main.asyncAfter(
+                            deadline: .now() + (reduceMotion ? 0 : 0.12)
+                        ) {
+                            onComplete()
+                        }
                     } label: {
                         Text("\(semester)º")
                             .font(
@@ -167,6 +134,7 @@ struct WelcomeStep: View {
                             }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("onboardingSemester_\(semester)")
                     .accessibilityLabel(
                         String(
                             format: String(localized: "onboarding_semester_accessibility"),
@@ -176,7 +144,7 @@ struct WelcomeStep: View {
                 }
             }
         }
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

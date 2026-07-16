@@ -4,6 +4,7 @@ import SwiftUI
 /// before navigation is allowed.
 struct StatusFaculdadeStep: View {
     @Bindable var viewModel: OnboardingViewModel
+    var onSelect: (AcademicPhase) -> Void
 
     var body: some View {
         LazyVStack(spacing: VitaTokens.Spacing.sm) {
@@ -27,6 +28,7 @@ struct StatusFaculdadeStep: View {
             accessibilityIdentifier: "onboardingPhase_\(phase.rawValue)"
         ) {
             viewModel.selectAcademicPhase(phase)
+            onSelect(phase)
         }
     }
 }

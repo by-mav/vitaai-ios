@@ -14,6 +14,7 @@ import SwiftUI
 struct ResidenciaSpecialtyStep: View {
     @Bindable var viewModel: OnboardingViewModel
     var api: VitaAPI?
+    var onSelect: (MedicalSpecialty) -> Void
 
     @State private var directAccess: [MedicalSpecialty] = []
     @State private var withPrerequisite: [MedicalSpecialty] = []
@@ -115,6 +116,7 @@ struct ResidenciaSpecialtyStep: View {
                 from: nil,
                 for: nil
             )
+            onSelect(spec)
         } label: {
             HStack(spacing: 12) {
                 Text(spec.name)

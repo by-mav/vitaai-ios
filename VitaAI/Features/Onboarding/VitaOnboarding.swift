@@ -87,9 +87,8 @@ struct VitaOnboarding: View {
                             showContent = false
                             typeText(String(localized: "onboarding_uni_request_sent")) {
                                 guard step == .welcome else { return }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                                    guard step == .welcome else { return }
-                                    enterStep(.connect)
+                                withAnimation(.easeOut(duration: 0.18)) {
+                                    showContent = true
                                 }
                             }
                         }
@@ -150,7 +149,20 @@ struct VitaOnboarding: View {
 
                 Spacer()
 
-                if let onLogout {
+                if step == .welcome, viewModel?.selectedUniversity == nil {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        nextStep()
+                    } label: {
+                        Text(String(localized: "onboarding_btn_skip_short"))
+                            .font(VitaTypography.labelLarge)
+                            .foregroundStyle(VitaColors.accentLight)
+                            .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("onboardingTopSkipButton")
+                } else if let onLogout {
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         onLogout()
@@ -262,10 +274,12 @@ struct VitaOnboarding: View {
 
             contentRegion
 
-            bottomButton
-                .padding(.horizontal, VitaTokens.Spacing._2xl)
-                .padding(.top, VitaTokens.Spacing.md)
-                .padding(.bottom, VitaTokens.Spacing._3xl)
+            if showsBottomButton {
+                bottomButton
+                    .padding(.horizontal, VitaTokens.Spacing._2xl)
+                    .padding(.top, VitaTokens.Spacing.md)
+                    .padding(.bottom, VitaTokens.Spacing._3xl)
+            }
         }
     }
 
@@ -283,14 +297,14 @@ struct VitaOnboarding: View {
             .frame(maxHeight: .infinity)
         } else if step == .welcome {
             VStack(spacing: 0) {
-                Spacer(minLength: VitaTokens.Spacing.lg)
                 if showContent {
                     stepContent
-                        .padding(.horizontal, VitaTokens.Spacing._2xl)
+                        .padding(.horizontal, VitaTokens.Spacing.lg)
+                        .padding(.top, VitaTokens.Spacing.sm)
                         .transition(.opacity)
                 }
             }
-            .frame(maxHeight: .infinity)
+            .frame(maxHeight: .infinity, alignment: .top)
         } else if step == .phaseResponse {
             Spacer(minLength: VitaTokens.Spacing.lg)
         } else {
@@ -325,12 +339,16 @@ struct VitaOnboarding: View {
 
         case .statusFaculdade:
             if let viewModel {
-                StatusFaculdadeStep(viewModel: viewModel)
+                StatusFaculdadeStep(viewModel: viewModel) { _ in
+                    advanceAfterSelection(from: .statusFaculdade)
+                }
             }
 
         case .goal:
             if let viewModel {
-                GoalStep(viewModel: viewModel)
+                GoalStep(viewModel: viewModel) { _ in
+                    advanceAfterSelection(from: .goal)
+                }
             }
 
         case .revalidaStage:
@@ -340,12 +358,22 @@ struct VitaOnboarding: View {
 
         case .residenciaSpecialty:
             if let viewModel {
-                ResidenciaSpecialtyStep(viewModel: viewModel, api: container.api)
+                ResidenciaSpecialtyStep(
+                    viewModel: viewModel,
+                    api: container.api
+                ) { _ in
+                    advanceAfterSelection(from: .residenciaSpecialty)
+                }
             }
 
         case .welcome:
             if let viewModel {
-                WelcomeStep(viewModel: viewModel, showManualEntry: $showManualEntry)
+                WelcomeStep(
+                    viewModel: viewModel,
+                    showManualEntry: $showManualEntry
+                ) {
+                    advanceAfterSelection(from: .welcome)
+                }
             }
 
         case .connect:
@@ -431,6 +459,10 @@ struct VitaOnboarding: View {
                 .accessibilityIdentifier("onboardingSkipButton")
             }
         }
+    }
+
+    private var showsBottomButton: Bool {
+        ![.statusFaculdade, .goal, .residenciaSpecialty, .welcome].contains(step)
     }
 
     private var isContinueDisabled: Bool {
@@ -530,6 +562,21 @@ struct VitaOnboarding: View {
         enterStep(next)
     }
 
+    private func advanceAfterSelection(from current: OnboardingStep) {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+        let delay = reduceMotion ? 0 : 0.12
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            guard step == current,
+                  let next = nextStep(after: current) else { return }
+            enterStep(next)
+        }
+    }
+
     private func nextStep(after current: OnboardingStep) -> OnboardingStep? {
         guard let viewModel else { return nil }
         switch current {
@@ -610,6 +657,15 @@ struct VitaOnboarding: View {
     }
 
     private func goBack() {
+        if step == .welcome,
+           let viewModel,
+           viewModel.selectedUniversity != nil {
+            viewModel.selectSemester(0)
+            viewModel.clearUniversity()
+            restoreStep(.welcome)
+            return
+        }
+
         guard let previous = previousStep(before: step) else { return }
         cancelPresentation()
 

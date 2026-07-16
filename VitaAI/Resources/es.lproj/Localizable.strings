@@ -353,6 +353,7 @@
 "onboarding_btn_trial" = "Comenzar 7 dias gratis";
 "onboarding_btn_done" = "Vamos a estudiar";
 "onboarding_btn_skip" = "Omitir, configuro despues";
+"onboarding_btn_skip_short" = "Omitir";
 "onboarding_a11y_back" = "Volver";
 
 /* Syncing step */
