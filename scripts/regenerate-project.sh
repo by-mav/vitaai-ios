@@ -24,8 +24,23 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
+# Preserve o build number (CFBundleVersion). xcodegen re-gera o Info.plist a
+# partir do project.yml, que NAO define CFBundleVersion -> reseta pra 1 a cada
+# regen -> regressao silenciosa do build TestFlight em todo add/remove de
+# arquivo (o deploy recomputa do ASC, mas quem regenera fora do deploy caia na
+# armadilha + churn no git). Captura antes, restaura depois. Root fix 2026-07-15.
+INFO_PLIST="VitaAI/Info.plist"
+BUILD_BEFORE="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "")"
+
 echo "🔧 Regenerating VitaAI.xcodeproj from project.yml..."
 xcodegen generate
+
+if [ -n "$BUILD_BEFORE" ]; then
+    # agvtool escreve nos DOIS (Info.plist CFBundleVersion + pbxproj
+    # CURRENT_PROJECT_VERSION), mantendo-os consistentes — o deploy le via agvtool.
+    agvtool new-version -all "$BUILD_BEFORE" > /dev/null 2>&1
+    echo "🔢 Build number preservado: $BUILD_BEFORE"
+fi
 
 if [ -f "Podfile" ]; then
     echo "📦 Re-integrating CocoaPods (Google ML Kit + others)..."
