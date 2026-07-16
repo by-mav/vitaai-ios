@@ -66,11 +66,9 @@ struct ProgressoScreen: View {
             VStack(spacing: 18) {
                 heroCard(vm: vm)
                 medalhasSection(vm: vm)
-                // "Onde melhorar" REMOVIDO temporariamente: o dado disponível é
-                // por TÓPICO de questão (fallback qb.byTopic — "Endometriose",
-                // "Violência Sexual"…), não por disciplina canônica. Empurrar
-                // tópico como disciplina engana. Volta quando o backend entregar
-                // accuracy por disciplina (canonicalName). Rafael 2026-07-16.
+                if !vm.areaPerformance.isEmpty {
+                    areaPerformanceSection(vm: vm)
+                }
                 leaderboardSection(vm: vm)
                 if !vm.heatmap.isEmpty {
                     heatmapSection(vm: vm)
@@ -103,6 +101,76 @@ struct ProgressoScreen: View {
             .filter { $0.unlocked && $0.id.hasPrefix(prefix + "_") }
             .compactMap { Int($0.id.split(separator: "_").last ?? "") }
             .max() ?? 0
+    }
+
+    // MARK: - Onde melhorar (por ÁREA → disciplinas canônicas)
+
+    private func areaPerformanceSection(vm: ProgressoViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Onde melhorar")
+            VStack(spacing: 10) {
+                ForEach(vm.areaPerformance) { area in
+                    areaGroup(area)
+                }
+            }
+        }
+    }
+
+    private func areaGroup(_ area: QBankProgressByArea) -> some View {
+        glassCard {
+            VStack(spacing: 0) {
+                // Cabeçalho da grande área: nome + accuracy média.
+                HStack {
+                    Text(area.areaName)
+                        .font(VitaTypography.titleSmall)
+                        .foregroundStyle(VitaColors.textPrimary)
+                    Spacer()
+                    Text("\(area.accuracy)%")
+                        .font(VitaTypography.labelLarge)
+                        .foregroundStyle(accuracyColor(area.accuracy))
+                        .monospacedDigit()
+                }
+                .padding(.bottom, 4)
+
+                ForEach(Array(area.disciplines.enumerated()), id: \.element.id) { idx, disc in
+                    dividerLine
+                    disciplineRow(disc)
+                        .padding(.top, idx == 0 ? 2 : 0)
+                }
+            }
+        }
+    }
+
+    private func disciplineRow(_ disc: QBankProgressByDiscipline) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(disc.name)
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textPrimary.opacity(0.9))
+                    .lineLimit(1)
+                Text("\(disc.answered) \(disc.answered == 1 ? "questão" : "questões")")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(textSec)
+            }
+            Spacer(minLength: 8)
+            ZStack(alignment: .leading) {
+                Capsule().fill(VitaColors.glassInnerLight.opacity(0.10)).frame(width: 54, height: 5)
+                Capsule().fill(accuracyColor(disc.accuracy))
+                    .frame(width: 54 * CGFloat(disc.accuracy) / 100.0, height: 5)
+            }
+            Text("\(disc.accuracy)%")
+                .font(VitaTypography.labelMedium)
+                .foregroundStyle(accuracyColor(disc.accuracy))
+                .monospacedDigit()
+                .frame(minWidth: 30, alignment: .trailing)
+        }
+        .padding(.vertical, 9)
+    }
+
+    private func accuracyColor(_ pct: Int) -> Color {
+        if pct >= 75 { return VitaColors.success }
+        if pct >= 50 { return VitaColors.warning }
+        return VitaColors.danger
     }
 
     // MARK: - Hero Card (unified with Dashboard/Faculdade style)

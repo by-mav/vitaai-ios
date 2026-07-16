@@ -648,11 +648,43 @@ struct QBankProgressResponse: Decodable {
     var accuracy: Double = 0
     var byDifficulty: [QBankProgressByDifficulty] = []
     var byTopic: [QBankProgressByTopic] = []
+    /// Desempenho por ÁREA (6 grandes áreas) → disciplinas canônicas. A fonte
+    /// goldstandard da seção "Onde melhorar" (via qbank_topics.disciplineSlug).
+    var byArea: [QBankProgressByArea] = []
     /// "global" when totals reflect the whole catalogue (stage-scoped), "enrolled" when the
     /// request was filtered by `disciplineSlugs[]`. Added 2026-04-17b.
     var scope: String? = nil
     /// Echo of the slugs the server used to scope this response (empty for "global").
     var scopedSlugs: [String]? = nil
+}
+
+struct QBankProgressByArea: Decodable, Identifiable {
+    var area: String = ""
+    var answered: Int = 0
+    var accuracy: Int = 0          // 0-100, média da área
+    var disciplines: [QBankProgressByDiscipline] = []
+    var id: String { area }
+
+    /// Nome PT da grande área (o backend manda o slug).
+    var areaName: String {
+        switch area {
+        case "basica": return "Ciências Básicas"
+        case "cirurgica": return "Cirurgia"
+        case "clinica": return "Clínica Médica"
+        case "humanidades": return "Humanidades"
+        case "internato": return "Internato"
+        case "saude-coletiva": return "Saúde Coletiva"
+        default: return area.capitalized
+        }
+    }
+}
+
+struct QBankProgressByDiscipline: Decodable, Identifiable {
+    var slug: String = ""
+    var name: String = ""
+    var answered: Int = 0
+    var accuracy: Int = 0          // 0-100
+    var id: String { slug }
 }
 
 struct QBankProgressByDifficulty: Decodable, Identifiable {

@@ -29,6 +29,8 @@ final class ProgressoViewModel {
 
     // Subjects for "onde melhorar"
     var subjects: [SubjectProgress] = []
+    /// Desempenho por área → disciplinas canônicas (goldstandard, "Onde melhorar").
+    var areaPerformance: [QBankProgressByArea] = []
 
     // Desempenho por tema (QBank) — acerto real por tema/dificuldade.
     var qbankProgress: QBankProgressResponse?
@@ -104,20 +106,12 @@ final class ProgressoViewModel {
         do {
             let qb = try await qbankResult
             qbankProgress = qb
-            if subjects.isEmpty {
-                subjects = qb.byTopic
-                    .filter { $0.answered > 0 }
-                    .map { t in
-                        SubjectProgress(
-                            subjectId: t.topicTitle, name: t.topicTitle,
-                            accuracy: t.accuracy, hoursSpent: 0,
-                            cardsDue: 0, questionCount: t.answered
-                        )
-                    }
-            }
+            // Goldstandard (Rafael 2026-07-16): desempenho por ÁREA → disciplinas
+            // canônicas. Substitui o antigo subjects=byTopic (tópico de questão).
+            areaPerformance = qb.byArea.filter { $0.answered > 0 }
             if totalQuestions == 0 { totalQuestions = qb.totalAnswered }
             if avgAccuracy == 0 { avgAccuracy = qb.normalizedAccuracy }
-            if !qb.byTopic.isEmpty { anySuccess = true }
+            if !qb.byTopic.isEmpty || !qb.byArea.isEmpty { anySuccess = true }
         } catch {
             print("[PROGRESSO] getQBankProgress failed: \(error)")
         }
