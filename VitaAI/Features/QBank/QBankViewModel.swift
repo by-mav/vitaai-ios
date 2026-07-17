@@ -408,9 +408,9 @@ final class QBankViewModel {
                     institutionIds: nil,
                     years: nil,
                     difficulties: nil,
+                    disciplineSlugs: nil,
                     topicIds: nil,
                     disciplineIds: nil,
-                    disciplineSlugs: nil,
                     onlyResidence: nil,
                     onlyUnanswered: true,
                     title: nil,
@@ -770,9 +770,9 @@ final class QBankViewModel {
                     institutionIds: nil,
                     years: nil,
                     difficulties: nil,
+                    disciplineSlugs: disciplineSlug.map { [$0] },
                     topicIds: topicIds.isEmpty ? nil : Array(topicIds),
                     disciplineIds: nil,
-                    disciplineSlugs: disciplineSlug.map { [$0] },
                     onlyResidence: nil,
                     onlyUnanswered: nil,
                     title: nil,
@@ -854,9 +854,9 @@ final class QBankViewModel {
                     institutionIds: state.selectedInstitutionIds.isEmpty ? nil : Array(state.selectedInstitutionIds),
                     years: state.selectedYears.isEmpty ? nil : Array(state.selectedYears).sorted(),
                     difficulties: state.selectedDifficulties.isEmpty ? nil : Array(state.selectedDifficulties),
+                    disciplineSlugs: selectedSlugs.isEmpty ? nil : selectedSlugs,
                     topicIds: state.selectedTopicIds.isEmpty ? nil : Array(state.selectedTopicIds),
                     disciplineIds: nil, // synthetic IDs are iOS-only; backend ignores
-                    disciplineSlugs: selectedSlugs.isEmpty ? nil : selectedSlugs,
                     onlyResidence: state.onlyResidence ? true : nil,
                     onlyUnanswered: {
                         if state.selectedStatus == "unanswered" { return true }

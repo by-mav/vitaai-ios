@@ -56,6 +56,8 @@ struct QBankBuilderScreen: View {
                         imageAsset: "hero-questoes-v2",
                         eyebrow: "Treino clínico",
                         primary: formatNumber(heroAvailableCount(vm: vm)),
+                        // Digitos rolam conforme o filtro aperta o pool.
+                        primaryValue: Double(heroAvailableCount(vm: vm)),
                         primaryCaption: "questões disponíveis",
                         stats: heroStats(vm: vm),
                         theme: .questoes
@@ -351,23 +353,6 @@ struct QBankBuilderScreen: View {
 
     // MARK: - Helpers
 
-    private func groupTitle(for lens: ContentOrganizationMode) -> String {
-        switch lens {
-        case .tradicional: return "Disciplinas"
-        case .pbl: return "Sistemas"
-        case .greatAreas: return "Áreas"
-        }
-    }
-
-    /// Label genérico do nível 2 — usado em mensagens "sem X disponíveis".
-    private func n2Title(for lens: ContentOrganizationMode) -> String {
-        switch lens {
-        case .tradicional: return "Temas"
-        case .pbl: return "Clusters"
-        case .greatAreas: return "Subáreas"
-        }
-    }
-
     private func appliedFilterChips(vm: QBankBuilderViewModel) -> [FilterChipsRow.Chip] {
         var chips: [FilterChipsRow.Chip] = []
         for slug in vm.state.selectedGroupSlugs {
@@ -636,8 +621,8 @@ private struct QBankDisciplinesSheet: View {
                         groupsSkeleton
                     } else {
                         HorizontalDrillDown(
-                            n1Title: groupTitle(for: vm.state.lens),
-                            n2Title: n2Title(for: vm.state.lens),
+                            n1Title: "Áreas",
+                            n2Title: "Disciplinas",
                             n3Title: "Conteúdos",
                             theme: .questoes,
                             n1Items: vm.state.groups.map { group in
@@ -803,22 +788,6 @@ private struct QBankDisciplinesSheet: View {
         vm.state.selectedSubgroupIds.removeAll()
         vm.state.expandedGroupSlugs.removeAll()
         vm.scheduleRefreshPreview()
-    }
-
-    private func groupTitle(for lens: ContentOrganizationMode) -> String {
-        switch lens {
-        case .tradicional: return "Disciplinas"
-        case .pbl: return "Sistemas"
-        case .greatAreas: return "Áreas"
-        }
-    }
-
-    private func n2Title(for lens: ContentOrganizationMode) -> String {
-        switch lens {
-        case .tradicional: return "Temas"
-        case .pbl: return "Clusters"
-        case .greatAreas: return "Subáreas"
-        }
     }
 
     private func parseId(_ id: String) -> (String, String)? {

@@ -119,9 +119,13 @@ private struct SimuladoFromTemplateResponse: Decodable {
 }
 
 private struct SimuladoCustomGenerateBody: Encodable {
-    let lens: String
-    let groupSlugs: [String]?
-    let subgroupSlugs: [String]?
+    // Taxonomia = 1 arvore (vita-shell §1.1), mesmos nomes das rotas de preview.
+    // Antes mandava `lens`/`groupSlugs`/`subgroupSlugs`: a rota nao le nenhum dos
+    // tres e exigia escopo → "gerar simulado" respondia 400 (provado 2026-07-17).
+    /// Nivel 1 — as 6 grandes areas.
+    let areaSlugs: [String]?
+    /// Nivel 2 — disciplina.
+    let disciplineSlugs: [String]?
     let institutionIds: [Int]?
     let years: SimuladoPreviewYears?
     let difficulties: [String]?
@@ -143,9 +147,6 @@ private struct SimuladoCustomGenerateResponse: Decodable {
 struct SimuladoBuilderState {
     // Modo principal (Template ⇄ Custom)
     var mode: SimuladoBuilderMode = .template
-
-    // Lente (default herdado do profile)
-    var lens: ContentOrganizationMode = .greatAreas
 
     // Filters (lente-aware) — igual QBank
     var groups: [QBankGroup] = []
@@ -315,7 +316,7 @@ final class SimuladoBuilderViewModel {
 
     private func loadFilters() async {
         do {
-            let resp = try await api.getQBankFilters(lens: state.lens.rawValue)
+            let resp = try await api.getQBankFilters()
             state.groups = resp.groups
             state.institutions = resp.institutions
             state.difficulties = resp.difficulties
@@ -343,20 +344,6 @@ final class SimuladoBuilderViewModel {
         state.selectedTemplateSlug = slug
     }
 
-    // MARK: - Lens
-
-    func setLens(_ lens: ContentOrganizationMode) {
-        guard state.lens != lens else { return }
-        state.lens = lens
-        state.selectedGroupSlugs.removeAll()
-        state.selectedSubgroupIds.removeAll()
-        state.previewFacets = nil
-        state.formatCounts = [:]
-        Task {
-            await loadFilters()
-            scheduleRefreshPreview()
-        }
-    }
 
     // MARK: - Filter mutations
 
@@ -453,15 +440,15 @@ final class SimuladoBuilderViewModel {
         state.previewLoading = true
         defer { state.previewLoading = false }
 
-        let groupSlugsArr = Array(state.selectedGroupSlugs)
+        // Arvore unica: nivel 1 (`groups`) = as 6 AREAS, nivel 2 (`children`) = DISCIPLINAS.
         let years: SimuladoPreviewYears? = (state.selectedYearMin == nil && state.selectedYearMax == nil)
             ? nil
             : SimuladoPreviewYears(min: state.selectedYearMin, max: state.selectedYearMax)
 
         let body = SimuladoPreviewBody(
-            lens: state.lens.rawValue,
-            groupSlugs: groupSlugsArr.nilIfEmpty,
-            subgroupSlugs: selectedSubgroupSlugs(),
+            areaSlugs: Array(state.selectedGroupSlugs).nilIfEmpty,
+            disciplineSlugs: selectedSubgroupSlugs(),
+            topicIds: nil,
             institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
             years: years,
             difficulties: Array(state.selectedDifficulties).nilIfEmpty,
@@ -557,9 +544,8 @@ final class SimuladoBuilderViewModel {
             ? nil
             : SimuladoPreviewYears(min: state.selectedYearMin, max: state.selectedYearMax)
         let body = SimuladoCustomGenerateBody(
-            lens: state.lens.rawValue,
-            groupSlugs: Array(state.selectedGroupSlugs).nilIfEmpty,
-            subgroupSlugs: selectedSubgroupSlugs(),
+            areaSlugs: Array(state.selectedGroupSlugs).nilIfEmpty,
+            disciplineSlugs: selectedSubgroupSlugs(),
             institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
             years: years,
             difficulties: Array(state.selectedDifficulties).nilIfEmpty,

@@ -19,9 +19,13 @@ struct SimuladoPreviewYears: Codable, Hashable {
 }
 
 struct SimuladoPreviewBody: Codable {
-    let lens: String?
-    let groupSlugs: [String]?
-    let subgroupSlugs: [String]?
+    // Taxonomia = 1 arvore (vita-shell §1.1), mesmos nomes das outras rotas.
+    /// Nivel 1 — as 6 grandes areas.
+    let areaSlugs: [String]?
+    /// Nivel 2 — disciplina.
+    let disciplineSlugs: [String]?
+    /// Nivel 3 — tema.
+    let topicIds: [Int]?
     let institutionIds: [Int]?
     let years: SimuladoPreviewYears?
     let difficulties: [String]?

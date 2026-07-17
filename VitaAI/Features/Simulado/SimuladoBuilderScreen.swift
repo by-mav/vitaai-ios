@@ -119,8 +119,8 @@ struct SimuladoBuilderScreen: View {
                         groupsSkeleton.padding(.horizontal, 16)
                     } else {
                         HorizontalDrillDown(
-                            n1Title: groupTitle(for: vm.state.lens),
-                            n2Title: n2Title(for: vm.state.lens),
+                            n1Title: "Áreas",
+                            n2Title: "Disciplinas",
                             n3Title: "Conteúdos",
                             theme: .simulados,
                             n1Items: vm.state.groups.map { g in
@@ -470,24 +470,6 @@ struct SimuladoBuilderScreen: View {
     }
 
     // MARK: - Helpers
-
-    private func groupTitle(for lens: ContentOrganizationMode) -> String {
-        switch lens {
-        case .tradicional: return "Disciplinas"
-        case .pbl: return "Sistemas"
-        case .greatAreas: return "Áreas"
-        }
-    }
-
-    /// Label genérico do nível 2 — usado pelo HorizontalDrillDown.
-    private func n2Title(for lens: ContentOrganizationMode) -> String {
-        switch lens {
-        case .tradicional: return "Temas"
-        case .pbl: return "Clusters"
-        case .greatAreas: return "Subáreas"
-        }
-    }
-
     private func appliedFilterChips(vm: SimuladoBuilderViewModel) -> [FilterChipsRow.Chip] {
         var chips: [FilterChipsRow.Chip] = []
         for slug in vm.state.selectedGroupSlugs {

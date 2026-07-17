@@ -17,9 +17,6 @@ import Observation
 // MARK: - State
 
 struct QBankBuilderState {
-    // Lente
-    var lens: ContentOrganizationMode = .tradicional
-
     // Filters carregados do backend (lens-aware)
     var groups: [QBankGroup] = []
     var institutions: [QBankInstitution] = []
@@ -123,9 +120,6 @@ final class QBankBuilderViewModel {
 
     /// Hidrata lente do profile + carrega filters + progress + recents em paralelo.
     func boot() {
-        // MedSimple is the launch QBank source and is tagged by discipline/topic,
-        // not by CNRM great areas or PBL systems.
-        state.lens = .tradicional
         Task { await loadAll() }
     }
 
@@ -153,9 +147,8 @@ final class QBankBuilderViewModel {
 
     func loadFilters() async {
         do {
-            let resp = try await api.getQBankFilters(lens: state.lens.rawValue, stage: "all")
-            NSLog("[QBankBuilder] loadFilters lens=%@ groups=%d insts=%d total=%d",
-                  state.lens.rawValue,
+            let resp = try await api.getQBankFilters(stage: "all")
+            NSLog("[QBankBuilder] loadFilters areas=%d insts=%d total=%d",
                   resp.groups.count,
                   resp.institutions.count,
                   resp.totalQuestions)
@@ -167,7 +160,6 @@ final class QBankBuilderViewModel {
             state.years = resp.years
             state.difficulties = resp.difficulties
             state.totalQuestions = resp.totalQuestions
-            state.stage = resp.lens // echo da lente aplicada
             applyPreviewFacets(state.previewFacets)
         } catch {
             NSLog("[QBankBuilder] loadFilters ERROR: %@", String(describing: error))
@@ -195,23 +187,6 @@ final class QBankBuilderViewModel {
         }
     }
 
-    // MARK: - Lens
-
-    func setLens(_ lens: ContentOrganizationMode) {
-        let effectiveLens: ContentOrganizationMode = .tradicional
-        guard state.lens != effectiveLens || lens != effectiveLens else { return }
-        state.lens = effectiveLens
-        // Reset slugs antigos (não fazem sentido na nova lente)
-        state.selectedGroupSlugs.removeAll()
-        state.selectedSubgroupIds.removeAll()
-        state.expandedGroupSlugs.removeAll()
-        state.previewFacets = nil
-        state.formatCounts = [:]
-        Task {
-            await loadFilters()
-            scheduleRefreshPreview()
-        }
-    }
 
     // MARK: - Filters mutations
 
@@ -319,22 +294,22 @@ final class QBankBuilderViewModel {
         state.previewLoading = true
         defer { state.previewLoading = false }
 
-        let groupSlugsArr = Array(state.selectedGroupSlugs)
-        NSLog("[QBankBuilder] preview body lens=%@ groupSlugs=%@ insts=%@ diffs=%@",
-              state.lens.rawValue,
-              String(describing: groupSlugsArr),
+        // Arvore unica: nivel 1 (`groups`) = as 6 AREAS, nivel 2 (`children`) = DISCIPLINAS.
+        let areaSlugs = Array(state.selectedGroupSlugs)
+        // Nivel 2 vem composto "area/disciplina" (mesma disciplina pode aparecer sob
+        // mais de uma area) — o backend quer so o slug da disciplina.
+        let disciplineSlugs = state.selectedSubgroupIds.compactMap { id -> String? in
+            id.split(separator: "/", maxSplits: 1).last.map(String.init)
+        }
+        NSLog("[QBankBuilder] preview body areas=%@ disciplinas=%@ insts=%@ diffs=%@",
+              String(describing: areaSlugs),
+              String(describing: disciplineSlugs),
               String(describing: Array(state.selectedInstitutionIds)),
               String(describing: Array(state.selectedDifficulties)))
 
-        // subgroupSlugs: extrair só o childSlug do "parent/child" composto
-        let subgroupSlugs = state.selectedSubgroupIds.compactMap { id -> String? in
-            id.split(separator: "/", maxSplits: 1).last.map(String.init)
-        }
-
         let body = QBankPreviewBody(
-            lens: state.lens.rawValue,
-            groupSlugs: groupSlugsArr.nilIfEmpty,
-            subgroupSlugs: subgroupSlugs.nilIfEmpty,
+            areaSlugs: areaSlugs.nilIfEmpty,
+            disciplineSlugs: disciplineSlugs.nilIfEmpty,
             institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
             topicIds: nil,
             years: yearsBody(),
@@ -350,11 +325,10 @@ final class QBankBuilderViewModel {
 
         do {
             let resp = try await api.previewQBankPool(body: body)
-            NSLog("[QBankBuilder] preview RESPONSE total=%d displayCount=%d (lens=%@ groupSlugs=%@)",
+            NSLog("[QBankBuilder] preview RESPONSE total=%d (areas=%@ disciplinas=%@)",
                   resp.total,
-                  resp.total,
-                  state.lens.rawValue,
-                  String(describing: groupSlugsArr))
+                  String(describing: areaSlugs),
+                  String(describing: disciplineSlugs))
             state.previewCount = resp.total
             applyPreviewFacets(resp.facets)
         } catch {
@@ -425,19 +399,18 @@ final class QBankBuilderViewModel {
         state.creatingSession = true
         defer { state.creatingSession = false }
 
-        let groupSlugs = Array(state.selectedGroupSlugs).nilIfEmpty
+        // Cada nivel da arvore no SEU campo. Antes a lente escolhia pra qual campo os
+        // slugs iam (disciplineSlugs|pblSystemSlugs|examGreatAreaSlugs) — com 1 arvore
+        // isso deixa de ser condicional: nivel 1 = area, nivel 2 = disciplina.
         let req = QBankCreateSessionRequest(
             questionCount: state.questionCount,
             institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
             years: selectedYears(),
             difficulties: Array(state.selectedDifficulties).nilIfEmpty,
+            areaSlugs: Array(state.selectedGroupSlugs).nilIfEmpty,
+            disciplineSlugs: selectedSubgroupSlugs(),
             topicIds: nil,
-            subgroupSlugs: selectedSubgroupSlugs(),
             disciplineIds: nil,
-            disciplineSlugs: state.lens == .tradicional ? groupSlugs : nil,
-            lens: state.lens.rawValue,
-            pblSystemSlugs: state.lens == .pbl ? groupSlugs : nil,
-            examGreatAreaSlugs: state.lens == .greatAreas ? groupSlugs : nil,
             mode: state.mode.rawValue,
             onlyResidence: nil,
             onlyUnanswered: state.hideAnswered ? true : nil,

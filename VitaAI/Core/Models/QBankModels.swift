@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Filters
 
 struct QBankFiltersResponse: Decodable {
-    var lens: String? = nil
+    /// Nivel 1 da arvore: as 6 grandes areas, cada uma com `children` = disciplinas.
     var groups: [QBankGroup] = []
     var institutions: [QBankInstitution] = []
     var topics: [QBankTopic] = []
@@ -16,7 +16,6 @@ struct QBankFiltersResponse: Decodable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        lens = try? c.decode(String.self, forKey: .lens)
         groups = (try? c.decode([QBankGroup].self, forKey: .groups)) ?? []
         institutions = (try? c.decode([QBankInstitution].self, forKey: .institutions)) ?? []
         topics = (try? c.decode([QBankTopic].self, forKey: .topics)) ?? []
@@ -29,7 +28,7 @@ struct QBankFiltersResponse: Decodable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case lens, groups, institutions, topics, years, difficulties, totalQuestions, disciplines
+        case groups, institutions, topics, years, difficulties, totalQuestions, disciplines
     }
 }
 
@@ -92,11 +91,13 @@ struct QBankGroupChild: Identifiable, Hashable, Decodable {
 // MARK: - QBank Preview (count dinâmico)
 
 struct QBankPreviewBody: Encodable {
-    var lens: String?
-    var groupSlugs: [String]?
-    /// Slugs do nível 2 (cluster sintoma PBL ou topic ID Tradicional).
-    var subgroupSlugs: [String]?
+    // Taxonomia = 1 arvore (vita-shell §1.1): um campo por nivel, sem lente.
+    /// Nivel 1 — as 6 grandes areas (`vita.exam_great_areas`).
+    var areaSlugs: [String]?
+    /// Nivel 2 — disciplina (`vita.disciplines.slug`).
+    var disciplineSlugs: [String]?
     var institutionIds: [Int]?
+    /// Nivel 3 — tema (`vita.qbank_topics`).
     var topicIds: [Int]?
     var years: QBankPreviewYears?
     var difficulties: [String]?
@@ -548,16 +549,16 @@ struct QBankCreateSessionRequest: Encodable {
     let institutionIds: [Int]?
     let years: [Int]?
     let difficulties: [String]?
-    let topicIds: [Int]?
-    let subgroupSlugs: [String]?
-    let disciplineIds: [Int]?
-    /// MedSimple catalog slugs derived from the selected enrolled/catalog disciplines.
-    /// Backend uses this (via qbank_topics.disciplineSlug) to filter questions; the Int
-    /// `disciplineIds` are local synthetic IDs and are ignored server-side.
+    // Taxonomia = 1 arvore (vita-shell §1.1): AREA -> DISCIPLINA -> TEMA, um campo por
+    // nivel, mesmos nomes de /api/qbank/preview. `lens`/`pblSystemSlugs`/`subgroupSlugs`
+    // morreram em 2026-07-16 — o backend nao le mais (mandava-los era filtrar nada).
+    /// Nivel 1 — as 6 grandes areas (`vita.exam_great_areas`).
+    let areaSlugs: [String]?
+    /// Nivel 2 — disciplina (`vita.disciplines.slug`).
     let disciplineSlugs: [String]?
-    let lens: String?
-    let pblSystemSlugs: [String]?
-    let examGreatAreaSlugs: [String]?
+    /// Nivel 3 — tema (`vita.qbank_topics`).
+    let topicIds: [Int]?
+    let disciplineIds: [Int]?
     let mode: String?
     let onlyResidence: Bool?
     let onlyUnanswered: Bool?
@@ -583,13 +584,10 @@ struct QBankCreateSessionRequest: Encodable {
         institutionIds: [Int]? = nil,
         years: [Int]? = nil,
         difficulties: [String]? = nil,
-        topicIds: [Int]? = nil,
-        subgroupSlugs: [String]? = nil,
-        disciplineIds: [Int]? = nil,
+        areaSlugs: [String]? = nil,
         disciplineSlugs: [String]? = nil,
-        lens: String? = nil,
-        pblSystemSlugs: [String]? = nil,
-        examGreatAreaSlugs: [String]? = nil,
+        topicIds: [Int]? = nil,
+        disciplineIds: [Int]? = nil,
         mode: String? = nil,
         onlyResidence: Bool? = nil,
         onlyUnanswered: Bool? = nil,
@@ -606,13 +604,10 @@ struct QBankCreateSessionRequest: Encodable {
         self.institutionIds = institutionIds
         self.years = years
         self.difficulties = difficulties
-        self.topicIds = topicIds
-        self.subgroupSlugs = subgroupSlugs
-        self.disciplineIds = disciplineIds
+        self.areaSlugs = areaSlugs
         self.disciplineSlugs = disciplineSlugs
-        self.lens = lens
-        self.pblSystemSlugs = pblSystemSlugs
-        self.examGreatAreaSlugs = examGreatAreaSlugs
+        self.topicIds = topicIds
+        self.disciplineIds = disciplineIds
         self.mode = mode
         self.onlyResidence = onlyResidence
         self.onlyUnanswered = onlyUnanswered

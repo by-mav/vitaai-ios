@@ -16,6 +16,10 @@ import SwiftUI
 struct StudyHeroStat: View {
     /// Big headline number (e.g. "174", "85%", "7.4"). Caller formats the unit.
     let primary: String
+    /// Valor numerico por tras de `primary`. Quando presente, os digitos ROLAM
+    /// (odometro) a cada mudanca em vez de trocar seco — o numero desce conforme
+    /// o filtro aperta. Nil = texto estatico (heros que nao sao contagem).
+    var primaryValue: Double? = nil
     /// Small caption under the headline ("cards pra revisar", "acertos", ...)
     let primaryCaption: String
     /// Mini stats shown in a strip along the bottom. 0-3 entries look clean.
@@ -77,6 +81,13 @@ struct StudyHeroStat: View {
                         .shadow(color: theme.primary.opacity(0.16), radius: 8, y: 0)
                         .minimumScaleFactor(0.55)
                         .lineLimit(1)
+                        // Odometro: `numericText(value:)` sabe se o numero subiu ou
+                        // desceu e rola o digito pro lado certo (desce quando o filtro
+                        // aperta). `monospacedDigit` trava a largura pra coluna nao
+                        // tremer enquanto rola.
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: primaryValue ?? 0))
+                        .animation(.snappy(duration: 0.42), value: primaryValue)
 
                     Text(primaryCaption)
                         .font(PixioTypo.caption)
@@ -167,6 +178,9 @@ struct StudyImageHeroStat: View {
     let imageAsset: String
     let eyebrow: String
     let primary: String
+    /// Valor numerico por tras de `primary` — ver `StudyHeroStat.primaryValue`.
+    /// Presente = digitos rolam (odometro) conforme o filtro muda o pool.
+    var primaryValue: Double? = nil
     let primaryCaption: String
     let stats: [StudyHeroStat.Stat]
     var theme: StudyShellTheme = .questoes
@@ -224,6 +238,11 @@ struct StudyImageHeroStat: View {
                             )
                         )
                         .lineLimit(1)
+                        // Odometro — ver StudyHeroStat: o digito rola pro lado que o
+                        // numero andou, e `monospacedDigit` trava a largura da coluna.
+                        .monospacedDigit()
+                        .contentTransition(.numericText(value: primaryValue ?? 0))
+                        .animation(.snappy(duration: 0.42), value: primaryValue)
                         .minimumScaleFactor(0.55)
                         .shadow(color: theme.primary.opacity(0.16), radius: 10)
 

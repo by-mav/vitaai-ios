@@ -782,11 +782,11 @@ actor VitaAPI {
         return try await client.get("qbank/progress", queryItems: items)
     }
 
-    func getQBankFilters(lens: String? = nil, stage: String? = nil) async throws -> QBankFiltersResponse {
+    /// GET /api/qbank/filters — a arvore (groups = as 6 areas, cada uma com
+    /// `children` = suas disciplinas) + topics + institutions + years.
+    /// Sem `?lens=`: as lentes morreram em 2026-07-16 (vita-shell §1.1).
+    func getQBankFilters(stage: String? = nil) async throws -> QBankFiltersResponse {
         var items: [URLQueryItem] = []
-        if let lens, !lens.isEmpty {
-            items.append(URLQueryItem(name: "lens", value: lens))
-        }
         if let stage, !stage.isEmpty {
             items.append(URLQueryItem(name: "stage", value: stage))
         }
