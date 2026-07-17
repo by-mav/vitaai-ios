@@ -283,11 +283,33 @@ struct FlashcardBuilderScreen: View {
         .buttonStyle(.plain)
     }
 
-    /// Badge da disciplina — `DisciplineIconBadge` (arte `disc-*` quando conhece a
-    /// disciplina, glifo quando não). Era desenhado inline aqui, duplicando o
-    /// componente: mudar o badge em um lugar não mudava no outro.
+    /// Badge redondo da disciplina: glifo semântico sobre círculo com gradiente da
+    /// cor da disciplina + highlight especular no topo + glow colorido (profundidade).
     private func deckIconTile(_ deck: FlashcardDeckEntry) -> some View {
-        DisciplineIconBadge(name: deck.disciplineSlug ?? deck.title, size: 50)
+        let spec = DisciplineImages.iconSpec(for: deck.disciplineSlug ?? deck.title)
+        return ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [spec.color.opacity(0.95), spec.color.opacity(0.55)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.55), Color.white.opacity(0.0)],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+            Image(systemName: spec.symbol)
+                .font(.system(size: 21, weight: .semibold))  // ds-allow: glifo do ícone (não é texto)
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.28), radius: 1.5, y: 1)
+        }
+        .frame(width: 50, height: 50)
+        .shadow(color: spec.color.opacity(0.35), radius: 5, y: 3)
     }
 
     private var deckListEmpty: some View {

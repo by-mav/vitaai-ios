@@ -110,20 +110,9 @@ enum DisciplineImages {
 
     /// Returns the asset catalog image name for a discipline.
     static func imageAsset(for disciplineName: String) -> String {
-        imageAssetIfKnown(for: disciplineName) ?? "disc-interprofissional"
-    }
-
-    /// O badge da disciplina, ou nil quando o nome NAO casa com nenhuma.
-    ///
-    /// `imageAsset` cai sempre no fallback `disc-interprofissional`, o que serve
-    /// pra tela que exige uma imagem — mas mente numa lista: um baralho "aaa"
-    /// ganharia a arte de Interprofissional. Quem precisa distinguir "conheco"
-    /// de "nao conheco" (e desenhar outra coisa) usa esta.
-    static func imageAssetIfKnown(for disciplineName: String) -> String? {
         let normalized = disciplineName
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "pt_BR"))
             .lowercased()
-        guard !normalized.isEmpty else { return nil }
 
         for entry in slugs {
             for keyword in entry.keywords {
@@ -135,7 +124,8 @@ enum DisciplineImages {
                 }
             }
         }
-        return nil
+
+        return "disc-interprofissional"
     }
 }
 
