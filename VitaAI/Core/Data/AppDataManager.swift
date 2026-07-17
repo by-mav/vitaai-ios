@@ -69,6 +69,25 @@ final class AppDataManager {
     func loadUniversities(_ query: String) async -> [University] {
         (try? await api.getUniversities(query: query.isEmpty ? nil : query))?.universities ?? []
     }
+
+    func loadUniversitiesPage(
+        query: String,
+        countryCode: String,
+        limit: Int = 30,
+        offset: Int = 0
+    ) async -> UniversitiesResponse? {
+        try? await api.getUniversities(
+            query: query.isEmpty ? nil : query,
+            countryCode: countryCode,
+            limit: limit,
+            offset: offset
+        )
+    }
+
+    func loadUniversityCountries() async -> [UniversityCountry] {
+        (try? await api.getUniversityCountries())?.countries ?? []
+    }
+
     func selectUniversity(_ uni: University) async {
         let isLocalUniversity = uni.id.hasPrefix("local-") || uni.id.hasPrefix("requested-")
         let req = UpdateProfileRequest(

@@ -57,12 +57,14 @@ struct WelcomeStep: View {
                             .foregroundStyle(VitaColors.textPrimary)
                             .lineLimit(1)
 
-                        if let score = university.enameConcept, score > 0 {
+                        if university.countryCode == "BR",
+                           let score = university.enameConcept,
+                           score > 0 {
                             ENAMEDBadge(score: score)
                         }
                     }
 
-                    Text("\(university.city) · \(university.state)")
+                    Text(universityLocation(university))
                         .font(VitaTypography.labelSmall)
                         .foregroundStyle(VitaColors.textTertiary)
                 }
@@ -145,6 +147,17 @@ struct WelcomeStep: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func universityLocation(_ university: University) -> String {
+        var components: [String] = []
+        if !university.city.isEmpty { components.append(university.city) }
+        if university.countryCode == "BR", !university.state.isEmpty {
+            components.append(university.state)
+        } else {
+            components.append(university.localizedCountryName)
+        }
+        return components.joined(separator: " · ")
     }
 }
 

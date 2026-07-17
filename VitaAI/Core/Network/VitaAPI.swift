@@ -155,10 +155,23 @@ actor VitaAPI {
 
     // MARK: - Universities
 
-    func getUniversities(query: String? = nil) async throws -> UniversitiesResponse {
-        var items: [URLQueryItem] = [.init(name: "limit", value: "500")]
+    func getUniversities(
+        query: String? = nil,
+        countryCode: String = "BR",
+        limit: Int = 500,
+        offset: Int = 0
+    ) async throws -> UniversitiesResponse {
+        var items: [URLQueryItem] = [
+            .init(name: "country", value: countryCode),
+            .init(name: "limit", value: String(limit)),
+            .init(name: "offset", value: String(offset))
+        ]
         if let query, !query.isEmpty { items.append(.init(name: "q", value: query)) }
         return try await client.get("universities", queryItems: items)
+    }
+
+    func getUniversityCountries() async throws -> UniversityCountriesResponse {
+        try await client.get("universities/countries")
     }
 
     // MARK: - Server-Driven UI

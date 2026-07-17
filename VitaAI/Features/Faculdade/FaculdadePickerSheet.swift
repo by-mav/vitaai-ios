@@ -1,22 +1,6 @@
 import SwiftUI
 import UIKit
 
-private enum UniversitySortMode: String, CaseIterable, Identifiable {
-    case alphabetical
-    case enade
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .alphabetical:
-            return String(localized: "university_picker_sort_az")
-        case .enade:
-            return String(localized: "university_picker_sort_enade")
-        }
-    }
-}
-
 enum FaculdadePickerPresentation {
     case sheet
     case onboardingInline
@@ -24,24 +8,33 @@ enum FaculdadePickerPresentation {
 
 // MARK: - FaculdadePickerSheet
 
-/// Canonical university catalog used both by Faculdade and onboarding.
-/// Settings presents the full sheet; onboarding embeds the same search and
-/// catalog directly inside its ambient scene without sheet-only chrome.
+/// Canonical global medical-school catalog used by Faculdade and onboarding.
+/// Results are fetched by country in small pages; thousands of schools are
+/// never materialized in memory or rendered at once.
 struct FaculdadePickerSheet: View {
     @Environment(\.appData) private var appData
     @Environment(\.dismiss) private var dismiss
 
-    private let initialUniversities: [University]
+    private static let pageSize = 30
+
     private let presentation: FaculdadePickerPresentation
     private let onLoaded: (([University]) -> Void)?
     private let onSelect: ((University) -> Void)?
     private let onAddCustom: (() -> Void)?
 
     @State private var query = ""
-    @State private var all: [University] = []
-    @State private var sortMode: UniversitySortMode = .enade
+    @State private var countryQuery = ""
+    @State private var all: [University]
+    @State private var countries: [UniversityCountry] = []
+    @State private var selectedCountryCode: String
+    @State private var choosingCountry = false
     @State private var loading = true
+    @State private var loadingMore = false
+    @State private var loadFailed = false
+    @State private var hasMore = false
+    @State private var total = 0
     @State private var savingId: String?
+    @State private var searchTask: Task<Void, Never>?
 
     private static let bundledUniversities: [University] = {
         guard let data = NSDataAsset(name: "UniversitiesFallback")?.data else {
@@ -50,6 +43,11 @@ struct FaculdadePickerSheet: View {
         return (try? JSONDecoder().decode([University].self, from: data)) ?? []
     }()
 
+    private static var deviceCountryCode: String {
+        let code = Locale.autoupdatingCurrent.region?.identifier.uppercased() ?? "BR"
+        return code.count == 2 ? code : "BR"
+    }
+
     init(
         initialUniversities: [University] = [],
         presentation: FaculdadePickerPresentation = .sheet,
@@ -57,47 +55,54 @@ struct FaculdadePickerSheet: View {
         onSelect: ((University) -> Void)? = nil,
         onAddCustom: (() -> Void)? = nil
     ) {
-        let localCatalog = Self.curatedCatalog(
-            initialUniversities.isEmpty
-                ? Self.bundledUniversities
-                : initialUniversities
-        )
-        self.initialUniversities = initialUniversities
+        let countryCode = Self.deviceCountryCode
+        let localCatalog = countryCode == "BR"
+            ? Self.curatedCatalog(
+                initialUniversities.isEmpty
+                    ? Self.bundledUniversities
+                    : initialUniversities,
+                countryCode: countryCode
+            )
+            : []
+
         self.presentation = presentation
         self.onLoaded = onLoaded
         self.onSelect = onSelect
         self.onAddCustom = onAddCustom
+        _selectedCountryCode = State(initialValue: countryCode)
         _all = State(initialValue: localCatalog)
         _loading = State(initialValue: localCatalog.isEmpty)
+        _total = State(initialValue: localCatalog.count)
     }
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var normalizedQuery: String {
-        trimmedQuery.folding(
+    private var selectedCountryName: String {
+        countries.first(where: { $0.code == selectedCountryCode })?.localizedName
+            ?? Locale.autoupdatingCurrent.localizedString(forRegionCode: selectedCountryCode)
+            ?? selectedCountryCode
+    }
+
+    private var filteredCountries: [UniversityCountry] {
+        let normalized = countryQuery.folding(
             options: [.diacriticInsensitive, .caseInsensitive],
             locale: .current
         )
-    }
-
-    private var visibleUniversities: [University] {
-        let candidates: [University]
-        if normalizedQuery.isEmpty {
-            candidates = all
-        } else {
-            candidates = all.filter { university in
-                "\(university.name) \(university.shortName) \(university.city) \(university.state)"
+        let source = normalized.isEmpty
+            ? countries
+            : countries.filter { country in
+                "\(country.localizedName) \(country.name) \(country.code)"
                     .folding(
                         options: [.diacriticInsensitive, .caseInsensitive],
                         locale: .current
                     )
-                    .contains(normalizedQuery)
+                    .contains(normalized)
             }
+        return source.sorted {
+            $0.localizedName.localizedCaseInsensitiveCompare($1.localizedName) == .orderedAscending
         }
-
-        return candidates.sorted(by: comesBefore)
     }
 
     var body: some View {
@@ -106,20 +111,38 @@ struct FaculdadePickerSheet: View {
                 header
             }
 
-            VitaInput(
-                value: $query,
-                placeholder: String(localized: "university_picker_search"),
-                leadingSystemImage: "magnifyingglass",
-                showClearButton: true,
-                submitLabel: .search
-            )
-            .accessibilityIdentifier("universityPickerSearch")
+            HStack(spacing: VitaTokens.Spacing.md) {
+                countryFlagButton
 
-            if presentation == .sheet {
-                sortControl
+                if choosingCountry {
+                    VitaInput(
+                        value: $countryQuery,
+                        placeholder: String(localized: "university_picker_country_search"),
+                        leadingSystemImage: "magnifyingglass",
+                        showClearButton: true,
+                        submitLabel: .search
+                    )
+                    .accessibilityIdentifier("universityCountrySearch")
+                } else {
+                    VitaInput(
+                        value: $query,
+                        placeholder: String(localized: "university_picker_search_global"),
+                        leadingSystemImage: "magnifyingglass",
+                        showClearButton: true,
+                        submitLabel: .search
+                    )
+                    .accessibilityIdentifier("universityPickerSearch")
+                }
             }
 
-            catalog
+            Group {
+                if choosingCountry {
+                    countryCatalog
+                } else {
+                    catalog
+                }
+            }
+            .transition(.opacity)
         }
         .padding(
             .horizontal,
@@ -134,7 +157,10 @@ struct FaculdadePickerSheet: View {
                 VitaColors.surface.ignoresSafeArea()
             }
         }
-        .task { await loadCatalog() }
+        .task { await bootstrap() }
+        .onChange(of: query) { _, _ in scheduleSearch() }
+        .onDisappear { searchTask?.cancel() }
+        .animation(.easeInOut(duration: 0.18), value: choosingCountry)
     }
 
     private var header: some View {
@@ -145,9 +171,7 @@ struct FaculdadePickerSheet: View {
 
             Spacer()
 
-            Button {
-                dismiss()
-            } label: {
+            Button { dismiss() } label: {
                 Image(systemName: "xmark")
                     .font(VitaTypography.titleMedium)
                     .foregroundStyle(VitaColors.textSecondary)
@@ -163,116 +187,134 @@ struct FaculdadePickerSheet: View {
         }
     }
 
-    private var sortControl: some View {
-        HStack(spacing: VitaTokens.Spacing.xxs) {
-            ForEach(UniversitySortMode.allCases) { mode in
-                let isSelected = sortMode == mode
-
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        sortMode = mode
-                    }
-                } label: {
-                    Text(mode.title)
-                        .font(
-                            isSelected
-                                ? VitaTypography.labelLarge
-                                : VitaTypography.labelMedium
-                        )
-                        .foregroundStyle(
-                            isSelected
-                                ? VitaColors.accentLight
-                                : VitaColors.textSecondary
-                        )
-                        .frame(maxWidth: .infinity)
-                        .frame(
-                            minHeight: VitaTokens.Spacing._3xl + VitaTokens.Spacing.sm
-                        )
-                        .background {
-                            RoundedRectangle(
-                                cornerRadius: VitaTokens.Radius.md,
-                                style: .continuous
-                            )
-                            .fill(
-                                isSelected
-                                    ? VitaColors.accent.opacity(0.16)
-                                    : Color.clear
-                            )
-                        }
-                        .overlay {
-                            RoundedRectangle(
-                                cornerRadius: VitaTokens.Radius.md,
-                                style: .continuous
-                            )
-                            .stroke(
-                                isSelected
-                                    ? VitaColors.accent.opacity(0.34)
-                                    : Color.clear,
-                                lineWidth: 1
-                            )
-                        }
-                        .contentShape(Rectangle())
+    private var countryFlagButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            choosingCountry.toggle()
+            if choosingCountry {
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder),
+                    to: nil,
+                    from: nil,
+                    for: nil
+                )
+            }
+        } label: {
+            Text(flagEmoji(for: selectedCountryCode))
+                .font(VitaTypography.headlineSmall)
+                .frame(
+                    width: VitaTokens.Spacing._4xl + VitaTokens.Spacing._2xl,
+                    height: VitaTokens.Spacing._4xl + VitaTokens.Spacing._2xl
+                )
+                .background {
+                    RoundedRectangle(
+                        cornerRadius: VitaTokens.Radius.lg,
+                        style: .continuous
+                    )
+                    .fill(VitaColors.glassBg)
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
+                .overlay {
+                    RoundedRectangle(
+                        cornerRadius: VitaTokens.Radius.lg,
+                        style: .continuous
+                    )
+                    .stroke(VitaColors.glassBorder, lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("universityCountrySelector")
+        .accessibilityLabel(String(localized: "university_picker_country_label"))
+        .accessibilityValue(selectedCountryName)
+    }
+
+    private var countryCatalog: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 0) {
+                ForEach(filteredCountries) { country in
+                    Button { selectCountry(country) } label: {
+                        HStack(spacing: VitaTokens.Spacing.md) {
+                            Text(flagEmoji(for: country.code))
+                                .font(VitaTypography.titleMedium)
+
+                            Text(country.localizedName)
+                                .font(VitaTypography.titleSmall)
+                                .foregroundStyle(VitaColors.textPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Text("\(country.schoolCount)")
+                                .font(VitaTypography.labelSmall)
+                                .foregroundStyle(VitaColors.textTertiary)
+
+                            if country.code == selectedCountryCode {
+                                Image(systemName: "checkmark")
+                                    .font(VitaTypography.labelMedium)
+                                    .foregroundStyle(VitaColors.accent)
+                            }
+                        }
+                        .padding(.horizontal, VitaTokens.Spacing.sm)
+                        .frame(minHeight: VitaTokens.Spacing._4xl + VitaTokens.Spacing.xs)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("universityCountry_\(country.code)")
+
+                    if country.id != filteredCountries.last?.id {
+                        Divider().overlay(VitaColors.glassBorder)
+                    }
+                }
             }
         }
-        .padding(VitaTokens.Spacing.xxs)
-        .background {
-            RoundedRectangle(
-                cornerRadius: VitaTokens.Radius.lg,
-                style: .continuous
-            )
-            .fill(VitaColors.glassBg)
-        }
-        .overlay {
-            RoundedRectangle(
-                cornerRadius: VitaTokens.Radius.lg,
-                style: .continuous
-            )
-            .stroke(VitaColors.glassBorder, lineWidth: 1)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(String(localized: "university_picker_sort_accessibility"))
-        .accessibilityIdentifier("universityPickerSort")
+        .scrollDismissesKeyboard(.interactively)
     }
 
     @ViewBuilder
     private var catalog: some View {
-        if loading {
-            ProgressView()
-                .tint(VitaColors.accent)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if all.isEmpty {
+        if all.isEmpty, loading {
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: VitaTokens.Spacing._4xl * 4)
+                .accessibilityLabel(String(localized: "university_picker_loading"))
+        } else if all.isEmpty, loadFailed {
             loadFailure
+        } else if all.isEmpty {
+            emptyCatalog
         } else {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 0) {
-                    ForEach(visibleUniversities) { university in
+                    ForEach(all) { university in
                         row(university)
+                            .task {
+                                if university.id == all.last?.id {
+                                    await loadMoreIfNeeded()
+                                }
+                            }
 
-                        if university.id != visibleUniversities.last?.id {
-                            Divider()
-                                .overlay(VitaColors.glassBorder)
+                        if university.id != all.last?.id {
+                            Divider().overlay(VitaColors.glassBorder)
                         }
                     }
 
-                    if visibleUniversities.isEmpty {
-                        if trimmedQuery.count >= 2 {
-                            notFoundCard
-                        } else {
-                            Text(String(localized: "university_picker_empty"))
-                                .font(VitaTypography.bodySmall)
-                                .foregroundStyle(VitaColors.textTertiary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, VitaTokens.Spacing._3xl)
-                        }
+                    if loadingMore {
+                        ProgressView()
+                            .tint(VitaColors.accent)
+                            .padding(.vertical, VitaTokens.Spacing.lg)
                     }
                 }
                 .padding(.bottom, VitaTokens.Spacing._3xl)
             }
             .scrollDismissesKeyboard(.interactively)
+        }
+    }
+
+    @ViewBuilder
+    private var emptyCatalog: some View {
+        if trimmedQuery.count >= 2 {
+            notFoundCard
+        } else {
+            Text(String(localized: "university_picker_empty_country"))
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textTertiary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, VitaTokens.Spacing._3xl)
         }
     }
 
@@ -282,9 +324,7 @@ struct FaculdadePickerSheet: View {
 
             if let onSelect {
                 onSelect(university)
-                if presentation == .sheet {
-                    dismiss()
-                }
+                if presentation == .sheet { dismiss() }
                 return
             }
 
@@ -302,18 +342,20 @@ struct FaculdadePickerSheet: View {
                             .foregroundStyle(VitaColors.textPrimary)
                             .lineLimit(1)
 
-                        if let score = university.enameConcept, score > 0 {
+                        if university.countryCode == "BR",
+                           let score = university.enameConcept,
+                           score > 0 {
                             ENAMEDBadge(score: score)
                         }
                     }
 
-                    Text("\(university.city) · \(university.state)")
+                    Text(locationText(for: university))
                         .font(VitaTypography.labelSmall)
                         .foregroundStyle(VitaColors.textTertiary)
                         .lineLimit(1)
                 }
 
-                Spacer()
+                Spacer(minLength: 0)
 
                 if savingId == university.id {
                     ProgressView().tint(VitaColors.accent)
@@ -347,19 +389,13 @@ struct FaculdadePickerSheet: View {
                 .foregroundStyle(VitaColors.textSecondary)
                 .multilineTextAlignment(.center)
 
-            Button {
-                Task { await loadCatalog(forceRemote: true) }
-            } label: {
+            Button { scheduleSearch(immediate: true) } label: {
                 Text(String(localized: "university_picker_retry"))
                     .font(VitaTypography.buttonMedium)
                     .foregroundStyle(VitaColors.accentLight)
-                    .frame(
-                        minHeight: VitaTokens.Spacing._3xl + VitaTokens.Spacing.md
-                    )
+                    .frame(minHeight: VitaTokens.Spacing._3xl + VitaTokens.Spacing.md)
                     .padding(.horizontal, VitaTokens.Spacing._2xl)
-                    .background(
-                        Capsule().fill(VitaColors.accent.opacity(0.14))
-                    )
+                    .background(Capsule().fill(VitaColors.accent.opacity(0.14)))
             }
             .buttonStyle(.plain)
         }
@@ -378,27 +414,7 @@ struct FaculdadePickerSheet: View {
                 .foregroundStyle(VitaColors.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button {
-                if let onAddCustom {
-                    UIApplication.shared.sendAction(
-                        #selector(UIResponder.resignFirstResponder),
-                        to: nil,
-                        from: nil,
-                        for: nil
-                    )
-                    if presentation == .sheet {
-                        dismiss()
-                    }
-                    DispatchQueue.main.async { onAddCustom() }
-                    return
-                }
-
-                savingId = "__custom__"
-                Task {
-                    await appData.addCustomFaculty(name: trimmedQuery)
-                    dismiss()
-                }
-            } label: {
+            Button { addCustomUniversity() } label: {
                 HStack(spacing: VitaTokens.Spacing.sm) {
                     if savingId == "__custom__" {
                         ProgressView().tint(VitaColors.surface)
@@ -415,16 +431,14 @@ struct FaculdadePickerSheet: View {
                 }
                 .foregroundStyle(VitaColors.surface)
                 .frame(maxWidth: .infinity)
-                .frame(
-                    minHeight: VitaTokens.Spacing._3xl + VitaTokens.Spacing.md
-                )
-                .background(
+                .frame(minHeight: VitaTokens.Spacing._3xl + VitaTokens.Spacing.md)
+                .background {
                     RoundedRectangle(
                         cornerRadius: VitaTokens.Radius.md,
                         style: .continuous
                     )
                     .fill(VitaColors.accent)
-                )
+                }
             }
             .buttonStyle(.plain)
             .disabled(savingId == "__custom__")
@@ -432,89 +446,145 @@ struct FaculdadePickerSheet: View {
         .padding(VitaTokens.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            RoundedRectangle(
-                cornerRadius: VitaTokens.Radius.lg,
-                style: .continuous
-            )
-            .fill(VitaColors.glassBg)
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                .fill(VitaColors.glassBg)
         }
         .overlay {
-            RoundedRectangle(
-                cornerRadius: VitaTokens.Radius.lg,
-                style: .continuous
-            )
-            .stroke(VitaColors.glassBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                .stroke(VitaColors.glassBorder, lineWidth: 1)
         }
         .padding(.top, VitaTokens.Spacing.lg)
     }
 
-    private func comesBefore(_ lhs: University, _ rhs: University) -> Bool {
-        let isOnboardingDefault = presentation == .onboardingInline && normalizedQuery.isEmpty
-        if isOnboardingDefault {
-            let lhsRank = onboardingPinnedRank(lhs)
-            let rhsRank = onboardingPinnedRank(rhs)
-            if lhsRank != rhsRank {
-                return lhsRank < rhsRank
+    private func locationText(for university: University) -> String {
+        var components: [String] = []
+        if !university.city.isEmpty { components.append(university.city) }
+        if university.countryCode == "BR", !university.state.isEmpty {
+            components.append(university.state)
+        } else {
+            components.append(university.localizedCountryName)
+        }
+        return components.joined(separator: " · ")
+    }
+
+    private func flagEmoji(for countryCode: String) -> String {
+        countryCode
+            .uppercased()
+            .unicodeScalars
+            .compactMap { UnicodeScalar(127_397 + $0.value) }
+            .map(String.init)
+            .joined()
+    }
+
+    private func selectCountry(_ country: UniversityCountry) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        selectedCountryCode = country.code
+        choosingCountry = false
+        countryQuery = ""
+        query = ""
+        all = country.code == "BR"
+            ? Self.curatedCatalog(Self.bundledUniversities, countryCode: "BR")
+            : []
+        total = all.count
+        hasMore = false
+        scheduleSearch(immediate: true)
+    }
+
+    private func scheduleSearch(immediate: Bool = false) {
+        searchTask?.cancel()
+        searchTask = Task {
+            if !immediate {
+                try? await Task.sleep(for: .milliseconds(280))
+            }
+            guard !Task.isCancelled else { return }
+            await loadCatalog(reset: true)
+        }
+    }
+
+    private func bootstrap() async {
+        let remoteCountries = await appData.loadUniversityCountries()
+        if !remoteCountries.isEmpty {
+            countries = remoteCountries
+            if !remoteCountries.contains(where: { $0.code == selectedCountryCode }) {
+                selectedCountryCode = remoteCountries.contains(where: { $0.code == "BR" })
+                    ? "BR"
+                    : (remoteCountries.first?.code ?? "BR")
             }
         }
-
-        let alphabetical = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
-
-        switch sortMode {
-        case .alphabetical:
-            return alphabetical == .orderedAscending
-        case .enade:
-            let lhsScore = lhs.enameConcept ?? Int.min
-            let rhsScore = rhs.enameConcept ?? Int.min
-            if lhsScore != rhsScore { return lhsScore > rhsScore }
-            if isOnboardingDefault, lhsScore == 5 {
-                let lhsIsPadreAlbino = isPadreAlbino(lhs)
-                let rhsIsPadreAlbino = isPadreAlbino(rhs)
-                if lhsIsPadreAlbino != rhsIsPadreAlbino {
-                    return !lhsIsPadreAlbino
-                }
-            }
-            return alphabetical == .orderedAscending
-        }
+        await loadCatalog(reset: true)
     }
 
-    private func onboardingPinnedRank(_ university: University) -> Int {
-        if university.shortName.localizedCaseInsensitiveCompare("USP") == .orderedSame,
-           university.city.localizedCaseInsensitiveCompare("São Paulo") == .orderedSame {
-            return 0
-        }
-        if university.shortName.localizedCaseInsensitiveCompare("PUCRS") == .orderedSame {
-            return 1
-        }
-        return 2
-    }
-
-    private func isPadreAlbino(_ university: University) -> Bool {
-        let identity = "\(university.displayName) \(university.shortName) \(university.city)"
-            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        return identity.contains("padre albino") && identity.contains("catanduva")
-    }
-
-    private func loadCatalog(forceRemote: Bool = false) async {
-        if !forceRemote, !all.isEmpty {
-            onLoaded?(all)
-        }
-
-        if forceRemote {
+    private func loadCatalog(reset: Bool) async {
+        if reset {
             loading = all.isEmpty
+            loadFailed = false
+            hasMore = false
         }
 
-        let remote = await appData.loadUniversities("")
-        if !remote.isEmpty {
-            let curatedRemote = Self.curatedCatalog(remote)
-            all = curatedRemote
-            onLoaded?(curatedRemote)
+        let response = await appData.loadUniversitiesPage(
+            query: trimmedQuery,
+            countryCode: selectedCountryCode,
+            limit: Self.pageSize,
+            offset: reset ? 0 : all.count
+        )
+
+        guard !Task.isCancelled else { return }
+        guard let response else {
+            loading = false
+            loadFailed = all.isEmpty
+            return
         }
 
+        let curated = Self.curatedCatalog(
+            response.universities,
+            countryCode: selectedCountryCode
+        )
+        if reset {
+            all = curated
+        } else {
+            let existingIds = Set(all.map(\.id))
+            all.append(contentsOf: curated.filter { !existingIds.contains($0.id) })
+        }
+        total = response.total
+        hasMore = response.hasMore
         loading = false
+        loadFailed = false
+        onLoaded?(all)
     }
 
-    private static func curatedCatalog(_ universities: [University]) -> [University] {
+    private func loadMoreIfNeeded() async {
+        guard hasMore, !loadingMore, !loading else { return }
+        loadingMore = true
+        await loadCatalog(reset: false)
+        loadingMore = false
+    }
+
+    private func addCustomUniversity() {
+        if let onAddCustom {
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+            if presentation == .sheet { dismiss() }
+            DispatchQueue.main.async { onAddCustom() }
+            return
+        }
+
+        savingId = "__custom__"
+        Task {
+            await appData.addCustomFaculty(name: trimmedQuery)
+            dismiss()
+        }
+    }
+
+    private static func curatedCatalog(
+        _ universities: [University],
+        countryCode: String
+    ) -> [University] {
+        guard countryCode == "BR" else { return universities }
+
         var curated = universities.compactMap { university -> University? in
             let identity = "\(university.name) \(university.shortName) \(university.city)"
                 .folding(
@@ -541,6 +611,8 @@ struct FaculdadePickerSheet: View {
                 shortName: university.shortName,
                 city: university.city,
                 state: university.state,
+                countryCode: university.countryCode,
+                countryName: university.countryName,
                 enameConcept: concept,
                 portals: university.portals
             )
@@ -561,9 +633,7 @@ struct FaculdadePickerSheet: View {
                     name: "Centro Universitário CESUCA",
                     shortName: "CESUCA",
                     city: "Cachoeirinha",
-                    state: "RS",
-                    enameConcept: nil,
-                    portals: []
+                    state: "RS"
                 )
             )
         }
