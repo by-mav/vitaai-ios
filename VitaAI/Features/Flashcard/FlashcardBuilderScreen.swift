@@ -26,15 +26,8 @@ struct FlashcardBuilderScreen: View {
     @State private var showCreateMenu = false
     @State private var showCreateDeck = false
     @State private var showCreateCard = false
-    /// Aba da lista de baralhos: Biblioteca (disciplinas canonicas) vs os que o aluno criou.
-    @State private var deckTab: DeckTab = .mine
     @State private var deckSearch: String = ""
     @State private var showSessionSettings = false
-
-    private enum DeckTab: String, CaseIterable, Identifiable {
-        case mine, biblioteca
-        var id: String { rawValue }
-    }
     /// Quando vem de DisciplineDetailScreen → flashcardHome(subjectId), pré-seleciona
     /// essa disciplina e abre em mode `.specific`. nil = comportamento padrão (mode `.due`).
     var initialSubjectId: String? = nil
@@ -218,24 +211,52 @@ struct FlashcardBuilderScreen: View {
         // Rafael 2026-07-15: baralho curado com < 20 cards não vira linha própria
         // (é fragmento de auto-seed) — some da lista. Os do usuário aparecem sempre.
         let minLibraryCards = 20
+        let q = deckSearch.trimmingCharacters(in: .whitespaces).lowercased()
+        let matches: (FlashcardDeckEntry) -> Bool = {
+            q.isEmpty || cleanDeckTitle($0.title).lowercased().contains(q)
+        }
+        // Biblioteca Vita (sem dono, vale pra todo aluno) e os do aluno são coisas
+        // DIFERENTES — antes vinham concatenados na mesma lista, então "Medicina"
+        // (nosso, 6.391 cards) e "aaa" (dele, 1 card) pareciam a mesma categoria.
         let library = all
             .filter { ($0.userId ?? "").isEmpty && $0.cardCount >= minLibraryCards }
-            .sorted(by: byName)
-        let mine = all.filter { !($0.userId ?? "").isEmpty }.sorted(by: byName)
-        let ordered = library + mine
-        let q = deckSearch.trimmingCharacters(in: .whitespaces).lowercased()
-        let shown = q.isEmpty ? ordered : ordered.filter { cleanDeckTitle($0.title).lowercased().contains(q) }
+            .filter(matches).sorted(by: byName)
+        let mine = all
+            .filter { !($0.userId ?? "").isEmpty }
+            .filter(matches).sorted(by: byName)
+
         return VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
             if vm.state.decksLoading && all.isEmpty {
                 groupsSkeleton
-            } else if shown.isEmpty {
-                deckTabEmpty
+            } else if library.isEmpty && mine.isEmpty {
+                deckListEmpty
             } else {
-                ForEach(shown) { deck in
-                    deckRowV2(deck)
+                if !library.isEmpty {
+                    deckSectionHeader("BIBLIOTECA VITA", count: library.count)
+                    ForEach(library) { deckRowV2($0) }
+                }
+                if !mine.isEmpty {
+                    deckSectionHeader("MEUS BARALHOS", count: mine.count)
+                        .padding(.top, library.isEmpty ? 0 : VitaTokens.Spacing.md)
+                    ForEach(mine) { deckRowV2($0) }
                 }
             }
         }
+    }
+
+    private func deckSectionHeader(_ title: String, count: Int) -> some View {
+        HStack {
+            Text(title)
+                .font(VitaTypography.labelMedium)
+                .kerning(1.1)
+                .foregroundStyle(VitaColors.sectionLabel)
+            Spacer()
+            Text("\(count)")
+                .font(VitaTypography.labelMedium)
+                .foregroundStyle(VitaColors.textTertiary)
+        }
+        .padding(.horizontal, VitaTokens.Spacing.xs)
+        .padding(.bottom, VitaTokens.Spacing.xs)
     }
 
     private func deckRowV2(_ deck: FlashcardDeckEntry) -> some View {
@@ -269,12 +290,12 @@ struct FlashcardBuilderScreen: View {
         DisciplineIconBadge(name: deck.disciplineSlug ?? deck.title, size: 50)
     }
 
-    private var deckTabEmpty: some View {
+    private var deckListEmpty: some View {
         VStack(spacing: VitaTokens.Spacing.sm) {
-            Image(systemName: deckTab == .biblioteca ? "books.vertical" : "rectangle.stack.badge.plus")
+            Image(systemName: deckSearch.isEmpty ? "books.vertical" : "magnifyingglass")
                 .font(.system(size: 30))  // ds-allow: icone empty state
                 .foregroundStyle(VitaColors.textTertiary)
-            Text(deckTab == .biblioteca ? "Nenhuma disciplina encontrada" : "Você ainda não criou baralhos")
+            Text(deckSearch.isEmpty ? "Nenhum baralho por aqui" : "Nada encontrado")
                 .font(VitaTypography.bodyMedium)
                 .foregroundStyle(VitaColors.textSecondary)
                 .multilineTextAlignment(.center)
