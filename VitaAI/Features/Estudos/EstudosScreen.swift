@@ -22,27 +22,34 @@ struct EstudosScreen: View {
     var onNavigateToTrabalhos:         (() -> Void)?
 
     @State private var viewModel: EstudosViewModel?
+    #if DEBUG
+    @State private var isShowingGamePreview = false
+    #endif
 
     var body: some View {
         Group {
             if let viewModel {
-                EstudosContent(
-                    viewModel: viewModel,
-                    onNavigateToCanvasConnect:   onNavigateToCanvasConnect,
-                    onNavigateToNotebooks:        onNavigateToNotebooks,
-                    onNavigateToMindMaps:         onNavigateToMindMaps,
-                    onNavigateToFlashcardSession: onNavigateToFlashcardSession,
-                    onNavigateToFlashcardStats:   onNavigateToFlashcardStats,
-                    onNavigateToFlashcardHome:    onNavigateToFlashcardHome,
-                    onNavigateToPdfViewer:        onNavigateToPdfViewer,
-                    onNavigateToSimulados:        onNavigateToSimulados,
-                    onNavigateToOsce:             onNavigateToOsce,
-                    onNavigateToAtlas:            onNavigateToAtlas,
-                    onNavigateToCourseDetail:     onNavigateToCourseDetail,
-                    onNavigateToQBank:            onNavigateToQBank,
-                    onNavigateToTranscricao:      onNavigateToTranscricao,
-                    onNavigateToTrabalhos:        onNavigateToTrabalhos
-                )
+                #if DEBUG
+                if isShowingGamePreview {
+                    EstudosGamePreview(
+                        viewModel: viewModel,
+                        onClose: { isShowingGamePreview = false },
+                        onNavigateToFlashcardSession: onNavigateToFlashcardSession,
+                        onNavigateToFlashcardHome: onNavigateToFlashcardHome,
+                        onNavigateToSimulados: onNavigateToSimulados,
+                        onNavigateToCourseDetail: onNavigateToCourseDetail,
+                        onNavigateToQBank: onNavigateToQBank,
+                        onNavigateToTranscricao: onNavigateToTranscricao
+                    )
+                } else {
+                    productionContent(viewModel)
+                        .safeAreaInset(edge: .top, spacing: 0) {
+                            debugEntryButton
+                        }
+                }
+                #else
+                productionContent(viewModel)
+                #endif
             } else {
                 DashboardSkeleton()
                     .tint(VitaColors.accentHover)
@@ -59,7 +66,591 @@ struct EstudosScreen: View {
         }
         .trackScreen("Estudos")
     }
+
+    private func productionContent(_ viewModel: EstudosViewModel) -> some View {
+        EstudosContent(
+            viewModel: viewModel,
+            onNavigateToCanvasConnect:   onNavigateToCanvasConnect,
+            onNavigateToNotebooks:        onNavigateToNotebooks,
+            onNavigateToMindMaps:         onNavigateToMindMaps,
+            onNavigateToFlashcardSession: onNavigateToFlashcardSession,
+            onNavigateToFlashcardStats:   onNavigateToFlashcardStats,
+            onNavigateToFlashcardHome:    onNavigateToFlashcardHome,
+            onNavigateToPdfViewer:        onNavigateToPdfViewer,
+            onNavigateToSimulados:        onNavigateToSimulados,
+            onNavigateToOsce:             onNavigateToOsce,
+            onNavigateToAtlas:            onNavigateToAtlas,
+            onNavigateToCourseDetail:     onNavigateToCourseDetail,
+            onNavigateToQBank:            onNavigateToQBank,
+            onNavigateToTranscricao:      onNavigateToTranscricao,
+            onNavigateToTrabalhos:        onNavigateToTrabalhos
+        )
+    }
+
+    #if DEBUG
+    private var debugEntryButton: some View {
+        HStack {
+            Spacer(minLength: 0)
+            Button {
+                withAnimation(.easeInOut(duration: VitaTokens.Animation.durationNormal)) {
+                    isShowingGamePreview = true
+                }
+            } label: {
+                Label("DEBUG", systemImage: "hammer.fill")
+                    .font(VitaTypography.labelMedium)
+                    .tracking(VitaTokens.Typography.letterSpacingWide)
+                    .foregroundStyle(VitaColors.accentLight)
+                    .padding(.horizontal, VitaTokens.Spacing.md)
+                    .frame(minHeight: 44)
+                    .glassCard(cornerRadius: VitaTokens.Radius.full)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("debug_estudos_preview")
+        }
+        .padding(.horizontal, VitaTokens.Spacing.lg)
+        .padding(.vertical, VitaTokens.Spacing.xs)
+        .background(VitaColors.surface.opacity(0.96))
+    }
+    #endif
 }
+
+#if DEBUG
+// MARK: - Estudos Game Preview
+
+/// Laboratório visual do novo Estudos. Vive somente em builds Debug e usa as
+/// mesmas fontes de dados e rotas da tela de produção; não existe conteúdo fake.
+private struct EstudosGamePreview: View {
+    @Bindable var viewModel: EstudosViewModel
+    @Environment(\.appData) private var appData
+    @Environment(Router.self) private var router
+
+    let onClose: () -> Void
+    let onNavigateToFlashcardSession: ((String) -> Void)?
+    let onNavigateToFlashcardHome: (() -> Void)?
+    let onNavigateToSimulados: (() -> Void)?
+    let onNavigateToCourseDetail: ((String, String) -> Void)?
+    let onNavigateToQBank: (() -> Void)?
+    let onNavigateToTranscricao: (() -> Void)?
+
+    private var disciplines: [AcademicSubject] { appData.canonicalDisciplines }
+    private var recommendation: DashboardRecommendation? { viewModel.studyRecommendations.first }
+
+    private let tools: [PreviewTool] = [
+        .init(image: "tool-questoes", title: "Questões", subtitle: "Pratique e evolua", accent: VitaColors.toolQBank, route: .questions),
+        .init(image: "tool-flashcards", title: "Flashcards", subtitle: "Reforce o que importa", accent: VitaColors.toolFlashcards, route: .flashcards),
+        .init(image: "tool-simulados", title: "Simulados", subtitle: "Teste seus conhecimentos", accent: VitaColors.toolSimulados, route: .simulados),
+        .init(image: "tool-transcricao", title: "Transcrição", subtitle: "Treine sua escuta", accent: VitaColors.toolTranscricao, route: .transcricao),
+    ]
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: VitaTokens.Spacing.xs) {
+                roomHero
+                continuationCard
+                trainingSection
+                disciplinesSection
+            }
+            .padding(.horizontal, VitaTokens.Spacing._2xl + VitaTokens.Spacing.xxs)
+            .padding(.top, VitaTokens.Spacing.xs)
+            .padding(.bottom, VitaTokens.Spacing.lg)
+        }
+        .background {
+            VitaColors.surface
+                .overlay(VitaColors.black.opacity(0.18))
+                .ignoresSafeArea()
+        }
+        .overlay {
+            RadialGradient(
+                colors: [.clear, VitaColors.black.opacity(0.08), VitaColors.black.opacity(0.34)],
+                center: .center,
+                startRadius: 160,
+                endRadius: 460
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+        }
+        .refreshable { await viewModel.load() }
+        .accessibilityIdentifier("estudos_game_preview")
+    }
+
+    private var roomHero: some View {
+        ZStack(alignment: .bottom) {
+            Image("hero-estudos-room")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 104)
+                .clipped()
+
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.45),
+                    .init(color: VitaColors.surface.opacity(0.86), location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            Text("Sala de Estudos")
+                .font(VitaTypography.headlineMedium)
+                .foregroundStyle(VitaColors.textPrimary)
+                .shadow(color: VitaColors.black.opacity(0.85), radius: 8, x: 0, y: 3)
+                .padding(.bottom, VitaTokens.Spacing.sm)
+        }
+        .frame(height: 104)
+        .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.xl, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.xl, style: .continuous)
+                .stroke(VitaColors.glassBorder.opacity(0.82), lineWidth: 1)
+        }
+        .onLongPressGesture(minimumDuration: 0.8, perform: onClose)
+        .accessibilityAction(named: "Fechar prévia") { onClose() }
+    }
+
+    private var continuationCard: some View {
+        HStack(spacing: VitaTokens.Spacing.sm) {
+            Image("study-deck-continuation")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 118, height: 138)
+                .clipped()
+                .allowsHitTesting(false)
+
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                Text("CONTINUAR ESTUDANDO")
+                    .font(VitaTypography.labelSmall)
+                    .tracking(VitaTokens.Typography.letterSpacingWide * 2)
+                    .foregroundStyle(VitaColors.accentLight.opacity(0.82))
+
+                Text(continuationTitle)
+                    .font(VitaTypography.headlineSmall)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+
+                HStack {
+                    Text(continuationMetric.label)
+                        .font(VitaTypography.labelLarge)
+                        .foregroundStyle(VitaColors.accentLight.opacity(0.90))
+                    Spacer(minLength: 0)
+                }
+
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(VitaColors.textWarm.opacity(0.08))
+                        Capsule()
+                            .fill(VitaColors.goldBarGradient)
+                            .frame(width: proxy.size.width * continuationMetric.progress)
+                    }
+                }
+                .frame(height: 6)
+
+                HStack {
+                    Spacer(minLength: 0)
+                    Button(action: openContinuation) {
+                        HStack(spacing: VitaTokens.Spacing.sm) {
+                            Text(continuationButtonTitle)
+                                .font(VitaTypography.titleMedium)
+                                .foregroundStyle(VitaColors.surface)
+
+                            Spacer(minLength: 0)
+
+                            Image(systemName: "chevron.right")
+                                .font(VitaTypography.titleSmall)
+                                .foregroundStyle(VitaColors.accentLight)
+                                .frame(width: 28, height: 28)
+                                .background(VitaColors.surface.opacity(0.72), in: Circle())
+                                .overlay {
+                                    Circle().stroke(VitaColors.accentLight.opacity(0.30), lineWidth: 1)
+                                }
+                        }
+                        .padding(.leading, VitaTokens.Spacing.lg)
+                        .padding(.trailing, VitaTokens.Spacing.xs)
+                        .frame(width: 150, height: 36)
+                        .background(
+                            LinearGradient(
+                                colors: [VitaColors.accentHover.opacity(0.78), VitaColors.accent],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            in: Capsule()
+                        )
+                        .overlay {
+                            Capsule().stroke(VitaColors.accentLight.opacity(0.72), lineWidth: 1)
+                        }
+                        .shadow(color: VitaColors.accent.opacity(0.30), radius: 12, x: 0, y: 4)
+                    }
+                    .buttonStyle(VitaButtonPressStyle())
+                    .accessibilityIdentifier("preview_continue_studying")
+                }
+                .padding(.top, VitaTokens.Spacing.md)
+            }
+            .padding(.trailing, VitaTokens.Spacing.xl)
+            .padding(.vertical, VitaTokens.Spacing.sm)
+        }
+        .frame(height: 148)
+        .frame(maxWidth: .infinity)
+        .background {
+            previewPanel(cornerRadius: VitaTokens.Radius.xl)
+                .overlay {
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.xl - 3, style: .continuous)
+                        .stroke(VitaColors.accent.opacity(0.22), lineWidth: 1)
+                        .padding(3)
+                }
+        }
+    }
+
+    private var continuationTitle: String {
+        recommendation?.title ?? continuationSubject?.preferredName ?? "Sua próxima sessão"
+    }
+
+    private var continuationButtonTitle: String {
+        let label = recommendation?.ctaText.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return label.isEmpty ? "Continuar" : label
+    }
+
+    private var continuationSubject: AcademicSubject? {
+        guard let subjectName = recommendation?.subjectName, !subjectName.isEmpty else {
+            return disciplines.first
+        }
+        return disciplines.first {
+            $0.preferredName.localizedCaseInsensitiveContains(subjectName)
+                || subjectName.localizedCaseInsensitiveContains($0.preferredName)
+        } ?? disciplines.first
+    }
+
+    private var continuationMetric: (label: String, progress: CGFloat) {
+        if let subject = continuationSubject, let metric = disciplineMetric(subject), metric.progress > 0 {
+            return (metric.label, metric.progress)
+        }
+        if let recommendation, recommendation.urgency > 0 {
+            let value = min(max(CGFloat(recommendation.urgency) / 100, 0), 1)
+            return ("Prioridade \(recommendation.urgency)%", value)
+        }
+        if viewModel.flashcardsDue > 0 {
+            return ("\(viewModel.flashcardsDue) para revisar", min(CGFloat(viewModel.flashcardsDue) / 20, 1))
+        }
+        return ("Pronto para começar", 0.08)
+    }
+
+    private func openContinuation() {
+        if let recommendation {
+            let type = recommendation.type.lowercased()
+            if type.contains("flash") {
+                if recommendation.deckId.isEmpty {
+                    onNavigateToFlashcardHome?()
+                } else {
+                    onNavigateToFlashcardSession?(recommendation.deckId)
+                }
+                return
+            }
+            if type.contains("simulad") {
+                onNavigateToSimulados?()
+                return
+            }
+            if type.contains("quest") || type.contains("qbank") {
+                onNavigateToQBank?()
+                return
+            }
+        }
+        if let subject = continuationSubject {
+            onNavigateToCourseDetail?(subject.id, subject.preferredName)
+        } else {
+            onNavigateToQBank?()
+        }
+    }
+
+    private var trainingSection: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+            sectionHeader(icon: "dumbbell.fill", title: "TREINAR")
+
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: VitaTokens.Spacing.sm), GridItem(.flexible())],
+                spacing: VitaTokens.Spacing.sm
+            ) {
+                ForEach(tools) { tool in
+                    Button { openTool(tool.route) } label: {
+                        toolCard(tool)
+                    }
+                    .buttonStyle(VitaButtonPressStyle())
+                    .accessibilityIdentifier("preview_tool_\(tool.route.rawValue)")
+                }
+            }
+        }
+    }
+
+    private func toolCard(_ tool: PreviewTool) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            Image(tool.image)
+                .resizable()
+                .scaledToFill()
+                .saturation(0.86)
+                .contrast(1.08)
+                .brightness(-0.04)
+                .frame(height: 106)
+                .clipped()
+
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.38),
+                    .init(color: VitaColors.surface.opacity(0.96), location: 0.74),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            HStack(alignment: .bottom, spacing: VitaTokens.Spacing.xs) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(tool.title)
+                        .font(VitaTypography.titleSmall)
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .lineLimit(1)
+                    Text(tool.subtitle)
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.accentLight.opacity(0.62))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "arrow.right")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .frame(width: 28, height: 28)
+                    .background(VitaColors.surface.opacity(0.72), in: Circle())
+                    .overlay { Circle().stroke(tool.accent.opacity(0.65), lineWidth: 1) }
+            }
+            .padding(VitaTokens.Spacing.sm)
+        }
+        .frame(height: 106)
+        .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                .stroke(tool.accent.opacity(0.48), lineWidth: 1)
+        }
+        .shadow(color: tool.accent.opacity(0.10), radius: 10, x: 0, y: 4)
+    }
+
+    private func openTool(_ route: PreviewToolRoute) {
+        switch route {
+        case .questions: onNavigateToQBank?()
+        case .flashcards: onNavigateToFlashcardHome?()
+        case .simulados: onNavigateToSimulados?()
+        case .transcricao: onNavigateToTranscricao?()
+        }
+    }
+
+    private var disciplinesSection: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+            HStack {
+                sectionHeader(icon: "books.vertical.fill", title: "MINHAS DISCIPLINAS")
+                Spacer(minLength: 0)
+                if !disciplines.isEmpty {
+                    Button { router.navigate(to: .faculdadeDisciplinas) } label: {
+                        HStack(spacing: VitaTokens.Spacing.xs) {
+                            Text("Ver todas")
+                            Image(systemName: "chevron.right")
+                        }
+                        .font(VitaTypography.labelMedium)
+                        .foregroundStyle(VitaColors.accentLight.opacity(0.88))
+                        .frame(height: 24)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if disciplines.isEmpty {
+                Text("Adiciona uma disciplina para começar.")
+                    .font(VitaTypography.bodyMedium)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .padding(VitaTokens.Spacing.md)
+                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                    .background { previewPanel(cornerRadius: VitaTokens.Radius.lg) }
+            } else {
+                ForEach(Array(disciplines.prefix(4).enumerated()), id: \.element.id) { index, subject in
+                    disciplineRow(subject, index: index)
+                }
+            }
+        }
+        .padding(.top, VitaTokens.Spacing.sm)
+    }
+
+    private func disciplineRow(_ subject: AcademicSubject, index: Int) -> some View {
+        let spec = DisciplineImages.iconSpec(for: subject.disciplineSlug ?? subject.name)
+        let metric = disciplineMetric(subject)
+        let color = disciplinePreviewColor(at: index)
+        let symbol = disciplinePreviewSymbol(at: index, fallback: spec.symbol)
+
+        return Button {
+            onNavigateToCourseDetail?(subject.id, subject.preferredName)
+        } label: {
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                previewFolderIcon(symbol: symbol, color: color)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: VitaTokens.Spacing.xs) {
+                        Text(subject.preferredName)
+                            .font(VitaTypography.labelMedium)
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                        if let metric {
+                            Text(metric.label)
+                                .font(VitaTypography.labelSmall)
+                                .foregroundStyle(VitaColors.accentLight.opacity(0.84))
+                        }
+                        Image(systemName: "chevron.right")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.accentLight.opacity(0.68))
+                    }
+
+                    if let metric, metric.progress > 0 {
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(VitaColors.textWarm.opacity(0.07))
+                                Capsule()
+                                    .fill(VitaColors.goldBarGradient)
+                                    .frame(width: proxy.size.width * metric.progress)
+                            }
+                        }
+                        .frame(height: 4)
+                    }
+                }
+            }
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .frame(height: 40)
+            .background { previewPanel(cornerRadius: VitaTokens.Radius.lg) }
+        }
+        .buttonStyle(VitaButtonPressStyle())
+        .accessibilityIdentifier("preview_subject_\(subject.id)")
+    }
+
+    private func previewFolderIcon(symbol: String, color: Color) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                .fill(VitaColors.textPrimary.opacity(0.88))
+                .overlay {
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                        .fill(color.opacity(0.72))
+                }
+                .frame(width: 34, height: 30)
+                .offset(y: 2)
+
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                .fill(color.opacity(0.54))
+                .frame(width: 27, height: 24)
+                .offset(x: -3, y: -2)
+
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                .fill(color.opacity(0.78))
+                .frame(width: 14, height: 6)
+                .offset(x: -8, y: -13)
+
+            Image(systemName: symbol)
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.textPrimary.opacity(0.86))
+                .offset(y: 3)
+        }
+        .frame(width: 40, height: 34)
+        .shadow(color: color.opacity(0.18), radius: 5, x: 0, y: 3)
+    }
+
+    private func disciplinePreviewColor(at index: Int) -> Color {
+        let colors = [VitaColors.dataIndigo, VitaColors.dataBlue, VitaColors.dataRed, VitaColors.toolFlashcards]
+        return colors[index % colors.count]
+    }
+
+    private func disciplinePreviewSymbol(at index: Int, fallback: String) -> String {
+        let symbols = ["brain.head.profile", "heart.fill", "flask.fill", "person.3.fill"]
+        return symbols.indices.contains(index) ? symbols[index] : fallback
+    }
+
+    private func disciplineMetric(_ subject: AcademicSubject) -> (label: String, progress: CGFloat)? {
+        let docs = viewModel.vitaDocuments.filter { $0.subjectId == subject.id }
+        let totalPages = docs.reduce(0) { $0 + max($1.totalPages, 0) }
+        let currentPages = docs.reduce(0) { $0 + min(max($1.currentPage, 0), max($1.totalPages, 0)) }
+        if totalPages > 0 {
+            return ("\(currentPages) de \(totalPages)", min(CGFloat(currentPages) / CGFloat(totalPages), 1))
+        }
+        if let finalGrade = subject.finalGrade {
+            return ("\(String(format: "%.1f", finalGrade)) de 10", min(max(CGFloat(finalGrade) / 10, 0), 1))
+        }
+        if let attendance = subject.attendance {
+            return ("\(Int(attendance.rounded()))%", min(max(CGFloat(attendance) / 100, 0), 1))
+        }
+        if let dashboardSubject = dashboardSubject(matching: subject),
+           let vitaScore = dashboardSubject.vitaScore,
+           vitaScore > 0 {
+            let value = min(max(CGFloat(vitaScore) / 100, 0), 1)
+            return ("\(Int(vitaScore.rounded()))%", value)
+        }
+        if let count = subject.questionCount, count > 0 {
+            return ("\(count) questões", 0)
+        }
+        if !docs.isEmpty {
+            return (docs.count == 1 ? "1 material" : "\(docs.count) materiais", 0)
+        }
+        return nil
+    }
+
+    private func dashboardSubject(matching subject: AcademicSubject) -> DashboardSubject? {
+        viewModel.dashboardSubjects.first {
+            if let subjectId = $0.subjectId, !subjectId.isEmpty, subjectId == subject.id { return true }
+            let dashboardName = ($0.name ?? $0.shortName ?? "")
+                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            let subjectName = subject.preferredName
+                .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            return !dashboardName.isEmpty && (dashboardName.contains(subjectName) || subjectName.contains(dashboardName))
+        }
+    }
+
+    private func sectionHeader(icon: String, title: String) -> some View {
+        HStack(spacing: VitaTokens.Spacing.sm) {
+            Image(systemName: icon)
+                .font(VitaTypography.labelMedium)
+            Text(title)
+                .font(VitaTypography.labelSmall)
+                .tracking(VitaTokens.Typography.letterSpacingWide * 2)
+        }
+        .foregroundStyle(VitaColors.accentLight.opacity(0.82))
+        .frame(height: 20)
+    }
+
+    private func previewPanel(cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [VitaColors.surfaceElevated.opacity(0.94), VitaColors.surface.opacity(0.99)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(VitaColors.glassBorder, lineWidth: 1)
+            }
+            .shadow(color: VitaColors.black.opacity(0.34), radius: 10, x: 0, y: 5)
+    }
+}
+
+private struct PreviewTool: Identifiable {
+    let image: String
+    let title: String
+    let subtitle: String
+    let accent: Color
+    let route: PreviewToolRoute
+    var id: String { route.rawValue }
+}
+
+private enum PreviewToolRoute: String {
+    case questions
+    case flashcards
+    case simulados
+    case transcricao
+}
+
+#endif
 
 // MARK: - Content
 
