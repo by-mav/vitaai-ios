@@ -18,10 +18,27 @@ struct IntegrationProviderInfo: Decodable, Identifiable {
     let status: String
     let providerAccountEmail: String?
     let lastSyncAt: String?
+    let lastError: String?
+    let counts: IntegrationCounts?
 
     var id: String { name }
 }
 
+struct IntegrationCounts: Decodable {
+    let imported: Int
+    let updated: Int
+
+    var total: Int { imported + updated }
+}
+
 struct IntegrationOAuthResponse: Decodable {
     let authUrl: String?
+}
+
+struct IntegrationSyncResponse: Decodable {
+    let ok: Bool
+    let provider: String
+    let imported: Int
+    let updated: Int
+    let skipped: Int
 }

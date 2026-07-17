@@ -1,13 +1,12 @@
-﻿import SwiftUI
+import SwiftUI
 import Sentry
 
 // MARK: - ConnectionsScreen
-// University-aware connector list â€” mirrors the onboarding ConnectStep UX.
-// Shows the student's university portals (from API), Google integrations, and
-// an expandable "Outros portais" section for portal types not detected.
 
+/// Canonical home for Vita's five connectors. The exact same providers are
+/// always available in onboarding and Settings; university detection only
+/// pre-fills the learning-portal URL.
 struct ConnectionsScreen: View {
-    /// Optional callback for future token/OAuth connectors not handled inline.
     var onPortalConnect: ((String, String?) -> Void)?
     var onBack: (() -> Void)?
 
@@ -15,662 +14,644 @@ struct ConnectionsScreen: View {
 
     @State private var vm: ConnectorsViewModel?
     @State private var toastState = VitaToastState()
-
-    // Sheet visibility
-    @State private var activeSheet: String?
-    @State private var showAllPortals = false
-
-    @State private var showCanvasTokenSheet = false
-    @State private var canvasInstanceUrl: String = ""
-
-    // WhatsApp linking flow
+    @State private var statusSelection: ConnectorStatusSelection?
+    @State private var portalSelection: PortalConnectionSelection?
     @State private var showWhatsAppSheet = false
-    @State private var waPhone: String = ""
-    @State private var waCode: String = ""
-    @State private var waStep: Int = 0
+
+    @State private var waPhone = ""
+    @State private var waCode = ""
+    @State private var waStep = 0
     @State private var waError: String?
     @State private var waSending = false
 
-    // Design tokens
-    private let goldSubtle = VitaColors.accentLight
-
-    private let allPortalTypes: [PortalTypeInfo] = [
-        PortalTypeInfo(type: "canvas"),
-        PortalTypeInfo(type: "moodle"),
-    ]
-
-    // MARK: - Body
-
     var body: some View {
         VStack(spacing: 0) {
-            VitaScreenHeader(title: "Conexões", onBack: onBack)
-            ZStack(alignment: .top) {
-                // Starry ambient background (same as all screens)
-                if let vm {
+            VitaScreenHeader(
+                title: String(localized: "connections_title"),
+                onBack: onBack
+            )
+
+            if let vm {
+                if vm.hasLoaded {
                     mainContent(vm: vm)
+                        .transition(.opacity)
                 } else {
-                    DashboardSkeleton()
+                    ProgressView()
+                        .tint(VitaColors.accent)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityLabel(String(localized: "connections_loading"))
+                        .transition(.opacity)
                 }
-            }
-            .onAppear {
-            if vm == nil {
-                let viewModel = ConnectorsViewModel(api: container.api, dataManager: container.dataManager)
-                vm = viewModel
-                Task {
-                    await viewModel.loadAll()
-                    SentrySDK.reportFullyDisplayed()
-                }
+            } else {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityHidden(true)
             }
         }
-        .task(id: "refresh-timer") {
+        .animation(.easeOut(duration: 0.2), value: vm?.hasLoaded)
+        .onAppear(perform: installViewModelIfNeeded)
+        .task(id: "connector-status-refresh") {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 30_000_000_000)
-                await vm?.loadPortalConnections()
+                try? await Task.sleep(for: .seconds(30))
+                await vm?.loadAll()
             }
         }
-        // Status sheet for connected portals
-        .sheet(item: $activeSheet) { sheetId in
-            VitaSheet {
-                sheetContent(for: sheetId)
+        .sheet(item: $statusSelection) { selection in
+            if let vm {
+                ConnectorStatusSheet(
+                    serviceName: selection.displayName,
+                    iconAsset: selection.iconAsset,
+                    subtitle: vm.state(for: selection.id).subtitle,
+                    lastSync: vm.state(for: selection.id).lastSync,
+                    lastSyncAbsolute: vm.state(for: selection.id).lastSyncAbsolute,
+                    lastPing: vm.state(for: selection.id).lastPing,
+                    isStale: vm.state(for: selection.id).isStale,
+                    isExpired: vm.state(for: selection.id).status == .expired,
+                    stats: vm.state(for: selection.id).stats.map {
+                        ConnectorStat(value: $0.value, label: $0.label)
+                    },
+                    onSync: {
+                        statusSelection = nil
+                        Task { await sync(selection.id, vm: vm) }
+                    },
+                    onDisconnect: {
+                        statusSelection = nil
+                        Task { await vm.disconnect(selection.id) }
+                    }
+                )
             }
         }
-        // Canvas token sheet â€” AddTokenSheet (substitui WebView, pivot 2026-05-07)
-        .sheet(isPresented: $showCanvasTokenSheet) {
-            AddTokenSheet()
-                .environmentObject(container)
-                .presentationDetents([.large])
+        .sheet(item: $portalSelection) { selection in
+            VitaSheet(
+                title: String(
+                    format: String(localized: "connections_portal_sheet_title_format"),
+                    selection.displayName
+                ),
+                detents: [.large]
+            ) {
+                PortalConnectionForm(
+                    selection: selection,
+                    api: container.api,
+                    onConnected: {
+                        portalSelection = nil
+                        Task { await vm?.loadAll() }
+                    }
+                )
+            }
         }
-        // WhatsApp linking sheet
-        // WhatsApp linking sheet
         .sheet(isPresented: $showWhatsAppSheet) {
-            VitaSheet(title: "Vincular WhatsApp") {
-                whatsAppLinkSheet
+            VitaSheet(
+                title: String(localized: "onboarding_whatsapp_title"),
+                detents: [.medium, .large]
+            ) {
+                OnboardingWhatsAppLinkContent(
+                    phone: $waPhone,
+                    code: $waCode,
+                    stepIndex: $waStep,
+                    sending: $waSending,
+                    error: $waError,
+                    onSendCode: { Task { await sendWhatsAppCode() } },
+                    onVerify: { Task { await verifyWhatsAppCode() } }
+                )
+                .padding(VitaTokens.Spacing.xl)
             }
         }
         .vitaToastHost(toastState)
-        .onChange(of: vm?.toastMessage) { msg in
-            if let msg {
-                toastState.show(msg, type: vm?.toastType ?? .success)
-                vm?.toastMessage = nil
-            }
+        .onChange(of: vm?.toastMessage) { message in
+            guard let message else { return }
+            toastState.show(message, type: vm?.toastType ?? .success)
+            vm?.toastMessage = nil
         }
-            .trackScreen("Connections")
+        .preference(key: ImmersivePreferenceKey.self, value: true)
+        .trackScreen("Connections")
+    }
+
+    private func installViewModelIfNeeded() {
+        guard vm == nil else { return }
+        let viewModel = ConnectorsViewModel(
+            api: container.api,
+            dataManager: container.dataManager
+        )
+        vm = viewModel
+        Task {
+            await viewModel.loadAll()
+            SentrySDK.reportFullyDisplayed()
         }
     }
 
-    // MARK: - Main Content
-
-    @ViewBuilder
     private func mainContent(vm: ConnectorsViewModel) -> some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                // Connected count card
-                connectedCountCard(vm: vm)
-                    .padding(.horizontal, 14)
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.xl) {
+                connectionSummary(vm: vm)
 
-                // Institucional section
-                institucionalSection(vm: vm)
+                connectorSection(
+                    title: String(localized: "onboarding_connect_portals_section")
+                ) {
+                    portalCard(
+                        id: "canvas",
+                        name: "Canvas",
+                        iconAsset: "connector-canvas",
+                        color: VitaColors.accent,
+                        state: vm.canvas,
+                        vm: vm
+                    )
 
-                // Integracoes section
-                sectionLabel("INTEGRACOES")
-                    .padding(.top, 18)
+                    portalCard(
+                        id: "moodle",
+                        name: "Moodle",
+                        iconAsset: "connector-moodle",
+                        color: VitaColors.dataAmber,
+                        state: vm.moodle,
+                        vm: vm
+                    )
+                }
 
-                VStack(spacing: 8) {
+                connectorSection(
+                    title: String(localized: "onboarding_connect_additional_section")
+                ) {
                     integrationCard(
-                        letter: "G", name: "Google Calendar",
-                        color: Color(red: 0.26, green: 0.52, blue: 0.96),
-                        connectorId: "google_calendar",
-                        state: vm.calendar, vm: vm,
-                        iconAsset: "mascot-google-calendar"
+                        id: "google_calendar",
+                        name: "Google Calendar",
+                        iconAsset: "connector-google-calendar",
+                        color: VitaColors.dataBlue,
+                        state: vm.calendar,
+                        vm: vm
                     )
+
                     integrationCard(
-                        letter: "G", name: "Google Drive",
-                        color: Color(red: 0.13, green: 0.59, blue: 0.33),
-                        connectorId: "google_drive",
-                        state: vm.drive, vm: vm,
-                        iconAsset: "mascot-google-drive"
+                        id: "google_drive",
+                        name: "Google Drive",
+                        iconAsset: "connector-google-drive",
+                        color: VitaColors.success,
+                        state: vm.drive,
+                        vm: vm
                     )
-                    integrationCard(
-                        letter: "S", name: "Spotify",
-                        color: Color(red: 0.11, green: 0.73, blue: 0.33),
-                        connectorId: "spotify",
-                        state: vm.spotify, vm: vm,
-                        iconAsset: "mascot-spotify"
-                    )
+
                     ConnectorCard(
                         letter: "W",
                         name: "WhatsApp",
                         status: vm.whatsapp.status,
-                        color: Color(red: 0.15, green: 0.68, blue: 0.38),
-                        iconAsset: "mascot-whatsapp",
+                        color: VitaColors.success,
+                        iconAsset: "connector-whatsapp",
+                        subtitle: vm.whatsapp.subtitle
+                            ?? String(localized: "onboarding_whatsapp_card_subtitle"),
                         lastSync: vm.whatsapp.lastSync,
                         stats: vm.whatsapp.stats,
-                        onConnect: {
-                            waStep = 0; waPhone = ""; waCode = ""; waError = nil
-                            showWhatsAppSheet = true
-                        },
+                        actionAccessibilityIdentifier: "settingsConnectorAction_whatsapp",
+                        onConnect: { presentWhatsApp(vm: vm) },
                         onDisconnect: { Task { await vm.disconnect("whatsapp") } },
-                        onTapConnected: {
-                            waStep = 0; waPhone = vm.whatsapp.subtitle ?? ""; waCode = ""; waError = nil
-                            showWhatsAppSheet = true
-                        }
+                        onTapConnected: { presentWhatsApp(vm: vm) }
                     )
                 }
-                .padding(.horizontal, 14)
 
-                // Como funciona
-                sectionLabel("COMO FUNCIONA")
-                    .padding(.top, 20)
-
-                comoFunciona
-                    .padding(14)
-                    .glassCard(cornerRadius: 16)
-                    .padding(.horizontal, 14)
-
-                Spacer().frame(height: 120)
+                privacyNote
+                Spacer().frame(height: VitaTokens.Spacing._4xl)
             }
-            .padding(.top, 8)
+            .padding(.horizontal, VitaTokens.Spacing.xl)
+            .padding(.top, VitaTokens.Spacing.sm)
         }
         .refreshable { await vm.refreshAndSync() }
     }
 
-    // MARK: - Institucional Section
+    private func connectionSummary(vm: ConnectorsViewModel) -> some View {
+        HStack(spacing: VitaTokens.Spacing.lg) {
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                Text(String(localized: "connections_summary_title"))
+                    .font(VitaTypography.titleSmall)
+                    .foregroundStyle(VitaColors.textPrimary)
 
-    @ViewBuilder
-    private func institucionalSection(vm: ConnectorsViewModel) -> some View {
-        let hasUniversity = !vm.universityName.isEmpty
-        // Fallback: se o catalogo getUniversities() nao retornou portals (universidade fora do
-        // catalogo ou backend incompleto), constroi portais a partir do state real do VM.
-        // Isso garante que usuario com conexao ativa sempre ve o card, independente do catalogo.
-        let fallbackPortals: [UniversityPortal] = {
-            guard vm.universityPortals.isEmpty else { return [] }
-            var result: [UniversityPortal] = []
-            if vm.canvas.status != .disconnected {
-                result.append(UniversityPortal(
-                    id: "fallback-canvas",
-                    portalType: "canvas",
-                    portalName: "Canvas",
-                    instanceUrl: vm.canvas.instanceUrl
-                ))
+                Text(String(localized: "connections_summary_subtitle"))
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            return result
-        }()
-        let supportedTypes: Set<String> = ["canvas", "moodle"]
-        let detectedPortals = (vm.universityPortals.isEmpty ? fallbackPortals : vm.universityPortals)
-            .filter { supportedTypes.contains($0.portalType) }
-        let detectedTypes = Set(detectedPortals.map(\.portalType))
-        let otherPortals = allPortalTypes.filter { !detectedTypes.contains($0.type) }
 
-        // Section header
-        sectionLabel("INSTITUCIONAL")
-            .padding(.top, 18)
+            Spacer(minLength: VitaTokens.Spacing.sm)
 
-        // University subtitle (name + city from API)
-        if hasUniversity {
-            HStack(spacing: 6) {
-                Image(systemName: "building.columns")
-                    .font(.system(size: 11))
-                    .foregroundColor(goldSubtle.opacity(0.40))
-                Text(universityDisplayLine(vm: vm))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.55))
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 8)
-        }
-
-        VStack(spacing: 8) {
-            if !detectedPortals.isEmpty {
-                // Detected portals for this university
-                ForEach(detectedPortals, id: \.id) { portal in
-                    let connState = vm.state(for: portal.portalType)
-                    ConnectorCard(
-                        letter: University.letter(for: portal.portalType),
-                        name: portal.displayName.isEmpty
-                            ? University.displayName(for: portal.portalType)
-                            : portal.displayName,
-                        status: connState.status,
-                        color: University.color(for: portal.portalType),
-                        lastSync: connState.lastSync,
-                        lastPing: connState.lastPing,
-                        isStale: connState.isStale,
-                        stats: connState.stats,
-                        isPrimary: portal.isPrimary,
-                        onConnect: { handleConnect(portalType: portal.portalType, instanceUrl: portal.instanceUrl) },
-                        onDisconnect: { Task { await vm.disconnect(portal.portalType) } },
-                        onTapConnected: { activeSheet = portal.portalType }
+            Text("\(vm.connectedCount)/\(vm.totalPortals)")
+                .font(VitaTypography.headlineSmall)
+                .foregroundStyle(VitaColors.accentLight)
+                .monospacedDigit()
+                .accessibilityLabel(
+                    String(
+                        format: String(localized: "connections_count_accessibility_format"),
+                        vm.connectedCount,
+                        vm.totalPortals
                     )
-                }
-            } else if !hasUniversity {
-                // No university â€” show hint
-                noUniversityHint
-            }
-
-            // "Outros portais" toggle
-            // "Outros portais" sÃ³ faz sentido quando NÃƒO temos faculdade detectada
-            // (user sem onboarding completo). Quando uni estÃ¡ conhecida, mostrar
-            // apenas os portais que ELA usa â€” clicar Moodle/SIGAA sem URL leva
-            // pra tela "URL nÃ£o configurada" e quebra UX. Rafael 2026-04-27:
-            // "porque nao colocaram o link de todos conectores para cada
-            //  instituicao ... entao nem deveria mostrar esses conectores quando
-            //  o usuario nao eh da faculdade que tem eles".
-            if !hasUniversity && !otherPortals.isEmpty {
-                Button {
-                    withAnimation(.spring(response: 0.3)) { showAllPortals.toggle() }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: showAllPortals ? "minus.circle" : "plus.circle")
-                            .font(.system(size: 13))
-                        Text(showAllPortals ? "Ocultar outros portais" : "Outros portais")
-                            .font(.system(size: 12, weight: .medium))
-                        Spacer()
-                        Image(systemName: showAllPortals ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .foregroundStyle(.white.opacity(0.35))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .background(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.06), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-
-            if !hasUniversity && showAllPortals {
-                ForEach(otherPortals) { portal in
-                    let connState = vm.state(for: portal.type)
-                    ConnectorCard(
-                        letter: portal.letter,
-                        name: portal.displayName,
-                        status: connState.status,
-                        color: portal.color,
-                        onConnect: { handleConnect(portalType: portal.type, instanceUrl: nil) },
-                        onDisconnect: { Task { await vm.disconnect(portal.type) } },
-                        onTapConnected: { activeSheet = portal.type }
-                    )
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
-            // Quando user TEM faculdade mas portal dela nÃ£o estÃ¡ mapeado, o
-            // helper hint "meu portal nÃ£o aparece" abre um caminho de feedback
-            // sem expor a lista cheia de connectors quebrados.
-            if hasUniversity && detectedPortals.isEmpty {
-                missingPortalHint
-            }
+                )
         }
-        .padding(.horizontal, 14)
+        .padding(VitaTokens.Spacing.lg)
+        .vitaGlassCard(cornerRadius: VitaTokens.Radius.lg)
     }
 
-    // MARK: - Missing Portal Hint
-    // Mostrado quando user tem uni configurada mas o catÃ¡logo
-    // university_portals nÃ£o tem nenhum portal mapeado pra ela. Em vez de
-    // listar 8 conectores genÃ©ricos sem URL (UX quebrada), pede contato.
-    private var missingPortalHint: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "questionmark.circle")
-                .font(.system(size: 22))
-                .foregroundColor(goldSubtle.opacity(0.40))
-            Text("Portal da sua faculdade ainda nÃ£o mapeado")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.white.opacity(0.6))
-                .multilineTextAlignment(.center)
-            Text("Estamos adicionando 351+ faculdades. Avise no chat da Vita qual Ã© o portal da sua e adicionamos rÃ¡pido.")
-                .font(.system(size: 11))
-                .foregroundColor(goldSubtle.opacity(0.35))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 12)
+    private func connectorSection<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            SectionHeader(title: title.uppercased())
+            content()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
-        .glassCard(cornerRadius: 16)
     }
 
-    // MARK: - University Display
-
-    private func universityDisplayLine(vm: ConnectorsViewModel) -> String {
-        if vm.universityCity.isEmpty {
-            return vm.universityName
-        }
-        return "\(vm.universityName) \u{00B7} \(vm.universityCity)"
-    }
-
-    // MARK: - No University Hint
-
-    private var noUniversityHint: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "building.columns")
-                .font(.system(size: 24))
-                .foregroundColor(goldSubtle.opacity(0.30))
-            Text("Nenhuma universidade detectada")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.white.opacity(0.5))
-            Text("Complete seu perfil para ver os portais da sua faculdade")
-                .font(.system(size: 11))
-                .foregroundColor(goldSubtle.opacity(0.30))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .glassCard(cornerRadius: 16)
-    }
-
-    // MARK: - Portal Card (generic)
-
-    @ViewBuilder
     private func portalCard(
-        letter: String, name: String, color: Color,
-        connectorId: String, state: ConnectorState,
+        id: String,
+        name: String,
+        iconAsset: String,
+        color: Color,
+        state: ConnectorState,
         vm: ConnectorsViewModel
     ) -> some View {
         ConnectorCard(
-            letter: letter,
-            name: name,
-            status: state.status,
-            color: color,
-            lastSync: state.lastSync,
-            stats: state.stats,
-            onConnect: { handleConnect(portalType: connectorId, instanceUrl: nil) },
-            onDisconnect: { Task { await vm.disconnect(connectorId) } },
-            onTapConnected: { activeSheet = connectorId }
-        )
-    }
-
-    // MARK: - Integration Card (OAuth connectors)
-
-    // MARK: - WhatsApp Link Sheet
-
-    @ViewBuilder
-    private var whatsAppLinkSheet: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Spacer().frame(height: 10)
-                Image(systemName: waStep == 2 ? "checkmark.circle.fill" : "message.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(waStep == 2 ? .green : Color(red: 0.15, green: 0.68, blue: 0.38))
-
-                if waStep == 0 {
-                    Text("Conectar WhatsApp").font(.title2.bold()).foregroundStyle(.white)
-                    Text("Receba notificações e converse com a VITA pelo WhatsApp")
-                        .font(.subheadline).foregroundStyle(.gray).multilineTextAlignment(.center).padding(.horizontal)
-                    TextField("51989484243", text: $waPhone)
-                        .keyboardType(.phonePad).textContentType(.telephoneNumber)
-                        .padding().background(Color.white.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 24).foregroundStyle(.white)
-                    if let err = waError { Text(err).font(.caption).foregroundStyle(.red) }
-                    Button {
-                        Task { await sendWACode() }
-                    } label: {
-                        HStack {
-                            if waSending { ProgressView().tint(.black) }
-                            Text("Enviar código").fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 14)
-                        .background(Color(red: 0.15, green: 0.68, blue: 0.38))
-                        .foregroundStyle(.white).clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .disabled(waPhone.count < 8 || waSending).padding(.horizontal, 24)
-
-                } else if waStep == 1 {
-                    Text("Digite o código").font(.title2.bold()).foregroundStyle(.white)
-                    Text("Enviamos um código de 6 dígitos para seu WhatsApp")
-                        .font(.subheadline).foregroundStyle(.gray).multilineTextAlignment(.center).padding(.horizontal)
-                    TextField("000000", text: $waCode)
-                        .keyboardType(.numberPad).textContentType(.oneTimeCode)
-                        .multilineTextAlignment(.center)
-                        .font(.system(size: 32, weight: .bold, design: .monospaced))
-                        .padding().background(Color.white.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 60).foregroundStyle(.white)
-                    if let err = waError { Text(err).font(.caption).foregroundStyle(.red) }
-                    Button {
-                        Task { await verifyWACode() }
-                    } label: {
-                        HStack {
-                            if waSending { ProgressView().tint(.black) }
-                            Text("Verificar").fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 14)
-                        .background(Color(red: 0.15, green: 0.68, blue: 0.38))
-                        .foregroundStyle(.white).clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .disabled(waCode.count < 6 || waSending).padding(.horizontal, 24)
-                    Button("Reenviar código") { Task { await sendWACode() } }
-                        .font(.caption).foregroundStyle(goldSubtle)
-
-                } else {
-                    Text("WhatsApp conectado!").font(.title2.bold()).foregroundStyle(.white)
-                    Text("A VITA vai te mandar uma mensagem de boas-vindas")
-                        .font(.subheadline).foregroundStyle(.gray)
-                }
-                Spacer()
-            }
-            .padding(.top, 20)
-            .background(Color(red: 0.08, green: 0.08, blue: 0.10))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Fechar") { showWhatsAppSheet = false }.foregroundStyle(.gray)
-                }
-            }
-        }
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-    }
-
-    private func sendWACode() async {
-        guard let vm else { return }
-        waSending = true; waError = nil
-        do {
-            try await vm.linkWhatsApp(phone: waPhone)
-            waStep = 1
-        } catch { waError = "Erro ao enviar código" }
-        waSending = false
-    }
-
-    private func verifyWACode() async {
-        guard let vm else { return }
-        waSending = true; waError = nil
-        do {
-            try await vm.verifyWhatsApp(code: waCode)
-            waStep = 2
-            try? await Task.sleep(for: .seconds(2))
-            showWhatsAppSheet = false
-        } catch { waError = "Código inválido ou expirado" }
-        waSending = false
-    }
-
-        private func integrationCard(
-        letter: String, name: String, color: Color,
-        connectorId: String, state: ConnectorState,
-        vm: ConnectorsViewModel,
-        iconAsset: String? = nil
-    ) -> some View {
-        ConnectorCard(
-            letter: letter,
+            letter: String(name.prefix(1)),
             name: name,
             status: state.status,
             color: color,
             iconAsset: iconAsset,
+            subtitle: portalSubtitle(state: state, vm: vm),
             lastSync: state.lastSync,
+            lastPing: state.lastPing,
+            isStale: state.isStale,
             stats: state.stats,
-            onConnect: { Task { await vm.connectIntegration(connectorId) } },
-            onDisconnect: { Task { await vm.disconnect(connectorId) } },
-            onTapConnected: { activeSheet = connectorId }
+            isPrimary: configuredPortalURL(for: id, vm: vm) != nil,
+            actionAccessibilityIdentifier: "settingsConnectorAction_\(id)",
+            onConnect: { presentPortal(id: id, name: name, vm: vm) },
+            onDisconnect: { Task { await vm.disconnect(id) } },
+            onTapConnected: {
+                statusSelection = ConnectorStatusSelection(
+                    id: id,
+                    displayName: name,
+                    iconAsset: iconAsset
+                )
+            }
         )
     }
 
-    // MARK: - Handle Connect (direct flow, no intermediate screen)
-
-    private func handleConnect(portalType: String, instanceUrl: String?) {
-        switch portalType {
-        case "canvas":
-            canvasInstanceUrl = instanceUrl ?? vm?.canvas.instanceUrl ?? "https://ulbra.instructure.com"
-            showCanvasTokenSheet = true
-        default:
-            onPortalConnect?(portalType, instanceUrl)
-        }
-    }
-
-    // MARK: - Sheet Content
-
-    @ViewBuilder
-    private func sheetContent(for connectorId: String) -> some View {
-        if let vm {
-            let state = vm.state(for: connectorId)
-            let (icon, syncNote) = sheetMeta(for: connectorId)
-
-            ConnectorStatusSheet(
-                serviceName: state.name,
-                icon: icon,
-                subtitle: state.subtitle,
-                lastSync: state.lastSync,
-                lastSyncAbsolute: state.lastSyncAbsolute,
-                lastPing: state.lastPing,
-                isStale: state.isStale,
-                isExpired: state.status == .expired,
-                stats: state.stats.map { ConnectorStat(value: $0.value, label: $0.label) },
-                syncNote: syncNote,
-                onSync: {
-                    activeSheet = nil
-                    Task {
-                        switch connectorId {
-                        case "canvas": await vm.syncCanvas()
-                        case "google_calendar": await vm.syncCalendar()
-                        case "google_drive": await vm.syncDrive()
-                        default: break
-                        }
-                    }
-                },
-                onDisconnect: {
-                    activeSheet = nil
-                    Task { await vm.disconnect(connectorId) }
-                }
-            )
-        }
-    }
-
-    private func sheetMeta(for id: String) -> (icon: String, syncNote: String?) {
-        switch id {
-        case "canvas": ("building.columns", nil)
-        case "google_calendar": ("calendar", nil)
-        case "google_drive": ("externaldrive", nil)
-        case "spotify": ("music.note", nil)
-        case "whatsapp": ("message.fill", nil)
-        default: ("link", nil)
-        }
-    }
-
-    // MARK: - Connected Count Card
-
-    private func connectedCountCard(vm: ConnectorsViewModel) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Portais conectados")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(red: 1.0, green: 0.988, blue: 0.973).opacity(0.88))
-                Text("Sincronize notas e horÃ¡rios automaticamente")
-                    .font(.system(size: 10.5))
-                    .foregroundColor(goldSubtle.opacity(0.35))
+    private func integrationCard(
+        id: String,
+        name: String,
+        iconAsset: String,
+        color: Color,
+        state: ConnectorState,
+        vm: ConnectorsViewModel
+    ) -> some View {
+        ConnectorCard(
+            letter: String(name.prefix(1)),
+            name: name,
+            status: state.status,
+            color: color,
+            iconAsset: iconAsset,
+            subtitle: state.subtitle,
+            lastSync: state.lastSync,
+            isStale: state.isStale,
+            stats: state.stats,
+            actionAccessibilityIdentifier: "settingsConnectorAction_\(id)",
+            onConnect: { Task { await vm.connectIntegration(id) } },
+            onDisconnect: { Task { await vm.disconnect(id) } },
+            onTapConnected: {
+                statusSelection = ConnectorStatusSelection(
+                    id: id,
+                    displayName: name,
+                    iconAsset: iconAsset
+                )
             }
-            Spacer()
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text("\(vm.connectedCount)")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.90))
-                Text("/\(vm.totalPortals)")
-                    .font(.system(size: 11))
-                    .foregroundColor(goldSubtle.opacity(0.30))
-            }
-        }
-        .padding(14)
-        .glassCard(cornerRadius: 16)
+        )
     }
 
-    // MARK: - Section Label
-
-    private func sectionLabel(_ text: String) -> some View {
-        SectionHeader(title: text)
-    }
-
-    // MARK: - Como Funciona
-
-    private var comoFunciona: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            howItWorksRow("1", "Conecte seu portal acadÃªmico com suas credenciais")
-            howItWorksRow("2", "Disciplinas, notas e horÃ¡rios sao importados")
-            howItWorksRow("3", "Dados sincronizam automaticamente a cada 15 minutos")
-            howItWorksRow("4", "Desconecte a qualquer momento â€” seus dados sao excluidos")
-        }
-    }
-
-    private func howItWorksRow(_ number: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            ZStack {
-                Circle()
-                    .fill(VitaColors.glassInnerLight.opacity(0.12))
-                    .frame(width: 22, height: 22)
-                    .overlay(
-                        Circle().stroke(Color(red: 1.0, green: 0.784, blue: 0.471).opacity(0.12), lineWidth: 1)
-                    )
-                Text(number)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.80))
-            }
-            Text(text)
-                .font(.system(size: 12))
-                .foregroundColor(goldSubtle.opacity(0.45))
-                .lineSpacing(3)
+    private var privacyNote: some View {
+        Label {
+            Text(String(localized: "connections_privacy_note"))
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        } icon: {
+            Image(systemName: "lock.shield")
+                .font(VitaTypography.titleSmall)
+                .foregroundStyle(VitaColors.accent)
+        }
+        .padding(.horizontal, VitaTokens.Spacing.xs)
+    }
+
+    private func portalSubtitle(state: ConnectorState, vm: ConnectorsViewModel) -> String {
+        if let subtitle = state.subtitle, !subtitle.isEmpty { return subtitle }
+        let university = universityDisplayLine(vm: vm)
+        return university.isEmpty
+            ? String(localized: "onboarding_connect_portal_subtitle")
+            : university
+    }
+
+    private func universityDisplayLine(vm: ConnectorsViewModel) -> String {
+        guard !vm.universityName.isEmpty else { return "" }
+        guard !vm.universityCity.isEmpty else { return vm.universityName }
+        return "\(vm.universityName) · \(vm.universityCity)"
+    }
+
+    private func configuredPortalURL(for portalType: String, vm: ConnectorsViewModel) -> String? {
+        if let stateURL = vm.state(for: portalType).instanceUrl, !stateURL.isEmpty {
+            return stateURL
+        }
+        return vm.universityPortals
+            .first(where: { $0.portalType == portalType })?
+            .instanceUrl
+    }
+
+    private func presentPortal(id: String, name: String, vm: ConnectorsViewModel) {
+        if let onPortalConnect {
+            onPortalConnect(id, configuredPortalURL(for: id, vm: vm))
+            return
+        }
+        portalSelection = PortalConnectionSelection(
+            id: id,
+            displayName: name,
+            iconAsset: "connector-\(id)",
+            instanceURL: configuredPortalURL(for: id, vm: vm)
+        )
+    }
+
+    private func presentWhatsApp(vm: ConnectorsViewModel) {
+        waPhone = vm.whatsapp.status == .connected ? "" : waPhone
+        waCode = ""
+        waStep = vm.whatsapp.status == .connected ? 2 : 0
+        waError = nil
+        showWhatsAppSheet = true
+    }
+
+    private func sendWhatsAppCode() async {
+        guard let vm else { return }
+        waSending = true
+        waError = nil
+        do {
+            try await vm.linkWhatsApp(phone: waPhone)
+            waStep = 1
+        } catch APIError.serverError(let code) where code == 429 {
+            waError = String(localized: "onboarding_whatsapp_rate_limit_error")
+        } catch APIError.serverError(let code) where code == 400 {
+            waError = String(localized: "onboarding_whatsapp_phone_error")
+        } catch {
+            waError = String(localized: "onboarding_whatsapp_send_error")
+        }
+        waSending = false
+    }
+
+    private func verifyWhatsAppCode() async {
+        guard let vm else { return }
+        waSending = true
+        waError = nil
+        do {
+            try await vm.verifyWhatsApp(code: waCode)
+            waStep = 2
+        } catch {
+            waError = String(localized: "onboarding_whatsapp_verify_error")
+        }
+        waSending = false
+    }
+
+    private func sync(_ id: String, vm: ConnectorsViewModel) async {
+        switch id {
+        case "canvas": await vm.syncCanvas()
+        case "moodle": await vm.syncMoodle()
+        case "google_calendar": await vm.syncCalendar()
+        case "google_drive": await vm.syncDrive()
+        default: break
         }
     }
 }
 
-// MARK: - String+Identifiable (for sheet binding)
+// MARK: - Portal connection form
 
-extension String: @retroactive Identifiable {
-    public var id: String { self }
+private struct PortalConnectionForm: View {
+    let selection: PortalConnectionSelection
+    let api: VitaAPI
+    let onConnected: () -> Void
+
+    @Environment(\.openURL) private var openURL
+    @State private var instanceURL: String
+    @State private var token = ""
+    @State private var errorMessage: String?
+    @State private var isConnecting = false
+
+    init(
+        selection: PortalConnectionSelection,
+        api: VitaAPI,
+        onConnected: @escaping () -> Void
+    ) {
+        self.selection = selection
+        self.api = api
+        self.onConnected = onConnected
+        _instanceURL = State(initialValue: selection.instanceURL ?? "")
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.xl) {
+                portalIdentity
+
+                OnboardingTextInput(
+                    value: $instanceURL,
+                    label: String(localized: "onboarding_portal_url_label"),
+                    placeholder: String(localized: "onboarding_portal_url_placeholder"),
+                    leadingSystemImage: "link",
+                    keyboardType: .URL,
+                    autocapitalization: .never,
+                    autocorrectionDisabled: true,
+                    accessibilityIdentifier: "settingsPortalURLInput_\(selection.id)"
+                )
+
+                VitaButton(
+                    text: String(
+                        format: String(localized: "onboarding_portal_open"),
+                        selection.displayName
+                    ),
+                    action: openPortal,
+                    variant: .secondary,
+                    size: .md,
+                    isEnabled: normalizedURL != nil,
+                    leadingSystemImage: "safari",
+                    fillsWidth: true
+                )
+
+                tutorial
+
+                OnboardingTextInput(
+                    value: $token,
+                    label: String(localized: "onboarding_portal_token_label"),
+                    placeholder: String(localized: "onboarding_portal_token_placeholder"),
+                    leadingSystemImage: "key",
+                    errorMessage: errorMessage,
+                    autocapitalization: .never,
+                    autocorrectionDisabled: true,
+                    isSecure: true,
+                    accessibilityIdentifier: "settingsPortalTokenInput_\(selection.id)"
+                )
+
+                VitaButton(
+                    text: String(localized: "onboarding_portal_connect"),
+                    action: { Task { await connect() } },
+                    variant: .primary,
+                    size: .md,
+                    isEnabled: normalizedURL != nil && !trimmedToken.isEmpty,
+                    isLoading: isConnecting,
+                    fillsWidth: true
+                )
+                .accessibilityIdentifier("settingsPortalSubmit_\(selection.id)")
+            }
+            .padding(.horizontal, VitaTokens.Spacing.xl)
+            .padding(.vertical, VitaTokens.Spacing.lg)
+        }
+    }
+
+    private var portalIdentity: some View {
+        HStack(alignment: .top, spacing: VitaTokens.Spacing.md) {
+            Image(selection.iconAsset)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 44, height: 44)
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: VitaTokens.Radius.md,
+                        style: .continuous
+                    )
+                )
+
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                Text(selection.displayName)
+                    .font(VitaTypography.titleMedium)
+                    .foregroundStyle(VitaColors.textPrimary)
+                Text(String(localized: "onboarding_portal_open_hint"))
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+        }
+    }
+
+    private var tutorial: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            Text(String(localized: "connections_token_help_title"))
+                .font(VitaTypography.titleSmall)
+                .foregroundStyle(VitaColors.textPrimary)
+
+            ForEach(Array(tutorialSteps.enumerated()), id: \.offset) { index, step in
+                HStack(alignment: .top, spacing: VitaTokens.Spacing.sm) {
+                    Text("\(index + 1)")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.accent)
+                        .frame(width: 20, height: 20)
+                        .background(VitaColors.accent.opacity(0.12), in: Circle())
+
+                    Text(step)
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private var tutorialSteps: [String] {
+        if selection.id == "canvas" {
+            return [
+                String(localized: "onboarding_canvas_step_1"),
+                String(localized: "onboarding_canvas_step_2"),
+                String(localized: "onboarding_canvas_step_3"),
+                String(localized: "onboarding_canvas_step_4"),
+                String(localized: "onboarding_canvas_step_5"),
+                String(localized: "onboarding_canvas_step_6"),
+            ]
+        }
+        return [
+            String(localized: "onboarding_moodle_step_1"),
+            String(localized: "onboarding_moodle_step_2"),
+            String(localized: "onboarding_moodle_step_3"),
+            String(localized: "onboarding_moodle_step_4"),
+        ]
+    }
+
+    private var trimmedToken: String {
+        token.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var normalizedURL: URL? {
+        let entered = instanceURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !entered.isEmpty else { return nil }
+        let normalized = entered.hasPrefix("http") ? entered : "https://\(entered)"
+        guard let url = URL(string: normalized), url.host != nil else { return nil }
+        return url
+    }
+
+    private func openPortal() {
+        guard let normalizedURL else { return }
+        openURL(normalizedURL)
+    }
+
+    private func connect() async {
+        guard let normalizedURL, !trimmedToken.isEmpty else { return }
+        isConnecting = true
+        errorMessage = nil
+
+        do {
+            let response: CanvasConnectResponse
+            if selection.id == "canvas" {
+                response = try await api.connectCanvas(
+                    accessToken: trimmedToken,
+                    instanceUrl: normalizedURL.absoluteString
+                )
+            } else {
+                response = try await api.connectMoodle(
+                    accessToken: trimmedToken,
+                    instanceUrl: normalizedURL.absoluteString
+                )
+            }
+
+            guard response.success else {
+                errorMessage = response.localizedErrorMessage
+                isConnecting = false
+                return
+            }
+
+            do {
+                if selection.id == "canvas" {
+                    if let connectionID = response.connectionId {
+                        _ = try await api.syncCanvas(connectionId: connectionID)
+                    } else {
+                        _ = try await api.syncCanvas()
+                    }
+                } else {
+                    _ = try await api.syncMoodle(connectionId: response.connectionId)
+                }
+            } catch {
+                NSLog(
+                    "[Connections] Initial %@ sync deferred: %@",
+                    selection.id,
+                    error.localizedDescription
+                )
+            }
+
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            onConnected()
+        } catch {
+            errorMessage = String(localized: "onboarding_portal_connection_error")
+            isConnecting = false
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+        }
+    }
 }
 
-// MARK: - ConnectionItemStatus
+private struct ConnectorStatusSelection: Identifiable {
+    let id: String
+    let displayName: String
+    let iconAsset: String
+}
+
+private struct PortalConnectionSelection: Identifiable {
+    let id: String
+    let displayName: String
+    let iconAsset: String
+    let instanceURL: String?
+}
 
 enum ConnectionItemStatus: Equatable {
-    case loading, connected, expired, disconnected
-
-    var accentColor: Color {
-        switch self {
-        case .connected:              return Color(red: 0.29, green: 0.87, blue: 0.50)
-        case .expired:                return VitaColors.dataAmber
-        case .disconnected, .loading: return VitaColors.textTertiary
-        }
-    }
-
-    @ViewBuilder
-    var badge: some View {
-        switch self {
-        case .connected:
-            statusBadge(icon: "checkmark.circle.fill", label: "Conectado",    color: Color(red: 0.29, green: 0.87, blue: 0.50))
-        case .expired:
-            statusBadge(icon: "exclamationmark.triangle.fill", label: "Expirado", color: VitaColors.dataAmber)
-        case .disconnected:
-            statusBadge(icon: "xmark.circle", label: "Desconectado", color: VitaColors.textTertiary)
-        case .loading:
-            EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private func statusBadge(icon: String, label: String, color: Color) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon).font(.system(size: 10))
-            Text(label).font(.system(size: 9, weight: .medium))
-        }
-        .foregroundColor(color)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(color.opacity(0.1))
-        .clipShape(Capsule())
-    }
+    case loading
+    case connected
+    case expired
+    case disconnected
 }

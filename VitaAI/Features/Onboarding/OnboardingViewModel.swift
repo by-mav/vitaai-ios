@@ -116,14 +116,6 @@ final class OnboardingViewModel {
         self.tokenStore = tokenStore
         self.api = api
         restoreDraft()
-
-        Task {
-            if self.nickname.isEmpty,
-               let name = await tokenStore.userName,
-               !name.isEmpty {
-                self.nickname = name.split(separator: " ").first.map(String.init) ?? name
-            }
-        }
     }
 
     func loadUniversities() async {

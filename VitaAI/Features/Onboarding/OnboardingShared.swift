@@ -221,10 +221,12 @@ struct OnboardingTextInput: View {
     var autocapitalization: TextInputAutocapitalization = .sentences
     var autocorrectionDisabled = false
     var showClearButton = true
+    var isSecure = false
     var accessibilityIdentifier: String? = nil
     var onSubmit: (() -> Void)? = nil
 
     @FocusState private var isFocused: Bool
+    @State private var revealsSecureValue = false
 
     private var borderColor: Color {
         if errorMessage != nil { return VitaColors.dataRed.opacity(0.8) }
@@ -248,7 +250,13 @@ struct OnboardingTextInput: View {
                         .frame(width: 22)
                 }
 
-                TextField(placeholder, text: $value)
+                Group {
+                    if isSecure && !revealsSecureValue {
+                        SecureField(placeholder, text: $value)
+                    } else {
+                        TextField(placeholder, text: $value)
+                    }
+                }
                     .font(VitaTypography.bodyLarge)
                     .foregroundStyle(VitaColors.textPrimary)
                     .tint(VitaColors.accent)
@@ -258,9 +266,27 @@ struct OnboardingTextInput: View {
                     .submitLabel(submitLabel)
                     .focused($isFocused)
                     .accessibilityIdentifier(accessibilityIdentifier ?? "")
-                    .onSubmit { onSubmit?() }
+                    .onSubmit {
+                        isFocused = false
+                        onSubmit?()
+                    }
 
-                if showClearButton && !value.isEmpty {
+                if isSecure && !value.isEmpty {
+                    Button {
+                        revealsSecureValue.toggle()
+                    } label: {
+                        Image(systemName: revealsSecureValue ? "eye.slash" : "eye")
+                            .font(VitaTypography.titleMedium)
+                            .foregroundStyle(VitaColors.textSecondary)
+                            .frame(width: 32, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        revealsSecureValue
+                            ? String(localized: "onboarding_a11y_hide_secure_value")
+                            : String(localized: "onboarding_a11y_show_secure_value")
+                    )
+                } else if showClearButton && !value.isEmpty {
                     Button {
                         value = ""
                     } label: {

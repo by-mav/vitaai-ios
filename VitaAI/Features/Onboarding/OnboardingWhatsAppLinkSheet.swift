@@ -9,44 +9,53 @@ struct OnboardingWhatsAppLinkContent: View {
     let onSendCode: () -> Void
     let onVerify: () -> Void
 
+    private var isPhoneValid: Bool {
+        (10...15).contains(phone.filter(\.isNumber).count)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
-            HStack(alignment: .top, spacing: VitaTokens.Spacing.md) {
-                Image("connector-whatsapp")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 44, height: 44)
-                    .clipShape(
-                        RoundedRectangle(
-                            cornerRadius: VitaTokens.Radius.md,
-                            style: .continuous
-                        )
-                    )
-
-                VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
-                    Text(String(localized: "onboarding_whatsapp_title"))
-                        .font(VitaTypography.titleMedium)
-                        .foregroundStyle(VitaColors.textPrimary)
-
-                    if stepIndex == 0 {
-                        Text(String(localized: "onboarding_whatsapp_subtitle"))
-                            .font(VitaTypography.bodySmall)
-                            .foregroundStyle(VitaColors.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                Spacer(minLength: 0)
-            }
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+            identity
 
             switch stepIndex {
-            case 0:
-                phoneEntry
-            case 1:
-                codeEntry
-            default:
-                connectedState
+            case 0: phoneEntry
+            case 1: codeEntry
+            default: connectedState
             }
+        }
+        .animation(.snappy, value: stepIndex)
+    }
+
+    private var identity: some View {
+        HStack(alignment: .top, spacing: VitaTokens.Spacing.md) {
+            Image("connector-whatsapp")
+                .resizable()
+                .scaledToFit()
+                .frame(
+                    width: VitaTokens.Spacing._4xl,
+                    height: VitaTokens.Spacing._4xl
+                )
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: VitaTokens.Radius.md,
+                        style: .continuous
+                    )
+                )
+
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                Text(String(localized: "onboarding_whatsapp_title"))
+                    .font(VitaTypography.titleMedium)
+                    .foregroundStyle(VitaColors.textPrimary)
+
+                if stepIndex == 0 {
+                    Text(String(localized: "onboarding_whatsapp_subtitle"))
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Spacer(minLength: 0)
         }
     }
 
@@ -65,13 +74,12 @@ struct OnboardingWhatsAppLinkContent: View {
         .textContentType(.telephoneNumber)
 
         VitaButton(
-            text: sending
-                ? String(localized: "onboarding_sending")
-                : String(localized: "onboarding_whatsapp_send_code"),
+            text: String(localized: "onboarding_whatsapp_send_code"),
             action: onSendCode,
             variant: .primary,
             size: .md,
-            isEnabled: phone.filter(\.isNumber).count >= 8 && !sending,
+            isEnabled: isPhoneValid,
+            isLoading: sending,
             fillsWidth: true
         )
         .accessibilityIdentifier("onboardingWhatsAppSendCodeButton")
@@ -101,13 +109,12 @@ struct OnboardingWhatsAppLinkContent: View {
         .textContentType(.oneTimeCode)
 
         VitaButton(
-            text: sending
-                ? String(localized: "onboarding_verifying")
-                : String(localized: "onboarding_whatsapp_verify"),
+            text: String(localized: "onboarding_whatsapp_verify"),
             action: onVerify,
             variant: .primary,
             size: .md,
-            isEnabled: code.filter(\.isNumber).count == 6 && !sending,
+            isEnabled: code.filter(\.isNumber).count == 6,
+            isLoading: sending,
             fillsWidth: true
         )
         .accessibilityIdentifier("onboardingWhatsAppVerifyButton")
@@ -116,15 +123,17 @@ struct OnboardingWhatsAppLinkContent: View {
             .font(VitaTypography.bodySmall)
             .foregroundStyle(VitaColors.textSecondary)
             .buttonStyle(.plain)
+            .disabled(sending)
             .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("onboardingWhatsAppResendButton")
     }
 
-    @ViewBuilder
     private var connectedState: some View {
         HStack(alignment: .top, spacing: VitaTokens.Spacing.sm) {
             Image(systemName: "checkmark.circle.fill")
                 .font(VitaTypography.titleLarge)
                 .foregroundStyle(VitaColors.success)
+
             VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
                 Text(String(localized: "onboarding_whatsapp_connected"))
                     .font(VitaTypography.titleSmall)
@@ -134,5 +143,6 @@ struct OnboardingWhatsAppLinkContent: View {
                     .foregroundStyle(VitaColors.textSecondary)
             }
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 }

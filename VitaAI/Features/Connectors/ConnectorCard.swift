@@ -1,325 +1,285 @@
 import SwiftUI
+import UIKit
 
 // MARK: - ConnectorCard
-// Shared card used by ConnectionsScreen, Onboarding ConnectStep, and any future connector entry point.
-// Mirrors Android's ConnectorCard composable and web's connector-card component.
-//
-// Gold Standard — 4 estados:
-// 1. Conectado + dados frescos (<12h): 🟢 "Conectado" | "56min atrás · 4172 notas" | [Desconectar]
-// 2. Conectado + dados velhos (>12h):  🟡 "Conectado" | "⚠ Dados 14h" + "⚡ Token vivo 3min" | [Desconectar]
-// 3. Expirado:                         🔴 "Expirado"  | "⚠ Expirado · dados 56min" (sem token vivo) | [Reconectar]
-// 4. Desconectado:                     ⚪ "Disponível" | — | [Conectar]
 
+/// Canonical connector row shared by onboarding and Settings.
+/// It owns the four user-visible states, destructive confirmation and a
+/// compact layout that stays readable with Dynamic Type.
 struct ConnectorCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let letter: String
     let name: String
     let status: ConnectionItemStatus
     let color: Color
-    var iconAsset: String?           // optional asset name (mascot-google-calendar, etc) — fallback to letter if missing
-    var iconCornerRadius: CGFloat? = nil // App Store artwork crop; legacy mascot assets stay unchanged
-    var subtitle: String?            // email, phone, or account info shown under name
+    var iconAsset: String?
+    var iconCornerRadius: CGFloat? = VitaTokens.Radius.md
+    var subtitle: String?
     var lastSync: String?
-    var lastPing: String?           // "sessao viva ha Xmin" — so quando status==connected e divergir do lastSync
-    var isStale: Bool = false        // conectado mas dados > 12h → dot e texto ficam ambar
+    var lastPing: String?
+    var isStale = false
     var stats: [(value: Int, label: String)] = []
-    var isPrimary: Bool = false
-    var actionAccessibilityIdentifier: String? = nil
+    var isPrimary = false
+    var actionAccessibilityIdentifier: String?
     var onConnect: (() -> Void)?
     var onDisconnect: (() -> Void)?
     var onTapConnected: (() -> Void)?
 
-    // Design tokens (gold palette)
-    private let goldSubtle = VitaColors.accentLight
-    private let borderColor = VitaColors.glassBorder
-    private let cardBg = VitaColors.glassBg
+    @State private var showsDisconnectConfirmation = false
 
-    // State-derived colors
-    private var dotColor: Color {
-        switch status {
-        case .connected:
-            return Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.75)
-        case .expired:
-            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.75)
-        default:
-            return Color.white.opacity(0.12)
-        }
+    private var isActive: Bool {
+        status == .connected || status == .expired
     }
 
-    private var dotGlow: Color {
+    private var stateColor: Color {
         switch status {
-        case .connected:
-            return Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.30)
-        case .expired:
-            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.30)
-        default:
-            return .clear
+        case .connected: VitaColors.success
+        case .expired: VitaColors.dataAmber
+        case .disconnected, .loading: VitaColors.textTertiary
         }
     }
 
     var body: some View {
-        let isActive = status == .connected || status == .expired
-
         VStack(spacing: 0) {
-            // Header row
-            HStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    letterIcon
-                    nameAndStatus
-                    Spacer()
+            HStack(spacing: VitaTokens.Spacing.md) {
+                Group {
+                    if isActive {
+                        Button {
+                            onTapConnected?()
+                        } label: {
+                            connectorIdentity
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        connectorIdentity
+                    }
                 }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if isActive { onTapConnected?() }
-                }
+
                 actionButton
             }
-            .padding(14)
+            .padding(VitaTokens.Spacing.lg)
 
-            // Meta row
-            if hasMetaData {
-                metaRow
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if isActive { onTapConnected?() }
-                    }
+            if hasMetadata {
+                metadata
             }
         }
-        .glassCard(cornerRadius: 16)
+        .vitaGlassCard(cornerRadius: VitaTokens.Radius.lg)
+        .vitaAlert(
+            isPresented: $showsDisconnectConfirmation,
+            title: String(localized: "connector_disconnect_title"),
+            message: String(
+                format: String(localized: "connector_disconnect_message_format"),
+                name
+            ),
+            destructiveLabel: String(localized: "connector_action_disconnect"),
+            cancelLabel: String(localized: "connector_action_cancel"),
+            onConfirm: { onDisconnect?() }
+        )
+        .accessibilityElement(children: .contain)
     }
 
-    // MARK: - Letter Icon
+    private var connectorIdentity: some View {
+        HStack(spacing: VitaTokens.Spacing.md) {
+            connectorIcon
+            titleBlock
+            Spacer(minLength: VitaTokens.Spacing.xs)
+        }
+        .contentShape(Rectangle())
+    }
 
-    private var letterIcon: some View {
-        // Prefer the bundled mascot asset (Vita mascot + connector logo composited)
-        // Falls back to the colored letter tile when the asset isn't available
-        // (placeholder for new connectors until artwork is provided).
+    private var connectorIcon: some View {
         Group {
-            if let asset = iconAsset, UIImage(named: asset) != nil {
-                Image(asset)
+            if let iconAsset, UIImage(named: iconAsset) != nil {
+                Image(iconAsset)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 40, height: 40)
                     .clipShape(
                         RoundedRectangle(
-                            cornerRadius: iconCornerRadius ?? 0,
+                            cornerRadius: iconCornerRadius ?? VitaTokens.Radius.md,
                             style: .continuous
                         )
                     )
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(color.opacity(0.22))
-                        .frame(width: 40, height: 40)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(color.opacity(0.18), lineWidth: 1)
-                        )
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                        .fill(color.opacity(0.16))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                                .stroke(color.opacity(0.20), lineWidth: 1)
+                        }
                     Text(letter)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(color.opacity(0.90))
+                        .font(VitaTypography.titleMedium)
+                        .foregroundStyle(color)
                 }
             }
         }
+        .frame(width: VitaTokens.Spacing._3xl, height: VitaTokens.Spacing._3xl)
+        .accessibilityHidden(true)
     }
 
-    // MARK: - Name + Status
-
-    private var nameAndStatus: some View {
-        VStack(alignment: .leading, spacing: 3) {
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xxs) {
             Text(name)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(Color(red: 1.0, green: 0.988, blue: 0.973).opacity(0.90))
+                .font(VitaTypography.titleSmall)
+                .foregroundStyle(VitaColors.textPrimary)
+                .lineLimit(1)
 
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
-                    .font(.system(size: 10.5))
-                    .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.50))
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textSecondary)
                     .lineLimit(1)
             }
 
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(dotColor)
-                    .frame(width: 7, height: 7)
-                    .shadow(color: dotGlow, radius: 3)
+            HStack(spacing: VitaTokens.Spacing.xs) {
+                Group {
+                    if status == .loading {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .tint(VitaColors.accent)
+                    } else {
+                        Circle()
+                            .fill(stateColor)
+                    }
+                }
+                .frame(width: VitaTokens.Spacing.xs, height: VitaTokens.Spacing.xs)
+
                 Text(statusLabel)
-                    .font(.system(size: 10.5))
-                    .foregroundColor(statusLabelColor)
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(stateColor)
             }
         }
     }
 
     private var statusLabel: String {
         switch status {
-        case .connected: "Conectado"
-        case .expired: "Expirado"
-        case .disconnected: isPrimary ? "Detectado" : "Disponível"
-        case .loading: "Carregando..."
+        case .connected: String(localized: "connector_status_connected")
+        case .expired: String(localized: "connector_status_expired")
+        case .disconnected:
+            String(localized: isPrimary ? "connector_status_detected" : "connector_status_available")
+        case .loading: String(localized: "connector_status_loading")
         }
     }
-
-    private var statusLabelColor: Color {
-        switch status {
-        case .connected: Color(red: 0.510, green: 0.784, blue: 0.549).opacity(0.65)
-        case .expired: Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.65)
-        default: isPrimary ? color.opacity(0.8) : goldSubtle.opacity(0.35)
-        }
-    }
-
-    // MARK: - Action Button
 
     private var actionButton: some View {
         Button {
             switch status {
             case .connected:
-                onDisconnect?()
-            case .expired:
-                onConnect?()  // Reconectar
-            default:
+                showsDisconnectConfirmation = true
+            case .expired, .disconnected:
                 onConnect?()
+            case .loading:
+                break
             }
         } label: {
-            Text(buttonLabel)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(buttonFgColor)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(buttonBgColor)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(buttonBorderColor, lineWidth: 1)
-                )
+            Group {
+                if status == .loading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(VitaColors.accent)
+                } else {
+                    Text(actionLabel)
+                        .font(VitaTypography.labelMedium)
+                }
+            }
+            .foregroundStyle(actionColor)
+            .padding(.horizontal, VitaTokens.Spacing.md)
+            .frame(minHeight: VitaTokens.Spacing._3xl)
+            .background(actionColor.opacity(0.10))
+            .overlay {
+                RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                    .stroke(actionColor.opacity(0.22), lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous))
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier(actionAccessibilityIdentifier ?? "")
+        .disabled(status == .loading)
+        .accessibilityIdentifier(actionAccessibilityIdentifier ?? "connectorAction_\(name)")
     }
 
-    private var buttonLabel: String {
+    private var actionLabel: String {
         switch status {
-        case .connected: "Desconectar"
-        case .expired: "Reconectar"
-        default: "Conectar"
+        case .connected: String(localized: "connector_action_disconnect")
+        case .expired: String(localized: "connector_action_reconnect")
+        case .disconnected: String(localized: "connector_action_connect")
+        case .loading: String(localized: "connector_status_loading")
         }
     }
 
-    private var buttonFgColor: Color {
+    private var actionColor: Color {
         switch status {
-        case .connected:
-            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.70)
-        case .expired:
-            return VitaColors.dataAmber.opacity(0.80)
-        default:
-            return isPrimary ? color : Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.80)
+        case .connected: VitaColors.dataRed
+        case .expired: VitaColors.dataAmber
+        case .disconnected, .loading: isPrimary ? color : VitaColors.accentLight
         }
     }
 
-    private var buttonBgColor: Color {
-        switch status {
-        case .connected:
-            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.06)
-        case .expired:
-            return VitaColors.dataAmber.opacity(0.10)
-        default:
-            return (isPrimary ? color : VitaColors.glassInnerLight).opacity(0.12)
-        }
+    private var hasMetadata: Bool {
+        lastSync != nil || stats.contains(where: { $0.value > 0 }) || (isStale && status == .connected)
     }
 
-    private var buttonBorderColor: Color {
-        switch status {
-        case .connected:
-            return Color(red: 1.0, green: 0.471, blue: 0.314).opacity(0.12)
-        case .expired:
-            return VitaColors.dataAmber.opacity(0.16)
-        default:
-            return (isPrimary ? color : Color(red: 1.0, green: 0.784, blue: 0.471)).opacity(0.16)
-        }
+    private var visibleStats: [(value: Int, label: String)] {
+        stats.filter { $0.value > 0 }
     }
 
-    // MARK: - Meta Row
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            Divider()
+                .overlay(VitaColors.glassBorder)
 
-    private var hasMetaData: Bool {
-        lastSync != nil || stats.contains(where: { $0.value > 0 })
-    }
-
-    private var syncTextColor: Color {
-        if status == .expired { return VitaColors.dataAmber.opacity(0.75) }
-        return Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55)
-    }
-
-    private var syncIconName: String {
-        status == .expired ? "exclamationmark.triangle.fill" : "clock"
-    }
-
-    private var syncIconColor: Color {
-        status == .expired
-            ? VitaColors.dataAmber.opacity(0.50)
-            : goldSubtle.opacity(0.25)
-    }
-
-    private var syncPrefix: String {
-        status == .expired ? "Expirado · dados " : ""
-    }
-
-    private var metaRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Rectangle()
-                .fill(goldSubtle.opacity(0.04))
-                .frame(height: 1)
-
-            // Line 1: sync time + stats
-            HStack(spacing: 6) {
-                if let sync = lastSync {
-                    Image(systemName: syncIconName)
-                        .font(.system(size: 8))
-                        .foregroundColor(syncIconColor)
-                    Text("\(syncPrefix)\(sync)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(syncTextColor)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: VitaTokens.Spacing.sm) {
+                    syncMetadata
+                    statsMetadata
+                    Spacer(minLength: 0)
                 }
 
-                if lastSync != nil && stats.contains(where: { $0.value > 0 }) {
-                    Circle()
-                        .fill(goldSubtle.opacity(0.20))
-                        .frame(width: 3, height: 3)
+                VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+                    syncMetadata
+                    statsMetadata
                 }
-
-                ForEach(stats.indices, id: \.self) { i in
-                    if stats[i].value > 0 {
-                        HStack(spacing: 2) {
-                            Text("\(stats[i].value)")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(Color(red: 1.0, green: 0.863, blue: 0.627).opacity(0.55))
-                            Text(stats[i].label)
-                                .font(.system(size: 10))
-                                .foregroundColor(goldSubtle.opacity(0.30))
-                        }
-                    }
-                }
-
-                Spacer()
             }
-            .padding(.horizontal, 14)
-            .padding(.top, 8)
 
-            // Line 2: alerta stale (gold standard 2026-04-27 — doutrina BYMAV)
-            // "Token vivo" foi REMOVIDO — passava segurança falsa pro user.
-            // Memory canon: feedback_app_doctrine_llm_canon_user_correction.md.
-            // Só mostra quando há problema REAL (sync travado >1h). UX limpo no caso normal.
             if isStale, status == .connected {
-                HStack(spacing: 4) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 8))
-                        .foregroundColor(VitaColors.dataAmber.opacity(0.85))
-                    Text("Sync travado · puxe pra atualizar")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(VitaColors.dataAmber.opacity(0.85))
-                    Spacer()
+                Label(
+                    String(localized: "connector_sync_stale"),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.dataAmber)
+            }
+        }
+        .padding(.horizontal, VitaTokens.Spacing.lg)
+        .padding(.bottom, VitaTokens.Spacing.md)
+    }
+
+    @ViewBuilder
+    private var syncMetadata: some View {
+        if let lastSync {
+            Label {
+                Text(
+                    status == .expired
+                        ? String(format: String(localized: "connector_sync_expired_format"), lastSync)
+                        : lastSync
+                )
+            } icon: {
+                Image(systemName: status == .expired ? "exclamationmark.triangle.fill" : "clock")
+            }
+            .font(VitaTypography.labelSmall)
+            .foregroundStyle(status == .expired ? VitaColors.dataAmber : VitaColors.textSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private var statsMetadata: some View {
+        if !visibleStats.isEmpty {
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                ForEach(visibleStats.indices, id: \.self) { index in
+                    Text("\(visibleStats[index].value) \(visibleStats[index].label)")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textSecondary)
                 }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
-            } else {
-                Spacer().frame(height: 8)
             }
         }
     }

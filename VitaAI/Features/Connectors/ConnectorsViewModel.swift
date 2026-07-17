@@ -4,257 +4,317 @@ import SafariServices
 import Observation
 
 // MARK: - ConnectorsViewModel
-// Unified state for all portal connections, used by ConnectionsScreen.
 
 @MainActor
 @Observable
 final class ConnectorsViewModel {
-    // Per-connector state — academic
-    var canvas = ConnectorState(id: "canvas", name: "Canvas LMS")
-
-    // Per-connector state — productivity
+    var canvas = ConnectorState(id: "canvas", name: "Canvas")
+    var moodle = ConnectorState(id: "moodle", name: "Moodle")
     var calendar = ConnectorState(id: "google_calendar", name: "Google Calendar")
     var drive = ConnectorState(id: "google_drive", name: "Google Drive")
-    var spotify = ConnectorState(id: "spotify", name: "Spotify")
     var whatsapp = ConnectorState(id: "whatsapp", name: "WhatsApp")
 
-    // University data
     var universityPortals: [UniversityPortal] = []
-    var universityName: String = ""
-    var universityCity: String = ""
+    var universityName = ""
+    var universityCity = ""
 
-    // Toast
     var toastMessage: String?
     var toastType: VitaToastType = .success
+    var hasLoaded = false
 
-    private let api: VitaAPI
-    private weak var dataManager: AppDataManager?
-
-    // SFSafariViewController apresentado para OAuth in-app (Spotify, Google Drive,
-    // Google Calendar). Guardado pra poder dismissar quando o deep link callback
-    // (vitaai://integrations/done) volta — SafariViewController não fecha sozinho
-    // como ASWebAuthenticationSession faria.
-    private weak var presentedOAuthSafari: SFSafariViewController?
+    @ObservationIgnored private let api: VitaAPI
+    @ObservationIgnored private weak var dataManager: AppDataManager?
+    @ObservationIgnored private weak var presentedOAuthSafari: SFSafariViewController?
+    @ObservationIgnored private var notificationObservers: [NSObjectProtocol] = []
+    @ObservationIgnored private var isBackgroundSyncing = false
 
     init(api: VitaAPI, dataManager: AppDataManager? = nil) {
         self.api = api
         self.dataManager = dataManager
-        // Listen pro callback de OAuth completar (postado pelo AppRouter quando
-        // recebe o deep link vitaai://integrations/done?provider=X).
-        NotificationCenter.default.addObserver(
-            forName: .integrationOAuthCompleted,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            Task { @MainActor in
-                self?.dismissOAuthSheet()
-                if let provider = note.object as? String {
-                    self?.toastMessage = "\(provider.capitalized) conectado"
-                    self?.toastType = .success
+
+        notificationObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: .integrationOAuthCompleted,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                Task { @MainActor in
+                    await self?.handleOAuthCompleted(provider: note.object as? String)
                 }
-                await self?.loadAll()
             }
-        }
+        )
+
+        notificationObservers.append(
+            NotificationCenter.default.addObserver(
+                forName: .integrationOAuthFailed,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                Task { @MainActor in
+                    await self?.handleOAuthFailed(
+                        provider: note.object as? String,
+                        reason: note.userInfo?["reason"] as? String
+                    )
+                }
+            }
+        )
     }
 
-    @MainActor
-    private func dismissOAuthSheet() {
-        presentedOAuthSafari?.dismiss(animated: true)
-        presentedOAuthSafari = nil
+    deinit {
+        notificationObservers.forEach(NotificationCenter.default.removeObserver)
     }
-
-    // MARK: - All integration connectors
 
     var allIntegrations: [ConnectorState] {
-        [calendar, drive, spotify, whatsapp]
+        [calendar, drive, whatsapp]
     }
-
-    // MARK: - Computed
 
     var connectedCount: Int {
-        ([canvas] + allIntegrations).filter { $0.status == .connected }.count
+        ([canvas, moodle] + allIntegrations)
+            .filter { $0.status == .connected }
+            .count
     }
 
-    var totalPortals: Int {
-        1 + allIntegrations.count
-    }
+    var totalPortals: Int { 5 }
 
-    func state(for portalId: String) -> ConnectorState {
-        switch portalId {
+    func state(for portalID: String) -> ConnectorState {
+        switch portalID {
         case "canvas": canvas
+        case "moodle": moodle
         case "google_calendar": calendar
         case "google_drive": drive
-        case "spotify": spotify
         case "whatsapp": whatsapp
-        default: ConnectorState(id: portalId, name: portalId)
+        default: ConnectorState(id: portalID, name: portalID)
         }
     }
-
-    // MARK: - Load All
 
     func loadAll() async {
         await loadUniversityPortals()
         await loadPortalConnections()
         await loadIntegrations()
+        hasLoaded = true
     }
 
-    /// Pull-to-refresh / "Sincronizar agora" handler.
-    ///
-    /// Pre-2026-04-27 the refresh gesture only re-fetched /api/portal/status
-    /// (loadAll), which never advances lastSyncAt — so cards stayed pinned at
-    /// "Sync travado · puxe pra atualizar" forever even when the user swiped
-    /// down 10 times. Backend had no user-auth trigger endpoint either.
-    ///
-    /// Now: hit POST /api/portal/sync-now first (Canvas PAT/API re-scrape),
-    /// then reload status.
-    /// lastPingAt and lastSyncAt advance on the server after the Canvas PAT/API
-    /// ingest succeeds, so the second loadAll() call already shows fresh state.
+    /// Refresh visible state immediately, then update every connected provider
+    /// concurrently. Canvas can legitimately take close to a minute, so making
+    /// `.refreshable` await all providers would pin the native spinner and make
+    /// a healthy screen look frozen.
     func refreshAndSync() async {
-        do {
-            try await api.triggerPortalSyncNow()
-        } catch {
-            // Silent failure is OK: cron still covers the user. Fall through
-            // to loadAll() so the card repaints with current backend state.
-            // the card at minimum re-paints with current backend state.
-            NSLog("[Connectors] sync-now trigger failed: \(error.localizedDescription)")
-        }
         await loadAll()
+
+        guard !isBackgroundSyncing else { return }
+        isBackgroundSyncing = true
+
+        let syncCanvas = canvas.status == .connected
+        let syncMoodle = moodle.status == .connected
+        let moodleConnectionID = moodle.connectionId
+        let syncCalendar = calendar.status == .connected
+        let syncDrive = drive.status == .connected
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.isBackgroundSyncing = false }
+
+            async let canvasResult: Void = self.syncCanvasIfNeeded(syncCanvas)
+            async let moodleResult: Void = self.syncMoodleIfNeeded(
+                syncMoodle,
+                connectionID: moodleConnectionID
+            )
+            async let calendarResult: Void = self.syncIntegrationIfNeeded(
+                syncCalendar,
+                provider: "google_calendar",
+                displayName: "Google Calendar"
+            )
+            async let driveResult: Void = self.syncIntegrationIfNeeded(
+                syncDrive,
+                provider: "google_drive",
+                displayName: "Google Drive"
+            )
+
+            _ = await (canvasResult, moodleResult, calendarResult, driveResult)
+            await self.loadAll()
+        }
     }
 
-    // MARK: - University Portals
+    private func syncCanvasIfNeeded(_ shouldSync: Bool) async {
+        guard shouldSync else { return }
+        do { try await api.triggerPortalSyncNow() }
+        catch { logRefreshFailure("Canvas", error: error) }
+    }
+
+    private func syncMoodleIfNeeded(_ shouldSync: Bool, connectionID: String?) async {
+        guard shouldSync else { return }
+        do { _ = try await api.syncMoodle(connectionId: connectionID) }
+        catch { logRefreshFailure("Moodle", error: error) }
+    }
+
+    private func syncIntegrationIfNeeded(
+        _ shouldSync: Bool,
+        provider: String,
+        displayName: String
+    ) async {
+        guard shouldSync else { return }
+        do { _ = try await api.syncIntegration(provider) }
+        catch { logRefreshFailure(displayName, error: error) }
+    }
+
+    // MARK: University
 
     private func loadUniversityPortals() async {
+        universityPortals = []
+        universityName = ""
+        universityCity = ""
+
         do {
-            // Reuse the cached profile from AppDataManager when present —
-            // avoids an extra /api/profile round-trip every time the user
-            // opens the connectors sheet.
             let profile: ProfileResponse
             if let cached = dataManager?.profile {
                 profile = cached
             } else {
                 profile = try await api.getProfile()
             }
-            let uniId = profile.universityId
-            let uniName = profile.university
-            guard let uniId, !uniId.isEmpty else { return }
 
-            let query = uniName ?? ""
-            let response = try await api.getUniversities(query: query)
-            if let uni = response.universities.first(where: { $0.id == uniId }) {
-                universityName = uni.shortName.isEmpty ? uni.name : uni.shortName
-                universityCity = uni.city
-                if let portals = uni.portals, !portals.isEmpty {
-                    universityPortals = portals
-                }
-            } else if let uniName, !uniName.isEmpty {
-                universityName = uniName
-            }
-        } catch {
-            print("[Connectors] University portals load failed: \(error)")
-        }
-    }
-
-    // MARK: - Portal Connections (Canvas PAT/API)
-
-    func loadPortalConnections() async {
-        do {
-            let data = try await api.getCanvasStatus()
-            guard let connections = data.connections, !connections.isEmpty else {
-                canvas.status = .disconnected
+            guard let universityID = profile.universityId, !universityID.isEmpty else {
+                if let name = profile.university { universityName = name }
                 return
             }
 
-            for conn in connections {
-                let status: ConnectionItemStatus = switch conn.status {
-                case "expired": .expired
-                case "inactive", "disconnected": .disconnected
-                default: .connected
-                }
+            let response = try await api.getUniversities(query: profile.university ?? "")
+            if let university = response.universities.first(where: { $0.id == universityID }) {
+                universityName = university.shortName.isEmpty
+                    ? university.name
+                    : university.shortName
+                universityCity = university.city
+                universityPortals = university.portals ?? []
+            } else if let name = profile.university {
+                universityName = name
+            }
+        } catch {
+            NSLog("[Connectors] University metadata failed: %@", error.localizedDescription)
+        }
+    }
 
-                // Separamos os dois conceitos:
-                // lastSyncAt  = última vez que dados foram extraídos com êxito
-                // lastPingAt  = última vez que o token/sessão foi verificado vivo (keep-alive)
-                // Se sync > 12h, card vira "stale" mesmo com status=connected.
-                let syncRelative = conn.lastSyncAt.flatMap { formatRelativeTime($0) }
-                let pingRelative = conn.lastPingAt.flatMap { formatRelativeTime($0) }
-                let syncAbsolute = conn.lastSyncAt.flatMap { formatAbsoluteTime($0) }
-                let stale = isStale(conn.lastSyncAt)
-                // So mostra "Token vivo" se status=connected E ping for MAIS RECENTE que sync.
-                // Se sync > ping, o ping antigo e irrelevante (acabou de reconectar).
-                // Quando expired, token NAO e vivo — nunca mostrar.
-                let pingNewerThanSync: Bool = {
-                    guard let pingDate = conn.lastPingAt.flatMap({ parseISO($0) }),
-                          let syncDate = conn.lastSyncAt.flatMap({ parseISO($0) }) else { return true }
-                    return pingDate > syncDate
-                }()
-                let pingDifferent = status == .connected && pingRelative != nil && pingRelative != syncRelative && pingNewerThanSync
+    // MARK: Learning portals
 
-                switch conn.portalType {
-                case "canvas":
-                    canvas.status = status
-                    canvas.lastSync = syncRelative ?? pingRelative
-                    canvas.lastPing = pingDifferent ? pingRelative : nil
-                    canvas.lastSyncAbsolute = syncAbsolute
-                    canvas.isStale = stale
-                    canvas.instanceUrl = conn.instanceUrl
-                    canvas.connectionId = conn.id
-                    canvas.stats = [
-                        (conn.counts?.subjects ?? 0, "matérias"),
-                        (conn.counts?.evaluations ?? 0, "atividades"),
-                        (conn.counts?.documents ?? 0, "arquivos"),
-                    ]
+    func loadPortalConnections() async {
+        do {
+            let response = try await api.getCanvasStatus()
+            canvas = ConnectorState(id: "canvas", name: "Canvas")
+            moodle = ConnectorState(id: "moodle", name: "Moodle")
+            for connection in response.connections ?? [] {
+                applyPortalConnection(connection)
+            }
+        } catch {
+            NSLog("[Connectors] Portal status failed: %@", error.localizedDescription)
+        }
+    }
+
+    private func applyPortalConnection(_ connection: CanvasStatusResponse.PortalConnectionDetail) {
+        guard let portalType = connection.portalType else { return }
+        let status: ConnectionItemStatus
+        switch connection.status {
+        case "expired": status = .expired
+        case "inactive", "disconnected": status = .disconnected
+        default: status = .connected
+        }
+
+        let relativeSync = connection.lastSyncAt.flatMap(formatRelativeTime)
+        let relativePing = connection.lastPingAt.flatMap(formatRelativeTime)
+        let pingIsNewer = isLater(connection.lastPingAt, than: connection.lastSyncAt)
+        let distinctPing = status == .connected
+            && relativePing != nil
+            && relativePing != relativeSync
+            && pingIsNewer
+
+        var state = ConnectorState(
+            id: portalType,
+            name: portalType == "moodle" ? "Moodle" : "Canvas"
+        )
+        state.status = status
+        state.lastSync = relativeSync ?? relativePing
+        state.lastPing = distinctPing ? relativePing : nil
+        state.lastSyncAbsolute = connection.lastSyncAt.flatMap(formatAbsoluteTime)
+        state.isStale = isStale(connection.lastSyncAt)
+        state.instanceUrl = connection.instanceUrl
+        state.connectionId = connection.id
+        state.stats = [
+            (
+                connection.counts?.subjects ?? 0,
+                String(localized: "connector_stat_subjects")
+            ),
+            (
+                connection.counts?.evaluations ?? 0,
+                String(localized: "connector_stat_activities")
+            ),
+            (
+                connection.counts?.documents ?? 0,
+                String(localized: "connector_stat_files")
+            ),
+        ]
+
+        switch portalType {
+        case "canvas": canvas = state
+        case "moodle": moodle = state
+        default: break
+        }
+    }
+
+    // MARK: Google and WhatsApp
+
+    private func loadIntegrations() async {
+        await loadWhatsAppStatus()
+
+        do {
+            let response = try await api.getIntegrations()
+            calendar = ConnectorState(id: "google_calendar", name: "Google Calendar")
+            drive = ConnectorState(id: "google_drive", name: "Google Drive")
+            for provider in response.providers {
+                switch provider.name {
+                case "google_calendar":
+                    applyIntegration(
+                        provider,
+                        to: &calendar,
+                        countLabel: String(localized: "connector_stat_events")
+                    )
+                case "google_drive":
+                    applyIntegration(
+                        provider,
+                        to: &drive,
+                        countLabel: String(localized: "connector_stat_files")
+                    )
                 default:
                     break
                 }
             }
         } catch {
-            print("[Connectors] Portal status load failed: \(error)")
+            NSLog("[Connectors] Integrations status failed: %@", error.localizedDescription)
         }
     }
 
-    // MARK: - Load Integrations (unified endpoint)
-
-    private func loadIntegrations() async {
-        // Load Google Calendar & Drive via existing specific endpoints
-        async let cal = loadCalendar()
-        async let drv = loadDrive()
-        async let wa = loadWhatsAppStatus()
-        _ = await (cal, drv, wa)
-
-        // Spotify: load from unified /api/integrations
-        // Backend shape (canonical 2026-04-26): { providers: [{ name, status, ... }] }
-        do {
-            let data = try await api.getIntegrations()
-            for item in data.providers {
-                switch item.name {
-                case "spotify":
-                    spotify.status = connectionStatus(from: item.status)
-                    spotify.lastSync = item.lastSyncAt.flatMap { formatRelativeTime($0) }
-                    if let email = item.providerAccountEmail { spotify.subtitle = email }
-                default: break
-                }
-            }
-        } catch {
-            // Decoder failure here = silent UX bug (connector stays "Conectar"
-            // even with tokens in DB). Always surface in console.
-            print("[Connectors] Integrations load failed: \(error)")
-        }
+    private func applyIntegration(
+        _ provider: IntegrationProviderInfo,
+        to connector: inout ConnectorState,
+        countLabel: String
+    ) {
+        connector.status = provider.connected
+            ? connectionStatus(from: provider.status)
+            : .disconnected
+        connector.lastSync = provider.lastSyncAt.flatMap(formatRelativeTime)
+        connector.lastSyncAbsolute = provider.lastSyncAt.flatMap(formatAbsoluteTime)
+        connector.isStale = isStale(provider.lastSyncAt)
+        connector.subtitle = provider.providerAccountEmail
+        connector.stats = provider.counts.map { [($0.total, countLabel)] } ?? []
     }
-
-    // MARK: - WhatsApp
 
     func loadWhatsAppStatus() async {
         do {
-            let data = try await api.getWhatsAppStatus()
-            if data.verified, data.phone != nil {
-                whatsapp.status = .connected
-                whatsapp.subtitle = Self.formatPhone(data.phone)
-            } else {
-                whatsapp.status = .disconnected
-                whatsapp.subtitle = nil
+            let status = try await api.getWhatsAppStatus()
+            var next = ConnectorState(id: "whatsapp", name: "WhatsApp")
+            if status.verified, status.phone != nil {
+                next.status = .connected
+                next.subtitle = Self.maskPhone(status.phone)
             }
+            whatsapp = next
         } catch {
-            whatsapp.status = .disconnected
+            NSLog("[Connectors] WhatsApp status failed: %@", error.localizedDescription)
         }
     }
 
@@ -264,8 +324,198 @@ final class ConnectorsViewModel {
 
     func verifyWhatsApp(code: String) async throws {
         let result = try await api.verifyWhatsApp(code: code)
-        if result.verified {
-            await loadWhatsAppStatus()
+        if result.verified { await loadWhatsAppStatus() }
+    }
+
+    // MARK: Connection lifecycle
+
+    func disconnect(_ connectorID: String) async {
+        do {
+            switch connectorID {
+            case "canvas":
+                try await api.disconnectCanvas()
+                canvas = ConnectorState(id: "canvas", name: "Canvas")
+            case "moodle":
+                try await api.disconnectPortal("moodle")
+                moodle = ConnectorState(id: "moodle", name: "Moodle")
+            case "google_calendar":
+                try await api.disconnectIntegration("google_calendar")
+                calendar = ConnectorState(id: "google_calendar", name: "Google Calendar")
+            case "google_drive":
+                try await api.disconnectIntegration("google_drive")
+                drive = ConnectorState(id: "google_drive", name: "Google Drive")
+            case "whatsapp":
+                try await api.unlinkWhatsApp()
+                whatsapp = ConnectorState(id: "whatsapp", name: "WhatsApp")
+            default:
+                return
+            }
+            toastMessage = String(localized: "connector_toast_disconnected")
+            toastType = .success
+        } catch {
+            toastMessage = String(localized: "connector_toast_disconnect_error")
+            toastType = .error
+            NSLog("[Connectors] Disconnect failed: %@", error.localizedDescription)
+        }
+    }
+
+    func connectIntegration(_ connectorID: String) async {
+        guard connectorID == "google_calendar" || connectorID == "google_drive" else {
+            return
+        }
+
+        setIntegrationStatus(connectorID, .loading)
+        do {
+            let response = try await api.startIntegrationOAuth(connectorID)
+            guard let rawURL = response.authUrl, let url = URL(string: rawURL) else {
+                setIntegrationStatus(connectorID, .disconnected)
+                toastMessage = String(localized: "connector_toast_invalid_authorization")
+                toastType = .error
+                return
+            }
+            presentSafari(url: url)
+        } catch {
+            setIntegrationStatus(connectorID, .disconnected)
+            toastMessage = String(localized: "connector_toast_connect_error")
+            toastType = .error
+        }
+    }
+
+    @MainActor
+    private func presentSafari(url: URL) {
+        guard
+            let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+            let root = scene.windows.first?.rootViewController
+        else { return }
+
+        let presenter = root.presentedViewController ?? root
+        let configuration = SFSafariViewController.Configuration()
+        configuration.barCollapsingEnabled = true
+        let safari = SFSafariViewController(url: url, configuration: configuration)
+        safari.preferredControlTintColor = UIColor(VitaColors.accent)
+        safari.dismissButtonStyle = .cancel
+        safari.modalPresentationStyle = .pageSheet
+        presentedOAuthSafari = safari
+        presenter.present(safari, animated: true)
+    }
+
+    private func handleOAuthCompleted(provider: String?) async {
+        dismissOAuthSheet()
+        guard let provider else {
+            await loadAll()
+            return
+        }
+
+        let displayName = Self.providerDisplayName(provider)
+        toastMessage = String(
+            format: String(localized: "connector_toast_connected_format"),
+            displayName
+        )
+        toastType = .success
+
+        do {
+            _ = try await api.syncIntegration(provider)
+        } catch {
+            toastMessage = String(localized: "connector_toast_initial_sync_deferred")
+        }
+        await loadAll()
+    }
+
+    private func handleOAuthFailed(provider: String?, reason: String?) async {
+        dismissOAuthSheet()
+        let displayName = provider.map(Self.providerDisplayName)
+            ?? String(localized: "connector_generic_name")
+        toastMessage = reason == "access_denied"
+            ? String(
+                format: String(localized: "connector_toast_cancelled_format"),
+                displayName
+            )
+            : String(
+                format: String(localized: "connector_toast_connect_error_format"),
+                displayName
+            )
+        toastType = .error
+        await loadAll()
+    }
+
+    private func dismissOAuthSheet() {
+        presentedOAuthSafari?.dismiss(animated: true)
+        presentedOAuthSafari = nil
+    }
+
+    // MARK: Manual sync
+
+    func syncCanvas() async {
+        guard canvas.connectionId != nil || canvas.instanceUrl != nil else {
+            toastMessage = String(localized: "connector_toast_canvas_reconnect")
+            toastType = .error
+            return
+        }
+
+        canvas.status = .loading
+        do {
+            if let connectionID = canvas.connectionId {
+                _ = try await api.syncCanvas(connectionId: connectionID)
+            } else {
+                _ = try await api.syncCanvas()
+            }
+            toastMessage = String(localized: "connector_toast_canvas_updated")
+            toastType = .success
+            await loadPortalConnections()
+        } catch {
+            canvas.status = .expired
+            toastMessage = String(localized: "connector_toast_canvas_expired")
+            toastType = .error
+        }
+    }
+
+    func syncMoodle() async {
+        moodle.status = .loading
+        do {
+            _ = try await api.syncMoodle(connectionId: moodle.connectionId)
+            await loadPortalConnections()
+            toastMessage = String(localized: "connector_toast_moodle_updated")
+            toastType = .success
+        } catch {
+            moodle.status = .expired
+            toastMessage = String(localized: "connector_toast_moodle_reconnect")
+            toastType = .error
+        }
+    }
+
+    func syncCalendar() async {
+        calendar.status = .loading
+        do {
+            _ = try await api.syncIntegration("google_calendar")
+            await loadIntegrations()
+            toastMessage = String(localized: "connector_toast_calendar_updated")
+            toastType = .success
+        } catch {
+            calendar.status = .connected
+            toastMessage = String(localized: "connector_toast_calendar_update_error")
+            toastType = .error
+        }
+    }
+
+    func syncDrive() async {
+        drive.status = .loading
+        do {
+            _ = try await api.syncIntegration("google_drive")
+            await loadIntegrations()
+            toastMessage = String(localized: "connector_toast_drive_updated")
+            toastType = .success
+        } catch {
+            drive.status = .connected
+            toastMessage = String(localized: "connector_toast_drive_update_error")
+            toastType = .error
+        }
+    }
+
+    private func setIntegrationStatus(_ connectorID: String, _ status: ConnectionItemStatus) {
+        switch connectorID {
+        case "google_calendar": calendar.status = status
+        case "google_drive": drive.status = status
+        default: break
         }
     }
 
@@ -277,246 +527,88 @@ final class ConnectorsViewModel {
         }
     }
 
-    // MARK: - Google Calendar
-
-    private func loadCalendar() async {
-        do {
-            let data = try await api.getGoogleCalendarStatus()
-            if data.connected {
-                calendar.status = data.status == "expired" ? .expired : .connected
-                calendar.lastSync = data.lastSyncAt.flatMap { formatRelativeTime($0) }
-                calendar.stats = [(data.counts?.events ?? 0, "eventos")]
-                calendar.subtitle = data.googleEmail
-            } else {
-                calendar.status = .disconnected
-            }
-        } catch {
-            calendar.status = .disconnected
+    private static func providerDisplayName(_ provider: String) -> String {
+        switch provider {
+        case "google_calendar": "Google Calendar"
+        case "google_drive": "Google Drive"
+        default: provider
         }
     }
 
-    // MARK: - Google Drive
+    // MARK: Formatting
 
-    private func loadDrive() async {
-        do {
-            let data = try await api.getGoogleDriveStatus()
-            if data.connected {
-                drive.status = data.status == "expired" ? .expired : .connected
-                drive.lastSync = data.lastSyncAt.flatMap { formatRelativeTime($0) }
-                drive.stats = [(data.counts?.files ?? 0, "arquivos")]
-                drive.subtitle = data.googleEmail
-            } else {
-                drive.status = .disconnected
-            }
-        } catch {
-            drive.status = .disconnected
-        }
+    private func parseISO(_ rawDate: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: rawDate) ?? ISO8601DateFormatter().date(from: rawDate)
     }
 
-    // MARK: - Disconnect
-
-    func disconnect(_ connectorId: String) async {
-        do {
-            switch connectorId {
-            case "canvas":
-                try await api.disconnectCanvas()
-                canvas = ConnectorState(id: "canvas", name: "Canvas LMS")
-            case "google_calendar":
-                try await api.disconnectIntegration("google_calendar")
-                calendar = ConnectorState(id: "google_calendar", name: "Google Calendar")
-            case "google_drive":
-                try await api.disconnectIntegration("google_drive")
-                drive = ConnectorState(id: "google_drive", name: "Google Drive")
-            case "spotify":
-                try await api.disconnectIntegration("spotify")
-                spotify = ConnectorState(id: "spotify", name: "Spotify")
-            case "whatsapp":
-                try await api.unlinkWhatsApp()
-                whatsapp = ConnectorState(id: "whatsapp", name: "WhatsApp")
-            default: break
-            }
-            toastMessage = "Desconectado"
-            toastType = .success
-        } catch {
-            print("[Connectors] Disconnect \(connectorId) error: \(error)")
-            toastMessage = "Erro ao desconectar"
-            toastType = .error
-        }
+    private func formatRelativeTime(_ rawDate: String) -> String? {
+        guard let date = parseISO(rawDate) else { return nil }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = .current
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
-    // MARK: - Connect
-
-    /// Apresenta SFSafariViewController in-app pro OAuth do provider (Spotify,
-    /// Google Calendar, Google Drive). Cookies persistem no view: user loga
-    /// 1x e nas próximas reconexões cai direto no "Authorize". Quando o
-    /// backend retorna `vitaai://integrations/done`, o iOS abre o app e o
-    /// observer de `integrationOAuthCompleted` dismissa a sheet.
-    func connectIntegration(_ connectorId: String) async {
-        do {
-            let data = try await api.startIntegrationOAuth(connectorId)
-            guard let authUrl = data.authUrl, let url = URL(string: authUrl) else { return }
-            await MainActor.run { presentSafari(url: url) }
-        } catch {
-            toastMessage = "Erro ao conectar"
-            toastType = .error
-        }
-    }
-
-    @MainActor
-    private func presentSafari(url: URL) {
-        guard
-            let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-            let root = scene.windows.first?.rootViewController
-        else { return }
-        // If something is already on top (e.g. a sheet), present from that.
-        let presenter = root.presentedViewController ?? root
-        let config = SFSafariViewController.Configuration()
-        config.barCollapsingEnabled = true
-        let safari = SFSafariViewController(url: url, configuration: config)
-        safari.preferredControlTintColor = UIColor(VitaColors.accent)
-        safari.dismissButtonStyle = .cancel
-        safari.modalPresentationStyle = .pageSheet
-        presentedOAuthSafari = safari
-        presenter.present(safari, animated: true)
-    }
-
-    // MARK: - Sync
-
-    func syncCanvas() async {
-        guard canvas.connectionId != nil || canvas.instanceUrl != nil else {
-            toastMessage = "Para re-sincronizar, reconecte ao Canvas"
-            toastType = .success
-            return
-        }
-
-        canvas.status = .loading
-        toastMessage = "Sincronizando Canvas..."
-        toastType = .success
-
-        do {
-            if let connectionId = canvas.connectionId {
-                _ = try await api.syncCanvas(connectionId: connectionId)
-            } else {
-                _ = try await api.syncCanvas()
-            }
-            toastMessage = "Canvas atualizado"
-            toastType = .success
-            await loadPortalConnections()
-        } catch {
-            toastMessage = "Token Canvas expirou — cole um PAT válido"
-            toastType = .error
-            canvas.status = .expired
-        }
-    }
-
-    func syncCalendar() async {
-        calendar.status = .loading
-        do {
-            _ = try await api.syncGoogleCalendar()
-            await loadCalendar()
-        } catch {
-            calendar.status = .connected
-        }
-    }
-
-    func syncDrive() async {
-        drive.status = .loading
-        do {
-            _ = try await api.syncGoogleDrive()
-            await loadDrive()
-        } catch {
-            drive.status = .connected
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func parseISO(_ isoDate: String) -> Date? {
-        let fmt = ISO8601DateFormatter()
-        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return fmt.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate)
-    }
-
-    private func formatRelativeTime(_ isoDate: String) -> String? {
-        var date: Date?
-        let fullFmt = ISO8601DateFormatter()
-        fullFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        date = fullFmt.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate)
-        guard let date else { return nil }
-        let minutes = Int(Date().timeIntervalSince(date) / 60)
-        if minutes < 1  { return "agora" }
-        if minutes < 60 { return "\(minutes)min atras" }
-        let hours = minutes / 60
-        if hours < 24   { return "\(hours)h atras" }
-        let fmt = DateFormatter()
-        fmt.dateFormat = "dd MMM"
-        fmt.locale = Locale(identifier: "pt_BR")
-        return fmt.string(from: date)
-    }
-
-    /// Data absoluta em PT-BR para ancora temporal: "11 abr, 19:54"
-    /// Se for hoje, vira "hoje, 19:54". Se > 7 dias, "11/04/26".
-    private func formatAbsoluteTime(_ isoDate: String) -> String? {
-        let fullFmt = ISO8601DateFormatter()
-        fullFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = fullFmt.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate) else { return nil }
-        let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "pt_BR")
+    private func formatAbsoluteTime(_ rawDate: String) -> String? {
+        guard let date = parseISO(rawDate) else { return nil }
         if Calendar.current.isDateInToday(date) {
-            fmt.dateFormat = "'hoje,' HH:mm"
-        } else if Date().timeIntervalSince(date) < 7 * 86_400 {
-            fmt.dateFormat = "dd MMM, HH:mm"
-        } else {
-            fmt.dateFormat = "dd/MM/yy"
+            let time = DateFormatter.localizedString(
+                from: date,
+                dateStyle: .none,
+                timeStyle: .short
+            )
+            return String(
+                format: String(localized: "connector_time_today_format"),
+                time
+            )
         }
-        return fmt.string(from: date)
+        return DateFormatter.localizedString(
+            from: date,
+            dateStyle: .medium,
+            timeStyle: .short
+        )
     }
 
-    /// Format BR phone: "5551989484243" → "+55 51 98948-4243"
-    private static func formatPhone(_ raw: String?) -> String? {
-        guard let raw, !raw.isEmpty else { return nil }
-        let digits = raw.filter(\.isNumber)
-        guard digits.count >= 10 else { return "+\(digits)" }
-        if digits.count == 13 {
-            // +CC AA 9XXXX-XXXX
-            let cc = digits.prefix(2)
-            let area = digits.dropFirst(2).prefix(2)
-            let part1 = digits.dropFirst(4).prefix(5)
-            let part2 = digits.dropFirst(9)
-            return "+\(cc) \(area) \(part1)-\(part2)"
-        }
-        if digits.count == 11 {
-            // AA 9XXXX-XXXX
-            let area = digits.prefix(2)
-            let part1 = digits.dropFirst(2).prefix(5)
-            let part2 = digits.dropFirst(7)
-            return "+55 \(area) \(part1)-\(part2)"
-        }
-        return "+\(digits)"
+    private func isLater(_ lhs: String?, than rhs: String?) -> Bool {
+        guard let lhs, let lhsDate = parseISO(lhs) else { return false }
+        guard let rhs, let rhsDate = parseISO(rhs) else { return true }
+        return lhsDate > rhsDate
     }
 
-    /// Considera stale quando a última extração com dados foi > 1h atrás.
-    /// Threshold reduzido de 12h -> 1h em 2026-04-27 (Rafael): user merece saber
-    /// que sync travou, não esperar meio dia. Pull-to-refresh força re-sync.
-    private func isStale(_ isoDate: String?) -> Bool {
-        guard let isoDate else { return false }
-        let fullFmt = ISO8601DateFormatter()
-        fullFmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = fullFmt.date(from: isoDate) ?? ISO8601DateFormatter().date(from: isoDate) else { return false }
-        return Date().timeIntervalSince(date) > 3600 // 1h
+    private func isStale(_ rawDate: String?) -> Bool {
+        guard let rawDate, let date = parseISO(rawDate) else { return false }
+        return Date().timeIntervalSince(date) > 3_600
+    }
+
+    private static func maskPhone(_ rawPhone: String?) -> String? {
+        guard let rawPhone else { return nil }
+        let digits = rawPhone.filter(\.isNumber)
+        guard !digits.isEmpty else { return nil }
+        return String(
+            format: String(localized: "connector_phone_mask_format"),
+            String(digits.suffix(4))
+        )
+    }
+
+    private func logRefreshFailure(_ provider: String, error: Error) {
+        NSLog(
+            "[Connectors] %@ refresh failed: %@",
+            provider,
+            error.localizedDescription
+        )
     }
 }
-
-// MARK: - ConnectorState
 
 struct ConnectorState {
     let id: String
     let name: String
     var status: ConnectionItemStatus = .disconnected
-    var lastSync: String?          // "dados extraidos" — relativo (ex: "3h atras")
-    var lastPing: String?          // "sessao viva" — relativo (so quando diferente de lastSync)
-    var lastSyncAbsolute: String?  // "11 abr as 19:54" para sheet e ancora temporal
-    var isStale: Bool = false      // true se lastSync > 12h (conectado mas dados velhos)
+    var lastSync: String?
+    var lastPing: String?
+    var lastSyncAbsolute: String?
+    var isStale = false
     var stats: [(value: Int, label: String)] = []
     var subtitle: String?
     var instanceUrl: String?

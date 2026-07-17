@@ -4,6 +4,8 @@ extension Notification.Name {
     /// Posted when an integration OAuth flow completes via deep link callback.
     /// Object is the provider name string (e.g. "google_calendar").
     static let integrationOAuthCompleted = Notification.Name("integrationOAuthCompleted")
+    /// Posted when provider authorization returns an error/cancellation.
+    static let integrationOAuthFailed = Notification.Name("integrationOAuthFailed")
     /// Posted when VitaAIShare extension imports an audio file for transcription.
     static let shareAudioImported = Notification.Name("shareAudioImported")
 }
@@ -46,7 +48,7 @@ final class DeepLinkHandler {
         /// Auth callback — handled separately by AuthManager.
         case authCallback
         /// Integration OAuth callback — provider connected successfully.
-        case integrationCallback(provider: String)
+        case integrationCallback(provider: String, succeeded: Bool, reason: String?)
         /// App Store reviewer token redeem — logs into pre-seeded demo account.
         /// vitaai://review?token=<APPLE_REVIEW_TOKEN>
         case reviewToken(String)
@@ -103,10 +105,30 @@ final class DeepLinkHandler {
             }
             return .unknown(url)
 
-        // Integration OAuth callback: vitaai://integrations/callback?provider=google_calendar&status=success
+        // Integration OAuth callbacks:
+        // vitaai://integrations/done?provider=google_calendar
+        // vitaai://integrations/error?provider=google_calendar&reason=access_denied
         case "integrations":
-            if pathSegments.first == "callback", let provider = queryValue("provider") {
-                return .integrationCallback(provider: provider)
+            if let provider = queryValue("provider") {
+                switch pathSegments.first {
+                case "done":
+                    return .integrationCallback(provider: provider, succeeded: true, reason: nil)
+                case "error":
+                    return .integrationCallback(
+                        provider: provider,
+                        succeeded: false,
+                        reason: queryValue("reason")
+                    )
+                case "callback":
+                    let succeeded = queryValue("status") != "error"
+                    return .integrationCallback(
+                        provider: provider,
+                        succeeded: succeeded,
+                        reason: succeeded ? nil : queryValue("reason")
+                    )
+                default:
+                    break
+                }
             }
             return .navigate(.connections)
 

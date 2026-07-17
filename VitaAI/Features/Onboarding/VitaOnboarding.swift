@@ -402,6 +402,8 @@ struct VitaOnboarding: View {
                 university: viewModel?.selectedUniversity,
                 allPortalTypes: viewModel?.allPortalTypes ?? [],
                 api: container.api,
+                canvasStatus: connectorsViewModel?.canvas.status ?? .disconnected,
+                moodleStatus: connectorsViewModel?.moodle.status ?? .disconnected,
                 calendarStatus: connectorsViewModel?.calendar.status ?? .disconnected,
                 driveStatus: connectorsViewModel?.drive.status ?? .disconnected,
                 whatsappStatus: connectorsViewModel?.whatsapp.status ?? .disconnected,
@@ -495,7 +497,7 @@ struct VitaOnboarding: View {
             Text(String(localized: "onboarding_btn_skip"))
                 .font(VitaTypography.bodySmall)
                 .foregroundStyle(
-                    step == .trial
+                    [.connect, .trial].contains(step)
                         ? VitaColors.textPrimary.opacity(0.68)
                         : VitaColors.textSecondary
                 )
@@ -663,8 +665,7 @@ struct VitaOnboarding: View {
         case .statusFaculdade:
             switch viewModel.academicPhase {
             case .graduando: return .welcome
-            case .vestibulando: return .connect
-            case .residencia, .professional, .other: return .goal
+            case .vestibulando, .residencia, .professional, .other: return .connect
             case nil: return nil
             }
         case .phaseResponse:
@@ -673,19 +674,20 @@ struct VitaOnboarding: View {
             switch viewModel.selectedGoal {
             case .revalida: return .revalidaStage
             case .residencia: return .residenciaSpecialty
-            case .faculdade, .enamed:
-                return viewModel.academicPhase == .graduando ? .notifications : .connect
+            case .faculdade, .enamed: return .notifications
             case nil: return nil
             }
         case .revalidaStage, .residenciaSpecialty:
-            return .connect
+            return .notifications
         case .welcome:
             return .connect
         case .connect:
-            guard viewModel.academicPhase == .graduando else { return .notifications }
-            if viewModel.activeSyncId != nil { return .syncing }
-            if !viewModel.syncedSubjects.isEmpty { return .subjects }
-            return .goal
+            if viewModel.academicPhase == .graduando {
+                if viewModel.activeSyncId != nil { return .syncing }
+                if !viewModel.syncedSubjects.isEmpty { return .subjects }
+                return .goal
+            }
+            return viewModel.academicPhase == .vestibulando ? .notifications : .goal
         case .extras:
             return nextStep(after: .connect)
         case .syncing:
@@ -714,10 +716,7 @@ struct VitaOnboarding: View {
                 : .phaseResponse
         case .connect:
             if viewModel.academicPhase == .graduando { return .welcome }
-            if viewModel.academicPhase == .vestibulando { return .statusFaculdade }
-            if viewModel.selectedGoal == .revalida { return .revalidaStage }
-            if viewModel.selectedGoal == .residencia { return .residenciaSpecialty }
-            return .goal
+            return .statusFaculdade
         case .extras:
             return .connect
         case .syncing: return .connect
@@ -726,13 +725,17 @@ struct VitaOnboarding: View {
             if viewModel.academicPhase == .graduando {
                 return viewModel.syncedSubjects.isEmpty ? .connect : .subjects
             }
-            return .statusFaculdade
+            return .connect
         case .revalidaStage:
             return .goal
         case .residenciaSpecialty:
             return .goal
         case .notifications:
-            return viewModel.academicPhase == .graduando ? .goal : .connect
+            if viewModel.academicPhase == .graduando { return .goal }
+            if viewModel.academicPhase == .vestibulando { return .connect }
+            if viewModel.selectedGoal == .revalida { return .revalidaStage }
+            if viewModel.selectedGoal == .residencia { return .residenciaSpecialty }
+            return .goal
         case .trial: return .notifications
         case .done: return .trial
         }
@@ -893,8 +896,8 @@ struct VitaOnboarding: View {
         case .sleep: return 0
         case .introduction: return 1
         case .statusFaculdade, .phaseResponse: return 2
-        case .goal, .welcome, .revalidaStage, .residenciaSpecialty: return 3
-        case .connect, .extras, .syncing, .subjects: return 4
+        case .welcome, .connect, .extras, .syncing, .subjects: return 3
+        case .goal, .revalidaStage, .residenciaSpecialty: return 4
         case .notifications, .trial: return 5
         case .done: return 6
         }

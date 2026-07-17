@@ -62,6 +62,15 @@ struct CanvasConnectResponse: Codable {
     var connectionId: String?
     var updated: Bool = false
     var error: String?
+
+    var localizedErrorMessage: String {
+        switch error {
+        case "invalid_credentials":
+            String(localized: "onboarding_portal_invalid_credentials")
+        default:
+            String(localized: "onboarding_portal_connection_error")
+        }
+    }
 }
 
 struct CanvasSyncResponse: Codable {
@@ -72,6 +81,16 @@ struct CanvasSyncResponse: Codable {
     var pdfExtracted: Int = 0
     var studyEvents: Int = 0
     var errors: [String] = []
+}
+
+struct MoodleSyncResponse: Codable {
+    var ok: Bool = false
+    var connectionId: String = ""
+    var subjects: Int = 0
+    var evaluations: Int = 0
+    var files: Int = 0
+    var calendarEvents: Int = 0
+    var warnings: [String] = []
 }
 
 struct CoursesResponse: Codable {

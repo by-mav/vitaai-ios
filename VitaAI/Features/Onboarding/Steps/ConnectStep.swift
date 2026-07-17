@@ -8,6 +8,8 @@ struct ConnectStep: View {
     var university: University?
     var allPortalTypes: [PortalTypeInfo]
     var api: VitaAPI?
+    var canvasStatus: ConnectionItemStatus
+    var moodleStatus: ConnectionItemStatus
     var calendarStatus: ConnectionItemStatus
     var driveStatus: ConnectionItemStatus
     var whatsappStatus: ConnectionItemStatus
@@ -87,56 +89,21 @@ struct ConnectStep: View {
             sectionLabel(String(localized: "onboarding_connect_portals_section"))
 
             ForEach(PortalChoice.allCases, id: \.rawValue) { choice in
-                Button {
-                    instanceURL = configuredPortalURL(for: choice)
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedPortal = choice
+                ConnectorCard(
+                    letter: String(choice.rawValue.prefix(1)),
+                    name: choice.rawValue,
+                    status: portalStatus(choice),
+                    color: University.color(for: choice.apiType),
+                    iconAsset: choice.iconAsset,
+                    subtitle: String(localized: "onboarding_connect_portal_subtitle"),
+                    isPrimary: !configuredPortalURL(for: choice).isEmpty,
+                    actionAccessibilityIdentifier: "onboardingPortal_\(choice.apiType)",
+                    onConnect: { selectPortal(choice) },
+                    onDisconnect: {
+                        connectedPortals.remove(choice)
+                        onDisconnect?(choice.apiType)
                     }
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(choice.iconAsset)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 40, height: 40)
-                            .clipShape(
-                                RoundedRectangle(
-                                    cornerRadius: VitaTokens.Radius.md,
-                                    style: .continuous
-                                )
-                            )
-                        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
-                            Text(choice.rawValue)
-                                .font(VitaTypography.titleSmall)
-                                .foregroundStyle(VitaColors.textPrimary)
-                            Text(String(localized: "onboarding_connect_portal_subtitle"))
-                                .font(VitaTypography.labelSmall)
-                                .foregroundStyle(VitaColors.textSecondary)
-                        }
-                        Spacer()
-                        Image(
-                            systemName: connectedPortals.contains(choice)
-                                ? "checkmark.circle.fill"
-                                : "chevron.right"
-                        )
-                        .font(VitaTypography.labelMedium)
-                        .foregroundStyle(
-                            connectedPortals.contains(choice)
-                                ? VitaColors.success
-                                : VitaColors.textSecondary
-                        )
-                    }
-                    .padding(VitaTokens.Spacing.lg)
-                    .background(
-                        RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
-                            .fill(VitaColors.glassBg)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
-                                    .stroke(VitaColors.glassBorder, lineWidth: 1)
-                            )
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("onboardingPortal_\(choice.apiType)")
+                )
             }
         }
     }
@@ -228,13 +195,28 @@ struct ConnectStep: View {
         }
     }
 
+    private func portalStatus(_ portal: PortalChoice) -> ConnectionItemStatus {
+        if connectedPortals.contains(portal) { return .connected }
+        switch portal {
+        case .canvas: return canvasStatus
+        case .moodle: return moodleStatus
+        }
+    }
+
+    private func selectPortal(_ portal: PortalChoice) {
+        instanceURL = configuredPortalURL(for: portal)
+        withAnimation(.snappy) {
+            selectedPortal = portal
+        }
+    }
+
     // MARK: - Token entry
 
     private func tokenEntry(portal: PortalChoice) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xl) {
+            HStack(spacing: VitaTokens.Spacing.md) {
                 Button {
-                    withAnimation(.spring(response: 0.3)) {
+                    withAnimation(.snappy) {
                         selectedPortal = nil
                         token = ""
                         instanceURL = ""
@@ -242,17 +224,35 @@ struct ConnectStep: View {
                     }
                 } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.4))
-                        .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(0.06))
+                        .font(VitaTypography.titleSmall)
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .frame(
+                            width: VitaTokens.Spacing._3xl,
+                            height: VitaTokens.Spacing._3xl
+                        )
+                        .background(VitaColors.glassBg)
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(String(localized: "onboarding_a11y_back"))
+
+                Image(portal.iconAsset)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(
+                        width: VitaTokens.Spacing._3xl,
+                        height: VitaTokens.Spacing._3xl
+                    )
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: VitaTokens.Radius.sm,
+                            style: .continuous
+                        )
+                    )
 
                 Text(portal.rawValue)
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .font(VitaTypography.titleMedium)
+                    .foregroundStyle(VitaColors.textPrimary)
                 Spacer()
             }
 
@@ -269,59 +269,38 @@ struct ConnectStep: View {
                 )
             }
 
-            // Open portal button. Token generation must stay in a browser;
-            // the installed LMS app does not expose this settings flow.
-            Button {
-                openPortal(portal: portal)
-            } label: {
-                HStack(spacing: 10) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(University.color(for: portal.apiType).opacity(0.15))
-                            .frame(width: 48, height: 48)
-                        Image(systemName: "arrow.up.right.square.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(University.color(for: portal.apiType))
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(
-                            String(localized: "onboarding_portal_open")
-                                .replacingOccurrences(of: "%@", with: portal.rawValue)
-                        )
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.85))
-                        Text(String(localized: "onboarding_portal_open_hint"))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.white.opacity(0.4))
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.2))
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(University.color(for: portal.apiType).opacity(0.05))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(University.color(for: portal.apiType).opacity(0.15), lineWidth: 1))
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(portalURL(for: portal).isEmpty)
-            .opacity(portalURL(for: portal).isEmpty ? 0.46 : 1)
+            VitaButton(
+                text: String(
+                    format: String(localized: "onboarding_portal_open"),
+                    portal.rawValue
+                ),
+                action: { openPortal(portal: portal) },
+                variant: .secondary,
+                size: .md,
+                isEnabled: !portalURL(for: portal).isEmpty,
+                leadingSystemImage: "safari",
+                fillsWidth: true
+            )
 
-            // Step-by-step text instructions
-            VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "onboarding_portal_open_hint"))
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
                 ForEach(Array(portal.tutorialSteps.enumerated()), id: \.offset) { index, step in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: VitaTokens.Spacing.sm) {
                         Text("\(index + 1)")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(VitaTypography.labelSmall)
                             .foregroundStyle(VitaColors.accent)
-                            .frame(width: 18, height: 18)
+                            .frame(
+                                width: VitaTokens.Spacing._2xl,
+                                height: VitaTokens.Spacing._2xl
+                            )
                             .background(Circle().fill(VitaColors.accent.opacity(0.12)))
                         Text(step)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .font(VitaTypography.bodySmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -334,6 +313,7 @@ struct ConnectStep: View {
                 errorMessage: errorMessage,
                 autocapitalization: .never,
                 autocorrectionDisabled: true,
+                isSecure: true,
                 accessibilityIdentifier: "onboardingPortalTokenInput"
             )
 
@@ -347,12 +327,8 @@ struct ConnectStep: View {
                 fillsWidth: true
             )
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.03))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.06), lineWidth: 1))
-        )
+        .padding(VitaTokens.Spacing.xl)
+        .vitaGlassCard(cornerRadius: VitaTokens.Radius.lg)
     }
 
     // MARK: - Logic
@@ -438,10 +414,27 @@ struct ConnectStep: View {
                     instanceURL = ""
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } else {
-                    errorMessage = result.error ?? String(localized: "onboarding_portal_invalid_token")
+                    errorMessage = result.localizedErrorMessage
                     UINotificationFeedbackGenerator().notificationOccurred(.error)
                 }
                 isConnecting = false
+            }
+            if result.success {
+                Task {
+                    do {
+                        switch portal {
+                        case .canvas:
+                            if let connectionId = result.connectionId {
+                                _ = try await api.syncCanvas(connectionId: connectionId)
+                            }
+                        case .moodle:
+                            _ = try await api.syncMoodle(connectionId: result.connectionId)
+                        }
+                    } catch {
+                        NSLog("[ConnectStep] Initial %@ sync deferred: %@", portal.rawValue, error.localizedDescription)
+                    }
+                    await onLoad?()
+                }
             }
         } catch {
             await MainActor.run {

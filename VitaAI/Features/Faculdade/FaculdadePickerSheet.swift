@@ -35,6 +35,7 @@ struct FaculdadePickerSheet: View {
     @State private var total = 0
     @State private var savingId: String?
     @State private var searchTask: Task<Void, Never>?
+    @FocusState private var searchFocused: Bool
 
     private static let bundledUniversities: [University] = {
         guard let data = NSDataAsset(name: "UniversitiesFallback")?.data else {
@@ -111,29 +112,7 @@ struct FaculdadePickerSheet: View {
                 header
             }
 
-            HStack(spacing: VitaTokens.Spacing.md) {
-                countryFlagButton
-
-                if choosingCountry {
-                    VitaInput(
-                        value: $countryQuery,
-                        placeholder: String(localized: "university_picker_country_search"),
-                        leadingSystemImage: "magnifyingglass",
-                        showClearButton: true,
-                        submitLabel: .search
-                    )
-                    .accessibilityIdentifier("universityCountrySearch")
-                } else {
-                    VitaInput(
-                        value: $query,
-                        placeholder: String(localized: "university_picker_search_global"),
-                        leadingSystemImage: "magnifyingglass",
-                        showClearButton: true,
-                        submitLabel: .search
-                    )
-                    .accessibilityIdentifier("universityPickerSearch")
-                }
-            }
+            searchControl
 
             Group {
                 if choosingCountry {
@@ -187,44 +166,92 @@ struct FaculdadePickerSheet: View {
         }
     }
 
-    private var countryFlagButton: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            choosingCountry.toggle()
-            if choosingCountry {
-                UIApplication.shared.sendAction(
-                    #selector(UIResponder.resignFirstResponder),
-                    to: nil,
-                    from: nil,
-                    for: nil
-                )
+    private var activeSearchText: Binding<String> {
+        Binding(
+            get: { choosingCountry ? countryQuery : query },
+            set: { value in
+                if choosingCountry {
+                    countryQuery = value
+                } else {
+                    query = value
+                }
             }
-        } label: {
-            Text(flagEmoji(for: selectedCountryCode))
-                .font(VitaTypography.headlineSmall)
-                .frame(
-                    width: VitaTokens.Spacing._4xl + VitaTokens.Spacing._2xl,
-                    height: VitaTokens.Spacing._4xl + VitaTokens.Spacing._2xl
-                )
-                .background {
-                    RoundedRectangle(
-                        cornerRadius: VitaTokens.Radius.lg,
-                        style: .continuous
+        )
+    }
+
+    private var searchControl: some View {
+        HStack(spacing: VitaTokens.Spacing.sm) {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                choosingCountry.toggle()
+                countryQuery = ""
+                searchFocused = false
+            } label: {
+                Text(flagEmoji(for: selectedCountryCode))
+                    .font(VitaTypography.titleMedium)
+                    .frame(
+                        width: VitaTokens.Spacing._4xl + VitaTokens.Spacing.md,
+                        height: VitaTokens.Spacing._4xl + VitaTokens.Spacing.md
                     )
-                    .fill(VitaColors.glassBg)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("universityCountrySelector")
+            .accessibilityLabel(String(localized: "university_picker_country_label"))
+            .accessibilityValue(selectedCountryName)
+
+            Image(systemName: "magnifyingglass")
+                .font(VitaTypography.titleMedium)
+                .foregroundStyle(VitaColors.textSecondary)
+                .frame(width: VitaTokens.Spacing._2xl)
+
+            TextField(
+                choosingCountry
+                    ? String(localized: "university_picker_country_search")
+                    : String(localized: "university_picker_search_global"),
+                text: activeSearchText
+            )
+            .font(VitaTypography.bodyLarge)
+            .foregroundStyle(VitaColors.textPrimary)
+            .tint(VitaColors.accent)
+            .textInputAutocapitalization(.words)
+            .autocorrectionDisabled()
+            .submitLabel(.search)
+            .focused($searchFocused)
+            .accessibilityIdentifier(
+                choosingCountry ? "universityCountrySearch" : "universityPickerSearch"
+            )
+
+            if !activeSearchText.wrappedValue.isEmpty {
+                Button { activeSearchText.wrappedValue = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(VitaTypography.titleSmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                        .frame(
+                            width: VitaTokens.Spacing._4xl + VitaTokens.Spacing.md,
+                            height: VitaTokens.Spacing._4xl + VitaTokens.Spacing.md
+                        )
+                        .contentShape(Rectangle())
                 }
-                .overlay {
-                    RoundedRectangle(
-                        cornerRadius: VitaTokens.Radius.lg,
-                        style: .continuous
-                    )
-                    .stroke(VitaColors.glassBorder, lineWidth: 1)
-                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(String(localized: "common_clear"))
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("universityCountrySelector")
-        .accessibilityLabel(String(localized: "university_picker_country_label"))
-        .accessibilityValue(selectedCountryName)
+        .padding(.leading, VitaTokens.Spacing.xs)
+        .padding(.trailing, VitaTokens.Spacing.xs)
+        .frame(minHeight: VitaTokens.Spacing._4xl + VitaTokens.Spacing.xl)
+        .background {
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .fill(VitaColors.glassBg)
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .stroke(
+                    searchFocused ? VitaColors.accent : VitaColors.glassBorder,
+                    lineWidth: 1
+                )
+        }
+        .animation(.easeInOut(duration: 0.15), value: searchFocused)
     }
 
     private var countryCatalog: some View {
