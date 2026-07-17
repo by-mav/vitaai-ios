@@ -182,12 +182,6 @@ actor VitaAPI {
 
     // MARK: - Flashcards
 
-    func getMockupFlashcards(dueOnly: Bool = false) async throws -> [FlashcardDeckEntry] {
-        var items: [URLQueryItem] = []
-        if dueOnly { items.append(.init(name: "due", value: "true")) }
-        return try await client.get("study/flashcards", queryItems: items.isEmpty ? nil : items)
-    }
-
     /// GET /api/study/flashcards/library — a Biblioteca Vita pela arvore canonica
     /// (area → disciplina, com contagem). O deck da Biblioteca eh um acervo
     /// ("Medicina" = 6.391 cards de Reumato+Nefro+Cardio...): listar o DECK
@@ -315,15 +309,6 @@ actor VitaAPI {
             "study/flashcards/\(cardId)/bury",
             body: EmptyBody()
         )
-    }
-
-    /// GET /api/study/flashcards/preview â€” due/learning/new + projectedSessionTime
-    /// pro Flashcard Builder. Spec: openapi.yaml linha 5132. Added 2026-04-29.
-    func previewFlashcards(lens: String? = nil, groupSlug: String? = nil, mode: String = "due") async throws -> FlashcardsPreviewResp {
-        var items: [URLQueryItem] = [URLQueryItem(name: "mode", value: mode)]
-        if let lens, !lens.isEmpty { items.append(URLQueryItem(name: "lens", value: lens)) }
-        if let groupSlug, !groupSlug.isEmpty { items.append(URLQueryItem(name: "groupSlug", value: groupSlug)) }
-        return try await client.get("study/flashcards/preview", queryItems: items)
     }
 
     /// POST /api/study/flashcards/session â€” cria fila SRS (FSRS scheduling) pro
@@ -905,7 +890,7 @@ actor VitaAPI {
     }
 
     /// Onda 5b â€” onboarding v2 (Rafael 2026-04-27).
-    /// Backend deriva journeyType + journeyConfig + contentOrganizationMode.
+    /// Backend deriva journeyType + journeyConfig.
     func postOnboardingV2(_ body: OnboardingV2Request) async throws -> OnboardingV2Response {
         try await client.post("onboarding/v2", body: body)
     }
@@ -1229,10 +1214,6 @@ actor VitaAPI {
         )
     }
 
-    func getMockupFlashcardsRecommended() async throws -> [FlashcardRecommended] {
-        try await client.get("study/flashcards/recommended")
-    }
-
     func generateSimulado(_ body: GenerateSimuladoRequest) async throws -> GenerateSimuladoResponse {
         try await client.post("simulados/generate", body: body)
     }
@@ -1361,7 +1342,6 @@ struct OnboardingV2Profile: Decodable {
 
 struct OnboardingV2Derived: Decodable {
     let journeyType: String?
-    let contentOrganizationMode: String?
     let moment: String?
 }
 

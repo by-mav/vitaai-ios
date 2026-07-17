@@ -16,6 +16,7 @@ struct LoginScreen: View {
     @State private var vitaTapped = false
     @State private var vitaDragX: CGFloat = 0
     @State private var hintBounce: CGFloat = 0
+    @State private var showEmailAuth = false
 
     private enum LoadingProvider { case google, apple, none }
 
@@ -220,6 +221,19 @@ struct LoginScreen: View {
                         .padding(.horizontal, 36)
                         .opacity(appleAppear)
                         .offset(y: (1 - appleAppear) * 20)
+
+                        #if DEBUG
+                        Spacer().frame(height: 10)
+
+                        Button("Entrar com email (QA)") {
+                            showEmailAuth = true
+                        }
+                        .font(VitaTypography.labelMedium)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .accessibilityIdentifier("emailAuthButton")
+                        .opacity(appleAppear)
+                        .offset(y: (1 - appleAppear) * 20)
+                        #endif
                     }
 
                     if let error = authManager.error {
@@ -304,6 +318,11 @@ struct LoginScreen: View {
         .onChange(of: authManager.isLoading) { _, newValue in
             if !newValue { loadingProvider = .none }
         }
+        #if DEBUG
+        .sheet(isPresented: $showEmailAuth) {
+            EmailAuthSheet(authManager: authManager)
+        }
+        #endif
         .onAppear { SentrySDK.reportFullyDisplayed() }
         .trackScreen("Login")
     }

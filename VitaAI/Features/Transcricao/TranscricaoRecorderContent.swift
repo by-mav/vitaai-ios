@@ -526,61 +526,6 @@ struct LiveWaveformBars: View {
     }
 }
 
-// MARK: - (legacy discipline chips — kept for recordings list filter, renamed)
-
-private struct LegacyChips: View {
-    let disciplines: [String]
-    @Binding var selected: String
-    let disabled: Bool
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(disciplines, id: \.self) { disc in
-                    let isSelected = selected == disc
-                    Button {
-                        if !disabled {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selected = disc
-                            }
-                        }
-                    } label: {
-                        Text(disc)
-                            .font(.system(size: 11, weight: .medium))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .foregroundStyle(
-                                isSelected
-                                    ? VitaColors.accentHover.opacity(0.90)
-                                    : VitaColors.textWarm.opacity(0.35)
-                            )
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(
-                                        isSelected
-                                            ? VitaColors.accent.opacity(0.10)
-                                            : Color.white.opacity(0.04)
-                                    )
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(
-                                        isSelected
-                                            ? VitaColors.accent.opacity(0.30)
-                                            : VitaColors.accent.opacity(0.06),
-                                        lineWidth: 1
-                                    )
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .opacity(disabled ? 0.5 : 1.0)
-                }
-            }
-        }
-    }
-}
 
 // MARK: - Live Transcript Box
 

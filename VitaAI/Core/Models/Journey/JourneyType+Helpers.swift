@@ -33,23 +33,3 @@ extension JourneyType {
         }
     }
 }
-
-// MARK: - ContentOrganizationMode helpers (3 lentes — Onda 4)
-
-extension ContentOrganizationMode {
-    var displayName: String {
-        switch self {
-        case .tradicional: return "Tradicional"
-        case .pbl: return "PBL"
-        case .greatAreas: return "CNRM/Enare"
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .tradicional: return "books.vertical"
-        case .pbl: return "circle.hexagongrid"
-        case .greatAreas: return "target"
-        }
-    }
-}

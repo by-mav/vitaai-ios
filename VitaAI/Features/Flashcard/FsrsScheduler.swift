@@ -348,7 +348,7 @@ struct FsrsScheduler {
 
 extension FsrsScheduler {
     /// Format an interval (days) to a human-readable label.
-    /// Matches SM2Scheduler.formatInterval for UI consistency.
+    /// Formata o intervalo pra UI (ex: "3 d", "2 sem").
     static func formatInterval(_ days: Int) -> String {
         switch days {
         case ..<1:    return "<10m"

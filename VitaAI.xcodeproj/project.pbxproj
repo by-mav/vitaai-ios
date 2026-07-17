@@ -83,7 +83,6 @@
 		072167FBEB0F2D1CC3E57D35 /* paste-a3220978345948c127ec418d3b1870c8fca15208.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 831C4FE366069897D02F23E2 /* paste-a3220978345948c127ec418d3b1870c8fca15208.jpg */; };
 		073AE3178FF61007C6BB1464 /* paste-44f0e47cf61d81df87bdad95f4c7be68c373b35f.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C5617C3DC99596B0AF0A95AE /* paste-44f0e47cf61d81df87bdad95f4c7be68c373b35f.jpg */; };
 		0746A0584FD666A49075EF13 /* tmpbv_a_ywc.png in Resources */ = {isa = PBXBuildFile; fileRef = B4637BEE6C8B73E2CA5EA1C6 /* tmpbv_a_ywc.png */; };
-		0780E271D8611FDE00449801 /* AssinaturaScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F671C3A0DA731099C2B38F /* AssinaturaScreen.swift */; };
 		0786A5E644D23DE94195411C /* paste-7e6754d6219dc2e74cdb608bf9809ef029179410.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6C109AF5AE575A22CB39D4D1 /* paste-7e6754d6219dc2e74cdb608bf9809ef029179410.jpg */; };
 		0788F32D8D6AF8482DF23E02 /* OneDollarRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF7A4E142CDD4D34FC14BF1 /* OneDollarRecognizer.swift */; };
 		0795A8F1B5B0B834D4C6735D /* clip_image006-e0a910ac239bc85add8fd80351e81baa3a4ca05e.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6A86B9EE94AE3208743EAB81 /* clip_image006-e0a910ac239bc85add8fd80351e81baa3a4ca05e.jpg */; };
@@ -562,7 +561,6 @@
 		3936A0ABB93BA5993A807A82 /* paste-27bbda3302c2a749164187921f544ae82ee8ae26.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 28EF4AB65E5E5170A874A0C7 /* paste-27bbda3302c2a749164187921f544ae82ee8ae26.jpg */; };
 		39385C5B0814FF112278FF51 /* OnboardingWhatsAppLinkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6755C4D9337DD81D33B0469 /* OnboardingWhatsAppLinkSheet.swift */; };
 		393B99BF82A63CFBFD3CF527 /* paste-a9a0701f433871d938e807bed289b72d23821c9b.jpg in Resources */ = {isa = PBXBuildFile; fileRef = D6ECE64CD57CDA621926D786 /* paste-a9a0701f433871d938e807bed289b72d23821c9b.jpg */; };
-		39472E20831D493CC43D2BE5 /* PaywallScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56845E72F3F2F9B9857BA4F8 /* PaywallScreen.swift */; };
 		395CEC638C837B256B66D6B5 /* paste-f73ce5f6f5cb70641efc5a11b498084a1b1b89be.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FB391E4952A9B4BC5FA37754 /* paste-f73ce5f6f5cb70641efc5a11b498084a1b1b89be.jpg */; };
 		397652918DBBC7E8D3B2327D /* paste-3b4b2835dcf670bf2f2394d6531ba5715d2ab643.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2DD53C12A7FD2326E74B0E3F /* paste-3b4b2835dcf670bf2f2394d6531ba5715d2ab643.jpg */; };
 		3976720402809800F28DDBE3 /* paste-e0508e294ce668ac71864a042dcc57d865d5bfb7.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 86EC78F4A98C5F37AADC0037 /* paste-e0508e294ce668ac71864a042dcc57d865d5bfb7.jpg */; };
@@ -1929,7 +1927,6 @@
 		D71226F68E537469A683DB5A /* paste-4d086c327c4fe4472c12e4668c2447f793ad65db.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C0D3AAD11C0DC8E5CCD3D7B3 /* paste-4d086c327c4fe4472c12e4668c2447f793ad65db.jpg */; };
 		D71C33E375D6C8EE8D59EFCE /* paste-acb328426a265beb5f290f5ee651c91ffc2076f4.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 4C1086609ACC6BDBCDE11DF0 /* paste-acb328426a265beb5f290f5ee651c91ffc2076f4.jpg */; };
 		D7217D84464BA516E7AF0963 /* StudyMaterialPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D28346E25228D4A3AFB2E37A /* StudyMaterialPicker.swift */; };
-		D74D8974F3C7F7CCC468ED41 /* ContentOrganizationMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 669F55CB39152BDC37B4A44C /* ContentOrganizationMode.swift */; };
 		D76983D0DDDC83F507AA25EA /* DashboardSubject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9877E4BC0BCC5C79562154CD /* DashboardSubject.swift */; };
 		D82CA3816F150006D3592CE1 /* tmp054_l0rb.png in Resources */ = {isa = PBXBuildFile; fileRef = 8DA2F67D1FF2FE26C9530D46 /* tmp054_l0rb.png */; };
 		D866276E0403D6F246E90C03 /* pneumo.png in Resources */ = {isa = PBXBuildFile; fileRef = B5B359C070EA417F813E4403 /* pneumo.png */; };
@@ -3022,7 +3019,6 @@
 		56070A85806C4A03482B2840 /* tmpjyfccjax.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmpjyfccjax.png; sourceTree = "<group>"; };
 		564E8E7192471F3F1E0AD40A /* QBankCoordinatorScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankCoordinatorScreen.swift; sourceTree = "<group>"; };
 		5663C6269519892E8D5FC515 /* paste-287c41a097241d3a6572c0b1a852e50d12c4a65a.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-287c41a097241d3a6572c0b1a852e50d12c4a65a.jpg"; sourceTree = "<group>"; };
-		56845E72F3F2F9B9857BA4F8 /* PaywallScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallScreen.swift; sourceTree = "<group>"; };
 		568D813F00758A7D3E1BAB7C /* paste-7617abdcc2271c8deafbefcce022ebdeba65d913.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-7617abdcc2271c8deafbefcce022ebdeba65d913.jpg"; sourceTree = "<group>"; };
 		569A283ECBBF549142B29888 /* paste-d1de55a312eb92f1107e781e135ff031409aebdb.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-d1de55a312eb92f1107e781e135ff031409aebdb.jpg"; sourceTree = "<group>"; };
 		56BF23CEB706C449C569C35D /* paste-e22de8b0b62cf906f3322607630610ef2877e18e.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-e22de8b0b62cf906f3322607630610ef2877e18e.jpg"; sourceTree = "<group>"; };
@@ -3168,7 +3164,6 @@
 		6623AE9F20EEA51B7A8EB3F7 /* paste-da5df21cef256146a539c9d27026c943d8f9060b.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-da5df21cef256146a539c9d27026c943d8f9060b.jpg"; sourceTree = "<group>"; };
 		6629F38E9CEE7573E4AC70DD /* paste-aa0b8a8d2e169a60505e97b082d98fed8994666d.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-aa0b8a8d2e169a60505e97b082d98fed8994666d.jpg"; sourceTree = "<group>"; };
 		669C642E8C678FEF937E98CF /* IMG_4899.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = IMG_4899.jpg; sourceTree = "<group>"; };
-		669F55CB39152BDC37B4A44C /* ContentOrganizationMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentOrganizationMode.swift; sourceTree = "<group>"; };
 		66A4311D514BAEFE6D0D895C /* SimuladoModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimuladoModels.swift; sourceTree = "<group>"; };
 		66BB82755E51EFF5FBA1BF40 /* SessionSummaryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSummaryScreen.swift; sourceTree = "<group>"; };
 		66BD5287040FC70ECF960621 /* paste-3ba85c0ae0c337a45410f3c1cdc7107e73ef2993.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-3ba85c0ae0c337a45410f3c1cdc7107e73ef2993.jpg"; sourceTree = "<group>"; };
@@ -3714,7 +3709,6 @@
 		A4915D4A3313C7BA836FEEE6 /* ContinueSessionDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueSessionDrawer.swift; sourceTree = "<group>"; };
 		A4D061929BF575CB13F2123E /* paste-afe80289399d2d78bd9d69bab0af9dc785a840a8.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-afe80289399d2d78bd9d69bab0af9dc785a840a8.jpg"; sourceTree = "<group>"; };
 		A4DD88DE5E4BC51962197D32 /* paste-ad6c8d401334760c1fe3fcfd26601e10a1a6466d.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-ad6c8d401334760c1fe3fcfd26601e10a1a6466d.jpg"; sourceTree = "<group>"; };
-		A4F671C3A0DA731099C2B38F /* AssinaturaScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssinaturaScreen.swift; sourceTree = "<group>"; };
 		A50C2219DF9FA87CD0770832 /* clip_image004-2d0b1a8bc548f4633786046133aea88fe0701626.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "clip_image004-2d0b1a8bc548f4633786046133aea88fe0701626.jpg"; sourceTree = "<group>"; };
 		A540985B13F290B969CDC2DF /* paste-1f719e93d8b267c10e44a8138c3e1ef0b5dad26c.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-1f719e93d8b267c10e44a8138c3e1ef0b5dad26c.jpg"; sourceTree = "<group>"; };
 		A5428096CB84B05067ED2517 /* tmpf7ug__yn.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmpf7ug__yn.png; sourceTree = "<group>"; };
@@ -4948,7 +4942,6 @@
 		73986A3411D8DCA810272770 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				669F55CB39152BDC37B4A44C /* ContentOrganizationMode.swift */,
 				505DF51B5393856BAA326D17 /* CreateCheckoutSession200Response.swift */,
 				3019ED975A5A0AA9949070BF /* CreateCheckoutSessionRequest.swift */,
 				F3A7D6C7912D855AB9D26042 /* CustomizeReferralCode200Response.swift */,
@@ -7008,8 +7001,6 @@
 		B641C6A7E08F2C888119E474 /* Billing */ = {
 			isa = PBXGroup;
 			children = (
-				A4F671C3A0DA731099C2B38F /* AssinaturaScreen.swift */,
-				56845E72F3F2F9B9857BA4F8 /* PaywallScreen.swift */,
 				C9337F6DFB8D1F778A754664 /* PaywallViewModel.swift */,
 				B3E9812C67CBB8FA05BFEEDE /* StoreKitManager.swift */,
 				9E9567814921EC4C53B3F70C /* SubscriptionStatusProvider.swift */,
@@ -9209,7 +9200,6 @@
 				4F21088B6C55430D68905FE1 /* AppDataManager.swift in Sources */,
 				B686750D047AF3E85B1FBCAA /* AppRouter.swift in Sources */,
 				36E9C4E0AB2724D60B8B51CC /* AppearanceScreen.swift in Sources */,
-				0780E271D8611FDE00449801 /* AssinaturaScreen.swift in Sources */,
 				5EA049F87DDAF0DB70B98033 /* AtlasSceneScreen.swift in Sources */,
 				7CFF8534E23CEDF7BC374EB3 /* AtlasSearchSheet.swift in Sources */,
 				E0CE8FD436F882D717038F8D /* AuthManager.swift in Sources */,
@@ -9229,7 +9219,6 @@
 				CA1746035639EFED3B1F97E2 /* ConnectorCard.swift in Sources */,
 				7BD7B53D27C9C21EA60F4A13 /* ConnectorStatusSheet.swift in Sources */,
 				E9CB954DF22CC9B832B690FD /* ConnectorsViewModel.swift in Sources */,
-				D74D8974F3C7F7CCC468ED41 /* ContentOrganizationMode.swift in Sources */,
 				7077E1E7094681ADA6375E5C /* ContinueSessionDrawer.swift in Sources */,
 				254FC88B3921B7CB09CD6122 /* ConversationModels.swift in Sources */,
 				9AF86C2CF497A735D47DB099 /* CourseDetailScreen.swift in Sources */,
@@ -9388,7 +9377,6 @@
 				4A5583355D2C15F4BA2A2B36 /* OsceViewModel.swift in Sources */,
 				02C0DB31D5D2AA70F9E8104C /* PageEntity.swift in Sources */,
 				874C771120977CEF4A0F78A7 /* PageThumbnailSidebar.swift in Sources */,
-				39472E20831D493CC43D2BE5 /* PaywallScreen.swift in Sources */,
 				763F6589B281D91E84ABF11D /* PaywallViewModel.swift in Sources */,
 				2B71B46F6297F34ED5171AA3 /* PdfAnnotationModels.swift in Sources */,
 				5DD5784ACC90021A50B94F67 /* PdfAudioPlaybackOverlay.swift in Sources */,
