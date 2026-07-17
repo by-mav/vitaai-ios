@@ -62,7 +62,6 @@ struct VitaTabBar: View {
     }
 
     private let bumpHeight: CGFloat = 21
-    private let backgroundBumpHeight: CGFloat = 31
     private let bumpWidth: CGFloat = 88
 
     var body: some View {
@@ -157,12 +156,6 @@ struct VitaTabBar: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 54, height: 54)
-                .overlay {
-                    Circle()
-                        .stroke(VitaColors.accentHover.opacity(0.82), lineWidth: 1.5)
-                        .frame(width: 40, height: 40)
-                        .shadow(color: VitaColors.accent.opacity(0.44), radius: 5)
-                }
                 .scaleEffect(vitaAwake ? 1.08 : 1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: vitaAwake)
                 .frame(width: width)
@@ -175,7 +168,7 @@ struct VitaTabBar: View {
 
     @ViewBuilder
     private var navBackground: some View {
-        let shape = VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: backgroundBumpHeight)
+        let shape = VitaNavBarBumpShape(bumpWidth: bumpWidth, bumpHeight: bumpHeight)
         if homeGlass {
             shape
                 .fill(.ultraThinMaterial)

@@ -14,7 +14,6 @@ struct StudyToolsGrid: View {
     var onSimulados: () -> Void = {}
     var onTranscricao: () -> Void = {}
     var onAtlas: () -> Void = {}
-    var showsAtlas: Bool = true
 
     var body: some View {
         VStack(spacing: 10) {
@@ -26,9 +25,7 @@ struct StudyToolsGrid: View {
                 toolImage("tool-simulados", id: "tool_simulados", action: onSimulados)
                 toolImage("tool-transcricao", id: "tool_transcricao", action: onTranscricao)
             }
-            if showsAtlas {
-                atlasCard
-            }
+            atlasCard
         }
     }
 
