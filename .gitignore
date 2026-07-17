@@ -91,3 +91,7 @@ debug-*.png
 bug-screenshot.png
 mascot-*.png
 MASCOTEVITA.png
+
+# Diretório de trabalho do sync-api-spec.sh (regenerado do openapi do repo web).
+# NÃO versionar: 871 arquivos gerados, não compilados, poluem grep/codegen.
+Generated/API/
