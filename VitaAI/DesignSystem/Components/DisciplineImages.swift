@@ -177,6 +177,18 @@ extension DisciplineImages {
         (["cuidados paliativos", "espiritual"], "heart.circle.fill", VitaColors.dataIndigo),
         (["interprofissional", "integracao"], "person.2.fill", VitaColors.accent),
         (["empreendedorismo", "gestao"], "briefcase.fill", VitaColors.dataAmber),
+        // As 10 disciplinas canônicas que caíam no fallback (a maletinha) — medido
+        // 2026-07-17 cruzando `vita.disciplines` com este mapa. Toda disciplina da
+        // árvore tem símbolo próprio; a maletinha fica só pra baralho sem disciplina.
+        (["neonatolog"], "figure.child.circle.fill", VitaColors.dataGreen),
+        (["nutrolog"], "carrot.fill", VitaColors.dataAmber),
+        (["toxicolog"], "exclamationmark.triangle.fill", VitaColors.dataAmber),
+        (["micolog"], "allergens.fill", VitaColors.dataGreen),
+        (["transplantolog", "transplante"], "arrow.triangle.2.circlepath", VitaColors.dataTeal),
+        (["medicina do esporte", "medicina esportiva", "esporte"], "figure.run", VitaColors.dataBlue),
+        (["saude do trabalhador", "trabalhador"], "hammer.fill", VitaColors.dataBlue),
+        (["metodologia", "cientific", "pesquisa"], "magnifyingglass", VitaColors.dataIndigo),
+        (["humanidades", "sociedade e saude", "sociedade"], "book.closed.fill", VitaColors.accent),
     ]
 
     private static let iconPalette: [Color] = [

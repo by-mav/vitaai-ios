@@ -188,6 +188,14 @@ actor VitaAPI {
         return try await client.get("study/flashcards", queryItems: items.isEmpty ? nil : items)
     }
 
+    /// GET /api/study/flashcards/library — a Biblioteca Vita pela arvore canonica
+    /// (area → disciplina, com contagem). O deck da Biblioteca eh um acervo
+    /// ("Medicina" = 6.391 cards de Reumato+Nefro+Cardio...): listar o DECK
+    /// esconde tudo atras de uma pilha. Aqui vem categorizado.
+    func getFlashcardLibrary() async throws -> FlashcardLibraryResponse {
+        try await client.get("study/flashcards/library")
+    }
+
     func getFlashcardDecks(subjectId: String? = nil, dueOnly: Bool = false, tag: String? = nil, cardsLimit: Int? = nil, deckLimit: Int? = nil, summary: Bool = false, scope: String? = nil) async throws -> [FlashcardDeckEntry] {
         var items: [URLQueryItem] = []
         if let subjectId { items.append(.init(name: "subjectId", value: subjectId)) }
@@ -1002,13 +1010,13 @@ actor VitaAPI {
             let email: String?
         }
         do {
-            let res: Response = try await client.post(
+            let res: Response = try await client.postRaw(
                 "connectors/canvas/token",
-                body: Body(token: accessToken, baseUrl: instanceUrl)
+                body: Self.encodeCamelCase(Body(token: accessToken, baseUrl: instanceUrl))
             )
             return CanvasConnectResponse(success: true, connectionId: res.connectionId, updated: false, error: nil)
-        } catch let APIError.serverError(code) {
-            return CanvasConnectResponse(success: false, error: "Falha ao conectar Canvas (HTTP \(code))")
+        } catch let APIError.serverError(code) where code == 400 || code == 422 {
+            return CanvasConnectResponse(success: false, error: "invalid_credentials")
         }
     }
 
@@ -1022,14 +1030,22 @@ actor VitaAPI {
             let connectionId: String
         }
         do {
-            let res: Response = try await client.post(
+            let res: Response = try await client.postRaw(
                 "connectors/moodle/token",
-                body: Body(token: accessToken, baseUrl: instanceUrl)
+                body: Self.encodeCamelCase(Body(token: accessToken, baseUrl: instanceUrl))
             )
             return CanvasConnectResponse(success: true, connectionId: res.connectionId, updated: false, error: nil)
-        } catch let APIError.serverError(code) {
-            return CanvasConnectResponse(success: false, error: "Falha ao conectar Moodle (HTTP \(code))")
+        } catch let APIError.serverError(code) where code == 400 || code == 422 {
+            return CanvasConnectResponse(success: false, error: "invalid_credentials")
         }
+    }
+
+    func syncMoodle(connectionId: String? = nil) async throws -> MoodleSyncResponse {
+        struct Body: Encodable { let connectionId: String? }
+        return try await client.post(
+            "connectors/moodle/sync",
+            body: Body(connectionId: connectionId)
+        )
     }
 
     /// POST /api/connectors/canvas/sync â€” puxa cursos+assignments via API oficial.
@@ -1085,6 +1101,10 @@ actor VitaAPI {
     func disconnectCanvas() async throws {
         // TODO: rota /api/connectors/canvas/disconnect (criar Fase 2.1)
         try await client.delete("portal/disconnect?portalType=canvas")
+    }
+
+    func disconnectPortal(_ portalType: String) async throws {
+        try await client.delete("portal/disconnect?portalType=\(portalType)")
     }
 
     func getCourses() async throws -> CoursesResponse {
@@ -1159,34 +1179,6 @@ actor VitaAPI {
         if let to { params.append("to=\(to)") }
         if !params.isEmpty { path += "?" + params.joined(separator: "&") }
         return try await client.get(path)
-    }
-
-    // MARK: - Google Calendar (NO BACKEND: google/calendar/*)
-
-    func getGoogleCalendarStatus() async throws -> GoogleCalendarStatusResponse {
-        try await client.get("google/calendar/status")
-    }
-
-    func syncGoogleCalendar() async throws -> GoogleCalendarSyncResponse {
-        try await client.post("google/calendar/sync")
-    }
-
-    func disconnectGoogleCalendar() async throws {
-        try await client.delete("google/calendar/connect")
-    }
-
-    // MARK: - Google Drive (NO BACKEND: google/drive/*)
-
-    func getGoogleDriveStatus() async throws -> GoogleDriveStatusResponse {
-        try await client.get("google/drive/status")
-    }
-
-    func syncGoogleDrive() async throws -> GoogleDriveSyncResponse {
-        try await client.post("google/drive/sync")
-    }
-
-    func disconnectGoogleDrive() async throws {
-        try await client.delete("google/drive/connect")
     }
 
     // MARK: - Billing (NO BACKEND: billing/status, billing/checkout, billing/verify/apple)
@@ -1276,6 +1268,10 @@ actor VitaAPI {
 
     func disconnectIntegration(_ provider: String) async throws {
         try await client.delete("integrations/\(provider)")
+    }
+
+    func syncIntegration(_ provider: String) async throws -> IntegrationSyncResponse {
+        try await client.post("integrations/\(provider)/sync", body: EmptyBody())
     }
 
 

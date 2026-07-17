@@ -33,6 +33,7 @@ struct FlashcardBuilderScreen: View {
     var initialSubjectId: String? = nil
     let onBack: () -> Void
     let onOpenDeck: (String) -> Void
+    let onOpenDiscipline: (String) -> Void
 
     var body: some View {
         Group {
@@ -204,54 +205,99 @@ struct FlashcardBuilderScreen: View {
     // MARK: - Hero (N para revisar + ilustracao de cards + Estudar agora)
 
     private func deckList(vm: FlashcardBuilderViewModel) -> some View {
-        let all = vm.state.decks
-        let byName: (FlashcardDeckEntry, FlashcardDeckEntry) -> Bool = {
-            cleanDeckTitle($0.title).localizedCaseInsensitiveCompare(cleanDeckTitle($1.title)) == .orderedAscending
-        }
-        // Rafael 2026-07-15: baralho curado com < 20 cards não vira linha própria
-        // (é fragmento de auto-seed) — some da lista. Os do usuário aparecem sempre.
-        let minLibraryCards = 20
         let q = deckSearch.trimmingCharacters(in: .whitespaces).lowercased()
-        let matches: (FlashcardDeckEntry) -> Bool = {
-            q.isEmpty || cleanDeckTitle($0.title).lowercased().contains(q)
+        // A Biblioteca vem pela ARVORE (area → disciplina), nao pelos decks: o deck
+        // "Medicina" tem 6.391 cards de Reumato+Nefro+Cardio+... e virava UMA linha
+        // ("Medicina, 6.391 cartoes") escondendo tudo. Os do aluno seguem por deck —
+        // sao dele, com o nome que ele deu.
+        let areas = (vm.state.library?.areas ?? []).compactMap { area -> FlashcardLibraryArea? in
+            guard !q.isEmpty else { return area }
+            let discs = area.disciplines.filter { $0.name.lowercased().contains(q) }
+            guard !discs.isEmpty || area.name.lowercased().contains(q) else { return nil }
+            var hit = area
+            if !area.name.lowercased().contains(q) { hit.disciplines = discs }
+            return hit
         }
-        // Biblioteca Vita (sem dono, vale pra todo aluno) e os do aluno são coisas
-        // DIFERENTES — antes vinham concatenados na mesma lista, então "Medicina"
-        // (nosso, 6.391 cards) e "aaa" (dele, 1 card) pareciam a mesma categoria.
-        let library = all
-            .filter { ($0.userId ?? "").isEmpty && $0.cardCount >= minLibraryCards }
-            .filter(matches).sorted(by: byName)
-        let mine = all
+        let mine = vm.state.decks
             .filter { !($0.userId ?? "").isEmpty }
-            .filter(matches).sorted(by: byName)
+            .filter { q.isEmpty || cleanDeckTitle($0.title).lowercased().contains(q) }
+            .sorted {
+                cleanDeckTitle($0.title).localizedCaseInsensitiveCompare(cleanDeckTitle($1.title)) == .orderedAscending
+            }
 
         return VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
-            if vm.state.decksLoading && all.isEmpty {
+            if vm.state.decksLoading && vm.state.library == nil && vm.state.decks.isEmpty {
                 groupsSkeleton
-            } else if library.isEmpty && mine.isEmpty {
-                deckListEmpty
+            } else if areas.isEmpty && mine.isEmpty {
+                deckListEmpty(failed: vm.state.libraryFailed)
             } else {
-                if !library.isEmpty {
-                    deckSectionHeader("BIBLIOTECA VITA", count: library.count)
-                    ForEach(library) { deckRowV2($0) }
+                if let lib = vm.state.library, !areas.isEmpty {
+                    deckSectionHeader("BIBLIOTECA VITA", count: lib.totalCards, unit: "cards")
+                    ForEach(areas) { area in
+                        libraryAreaBlock(area)
+                    }
                 }
                 if !mine.isEmpty {
                     deckSectionHeader("MEUS BARALHOS", count: mine.count)
-                        .padding(.top, library.isEmpty ? 0 : VitaTokens.Spacing.md)
+                        .padding(.top, areas.isEmpty ? 0 : VitaTokens.Spacing.md)
                     ForEach(mine) { deckRowV2($0) }
                 }
             }
         }
     }
 
-    private func deckSectionHeader(_ title: String, count: Int) -> some View {
+    /// Uma área da árvore: rótulo + as disciplinas dela, cada uma com seu ícone
+    /// e a contagem real de cards classificados.
+    @ViewBuilder
+    private func libraryAreaBlock(_ area: FlashcardLibraryArea) -> some View {
+        Text(area.name.uppercased())
+            .font(VitaTypography.labelSmall)
+            .kerning(0.8)
+            .foregroundStyle(VitaColors.textTertiary)
+            .padding(.horizontal, VitaTokens.Spacing.xs)
+            .padding(.top, VitaTokens.Spacing.sm)
+        ForEach(area.disciplines) { disc in
+            libraryDisciplineRow(disc)
+        }
+    }
+
+    private func libraryDisciplineRow(_ disc: FlashcardLibraryDiscipline) -> some View {
+        Button(action: { onOpenDiscipline(disc.slug) }) {
+            HStack(spacing: VitaTokens.Spacing.md) {
+                DisciplineIconBadge(name: disc.slug, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(disc.name)
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .lineLimit(1)
+                    Text(disc.due > 0 ? "\(disc.total) cartões · \(disc.due) pra revisar" : "\(disc.total) cartões")
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle(disc.due > 0 ? VitaColors.accent : VitaColors.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))  // ds-allow: chevron da linha
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+            .padding(.vertical, VitaTokens.Spacing.sm)
+            .padding(.horizontal, VitaTokens.Spacing.xs)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func deckSectionHeader(
+        _ title: String,
+        count: Int,
+        unit: String? = nil
+    ) -> some View {
         HStack {
             Text(title)
                 .font(VitaTypography.labelMedium)
                 .kerning(1.1)
                 .foregroundStyle(VitaColors.sectionLabel)
             Spacer()
-            Text("\(count)")
+            Text(unit.map { "\(count) \($0)" } ?? "\(count)")
                 .font(VitaTypography.labelMedium)
                 .foregroundStyle(VitaColors.textTertiary)
         }
@@ -312,12 +358,20 @@ struct FlashcardBuilderScreen: View {
         .shadow(color: spec.color.opacity(0.35), radius: 5, y: 3)
     }
 
-    private var deckListEmpty: some View {
+    private func deckListEmpty(failed: Bool) -> some View {
         VStack(spacing: VitaTokens.Spacing.sm) {
-            Image(systemName: deckSearch.isEmpty ? "books.vertical" : "magnifyingglass")
+            Image(
+                systemName: failed
+                    ? "exclamationmark.arrow.triangle.2.circlepath"
+                    : (deckSearch.isEmpty ? "books.vertical" : "magnifyingglass")
+            )
                 .font(.system(size: 30))  // ds-allow: icone empty state
                 .foregroundStyle(VitaColors.textTertiary)
-            Text(deckSearch.isEmpty ? "Nenhum baralho por aqui" : "Nada encontrado")
+            Text(
+                failed
+                    ? "Não foi possível carregar a biblioteca"
+                    : (deckSearch.isEmpty ? "Nenhum baralho por aqui" : "Nada encontrado")
+            )
                 .font(VitaTypography.bodyMedium)
                 .foregroundStyle(VitaColors.textSecondary)
                 .multilineTextAlignment(.center)

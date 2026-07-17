@@ -30,6 +30,15 @@ struct FlashcardBuilderState {
     var decks: [FlashcardDeckEntry] = []
     var decksLoading: Bool = true
 
+    /// Biblioteca Vita pela arvore (area → disciplina). Os decks `library` sao
+    /// acervos ("Medicina" = 6.391 cards de varias disciplinas); a lista mostra
+    /// as DISCIPLINAS deles, nao a pilha.
+    var library: FlashcardLibraryResponse? = nil
+    /// A leitura da biblioteca FALHOU (≠ biblioteca vazia). Sem isso, erro de
+    /// rede vira "nao tem nada aqui" — foi assim que um 500 escondeu 6.556 cards
+    /// atras de "Voce ainda nao criou baralhos" (2026-07-17).
+    var libraryFailed: Bool = false
+
     // Derivados dos decks (elimina a corrida stats-vs-decks). Rafael 2026-07-09.
     var dueNow: Int { decks.reduce(0) { $0 + ($1.dueCount ?? 0) } }
     var newNow: Int { decks.reduce(0) { $0 + max(0, ($1.totalCards ?? 0) - ($1.dueCount ?? 0)) } }
@@ -82,11 +91,25 @@ final class FlashcardBuilderViewModel {
     }
 
     private func loadAll() async {
-        await loadDecks()
+        // Em paralelo: a arvore da Biblioteca e os baralhos do aluno sao
+        // independentes — sequencial so somaria latencia.
+        async let lib: Void = loadLibrary()
+        async let decks: Void = loadDecks()
+        _ = await (lib, decks)
         // Default inteligente: sem pendentes mas com novos -> abre em "Novos"
         // (senão o aluno cai em "Pendentes" vazio com milhares de cards novos).
         if state.mode == .due, state.dueNow == 0, state.newNow > 0 {
             state.mode = .newCards
+        }
+    }
+
+    private func loadLibrary() async {
+        do {
+            state.library = try await api.getFlashcardLibrary()
+            state.libraryFailed = false
+        } catch {
+            state.libraryFailed = true
+            NSLog("[FlashcardBuilder] loadLibrary error: %@", String(describing: error))
         }
     }
 

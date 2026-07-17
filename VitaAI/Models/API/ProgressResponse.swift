@@ -175,6 +175,40 @@ struct FlashcardDeckEntry: Codable, Identifiable {
     var cardCount: Int { totalCards ?? cards.count }
 }
 
+// MARK: - Biblioteca Vita pela arvore canonica (GET /api/study/flashcards/library)
+//
+// O deck da Biblioteca eh um ACERVO ("Medicina" = 6.391 cards de Reumato, Nefro,
+// Cardio, Dermato...). Aqui ele vem quebrado na taxonomia (vita-shell §1.1):
+// AREA → DISCIPLINA, com a contagem real de cada uma.
+
+struct FlashcardLibraryResponse: Decodable {
+    var areas: [FlashcardLibraryArea] = []
+    var totalCards: Int = 0
+    var totalDue: Int = 0
+}
+
+struct FlashcardLibraryArea: Decodable, Identifiable {
+    var slug: String = ""
+    var name: String = ""
+    /// Cards da area inteira (soma das disciplinas).
+    var total: Int = 0
+    /// Vencidos (state != NEW e nextReviewAt <= agora).
+    var due: Int = 0
+    var disciplines: [FlashcardLibraryDiscipline] = []
+
+    var id: String { slug }
+}
+
+struct FlashcardLibraryDiscipline: Decodable, Identifiable {
+    /// `vita.disciplines.slug` — o mesmo que questoes e simulados filtram.
+    var slug: String = ""
+    var name: String = ""
+    var total: Int = 0
+    var due: Int = 0
+
+    var id: String { slug }
+}
+
 struct FlashcardEntry: Codable, Identifiable {
     var id: String = ""
     var front: String = ""
