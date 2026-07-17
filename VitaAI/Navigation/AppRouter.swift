@@ -197,11 +197,17 @@ struct AppRouter: View {
                     }
                 default:         router.navigate(to: route)
                 }
-            case .integrationCallback(let provider):
-                // OAuth finished — navigate to connections and reload
-                router.navigate(to: .connections)
-                // Post notification so ConnectorsViewModel reloads
-                NotificationCenter.default.post(name: .integrationOAuthCompleted, object: provider)
+            case .integrationCallback(let provider, let succeeded, let reason):
+                // During onboarding, stay on the connector step. Outside it,
+                // return to Settings > Connections after the provider closes.
+                if !needsOnboarding {
+                    router.navigate(to: .connections)
+                }
+                NotificationCenter.default.post(
+                    name: succeeded ? .integrationOAuthCompleted : .integrationOAuthFailed,
+                    object: provider,
+                    userInfo: reason.map { ["reason": $0] }
+                )
             case .reviewToken(let token):
                 // App Store reviewer deep link — sign into demo account.
                 Task { await authManager.signInWithReviewToken(token) }
@@ -873,9 +879,6 @@ struct MainTabView: View {
             NotificationSettingsScreen()
         case .connections:
             ConnectionsScreen(
-                onPortalConnect: { type, defaultUrl in
-                    router.navigate(to: .portalConnect(type: type, defaultUrl: defaultUrl))
-                },
                 onBack: { router.goBack() }
             )
         case .paywall:
@@ -979,7 +982,15 @@ struct MainTabView: View {
             FlashcardBuilderScreen(
                 initialSubjectId: subjectId,
                 onBack: { router.goBack() },
-                onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) }
+                onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
+                // A fila já está no FlashcardMultiDeckHandoff; `deckId` vazio é só
+                // rótulo (a sessão de uma disciplina cruza vários baralhos).
+                // Antes isto navegava pra `.flashcardHome` — a PRÓPRIA tela: tocar
+                // numa disciplina reabria Baralhos por cima de Baralhos, e parecia
+                // que "voltava" (Rafael 2026-07-17).
+                onOpenDisciplineSession: { sessionId in
+                    router.navigate(to: .flashcardSession(deckId: "", sessionId: sessionId))
+                }
             )
         case .disciplineDetail(let disciplineId, let disciplineName):
             DisciplineDetailScreen(

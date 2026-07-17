@@ -33,7 +33,11 @@ struct FlashcardBuilderScreen: View {
     var initialSubjectId: String? = nil
     let onBack: () -> Void
     let onOpenDeck: (String) -> Void
-    let onOpenDiscipline: (String) -> Void
+    /// Abre a sessão de uma disciplina da Biblioteca: recebe o id da sessão que o
+    /// servidor montou (a fila já está no `FlashcardMultiDeckHandoff`).
+    let onOpenDisciplineSession: (_ sessionId: String) -> Void
+    /// Toque numa disciplina em andamento — trava a linha e evita sessão dupla.
+    @State private var openingDisciplineSlug: String? = nil
 
     var body: some View {
         Group {
@@ -262,7 +266,7 @@ struct FlashcardBuilderScreen: View {
     }
 
     private func libraryDisciplineRow(_ disc: FlashcardLibraryDiscipline) -> some View {
-        Button(action: { onOpenDiscipline(disc.slug) }) {
+        Button(action: { openDiscipline(disc) }) {
             HStack(spacing: VitaTokens.Spacing.md) {
                 DisciplineIconBadge(name: disc.slug, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
@@ -275,15 +279,34 @@ struct FlashcardBuilderScreen: View {
                         .foregroundStyle(disc.due > 0 ? VitaColors.accent : VitaColors.textSecondary)
                 }
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))  // ds-allow: chevron da linha
-                    .foregroundStyle(VitaColors.textTertiary)
+                if openingDisciplineSlug == disc.slug {
+                    // Montar a fila é uma ida ao servidor: sem isto o toque não
+                    // dá sinal nenhum e o aluno toca de novo (sessão dupla).
+                    ProgressView().tint(VitaColors.accent)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))  // ds-allow: chevron da linha
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
             }
             .padding(.vertical, VitaTokens.Spacing.sm)
             .padding(.horizontal, VitaTokens.Spacing.xs)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(openingDisciplineSlug != nil)
+    }
+
+    /// Pede a fila da disciplina ao servidor e navega pra sessão.
+    private func openDiscipline(_ disc: FlashcardLibraryDiscipline) {
+        guard let vm, openingDisciplineSlug == nil else { return }
+        openingDisciplineSlug = disc.slug
+        Task { @MainActor in
+            defer { openingDisciplineSlug = nil }
+            if let sessionId = await vm.openDiscipline(slug: disc.slug, title: disc.name, due: disc.due) {
+                onOpenDisciplineSession(sessionId)
+            }
+        }
     }
 
     private func deckSectionHeader(

@@ -73,7 +73,8 @@ struct FlashcardsPreviewResp: Codable {
 // MARK: - Flashcard Session
 
 struct FlashcardSessionBody: Codable {
-    let lens: String?
+    /// Escopo da sessao: slugs de disciplina (`vita.disciplines.slug`) — o mesmo
+    /// nivel 2 da arvore que questoes e simulados filtram.
     let groupSlugs: [String]?
     let mode: String          // "due" | "specific" | "new"
     let limit: Int?
@@ -83,8 +84,9 @@ struct FlashcardSessionBody: Codable {
     let deckId: String?
     let title: String?
 
+    // `lens` saiu em 2026-07-17: as lentes morreram (vita-shell §1.1) e a rota
+    // nao le mais o campo — mandava-lo era so ruido no corpo.
     init(
-        lens: String?,
         groupSlugs: [String]?,
         mode: String,
         limit: Int?,
@@ -94,7 +96,6 @@ struct FlashcardSessionBody: Codable {
         deckId: String? = nil,
         title: String? = nil
     ) {
-        self.lens = lens
         self.groupSlugs = groupSlugs
         self.mode = mode
         self.limit = limit

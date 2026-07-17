@@ -137,7 +137,6 @@ final class FlashcardViewModel {
                     do {
                         let created = try await api.createFlashcardSession(
                             body: FlashcardSessionBody(
-                                lens: nil,
                                 groupSlugs: nil,
                                 mode: "specific",
                                 limit: nil,

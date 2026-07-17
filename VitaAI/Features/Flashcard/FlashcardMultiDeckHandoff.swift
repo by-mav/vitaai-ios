@@ -32,6 +32,17 @@ final class FlashcardMultiDeckHandoff {
     private var pendingQuickTitle: String? = nil
     private var pendingQuickSessionId: String? = nil
 
+    /// Grava a fila que o servidor montou (POST /api/study/flashcards/session).
+    /// Quem abre uma DISCIPLINA da Biblioteca usa isto: os cards dela vêm de
+    /// vários baralhos, então não há um `deckId` pra abrir — o que existe é a
+    /// fila. Sem este setter o `consumeQuickSession` abaixo nunca tinha o que
+    /// consumir (o produtor não existia).
+    func setQuickSession(cardIds: [String], title: String?, sessionId: String?) {
+        pendingQuickCardIds = cardIds
+        pendingQuickTitle = title
+        pendingQuickSessionId = sessionId
+    }
+
     /// Fila da sessão rápida e LIMPA. cardIds vazio = fluxo normal por deck.
     func consumeQuickSession() -> (cardIds: [String], title: String?, sessionId: String?) {
         let out = (pendingQuickCardIds, pendingQuickTitle, pendingQuickSessionId)

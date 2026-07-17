@@ -103,6 +103,63 @@ final class FlashcardBuilderViewModel {
         }
     }
 
+    /// Abre uma DISCIPLINA da Biblioteca: pede ao servidor a fila de cards dela
+    /// (na ordem FSRS) e devolve o id da sessão pra navegar.
+    ///
+    /// Uma disciplina não é um baralho — os cards dela vivem espalhados por
+    /// vários (Cardiologia está dentro do acervo "Medicina"). Então não há
+    /// `deckId` pra abrir: o que existe é a fila, e é ela que o
+    /// `FlashcardViewModel` já sabe consumir (`consumeQuickSession`).
+    ///
+    /// Retorna nil quando a disciplina não tem card pra estudar agora.
+    func openDiscipline(slug: String, title: String, due: Int) async -> String? {
+        // `specific` = so REVIEW/LEARNING (card ja estudado). Disciplina virgem —
+        // e a Biblioteca inteira eh NEW — devolvia fila VAZIA nesse modo. Tem
+        // vencido? revisa. Nao tem? abre os novos.
+        let mode = due > 0 ? "due" : "new"
+        do {
+            var resp = try await api.createFlashcardSession(
+                body: FlashcardSessionBody(
+                    groupSlugs: [slug],
+                    mode: mode,
+                    limit: nil,
+                    showHints: nil,
+                    skipEasy: nil,
+                    cardIds: nil,
+                    deckId: nil,
+                    title: title
+                )
+            )
+            // Teto diario de novos ja batido: `new` volta vazio mesmo tendo card.
+            // Cai pra `cram` (tudo da disciplina, sem due) — o aluno pediu ESTA
+            // disciplina, entregar tela vazia seria mentira.
+            if resp.cardIds.isEmpty {
+                resp = try await api.createFlashcardSession(
+                    body: FlashcardSessionBody(
+                        groupSlugs: [slug],
+                        mode: "cram",
+                        limit: nil,
+                        showHints: nil,
+                        skipEasy: nil,
+                        cardIds: nil,
+                        deckId: nil,
+                        title: title
+                    )
+                )
+            }
+            guard !resp.cardIds.isEmpty else { return nil }
+            FlashcardMultiDeckHandoff.shared.setQuickSession(
+                cardIds: resp.cardIds,
+                title: title,
+                sessionId: resp.sessionId
+            )
+            return resp.sessionId
+        } catch {
+            NSLog("[FlashcardBuilder] openDiscipline(%@) error: %@", slug, String(describing: error))
+            return nil
+        }
+    }
+
     private func loadLibrary() async {
         do {
             state.library = try await api.getFlashcardLibrary()
