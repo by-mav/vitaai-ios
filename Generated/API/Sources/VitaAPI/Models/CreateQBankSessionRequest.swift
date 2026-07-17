@@ -9,11 +9,6 @@ import Foundation
 
 public struct CreateQBankSessionRequest: Sendable, Codable, Hashable {
 
-    public enum Lens: String, Sendable, Codable, CaseIterable {
-        case tradicional = "tradicional"
-        case pbl = "pbl"
-        case greatAreas = "great-areas"
-    }
     public enum Format: String, Sendable, Codable, CaseIterable {
         case objective = "objective"
         case discursive = "discursive"
@@ -29,11 +24,7 @@ public struct CreateQBankSessionRequest: Sendable, Codable, Hashable {
     /** [DEPRECATED] Direct filter by MedSimple catalog slug. Kept for fallback when student has no academic_subjects (no portal connected yet). Prefer subjectIds.  */
     @available(*, deprecated, message: "This property is deprecated.")
     public var disciplineSlugs: [String]?
-    /** Lente aplicada na sessão (tradicional/pbl/great-areas). Backend usa pra determinar qual coluna `groupSlugs[]` consulta. Added 2026-04-28. */
-    public var lens: Lens?
-    /** Filtra qbank_questions.pblSystemSlug IN (...). Usado quando lens=pbl. Added 2026-04-28. */
-    public var pblSystemSlugs: [String]?
-    /** Filtra qbank_questions.examGreatAreaSlug IN (...). Usado quando lens=great-areas. Added 2026-04-28. */
+    /** Nível 1 da árvore (vita-shell §1.1): filtra qbank_questions.examGreatAreaSlug IN (...) — as 6 grandes áreas. */
     public var examGreatAreaSlugs: [String]?
     /** Filtro de formato. objective/discursive/withImage. Added 2026-04-28. */
     public var format: [Format]?
@@ -52,7 +43,7 @@ public struct CreateQBankSessionRequest: Sendable, Codable, Hashable {
     /** Quality filter — when false, drop LLM-generated questions (isSynthetic=true; year>=2025, source=medsimple). Default true. Added 2026-04-27.  */
     public var includeSynthetic: Bool?
 
-    public init(questionCount: Int? = nil, institutionIds: [Int]? = nil, years: [Int]? = nil, difficulties: [String]? = nil, topicIds: [Int]? = nil, subjectIds: [String]? = nil, disciplineSlugs: [String]? = nil, lens: Lens? = nil, pblSystemSlugs: [String]? = nil, examGreatAreaSlugs: [String]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, hideReviewed: Bool? = nil, onlyResidence: Bool? = nil, stage: String? = nil, onlyUnanswered: Bool? = nil, title: String? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil) {
+    public init(questionCount: Int? = nil, institutionIds: [Int]? = nil, years: [Int]? = nil, difficulties: [String]? = nil, topicIds: [Int]? = nil, subjectIds: [String]? = nil, disciplineSlugs: [String]? = nil, examGreatAreaSlugs: [String]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, hideReviewed: Bool? = nil, onlyResidence: Bool? = nil, stage: String? = nil, onlyUnanswered: Bool? = nil, title: String? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil) {
         self.questionCount = questionCount
         self.institutionIds = institutionIds
         self.years = years
@@ -60,8 +51,6 @@ public struct CreateQBankSessionRequest: Sendable, Codable, Hashable {
         self.topicIds = topicIds
         self.subjectIds = subjectIds
         self.disciplineSlugs = disciplineSlugs
-        self.lens = lens
-        self.pblSystemSlugs = pblSystemSlugs
         self.examGreatAreaSlugs = examGreatAreaSlugs
         self.format = format
         self.hideAnswered = hideAnswered
@@ -83,8 +72,6 @@ public struct CreateQBankSessionRequest: Sendable, Codable, Hashable {
         case topicIds
         case subjectIds
         case disciplineSlugs
-        case lens
-        case pblSystemSlugs
         case examGreatAreaSlugs
         case format
         case hideAnswered
@@ -109,8 +96,6 @@ public struct CreateQBankSessionRequest: Sendable, Codable, Hashable {
         try container.encodeIfPresent(topicIds, forKey: .topicIds)
         try container.encodeIfPresent(subjectIds, forKey: .subjectIds)
         try container.encodeIfPresent(disciplineSlugs, forKey: .disciplineSlugs)
-        try container.encodeIfPresent(lens, forKey: .lens)
-        try container.encodeIfPresent(pblSystemSlugs, forKey: .pblSystemSlugs)
         try container.encodeIfPresent(examGreatAreaSlugs, forKey: .examGreatAreaSlugs)
         try container.encodeIfPresent(format, forKey: .format)
         try container.encodeIfPresent(hideAnswered, forKey: .hideAnswered)

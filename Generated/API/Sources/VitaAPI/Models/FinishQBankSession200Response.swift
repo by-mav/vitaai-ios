@@ -12,17 +12,26 @@ public struct FinishQBankSession200Response: Sendable, Codable, Hashable {
     public var correctCount: Int?
     public var totalQuestions: Int?
     public var score: Double?
+    public var byDiscipline: [DisciplineBreakdown]?
+    public var avgTimeMs: Int?
+    public var award: GamificationAward?
 
-    public init(correctCount: Int? = nil, totalQuestions: Int? = nil, score: Double? = nil) {
+    public init(correctCount: Int? = nil, totalQuestions: Int? = nil, score: Double? = nil, byDiscipline: [DisciplineBreakdown]? = nil, avgTimeMs: Int? = nil, award: GamificationAward? = nil) {
         self.correctCount = correctCount
         self.totalQuestions = totalQuestions
         self.score = score
+        self.byDiscipline = byDiscipline
+        self.avgTimeMs = avgTimeMs
+        self.award = award
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case correctCount
         case totalQuestions
         case score
+        case byDiscipline
+        case avgTimeMs
+        case award
     }
 
     // Encodable protocol methods
@@ -32,6 +41,9 @@ public struct FinishQBankSession200Response: Sendable, Codable, Hashable {
         try container.encodeIfPresent(correctCount, forKey: .correctCount)
         try container.encodeIfPresent(totalQuestions, forKey: .totalQuestions)
         try container.encodeIfPresent(score, forKey: .score)
+        try container.encodeIfPresent(byDiscipline, forKey: .byDiscipline)
+        try container.encodeIfPresent(avgTimeMs, forKey: .avgTimeMs)
+        try container.encodeIfPresent(award, forKey: .award)
     }
 }
 

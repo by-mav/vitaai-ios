@@ -11,15 +11,24 @@ public struct SearchUniversities200Response: Sendable, Codable, Hashable {
 
     public var universities: [University]?
     public var total: Int?
+    public var limit: Int?
+    public var offset: Int?
+    public var hasMore: Bool?
 
-    public init(universities: [University]? = nil, total: Int? = nil) {
+    public init(universities: [University]? = nil, total: Int? = nil, limit: Int? = nil, offset: Int? = nil, hasMore: Bool? = nil) {
         self.universities = universities
         self.total = total
+        self.limit = limit
+        self.offset = offset
+        self.hasMore = hasMore
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case universities
         case total
+        case limit
+        case offset
+        case hasMore
     }
 
     // Encodable protocol methods
@@ -28,6 +37,9 @@ public struct SearchUniversities200Response: Sendable, Codable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(universities, forKey: .universities)
         try container.encodeIfPresent(total, forKey: .total)
+        try container.encodeIfPresent(limit, forKey: .limit)
+        try container.encodeIfPresent(offset, forKey: .offset)
+        try container.encodeIfPresent(hasMore, forKey: .hasMore)
     }
 }
 

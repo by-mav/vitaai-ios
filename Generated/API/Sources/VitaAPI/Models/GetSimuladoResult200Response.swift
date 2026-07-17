@@ -19,8 +19,10 @@ public struct GetSimuladoResult200Response: Sendable, Codable, Hashable {
     public var timeSpent: Int?
     public var avgScore: Double?
     public var subjectResults: [JSONValue]?
+    public var byDiscipline: [DisciplineBreakdown]?
+    public var avgTimeMs: Int?
 
-    public init(id: String? = nil, title: String? = nil, totalQ: Int? = nil, correctQ: Int? = nil, wrongQ: Int? = nil, blankQ: Int? = nil, score: Double? = nil, timeSpent: Int? = nil, avgScore: Double? = nil, subjectResults: [JSONValue]? = nil) {
+    public init(id: String? = nil, title: String? = nil, totalQ: Int? = nil, correctQ: Int? = nil, wrongQ: Int? = nil, blankQ: Int? = nil, score: Double? = nil, timeSpent: Int? = nil, avgScore: Double? = nil, subjectResults: [JSONValue]? = nil, byDiscipline: [DisciplineBreakdown]? = nil, avgTimeMs: Int? = nil) {
         self.id = id
         self.title = title
         self.totalQ = totalQ
@@ -31,6 +33,8 @@ public struct GetSimuladoResult200Response: Sendable, Codable, Hashable {
         self.timeSpent = timeSpent
         self.avgScore = avgScore
         self.subjectResults = subjectResults
+        self.byDiscipline = byDiscipline
+        self.avgTimeMs = avgTimeMs
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -44,6 +48,8 @@ public struct GetSimuladoResult200Response: Sendable, Codable, Hashable {
         case timeSpent
         case avgScore
         case subjectResults
+        case byDiscipline
+        case avgTimeMs
     }
 
     // Encodable protocol methods
@@ -60,6 +66,8 @@ public struct GetSimuladoResult200Response: Sendable, Codable, Hashable {
         try container.encodeIfPresent(timeSpent, forKey: .timeSpent)
         try container.encodeIfPresent(avgScore, forKey: .avgScore)
         try container.encodeIfPresent(subjectResults, forKey: .subjectResults)
+        try container.encodeIfPresent(byDiscipline, forKey: .byDiscipline)
+        try container.encodeIfPresent(avgTimeMs, forKey: .avgTimeMs)
     }
 }
 

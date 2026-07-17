@@ -7,14 +7,9 @@
 
 import Foundation
 
-/** Body do POST /api/qbank/preview. Todos os campos opcionais; backend aplica defaults conservadores. Added 2026-04-28. */
+/** Body do POST /api/qbank/preview. Todos os campos opcionais; backend aplica defaults conservadores. Filtro por taxonomia &#x3D; 1 árvore (vita-shell §1.1): um campo por nível. As lentes morreram em 2026-07-16 — não existe &#x60;lens&#x60;.  */
 public struct QBankPreviewRequest: Sendable, Codable, Hashable {
 
-    public enum Lens: String, Sendable, Codable, CaseIterable {
-        case tradicional = "tradicional"
-        case pbl = "pbl"
-        case greatAreas = "great-areas"
-    }
     public enum Difficulties: String, Sendable, Codable, CaseIterable {
         case easy = "easy"
         case medium = "medium"
@@ -25,11 +20,10 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
         case discursive = "discursive"
         case withimage = "withImage"
     }
-    public var lens: Lens?
-    /** Slugs do agrupamento atual (disciplines/pbl_systems/exam_great_areas conforme lens). */
-    public var groupSlugs: [String]?
-    /** Slugs do subnível: clusters de sintoma PBL OU topic IDs (string) Tradicional. Added 2026-04-29. */
-    public var subgroupSlugs: [String]?
+    /** Nível 1: slugs das 6 grandes áreas (vita.exam_great_areas). */
+    public var areaSlugs: [String]?
+    /** Nível 2: slugs de disciplina (vita.disciplines.slug). */
+    public var disciplineSlugs: [String]?
     public var institutionIds: [Int]?
     public var years: QBankPreviewRequestYears?
     public var difficulties: [Difficulties]?
@@ -46,10 +40,9 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
     /** Default false. Se false, exclui Q geradas por IA (isSynthetic=true). */
     public var includeSynthetic: Bool?
 
-    public init(lens: Lens? = nil, groupSlugs: [String]? = nil, subgroupSlugs: [String]? = nil, institutionIds: [Int]? = nil, years: QBankPreviewRequestYears? = nil, difficulties: [Difficulties]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, hideReviewed: Bool? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil) {
-        self.lens = lens
-        self.groupSlugs = groupSlugs
-        self.subgroupSlugs = subgroupSlugs
+    public init(areaSlugs: [String]? = nil, disciplineSlugs: [String]? = nil, institutionIds: [Int]? = nil, years: QBankPreviewRequestYears? = nil, difficulties: [Difficulties]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, hideReviewed: Bool? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil) {
+        self.areaSlugs = areaSlugs
+        self.disciplineSlugs = disciplineSlugs
         self.institutionIds = institutionIds
         self.years = years
         self.difficulties = difficulties
@@ -62,9 +55,8 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case lens
-        case groupSlugs
-        case subgroupSlugs
+        case areaSlugs
+        case disciplineSlugs
         case institutionIds
         case years
         case difficulties
@@ -80,9 +72,8 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(lens, forKey: .lens)
-        try container.encodeIfPresent(groupSlugs, forKey: .groupSlugs)
-        try container.encodeIfPresent(subgroupSlugs, forKey: .subgroupSlugs)
+        try container.encodeIfPresent(areaSlugs, forKey: .areaSlugs)
+        try container.encodeIfPresent(disciplineSlugs, forKey: .disciplineSlugs)
         try container.encodeIfPresent(institutionIds, forKey: .institutionIds)
         try container.encodeIfPresent(years, forKey: .years)
         try container.encodeIfPresent(difficulties, forKey: .difficulties)

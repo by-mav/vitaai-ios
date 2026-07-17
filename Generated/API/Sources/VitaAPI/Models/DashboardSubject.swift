@@ -36,7 +36,7 @@ public struct DashboardSubject: Sendable, Codable, Hashable {
     public var disciplineSlug: String?
     /** Canonical name from vita.disciplines (joined). */
     public var canonicalName: String?
-    /** Catalog area (basica, clinica, cirurgica, etc.). */
+    /** Grande área canônica da disciplina (Clínica Médica, Cirurgia Geral, Ciclo Básico, …), de vita.exam_great_areas. Nível 1 da árvore (vita-shell §1.1). Antes era o ciclo do curso — corrigido em 2026-07-16. */
     public var area: String?
     /** Icon slug from vita.disciplines. */
     public var icon: String?

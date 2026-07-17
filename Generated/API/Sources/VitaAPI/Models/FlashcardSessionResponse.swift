@@ -9,18 +9,20 @@ import Foundation
 
 public struct FlashcardSessionResponse: Sendable, Codable, Hashable {
 
-    /** UUID client-side, não persistido server (sessão vive no cliente). */
+    /** UUID persistido no servidor; a fila pode ser retomada depois de fechar o app. */
     public var sessionId: UUID
     /** Ordem da fila SRS (mais atrasado primeiro). */
     public var cardIds: [String]
     public var totalCards: Int
     public var expectedMinutes: Int
+    public var budget: FlashcardSessionResponseBudget
 
-    public init(sessionId: UUID, cardIds: [String], totalCards: Int, expectedMinutes: Int) {
+    public init(sessionId: UUID, cardIds: [String], totalCards: Int, expectedMinutes: Int, budget: FlashcardSessionResponseBudget) {
         self.sessionId = sessionId
         self.cardIds = cardIds
         self.totalCards = totalCards
         self.expectedMinutes = expectedMinutes
+        self.budget = budget
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -28,6 +30,7 @@ public struct FlashcardSessionResponse: Sendable, Codable, Hashable {
         case cardIds
         case totalCards
         case expectedMinutes
+        case budget
     }
 
     // Encodable protocol methods
@@ -38,6 +41,7 @@ public struct FlashcardSessionResponse: Sendable, Codable, Hashable {
         try container.encode(cardIds, forKey: .cardIds)
         try container.encode(totalCards, forKey: .totalCards)
         try container.encode(expectedMinutes, forKey: .expectedMinutes)
+        try container.encode(budget, forKey: .budget)
     }
 }
 

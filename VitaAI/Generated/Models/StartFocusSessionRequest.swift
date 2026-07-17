@@ -9,10 +9,7 @@ import Foundation
 
 public struct StartFocusSessionRequest: Sendable, Codable, Hashable {
 
-    // FIXME(atlas-2026-04-26): NumericRule symbol not exported by current openapi-generator
-    // template. Stale gen — run ./scripts/sync-api-spec.sh once the generator config is fixed.
-    // Rule is metadata-only (validation happens server-side), safe to omit at compile time.
-    // public static let plannedDurationMinutesRule = NumericRule<Int>(minimum: 5, exclusiveMinimum: false, maximum: 180, exclusiveMaximum: false, multipleOf: nil)
+    public static let plannedDurationMinutesRule = NumericRule<Int>(minimum: 5, exclusiveMinimum: false, maximum: 180, exclusiveMaximum: false, multipleOf: nil)
     public var plannedDurationMinutes: Int
     public var subjectId: String?
 

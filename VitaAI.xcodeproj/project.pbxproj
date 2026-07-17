@@ -744,6 +744,7 @@
 		4DC92EEBD904B4D1EBC392E7 /* paste-c03093391d84845d174ecfd87532b4a154f1d3af.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 5E63FEC9469DF937966BBA29 /* paste-c03093391d84845d174ecfd87532b4a154f1d3af.jpg */; };
 		4E06D8D8787D51DA23FF0186 /* paste-48bcf7ffd5775d4ed7a186bd8449ec214565a0c3.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 86DCFB6D1187C8F4ABB4F893 /* paste-48bcf7ffd5775d4ed7a186bd8449ec214565a0c3.jpg */; };
 		4E26611D43F5BB36998F1BE9 /* Screen Shot 2021-03-27 at 12.14.28 PM.png in Resources */ = {isa = PBXBuildFile; fileRef = 0FBC59622EC9A1D7C01842F7 /* Screen Shot 2021-03-27 at 12.14.28 PM.png */; };
+		4E3F5B176CE91F83EC69033E /* QBankFiltersGroupsInnerChildrenInner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD2079371D8D9E85614ABDF /* QBankFiltersGroupsInnerChildrenInner.swift */; };
 		4E5555008A4946E75481AFC1 /* tmpzmfrh8xu.png in Resources */ = {isa = PBXBuildFile; fileRef = 5319C3165148EF027F27FC6E /* tmpzmfrh8xu.png */; };
 		4E577845256B304070457CCE /* Screen Shot 2021-03-27 at 12.21.05 PM.png in Resources */ = {isa = PBXBuildFile; fileRef = 069EAD6654356E95D5998A22 /* Screen Shot 2021-03-27 at 12.21.05 PM.png */; };
 		4E72CBBFA98C32A67D55D3EC /* paste-73376a3d6dd7ab50405cdb487683bc3425b3590c.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 457F7ACFA7B483FF4D64485F /* paste-73376a3d6dd7ab50405cdb487683bc3425b3590c.jpg */; };
@@ -1264,6 +1265,7 @@
 		8B35A877FC3261B3C393E133 /* PdfPenStylesPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44C06662646A204B5E67E9A5 /* PdfPenStylesPopover.swift */; };
 		8B6FCB48F61D4EF9EC9865B4 /* paste-3073a241ae545521348f0cdbe091b8581989d4fc.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 2B3B2A4ABF2DBB440495EE80 /* paste-3073a241ae545521348f0cdbe091b8581989d4fc.jpg */; };
 		8B828145F3EF0A186E6D522D /* TextToSpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ECE46CA939DEDECC0CA2196 /* TextToSpeechManager.swift */; };
+		8BC094CA47F1CF4614DF9407 /* DashboardHeroCardBackgroundImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75DDFBBC15436F35ABD11447 /* DashboardHeroCardBackgroundImage.swift */; };
 		8BC84DB90C9240F5F116778A /* tmp90qvr6g3.png in Resources */ = {isa = PBXBuildFile; fileRef = F201BEFA7AEB9EC5623E5F01 /* tmp90qvr6g3.png */; };
 		8C2D38D73BB66B225ACC4CCE /* CreateDeckSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08339291F25783414AEFB55F /* CreateDeckSheet.swift */; };
 		8C3251C0DDD985D9682D89DD /* paste-55889f8e6bba3568a1546929d56044ee6a9eea5d.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 10D71CB281E1CE27E212263A /* paste-55889f8e6bba3568a1546929d56044ee6a9eea5d.jpg */; };
@@ -1499,6 +1501,7 @@
 		A6986807D33FC8FCD0A3DB45 /* paste-2e8c60c533df34f6c11dfec605f5d3167c7f4e90.jpg in Resources */ = {isa = PBXBuildFile; fileRef = D240783B5A998C7BC7E1D558 /* paste-2e8c60c533df34f6c11dfec605f5d3167c7f4e90.jpg */; };
 		A6BF037ED16F1FF489CC76B3 /* paste-78f4ec4510b2218024d7b57b48c9497985b34ff9.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C2EE8136B7504A1F82DEA24E /* paste-78f4ec4510b2218024d7b57b48c9497985b34ff9.jpg */; };
 		A6F44928C0EC036AF4CD0031 /* paste-2285d99da4d5409945095ac48fb7057e3cf9ba1a.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 07269B58896769CA59FEB794 /* paste-2285d99da4d5409945095ac48fb7057e3cf9ba1a.jpg */; };
+		A6F91FBD7419A41357C39771 /* Validation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A490C4620535BB5A29603BF6 /* Validation.swift */; };
 		A70F3C2EE222E80218A4EAAA /* paste-d40d8390ea6515afc0bb9fedabd4f6cf59aaaa50.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 128CE3051DA0DB81E10F1AD9 /* paste-d40d8390ea6515afc0bb9fedabd4f6cf59aaaa50.jpg */; };
 		A7467596DF7BD02C468A7E00 /* paste-9b0648da49c5029121852ce0a03e13ebd6ee45d2.jpg in Resources */ = {isa = PBXBuildFile; fileRef = B10946085A289D14AEF26893 /* paste-9b0648da49c5029121852ce0a03e13ebd6ee45d2.jpg */; };
 		A7497E2D19A13120F5EA49E0 /* paste-89a64b37f3f4f25b3ad3452b9a5801636d2a5c20.jpg in Resources */ = {isa = PBXBuildFile; fileRef = A59046893D5BB578AAA20191 /* paste-89a64b37f3f4f25b3ad3452b9a5801636d2a5c20.jpg */; };
@@ -1801,6 +1804,7 @@
 		C892D2268BA3332E92D2F0CE /* paste-fbc0584174496e7645ae33d9f3e77591ccadd902.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 673C085A5929B9E6A8047231 /* paste-fbc0584174496e7645ae33d9f3e77591ccadd902.jpg */; };
 		C897B6268A3FC77740999D85 /* VitaAPI+Skins.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0AD3E3285EB79D01010561 /* VitaAPI+Skins.swift */; };
 		C8BB85A173F3A4B542DD455B /* PixioMaterial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F5413BDC75D9091DC6D9D3 /* PixioMaterial.swift */; };
+		C8D01AB501613964B55D8A90 /* DashboardSubjectEvaluationsInner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FBB097E572826FB0FC33CC /* DashboardSubjectEvaluationsInner.swift */; };
 		C90885D6B7F0BED7991D0629 /* paste-75946164333fdfd71b7278024dc31cbea721d898.jpg in Resources */ = {isa = PBXBuildFile; fileRef = CC78DC27D9C7617712964852 /* paste-75946164333fdfd71b7278024dc31cbea721d898.jpg */; };
 		C93F49C1AE855B1B214EA161 /* paste-cfea7215d264d4f656f22148cd1309675c0c219d.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 59FABD417D352A44C5DEEDC9 /* paste-cfea7215d264d4f656f22148cd1309675c0c219d.jpg */; };
 		C94B5BACB2B444F33E3CEB31 /* paste-632f3acd48eb08e02e5481908a9a341b297e13da.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 6DCAC057A37089C88711B27B /* paste-632f3acd48eb08e02e5481908a9a341b297e13da.jpg */; };
@@ -3025,6 +3029,7 @@
 		56CB04FFB8398E0FD413A5BC /* paste-1aace626909f1b9534d58f46746f4f8a197984bf.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-1aace626909f1b9534d58f46746f4f8a197984bf.jpg"; sourceTree = "<group>"; };
 		56DB0C0383237E41947EE1BE /* paste-eec671935c89c26dc408832458b706512907e949.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-eec671935c89c26dc408832458b706512907e949.jpg"; sourceTree = "<group>"; };
 		56E308909F4DECDB0EF6B248 /* paste-ce568c67413c4fed8b04d20562474b76c095a1fe.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-ce568c67413c4fed8b04d20562474b76c095a1fe.jpg"; sourceTree = "<group>"; };
+		56FBB097E572826FB0FC33CC /* DashboardSubjectEvaluationsInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSubjectEvaluationsInner.swift; sourceTree = "<group>"; };
 		57701B977FC6C905F52BB267 /* QBankFiltersDifficultiesInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankFiltersDifficultiesInner.swift; sourceTree = "<group>"; };
 		57B80E6784B2309D08651868 /* paste-039e9007ffb4f721c509969a67b5f8e0dfd3a457.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-039e9007ffb4f721c509969a67b5f8e0dfd3a457.jpg"; sourceTree = "<group>"; };
 		57C136181A281A16258743A6 /* QBankFiltersGroupsInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankFiltersGroupsInner.swift; sourceTree = "<group>"; };
@@ -3310,6 +3315,7 @@
 		75664AC0C8698FB4EEBFDDF2 /* paste-0971a6c29f04130d1fb5a94a69c3f2f1b6b586a1.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-0971a6c29f04130d1fb5a94a69c3f2f1b6b586a1.jpg"; sourceTree = "<group>"; };
 		758D6D8F66D8C196A6A93DF1 /* IntegrationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationModels.swift; sourceTree = "<group>"; };
 		759D46CC5D5B310B9A700E32 /* Screen Shot 2021-05-10 at 11.15.18 AM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-05-10 at 11.15.18 AM.png"; sourceTree = "<group>"; };
+		75DDFBBC15436F35ABD11447 /* DashboardHeroCardBackgroundImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardHeroCardBackgroundImage.swift; sourceTree = "<group>"; };
 		761D4DDD0D140968E9EE8197 /* paste-ec270ec8eafd71df342acc1e66ccf203eb1c976d.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-ec270ec8eafd71df342acc1e66ccf203eb1c976d.jpg"; sourceTree = "<group>"; };
 		7620BE1C308BA8BBE1E3E67B /* paste-a8449fbe7d5bf9d91be3c724c62e6cbf4ae151f9.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-a8449fbe7d5bf9d91be3c724c62e6cbf4ae151f9.jpg"; sourceTree = "<group>"; };
 		767BA0B35319257C30C4640E /* tmpaxuwtvr7.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmpaxuwtvr7.png; sourceTree = "<group>"; };
@@ -3509,6 +3515,7 @@
 		8BA90A7C82525F237EE8A4F6 /* paste-6827602aa4976282f10f9d6ed75d0a09f7054cc9.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-6827602aa4976282f10f9d6ed75d0a09f7054cc9.jpg"; sourceTree = "<group>"; };
 		8BBCD3900A13BC663A30A8FA /* Screen Shot 2021-03-20 at 11.12.03 AM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-03-20 at 11.12.03 AM.png"; sourceTree = "<group>"; };
 		8BBFEAC9FF6048B6488EF429 /* paste-ffbc9836b28432e35a0dbe168462ccac349e5562.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-ffbc9836b28432e35a0dbe168462ccac349e5562.jpg"; sourceTree = "<group>"; };
+		8BD2079371D8D9E85614ABDF /* QBankFiltersGroupsInnerChildrenInner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankFiltersGroupsInnerChildrenInner.swift; sourceTree = "<group>"; };
 		8BFE578994D122729014D559 /* paste-e31956f5f6f2e788828cc9b1aa88afeb4c39a10c.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-e31956f5f6f2e788828cc9b1aa88afeb4c39a10c.jpg"; sourceTree = "<group>"; };
 		8C57C30C8F99600F8CF36749 /* paste-6a65634c5ed966877591b5cd11067cf011bf1976.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-6a65634c5ed966877591b5cd11067cf011bf1976.jpg"; sourceTree = "<group>"; };
 		8C749E050E8D8D8822CB816D /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
@@ -3703,6 +3710,7 @@
 		A4450E6A404A41C7CBEB424F /* Screen Shot 2021-04-26 at 5.13.55 PM.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Screen Shot 2021-04-26 at 5.13.55 PM.png"; sourceTree = "<group>"; };
 		A4633BE694B9D5E216881128 /* paste-e4a2917bfa7d1c17f04d3b0aaa4cc3c7942c1703.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-e4a2917bfa7d1c17f04d3b0aaa4cc3c7942c1703.jpg"; sourceTree = "<group>"; };
 		A464B12A2762264D205CF125 /* tmp2h83i5iw.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = tmp2h83i5iw.png; sourceTree = "<group>"; };
+		A490C4620535BB5A29603BF6 /* Validation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Validation.swift; sourceTree = "<group>"; };
 		A4915D4A3313C7BA836FEEE6 /* ContinueSessionDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueSessionDrawer.swift; sourceTree = "<group>"; };
 		A4D061929BF575CB13F2123E /* paste-afe80289399d2d78bd9d69bab0af9dc785a840a8.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-afe80289399d2d78bd9d69bab0af9dc785a840a8.jpg"; sourceTree = "<group>"; };
 		A4DD88DE5E4BC51962197D32 /* paste-ad6c8d401334760c1fe3fcfd26601e10a1a6466d.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "paste-ad6c8d401334760c1fe3fcfd26601e10a1a6466d.jpg"; sourceTree = "<group>"; };
@@ -4950,9 +4958,11 @@
 				0D92FFBD8336F674485A7AA3 /* DashboardHeroCard.swift */,
 				9382A5EB9DE82A34485A167A /* DashboardHeroCardAction.swift */,
 				BD7B8AB9F6F4EDC09B88BF0B /* DashboardHeroCardBackground.swift */,
+				75DDFBBC15436F35ABD11447 /* DashboardHeroCardBackgroundImage.swift */,
 				8D7C5A3F86803E94DB0637D4 /* DashboardHeroCardCta.swift */,
 				4EBCC90E2A0A1B4640DDA686 /* DashboardHeroCardPillsInner.swift */,
 				9877E4BC0BCC5C79562154CD /* DashboardSubject.swift */,
+				56FBB097E572826FB0FC33CC /* DashboardSubjectEvaluationsInner.swift */,
 				0BAB7AFA757139E38FAB0C32 /* DashboardXp.swift */,
 				F9C164E4D40E5AABFA8BF1FD /* EndFocusSession200Response.swift */,
 				050FC815691996C0F89D4B38 /* EndFocusSessionRequest.swift */,
@@ -4973,6 +4983,7 @@
 				57701B977FC6C905F52BB267 /* QBankFiltersDifficultiesInner.swift */,
 				5A6EBA6D7C6FD7FA65AF1A61 /* QBankFiltersDisciplinesInner.swift */,
 				57C136181A281A16258743A6 /* QBankFiltersGroupsInner.swift */,
+				8BD2079371D8D9E85614ABDF /* QBankFiltersGroupsInnerChildrenInner.swift */,
 				36A4EE48F1B311DD3BD56385 /* QBankFiltersInstitutionsInner.swift */,
 				3A1C767C28995D58219D22CA /* QBankFiltersTopicsInner.swift */,
 				9F09CA48EFF573A24B873087 /* QBankFiltersYearsInner.swift */,
@@ -5003,6 +5014,7 @@
 			isa = PBXGroup;
 			children = (
 				CC38A1510CD8212461642D56 /* JSONValue.swift */,
+				A490C4620535BB5A29603BF6 /* Validation.swift */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -9233,12 +9245,14 @@
 				243DB0868BB6A019627AB054 /* DashboardHeroCard.swift in Sources */,
 				3F762321E8BA2481A3EE5BE9 /* DashboardHeroCardAction.swift in Sources */,
 				6B39D764E1FF15774658E978 /* DashboardHeroCardBackground.swift in Sources */,
+				8BC094CA47F1CF4614DF9407 /* DashboardHeroCardBackgroundImage.swift in Sources */,
 				C165D0EF96DF068A2464B509 /* DashboardHeroCardCta.swift in Sources */,
 				5B827EC5C87B6411384CF532 /* DashboardHeroCardPillsInner.swift in Sources */,
 				2E498AD583738C592569EDCF /* DashboardModels.swift in Sources */,
 				B505B41DE4A819A819EAB4F8 /* DashboardResponse.swift in Sources */,
 				6BB58AA88CA9F803A5318533 /* DashboardScreen.swift in Sources */,
 				D76983D0DDDC83F507AA25EA /* DashboardSubject.swift in Sources */,
+				C8D01AB501613964B55D8A90 /* DashboardSubjectEvaluationsInner.swift in Sources */,
 				1B0CDD59E609F3773CD06CA9 /* DashboardViewModel.swift in Sources */,
 				A6663CFEF3202C1548440144 /* DashboardXp.swift in Sources */,
 				121FE0E771F45319232ABC3D /* Date+Helpers.swift in Sources */,
@@ -9433,6 +9447,7 @@
 				587A29D5D6C0A2B652419302 /* QBankFiltersDifficultiesInner.swift in Sources */,
 				937EAB4130927B19FF53B014 /* QBankFiltersDisciplinesInner.swift in Sources */,
 				5AA0A78B5422B450E30AC02F /* QBankFiltersGroupsInner.swift in Sources */,
+				4E3F5B176CE91F83EC69033E /* QBankFiltersGroupsInnerChildrenInner.swift in Sources */,
 				2CF5097B415D2FBDDF54AD33 /* QBankFiltersInstitutionsInner.swift in Sources */,
 				1B5EB6534ED2A4B98837E088 /* QBankFiltersTopicsInner.swift in Sources */,
 				8A7B2012A76D8CA644F8978C /* QBankFiltersYearsInner.swift in Sources */,
@@ -9545,6 +9560,7 @@
 				225DB7B83FA664CA08EDE014 /* UpdatePrivacyPreferencesRequest.swift in Sources */,
 				22EFE51EF94921DAD6D8BFA5 /* UpdateProfileRequest.swift in Sources */,
 				4BCC06DB8361EE3BA3DD0B51 /* UserJourney.swift in Sources */,
+				A6F91FBD7419A41357C39771 /* Validation.swift in Sources */,
 				F364B8A8FDCFCA606C0693FF /* VideoBackground.swift in Sources */,
 				BC82F6C428E586B5AB90FEBD /* View+FadeUpAppear.swift in Sources */,
 				9255BF9F45EA8E29CAD0E8E9 /* View+GlassStyle.swift in Sources */,

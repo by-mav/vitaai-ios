@@ -19,8 +19,9 @@ public struct FlashcardReviewResult: Sendable, Codable, Hashable {
     public var nextReviewAt: Date?
     public var rating: Int?
     public var preview: FlashcardReviewResultPreview?
+    public var award: GamificationAward?
 
-    public init(id: String? = nil, stability: Double? = nil, difficulty: Double? = nil, state: String? = nil, scheduledDays: Int? = nil, reps: Int? = nil, lapses: Int? = nil, nextReviewAt: Date? = nil, rating: Int? = nil, preview: FlashcardReviewResultPreview? = nil) {
+    public init(id: String? = nil, stability: Double? = nil, difficulty: Double? = nil, state: String? = nil, scheduledDays: Int? = nil, reps: Int? = nil, lapses: Int? = nil, nextReviewAt: Date? = nil, rating: Int? = nil, preview: FlashcardReviewResultPreview? = nil, award: GamificationAward? = nil) {
         self.id = id
         self.stability = stability
         self.difficulty = difficulty
@@ -31,6 +32,7 @@ public struct FlashcardReviewResult: Sendable, Codable, Hashable {
         self.nextReviewAt = nextReviewAt
         self.rating = rating
         self.preview = preview
+        self.award = award
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -44,6 +46,7 @@ public struct FlashcardReviewResult: Sendable, Codable, Hashable {
         case nextReviewAt
         case rating
         case preview
+        case award
     }
 
     // Encodable protocol methods
@@ -60,6 +63,7 @@ public struct FlashcardReviewResult: Sendable, Codable, Hashable {
         try container.encodeIfPresent(nextReviewAt, forKey: .nextReviewAt)
         try container.encodeIfPresent(rating, forKey: .rating)
         try container.encodeIfPresent(preview, forKey: .preview)
+        try container.encodeIfPresent(award, forKey: .award)
     }
 }
 

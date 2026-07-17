@@ -7,12 +7,13 @@
 
 import Foundation
 
-/** Linha de ranking. &#x60;scope&#x3D;user&#x60; retorna &#x60;name&#x60; do aluno + streak. &#x60;scope&#x3D;university&#x60; retorna &#x60;name&#x60; da faculdade (shortName quando existe), &#x60;studentCount&#x60;, &#x60;state&#x60;, &#x60;city&#x60;.  */
+/** Linha de ranking. &#x60;scope&#x3D;user&#x60; retorna &#x60;name&#x60; do aluno + streak. &#x60;scope&#x3D;university&#x60; retorna &#x60;name&#x60; da faculdade (shortName quando existe), &#x60;studentCount&#x60;, &#x60;state&#x60;, &#x60;city&#x60;. &#x60;scope&#x3D;state&#x60; retorna &#x60;name&#x60; &#x3D; UF, &#x60;state&#x60; &#x3D; a mesma UF, &#x60;studentCount&#x60; (alunos do estado).  */
 public struct LeaderboardEntry: Sendable, Codable, Hashable {
 
     public enum Scope: String, Sendable, Codable, CaseIterable {
         case user = "user"
         case university = "university"
+        case state = "state"
     }
     public var rank: Int?
     /** Tipo da linha. Default \"user\" (retrocompat). */

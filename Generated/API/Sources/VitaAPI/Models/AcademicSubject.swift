@@ -23,7 +23,7 @@ public struct AcademicSubject: Sendable, Codable, Hashable {
     public var professor: String?
     public var semester: String?
     public var workload: Int?
-    /** Catalog area (basica, clinica, cirurgica, etc.) joined from vita.disciplines. */
+    /** Grande área canônica da disciplina (Clínica Médica, Cirurgia Geral, Ciclo Básico, …), de vita.exam_great_areas. Nível 1 da árvore (vita-shell §1.1). Antes era o ciclo do curso — corrigido em 2026-07-16. */
     public var area: String?
     /** Icon slug from vita.disciplines, used for row rendering. */
     public var icon: String?

@@ -14,13 +14,16 @@ public struct QBankFiltersGroupsInner: Sendable, Codable, Hashable {
     public var count: Int
     public var icon: String?
     public var displayOrder: Int?
+    /** Filhos hierárquicos. Tradicional: temas (qbank_topics). PBL: clusters de sintomas. Added 2026-04-29. */
+    public var children: [QBankFiltersGroupsInnerChildrenInner]?
 
-    public init(slug: String, name: String, count: Int, icon: String? = nil, displayOrder: Int? = nil) {
+    public init(slug: String, name: String, count: Int, icon: String? = nil, displayOrder: Int? = nil, children: [QBankFiltersGroupsInnerChildrenInner]? = nil) {
         self.slug = slug
         self.name = name
         self.count = count
         self.icon = icon
         self.displayOrder = displayOrder
+        self.children = children
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -29,6 +32,7 @@ public struct QBankFiltersGroupsInner: Sendable, Codable, Hashable {
         case count
         case icon
         case displayOrder
+        case children
     }
 
     // Encodable protocol methods
@@ -40,6 +44,7 @@ public struct QBankFiltersGroupsInner: Sendable, Codable, Hashable {
         try container.encode(count, forKey: .count)
         try container.encodeIfPresent(icon, forKey: .icon)
         try container.encodeIfPresent(displayOrder, forKey: .displayOrder)
+        try container.encodeIfPresent(children, forKey: .children)
     }
 }
 

@@ -12,6 +12,8 @@ Name | Type | Description | Notes
 **targetInstitutions** | **[String]** | RESIDENCIA — instituições/bancas-alvo | [optional] 
 **currentRotation** | **String** | INTERNATO — rotação atual | [optional] 
 **mainGoal** | **String** | Universal — objetivo principal escrito pelo usuário | [optional] 
+**onboardingPhase** | **String** | Fase acadêmica declarada no onboarding | [optional] 
+**preferredName** | **String** | Nome preferido declarado no onboarding | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

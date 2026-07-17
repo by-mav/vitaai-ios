@@ -13,6 +13,7 @@ Name | Type | Description | Notes
 **nextReviewAt** | **Date** |  | [optional] 
 **rating** | **Int** |  | [optional] 
 **preview** | [**FlashcardReviewResultPreview**](FlashcardReviewResultPreview.md) |  | [optional] 
+**award** | [**GamificationAward**](GamificationAward.md) |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

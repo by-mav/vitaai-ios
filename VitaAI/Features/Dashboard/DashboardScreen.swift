@@ -229,7 +229,7 @@ struct DashboardScreen: View {
         Button(action: { handleHeroAction(for: card) }) {
             serverHeroCard(
                 label: card.label,
-                labelColor: toneColor(card.labelTone),
+                labelColor: card.labelTone.map(toneColor) ?? VitaColors.accentHover,
                 title: card.title.uppercased(),
                 subtitle: card.subtitle,
                 pills: pills,
@@ -286,7 +286,9 @@ struct DashboardScreen: View {
 
     @ViewBuilder
     private func serverHeroCard(
-        label: String,
+        // `label`/`labelTone` sao opcionais no contrato desde 2026-07: card sem
+        // categoria nao renderiza a pilula (em vez de uma pilula vazia).
+        label: String?,
         labelColor: Color = VitaColors.accentHover,
         title: String,
         subtitle: String? = nil,
@@ -300,17 +302,19 @@ struct DashboardScreen: View {
         VStack(alignment: .leading, spacing: 8) {
             Spacer()
 
-            Text(label)
-                .font(.system(size: 9, weight: .bold))
-                .kerning(1.2)
-                .foregroundStyle(labelColor.opacity(isAlert ? 0.95 : 0.85))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(labelColor.opacity(isAlert ? 0.14 : 0.10))
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(labelColor.opacity(isAlert ? 0.28 : 0.18), lineWidth: 1))
-                )
+            if let label, !label.isEmpty {
+                Text(label)
+                    .font(.system(size: 9, weight: .bold)) // ds-allow: 9pt pre-existente desta pilula (o menor token eh labelSmall 10pt); trocar mudaria o visual, fora do escopo
+                    .kerning(1.2)
+                    .foregroundStyle(labelColor.opacity(isAlert ? 0.95 : 0.85))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6) // ds-allow: raio pre-existente desta pilula; o menor token eh Radius.sm (8) e trocar mudaria o visual, fora do escopo (aqui so envolvi o bloco num `if let`)
+                            .fill(labelColor.opacity(isAlert ? 0.14 : 0.10))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(labelColor.opacity(isAlert ? 0.28 : 0.18), lineWidth: 1)) // ds-allow: idem — mesma pilula, raio pre-existente
+                    )
+            }
 
             Text(title)
                 .font(.system(size: 20, weight: .bold))

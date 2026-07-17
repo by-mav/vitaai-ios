@@ -11,31 +11,18 @@ public struct AnswerQBankQuestion200Response: Sendable, Codable, Hashable {
 
     public var isCorrect: Bool
     public var answerId: Int
-    /** XP awarded this answer (+5 correct, +1 wrong) */
-    public var xpDelta: Int?
-    /** User total XP after this answer */
-    public var totalXp: Int?
-    /** User level after this answer (floor(totalXp/100)) */
-    public var newLevel: Int?
-    /** True if this answer caused a level up */
-    public var leveledUp: Bool?
+    public var award: GamificationAward?
 
-    public init(isCorrect: Bool, answerId: Int, xpDelta: Int? = nil, totalXp: Int? = nil, newLevel: Int? = nil, leveledUp: Bool? = nil) {
+    public init(isCorrect: Bool, answerId: Int, award: GamificationAward? = nil) {
         self.isCorrect = isCorrect
         self.answerId = answerId
-        self.xpDelta = xpDelta
-        self.totalXp = totalXp
-        self.newLevel = newLevel
-        self.leveledUp = leveledUp
+        self.award = award
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case isCorrect
         case answerId
-        case xpDelta
-        case totalXp
-        case newLevel
-        case leveledUp
+        case award
     }
 
     // Encodable protocol methods
@@ -44,10 +31,7 @@ public struct AnswerQBankQuestion200Response: Sendable, Codable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(isCorrect, forKey: .isCorrect)
         try container.encode(answerId, forKey: .answerId)
-        try container.encodeIfPresent(xpDelta, forKey: .xpDelta)
-        try container.encodeIfPresent(totalXp, forKey: .totalXp)
-        try container.encodeIfPresent(newLevel, forKey: .newLevel)
-        try container.encodeIfPresent(leveledUp, forKey: .leveledUp)
+        try container.encodeIfPresent(award, forKey: .award)
     }
 }
 

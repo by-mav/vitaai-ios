@@ -11,13 +11,17 @@ public struct ReviewFlashcardRequest: Sendable, Codable, Hashable {
 
     public static let ratingRule = NumericRule<Int>(minimum: 1, exclusiveMinimum: false, maximum: 4, exclusiveMaximum: false, multipleOf: nil)
     public var rating: Int
+    /** Stable client-generated identity reused only for retries of this review. */
+    public var reviewId: UUID?
 
-    public init(rating: Int) {
+    public init(rating: Int, reviewId: UUID? = nil) {
         self.rating = rating
+        self.reviewId = reviewId
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case rating
+        case reviewId
     }
 
     // Encodable protocol methods
@@ -25,6 +29,7 @@ public struct ReviewFlashcardRequest: Sendable, Codable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(rating, forKey: .rating)
+        try container.encodeIfPresent(reviewId, forKey: .reviewId)
     }
 }
 

@@ -7,14 +7,9 @@
 
 import Foundation
 
-/** Body do POST /api/simulados/preview. Added 2026-04-29. */
+/** Body do POST /api/simulados/preview. Filtro por taxonomia &#x3D; 1 árvore (vita-shell §1.1): um campo por nível. Sem &#x60;lens&#x60; (aposentada 2026-07-16).  */
 public struct SimuladoPreviewRequest: Sendable, Codable, Hashable {
 
-    public enum Lens: String, Sendable, Codable, CaseIterable {
-        case tradicional = "tradicional"
-        case pbl = "pbl"
-        case greatAreas = "great-areas"
-    }
     public enum Difficulties: String, Sendable, Codable, CaseIterable {
         case easy = "easy"
         case medium = "medium"
@@ -25,8 +20,10 @@ public struct SimuladoPreviewRequest: Sendable, Codable, Hashable {
         case discursive = "discursive"
         case withimage = "withImage"
     }
-    public var lens: Lens?
-    public var groupSlugs: [String]?
+    /** Nível 1: slugs das 6 grandes áreas (vita.exam_great_areas). */
+    public var areaSlugs: [String]?
+    /** Nível 2: slugs de disciplina (vita.disciplines.slug). */
+    public var disciplineSlugs: [String]?
     public var institutionIds: [Int]?
     public var years: QBankPreviewRequestYears?
     public var difficulties: [Difficulties]?
@@ -40,9 +37,9 @@ public struct SimuladoPreviewRequest: Sendable, Codable, Hashable {
     public var timed: Bool?
     public var timeLimitMinutes: Int?
 
-    public init(lens: Lens? = nil, groupSlugs: [String]? = nil, institutionIds: [Int]? = nil, years: QBankPreviewRequestYears? = nil, difficulties: [Difficulties]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil, questionCount: Int? = nil, timed: Bool? = nil, timeLimitMinutes: Int? = nil) {
-        self.lens = lens
-        self.groupSlugs = groupSlugs
+    public init(areaSlugs: [String]? = nil, disciplineSlugs: [String]? = nil, institutionIds: [Int]? = nil, years: QBankPreviewRequestYears? = nil, difficulties: [Difficulties]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil, questionCount: Int? = nil, timed: Bool? = nil, timeLimitMinutes: Int? = nil) {
+        self.areaSlugs = areaSlugs
+        self.disciplineSlugs = disciplineSlugs
         self.institutionIds = institutionIds
         self.years = years
         self.difficulties = difficulties
@@ -57,8 +54,8 @@ public struct SimuladoPreviewRequest: Sendable, Codable, Hashable {
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
-        case lens
-        case groupSlugs
+        case areaSlugs
+        case disciplineSlugs
         case institutionIds
         case years
         case difficulties
@@ -76,8 +73,8 @@ public struct SimuladoPreviewRequest: Sendable, Codable, Hashable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(lens, forKey: .lens)
-        try container.encodeIfPresent(groupSlugs, forKey: .groupSlugs)
+        try container.encodeIfPresent(areaSlugs, forKey: .areaSlugs)
+        try container.encodeIfPresent(disciplineSlugs, forKey: .disciplineSlugs)
         try container.encodeIfPresent(institutionIds, forKey: .institutionIds)
         try container.encodeIfPresent(years, forKey: .years)
         try container.encodeIfPresent(difficulties, forKey: .difficulties)

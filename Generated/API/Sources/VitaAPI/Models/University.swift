@@ -14,15 +14,28 @@ public struct University: Sendable, Codable, Hashable {
     public var shortName: String?
     public var city: String?
     public var state: String?
+    /** ISO 3166-1 alpha-2 country code */
+    public var countryCode: String?
+    public var countryName: String?
+    public var wdomsSchoolId: String?
+    public var catalogSource: String?
+    public var sourceDetailUrl: String?
+    public var sourceSnapshotDate: Date?
     public var enameConcept: Int?
     public var portals: [UniversityPortal]?
 
-    public init(id: String? = nil, name: String? = nil, shortName: String? = nil, city: String? = nil, state: String? = nil, enameConcept: Int? = nil, portals: [UniversityPortal]? = nil) {
+    public init(id: String? = nil, name: String? = nil, shortName: String? = nil, city: String? = nil, state: String? = nil, countryCode: String? = nil, countryName: String? = nil, wdomsSchoolId: String? = nil, catalogSource: String? = nil, sourceDetailUrl: String? = nil, sourceSnapshotDate: Date? = nil, enameConcept: Int? = nil, portals: [UniversityPortal]? = nil) {
         self.id = id
         self.name = name
         self.shortName = shortName
         self.city = city
         self.state = state
+        self.countryCode = countryCode
+        self.countryName = countryName
+        self.wdomsSchoolId = wdomsSchoolId
+        self.catalogSource = catalogSource
+        self.sourceDetailUrl = sourceDetailUrl
+        self.sourceSnapshotDate = sourceSnapshotDate
         self.enameConcept = enameConcept
         self.portals = portals
     }
@@ -33,6 +46,12 @@ public struct University: Sendable, Codable, Hashable {
         case shortName
         case city
         case state
+        case countryCode
+        case countryName
+        case wdomsSchoolId
+        case catalogSource
+        case sourceDetailUrl
+        case sourceSnapshotDate
         case enameConcept
         case portals
     }
@@ -46,6 +65,12 @@ public struct University: Sendable, Codable, Hashable {
         try container.encodeIfPresent(shortName, forKey: .shortName)
         try container.encodeIfPresent(city, forKey: .city)
         try container.encodeIfPresent(state, forKey: .state)
+        try container.encodeIfPresent(countryCode, forKey: .countryCode)
+        try container.encodeIfPresent(countryName, forKey: .countryName)
+        try container.encodeIfPresent(wdomsSchoolId, forKey: .wdomsSchoolId)
+        try container.encodeIfPresent(catalogSource, forKey: .catalogSource)
+        try container.encodeIfPresent(sourceDetailUrl, forKey: .sourceDetailUrl)
+        try container.encodeIfPresent(sourceSnapshotDate, forKey: .sourceSnapshotDate)
         try container.encodeIfPresent(enameConcept, forKey: .enameConcept)
         try container.encodeIfPresent(portals, forKey: .portals)
     }

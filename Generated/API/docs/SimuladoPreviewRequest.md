@@ -3,8 +3,8 @@
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**lens** | **String** |  | [optional] 
-**groupSlugs** | **[String]** |  | [optional] 
+**areaSlugs** | **[String]** | Nível 1: slugs das 6 grandes áreas (vita.exam_great_areas). | [optional] 
+**disciplineSlugs** | **[String]** | Nível 2: slugs de disciplina (vita.disciplines.slug). | [optional] 
 **institutionIds** | **[Int]** |  | [optional] 
 **years** | [**QBankPreviewRequestYears**](QBankPreviewRequestYears.md) |  | [optional] 
 **difficulties** | **[String]** |  | [optional] 

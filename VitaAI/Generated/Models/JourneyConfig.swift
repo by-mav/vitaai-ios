@@ -14,6 +14,13 @@ public struct JourneyConfig: Sendable, Codable, Hashable {
         case primeira = "PRIMEIRA"
         case segunda = "SEGUNDA"
     }
+    public enum OnboardingPhase: String, Sendable, Codable, CaseIterable {
+        case vestibulando = "vestibulando"
+        case graduando = "graduando"
+        case residencia = "residencia"
+        case professional = "professional"
+        case other = "other"
+    }
     /** FACULDADE — semestre cursando (1-12) */
     public var currentSemester: Int?
     /** FACULDADE — nome da instituição */
@@ -32,8 +39,12 @@ public struct JourneyConfig: Sendable, Codable, Hashable {
     public var currentRotation: String?
     /** Universal — objetivo principal escrito pelo usuário */
     public var mainGoal: String?
+    /** Fase acadêmica declarada no onboarding */
+    public var onboardingPhase: OnboardingPhase?
+    /** Nome preferido declarado no onboarding */
+    public var preferredName: String?
 
-    public init(currentSemester: Int? = nil, institution: String? = nil, activeDisciplines: [String]? = nil, currentStage: CurrentStage? = nil, focusAreas: [String]? = nil, targetSpecialty: String? = nil, targetInstitutions: [String]? = nil, currentRotation: String? = nil, mainGoal: String? = nil) {
+    public init(currentSemester: Int? = nil, institution: String? = nil, activeDisciplines: [String]? = nil, currentStage: CurrentStage? = nil, focusAreas: [String]? = nil, targetSpecialty: String? = nil, targetInstitutions: [String]? = nil, currentRotation: String? = nil, mainGoal: String? = nil, onboardingPhase: OnboardingPhase? = nil, preferredName: String? = nil) {
         self.currentSemester = currentSemester
         self.institution = institution
         self.activeDisciplines = activeDisciplines
@@ -43,6 +54,8 @@ public struct JourneyConfig: Sendable, Codable, Hashable {
         self.targetInstitutions = targetInstitutions
         self.currentRotation = currentRotation
         self.mainGoal = mainGoal
+        self.onboardingPhase = onboardingPhase
+        self.preferredName = preferredName
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -55,6 +68,8 @@ public struct JourneyConfig: Sendable, Codable, Hashable {
         case targetInstitutions
         case currentRotation
         case mainGoal
+        case onboardingPhase
+        case preferredName
     }
 
     // Encodable protocol methods
@@ -70,6 +85,8 @@ public struct JourneyConfig: Sendable, Codable, Hashable {
         try container.encodeIfPresent(targetInstitutions, forKey: .targetInstitutions)
         try container.encodeIfPresent(currentRotation, forKey: .currentRotation)
         try container.encodeIfPresent(mainGoal, forKey: .mainGoal)
+        try container.encodeIfPresent(onboardingPhase, forKey: .onboardingPhase)
+        try container.encodeIfPresent(preferredName, forKey: .preferredName)
     }
 }
 

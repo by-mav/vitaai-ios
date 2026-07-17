@@ -107,17 +107,7 @@ struct SimuladoBuilderScreen: View {
                 } else {
                     // ── Modo CUSTOM ──
 
-                    // 3. Lente
-                    LensSwitcher(
-                        selection: Binding(
-                            get: { vm.state.lens },
-                            set: { vm.setLens($0) }
-                        ),
-                        theme: .simulados
-                    )
-                    .padding(.horizontal, 16)
-
-                    // 4. Tags removíveis
+                    // 3. Tags removíveis
                     FilterChipsRow(
                         chips: appliedFilterChips(vm: vm),
                         theme: .simulados,

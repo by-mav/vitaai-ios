@@ -11,15 +11,18 @@ public struct AnswerSimuladoRequest: Sendable, Codable, Hashable {
 
     public var questionId: String
     public var chosenIdx: Int
+    public var responseTimeMs: Int?
 
-    public init(questionId: String, chosenIdx: Int) {
+    public init(questionId: String, chosenIdx: Int, responseTimeMs: Int? = nil) {
         self.questionId = questionId
         self.chosenIdx = chosenIdx
+        self.responseTimeMs = responseTimeMs
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case questionId
         case chosenIdx
+        case responseTimeMs
     }
 
     // Encodable protocol methods
@@ -28,6 +31,7 @@ public struct AnswerSimuladoRequest: Sendable, Codable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(questionId, forKey: .questionId)
         try container.encode(chosenIdx, forKey: .chosenIdx)
+        try container.encodeIfPresent(responseTimeMs, forKey: .responseTimeMs)
     }
 }
 

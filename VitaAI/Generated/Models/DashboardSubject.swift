@@ -23,7 +23,10 @@ public struct DashboardSubject: Sendable, Codable, Hashable {
     public var grade1: Double?
     public var grade2: Double?
     public var grade3: Double?
+    /** DEPRECATED in favor of `evaluations[]` (kind=final). Kept for back-compat. Hardcoded grade1/grade2/grade3/finalGrade only fits ULBRA AP1/AP2/AP3/Média pattern. For 350+ portals with varying schemes (P1/P2, N1/N2/Recup, etc.), iOS/Android should render `evaluations[]` dynamically.  */
     public var finalGrade: Double?
+    /** Per-subject canonical evaluations from `academic_evaluations`. Render dynamically — title, kind and sequence vary per portal/faculty (AP1/AS/Recuperação on ULBRA, P1/P2/Exame elsewhere). Sorted by (kind precedence: partial < final < makeup, then sequence).  */
+    public var evaluations: [DashboardSubjectEvaluationsInner]?
     /** 0-100 percent */
     public var attendance: Double?
     public var absences: Int?
@@ -33,12 +36,12 @@ public struct DashboardSubject: Sendable, Codable, Hashable {
     public var disciplineSlug: String?
     /** Canonical name from vita.disciplines (joined). */
     public var canonicalName: String?
-    /** Catalog area (basica, clinica, cirurgica, etc.). */
+    /** Grande área canônica da disciplina (Clínica Médica, Cirurgia Geral, Ciclo Básico, …), de vita.exam_great_areas. Nível 1 da árvore (vita-shell §1.1). Antes era o ciclo do curso — corrigido em 2026-07-16. */
     public var area: String?
     /** Icon slug from vita.disciplines. */
     public var icon: String?
 
-    public init(name: String? = nil, shortName: String? = nil, difficulty: String? = nil, vitaScore: Double? = nil, vitaTier: String? = nil, subjectId: String? = nil, professor: String? = nil, status: String? = nil, grade1: Double? = nil, grade2: Double? = nil, grade3: Double? = nil, finalGrade: Double? = nil, attendance: Double? = nil, absences: Int? = nil, workload: Int? = nil, semester: String? = nil, disciplineSlug: String? = nil, canonicalName: String? = nil, area: String? = nil, icon: String? = nil) {
+    public init(name: String? = nil, shortName: String? = nil, difficulty: String? = nil, vitaScore: Double? = nil, vitaTier: String? = nil, subjectId: String? = nil, professor: String? = nil, status: String? = nil, grade1: Double? = nil, grade2: Double? = nil, grade3: Double? = nil, finalGrade: Double? = nil, evaluations: [DashboardSubjectEvaluationsInner]? = nil, attendance: Double? = nil, absences: Int? = nil, workload: Int? = nil, semester: String? = nil, disciplineSlug: String? = nil, canonicalName: String? = nil, area: String? = nil, icon: String? = nil) {
         self.name = name
         self.shortName = shortName
         self.difficulty = difficulty
@@ -51,6 +54,7 @@ public struct DashboardSubject: Sendable, Codable, Hashable {
         self.grade2 = grade2
         self.grade3 = grade3
         self.finalGrade = finalGrade
+        self.evaluations = evaluations
         self.attendance = attendance
         self.absences = absences
         self.workload = workload
@@ -74,6 +78,7 @@ public struct DashboardSubject: Sendable, Codable, Hashable {
         case grade2
         case grade3
         case finalGrade
+        case evaluations
         case attendance
         case absences
         case workload
@@ -100,6 +105,7 @@ public struct DashboardSubject: Sendable, Codable, Hashable {
         try container.encodeIfPresent(grade2, forKey: .grade2)
         try container.encodeIfPresent(grade3, forKey: .grade3)
         try container.encodeIfPresent(finalGrade, forKey: .finalGrade)
+        try container.encodeIfPresent(evaluations, forKey: .evaluations)
         try container.encodeIfPresent(attendance, forKey: .attendance)
         try container.encodeIfPresent(absences, forKey: .absences)
         try container.encodeIfPresent(workload, forKey: .workload)

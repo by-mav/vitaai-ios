@@ -14,15 +14,19 @@ public struct FlashcardStats: Sendable, Codable, Hashable {
     public var learnedCards: Int?
     public var retentionRate: Double?
     public var avgReviewTime: Double?
+    public var todayReviews: Int?
+    public var streakDays: Int?
     public var decks: [JSONValue]?
     public var forecast: [JSONValue]?
 
-    public init(totalCards: Int? = nil, pendingCards: Int? = nil, learnedCards: Int? = nil, retentionRate: Double? = nil, avgReviewTime: Double? = nil, decks: [JSONValue]? = nil, forecast: [JSONValue]? = nil) {
+    public init(totalCards: Int? = nil, pendingCards: Int? = nil, learnedCards: Int? = nil, retentionRate: Double? = nil, avgReviewTime: Double? = nil, todayReviews: Int? = nil, streakDays: Int? = nil, decks: [JSONValue]? = nil, forecast: [JSONValue]? = nil) {
         self.totalCards = totalCards
         self.pendingCards = pendingCards
         self.learnedCards = learnedCards
         self.retentionRate = retentionRate
         self.avgReviewTime = avgReviewTime
+        self.todayReviews = todayReviews
+        self.streakDays = streakDays
         self.decks = decks
         self.forecast = forecast
     }
@@ -33,6 +37,8 @@ public struct FlashcardStats: Sendable, Codable, Hashable {
         case learnedCards
         case retentionRate
         case avgReviewTime
+        case todayReviews
+        case streakDays
         case decks
         case forecast
     }
@@ -46,6 +52,8 @@ public struct FlashcardStats: Sendable, Codable, Hashable {
         try container.encodeIfPresent(learnedCards, forKey: .learnedCards)
         try container.encodeIfPresent(retentionRate, forKey: .retentionRate)
         try container.encodeIfPresent(avgReviewTime, forKey: .avgReviewTime)
+        try container.encodeIfPresent(todayReviews, forKey: .todayReviews)
+        try container.encodeIfPresent(streakDays, forKey: .streakDays)
         try container.encodeIfPresent(decks, forKey: .decks)
         try container.encodeIfPresent(forecast, forKey: .forecast)
     }

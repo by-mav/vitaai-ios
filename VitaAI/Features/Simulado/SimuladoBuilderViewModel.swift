@@ -231,9 +231,6 @@ final class SimuladoBuilderViewModel {
     // MARK: - Boot
 
     func boot() {
-        if let mode = dataManager.profile?.contentOrganizationMode {
-            state.lens = mode
-        }
         Task { await loadAll() }
     }
 

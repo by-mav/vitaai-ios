@@ -11,20 +11,17 @@ public struct SubmitOnboardingV2200ResponseDerived: Sendable, Codable, Hashable 
 
     public var journeyType: JourneyType?
     public var journeyConfig: JourneyConfig?
-    public var contentOrganizationMode: ContentOrganizationMode?
     public var moment: String?
 
-    public init(journeyType: JourneyType? = nil, journeyConfig: JourneyConfig? = nil, contentOrganizationMode: ContentOrganizationMode? = nil, moment: String? = nil) {
+    public init(journeyType: JourneyType? = nil, journeyConfig: JourneyConfig? = nil, moment: String? = nil) {
         self.journeyType = journeyType
         self.journeyConfig = journeyConfig
-        self.contentOrganizationMode = contentOrganizationMode
         self.moment = moment
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case journeyType
         case journeyConfig
-        case contentOrganizationMode
         case moment
     }
 
@@ -34,7 +31,6 @@ public struct SubmitOnboardingV2200ResponseDerived: Sendable, Codable, Hashable 
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(journeyType, forKey: .journeyType)
         try container.encodeIfPresent(journeyConfig, forKey: .journeyConfig)
-        try container.encodeIfPresent(contentOrganizationMode, forKey: .contentOrganizationMode)
         try container.encodeIfPresent(moment, forKey: .moment)
     }
 }

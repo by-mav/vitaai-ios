@@ -58,19 +58,6 @@ struct QBankHomeContent: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 14)
 
-                        // LENTE — Tradicional / PBL / CNRM-Enare. Default deriva
-                        // do profile.contentOrganizationMode; override local só
-                        // re-agrupa chips e listas (não persiste backend ainda).
-                        LensSwitcher(
-                            selection: Binding(
-                                get: { vm.state.selectedLens },
-                                set: { vm.setSelectedLens($0) }
-                            ),
-                            theme: .questoes
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.top, 12)
-
                         // DISCIPLINAS — VitaScore-ordered chips (inline filter)
                         if !sortedSubjects.isEmpty {
                             StudySubjectChips(
@@ -166,7 +153,6 @@ struct QBankHomeContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear)
         .task {
-            vm.syncLensFromProfile()
             vm.loadHomeData()
             // Warm filters so the Disciplinas list can render question counts
             // without forcing the user to tap "Nova Sessão" first.

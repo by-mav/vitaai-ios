@@ -8,6 +8,8 @@ Name | Type | Description | Notes
 **learnedCards** | **Int** |  | [optional] 
 **retentionRate** | **Double** |  | [optional] 
 **avgReviewTime** | **Double** |  | [optional] 
+**todayReviews** | **Int** |  | [optional] 
+**streakDays** | **Int** |  | [optional] 
 **decks** | **[JSONValue]** |  | [optional] 
 **forecast** | **[JSONValue]** |  | [optional] 
 

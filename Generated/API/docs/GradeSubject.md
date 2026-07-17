@@ -16,7 +16,7 @@ Name | Type | Description | Notes
 **workload** | **Int** |  | [optional] 
 **disciplineSlug** | **String** | Canonical catalog slug from vita.disciplines. | [optional] 
 **canonicalName** | **String** | Canonical name from vita.disciplines (joined). | [optional] 
-**area** | **String** | Catalog area (basica, clinica, cirurgica, etc.). | [optional] 
+**area** | **String** | Grande área canônica da disciplina (Clínica Médica, Cirurgia Geral, Ciclo Básico, …), de vita.exam_great_areas. Nível 1 da árvore (vita-shell §1.1). Antes era o ciclo do curso — corrigido em 2026-07-16. | [optional] 
 **icon** | **String** | Icon slug from vita.disciplines. | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

@@ -12,17 +12,20 @@ public struct AnswerSimulado200Response: Sendable, Codable, Hashable {
     public var id: String?
     public var isCorrect: Bool?
     public var correctIdx: Int?
+    public var award: GamificationAward?
 
-    public init(id: String? = nil, isCorrect: Bool? = nil, correctIdx: Int? = nil) {
+    public init(id: String? = nil, isCorrect: Bool? = nil, correctIdx: Int? = nil, award: GamificationAward? = nil) {
         self.id = id
         self.isCorrect = isCorrect
         self.correctIdx = correctIdx
+        self.award = award
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case id
         case isCorrect
         case correctIdx
+        case award
     }
 
     // Encodable protocol methods
@@ -32,6 +35,7 @@ public struct AnswerSimulado200Response: Sendable, Codable, Hashable {
         try container.encodeIfPresent(id, forKey: .id)
         try container.encodeIfPresent(isCorrect, forKey: .isCorrect)
         try container.encodeIfPresent(correctIdx, forKey: .correctIdx)
+        try container.encodeIfPresent(award, forKey: .award)
     }
 }
 

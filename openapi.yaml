@@ -115,6 +115,22 @@ components:
           type: boolean
           example: true
 
+    # ── Study breakdown (issue #189) ──
+    DisciplineBreakdown:
+      type: object
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        total:
+          type: integer
+        correct:
+          type: integer
+        pct:
+          type: integer
+      required: [slug, name, total, correct, pct]
+
     # ── Auth ──
     AuthToken:
       type: object
@@ -580,6 +596,41 @@ components:
           format: date-time
           nullable: true
 
+    GamificationAward:
+      type: object
+      description: Server-authoritative XP result. Clients only render these values.
+      required: [xpAwarded, totalXp, level, currentLevelXp, xpToNextLevel, newBadges, tier, cycle, iconPath]
+      properties:
+        xpAwarded:
+          type: integer
+          minimum: 0
+        totalXp:
+          type: integer
+          minimum: 0
+        level:
+          type: integer
+          minimum: 1
+        currentLevelXp:
+          type: integer
+          minimum: 0
+        xpToNextLevel:
+          type: integer
+          minimum: 0
+        newBadges:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: string }
+              name: { type: string }
+        tier: { type: string }
+        cycle: { type: string }
+        iconPath: { type: string }
+        deduped:
+          type: boolean
+          description: True when a retry reused an already credited study action.
+
     FlashcardReviewResult:
       type: object
       properties:
@@ -613,6 +664,8 @@ components:
               type: object
             easy:
               type: object
+        award:
+          $ref: '#/components/schemas/GamificationAward'
 
     FlashcardStats:
       type: object
@@ -627,6 +680,10 @@ components:
           type: number
         avgReviewTime:
           type: number
+        todayReviews:
+          type: integer
+        streakDays:
+          type: integer
         decks:
           type: array
           items:
@@ -835,6 +892,37 @@ components:
           type: number
           nullable: true
         date:
+          type: string
+          format: date-time
+
+    ActiveStudySession:
+      type: object
+      required: [id, kind, engine, title, current, total, updatedAt]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [questoes, simulado, flashcards]
+        engine:
+          type: string
+          enum: [qbank, simulado, flashcards]
+          description: Define qual fluxo nativo retoma/encerra a sessão.
+        mode:
+          type: string
+          nullable: true
+        title:
+          type: string
+        current:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+        deckId:
+          type: string
+          nullable: true
+        updatedAt:
           type: string
           format: date-time
 
@@ -1084,18 +1172,14 @@ components:
     QBankFilters:
       type: object
       properties:
-        lens:
-          description: 'Lente aplicada na resposta atual. Echo do query param OU profile.contentOrganizationMode. Added 2026-04-28.'
-          type: string
-          enum: [tradicional, pbl, great-areas]
         groups:
           description: |
-            Agrupamento de Q conforme `lens`. Substitui `disciplines` (deprecated)
-            como filtro principal de UI. Cada item tem slug + name + count global.
-            - tradicional: vita.disciplines (96 itens)
-            - pbl: vita.pbl_systems (12 itens)
-            - great-areas: vita.exam_great_areas (5 itens)
-            Ordenado por count desc. Added 2026-04-28.
+            Nível 1 da taxonomia canônica: as 6 GRANDES ÁREAS (vita.exam_great_areas),
+            na ordem canônica (display_order). Cada item tem slug + name + count, e
+            `children[]` = as DISCIPLINAS daquela área (nível 2). O nível 3 (temas)
+            vai em `topics[]`.
+            Taxonomia = 1 árvore só: ÁREA → DISCIPLINA → TEMA (vita-shell §1.1).
+            As lentes (tradicional/pbl/great-areas) foram aposentadas em 2026-07-16.
           type: array
           items:
             type: object
@@ -1221,20 +1305,19 @@ components:
 
     QBankPreviewRequest:
       type: object
-      description: 'Body do POST /api/qbank/preview. Todos os campos opcionais; backend aplica defaults conservadores. Added 2026-04-28.'
+      description: |
+        Body do POST /api/qbank/preview. Todos os campos opcionais; backend aplica
+        defaults conservadores. Filtro por taxonomia = 1 árvore (vita-shell §1.1):
+        um campo por nível. As lentes morreram em 2026-07-16 — não existe `lens`.
       properties:
-        lens:
-          type: string
-          enum: [tradicional, pbl, great-areas]
-          nullable: true
-        groupSlugs:
-          description: 'Slugs do agrupamento atual (disciplines/pbl_systems/exam_great_areas conforme lens).'
+        areaSlugs:
+          description: 'Nível 1: slugs das 6 grandes áreas (vita.exam_great_areas).'
           type: array
           items:
             type: string
           nullable: true
-        subgroupSlugs:
-          description: 'Slugs do subnível: clusters de sintoma PBL OU topic IDs (string) Tradicional. Added 2026-04-29.'
+        disciplineSlugs:
+          description: 'Nível 2: slugs de disciplina (vita.disciplines.slug).'
           type: array
           items:
             type: string
@@ -1322,13 +1405,17 @@ components:
 
     SimuladoPreviewRequest:
       type: object
-      description: 'Body do POST /api/simulados/preview. Added 2026-04-29.'
+      description: |
+        Body do POST /api/simulados/preview. Filtro por taxonomia = 1 árvore
+        (vita-shell §1.1): um campo por nível. Sem `lens` (aposentada 2026-07-16).
       properties:
-        lens:
-          type: string
-          enum: [tradicional, pbl, great-areas]
+        areaSlugs:
+          description: 'Nível 1: slugs das 6 grandes áreas (vita.exam_great_areas).'
+          type: array
+          items: { type: string }
           nullable: true
-        groupSlugs:
+        disciplineSlugs:
+          description: 'Nível 2: slugs de disciplina (vita.disciplines.slug).'
           type: array
           items: { type: string }
           nullable: true
@@ -1423,21 +1510,75 @@ components:
               disciplineSlug: { type: string }
               due: { type: integer }
 
+    FlashcardSettings:
+      type: object
+      required:
+        [newPerDay, maxReviewsPerDay, desiredRetention, newCardOrder, burySiblings, maximumInterval, showTimer]
+      properties:
+        newPerDay:
+          type: integer
+          description: 'Cards novos por dia (default 20).'
+        maxReviewsPerDay:
+          type: integer
+          description: 'Maximo de revisoes por dia (default 200).'
+        desiredRetention:
+          type: number
+          format: double
+          description: 'Retencao FSRS desejada 0.70..0.97 (default 0.90).'
+        newCardOrder:
+          type: string
+          enum: [random, sequential]
+        burySiblings:
+          type: boolean
+          description: 'Enterra irmaos (mesmo sourceQuestionId) ja vistos no dia de estudo.'
+        maximumInterval:
+          type: integer
+          description: 'Intervalo maximo FSRS em dias (default 36500).'
+        showTimer:
+          type: boolean
+
+    FlashcardSettingsPatch:
+      type: object
+      description: 'PATCH parcial — todos os campos opcionais; snake_case tambem aceito.'
+      properties:
+        newPerDay:
+          type: integer
+          minimum: 0
+          maximum: 9999
+        maxReviewsPerDay:
+          type: integer
+          minimum: 0
+          maximum: 9999
+        desiredRetention:
+          type: number
+          format: double
+          minimum: 0.7
+          maximum: 0.97
+        newCardOrder:
+          type: string
+          enum: [random, sequential]
+        burySiblings:
+          type: boolean
+        maximumInterval:
+          type: integer
+          minimum: 1
+          maximum: 36500
+        showTimer:
+          type: boolean
+
     FlashcardSessionRequest:
       type: object
       required: [mode]
       properties:
-        lens:
-          type: string
-          nullable: true
-          enum: [tradicional, pbl, great-areas]
         groupSlugs:
+          description: 'Nível 2 da árvore (vita-shell §1.1): slugs de disciplina. Filtra flashcardDecks.disciplineSlug.'
           type: array
           items: { type: string }
           nullable: true
         mode:
           type: string
-          enum: [due, specific, new]
+          enum: [due, specific, new, lapsed, cram]
+          description: 'lapsed = so cards com lapses>=1 (errados); cram = todos os cards do escopo ignorando due (pre-prova). Added 2026-07-12 (issue #188, T4).'
         limit:
           type: integer
           default: 20
@@ -1447,15 +1588,28 @@ components:
         skipEasy:
           type: boolean
           nullable: true
+        cardIds:
+          type: array
+          maxItems: 200
+          items: { type: string }
+          nullable: true
+          description: Fila exata para uma sessão aberta diretamente de um baralho; cada card é validado contra o usuário autenticado.
+        deckId:
+          type: string
+          nullable: true
+        title:
+          type: string
+          maxLength: 120
+          nullable: true
 
     FlashcardSessionResponse:
       type: object
-      required: [sessionId, cardIds, totalCards, expectedMinutes]
+      required: [sessionId, cardIds, totalCards, expectedMinutes, budget]
       properties:
         sessionId:
           type: string
           format: uuid
-          description: 'UUID client-side, não persistido server (sessão vive no cliente).'
+          description: 'UUID persistido no servidor; a fila pode ser retomada depois de fechar o app.'
         cardIds:
           type: array
           items: { type: string }
@@ -1464,6 +1618,119 @@ components:
           type: integer
         expectedMinutes:
           type: integer
+        budget:
+          type: object
+          nullable: true
+          description: 'Orcamento do dia de estudo (rollover 04:00 BRT): ja feito hoje + quanto resta pro modo pedido. Added 2026-07-12 (issue #188, T3).'
+          required: [newIntroducedToday, reviewsToday, remaining]
+          properties:
+            newIntroducedToday:
+              type: integer
+              description: 'Cards que eram NEW e foram revisados hoje (wasNew no log).'
+            reviewsToday:
+              type: integer
+              description: 'Total de revisoes de hoje (novos + repetidos).'
+            remaining:
+              type: integer
+              description: 'Quanto resta do teto do modo pedido (new -> newPerDay, demais -> maxReviewsPerDay).'
+
+    FlashcardStudySession:
+      type: object
+      required: [id, title, mode, cardIds, ratings, currentIndex, totalCards, correctCount, elapsedSeconds, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        mode:
+          type: string
+        deckId:
+          type: string
+          nullable: true
+        cardIds:
+          type: array
+          items: { type: string }
+        ratings:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 4
+        currentIndex:
+          type: integer
+        totalCards:
+          type: integer
+        correctCount:
+          type: integer
+        elapsedSeconds:
+          type: integer
+        status:
+          type: string
+          enum: [active, finished]
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FlashcardDeckCreateRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        disciplineSlug:
+          type: string
+          nullable: true
+          description: 'Slug canonico de vita.disciplines (aceita discipline_slug snake_case).'
+
+    FlashcardDeckCreateResponse:
+      type: object
+      required: [id, title, cardCount, existing]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        disciplineSlug:
+          type: string
+          nullable: true
+        cardCount:
+          type: integer
+        existing:
+          type: boolean
+          description: 'true = deck ja existia (mesmo titulo, case-insensitive); nada foi criado.'
+
+    FlashcardFromQuestionRequest:
+      type: object
+      required: [questionId]
+      properties:
+        questionId:
+          type: integer
+          minimum: 1
+          description: 'ID da questao do QBank (aceita question_id snake_case).'
+
+    FlashcardFromQuestionResponse:
+      type: object
+      required: [existing, cardId, deckId]
+      properties:
+        existing:
+          type: boolean
+          description: 'true = aluno ja tinha card vivo dessa questao; nada foi criado.'
+        cardId:
+          type: string
+        deckId:
+          type: string
+        deckTitle:
+          type: string
+          description: 'Titulo do deck destino ("Questões erradas"). Presente so no 201.'
 
     QBankQuestion:
       type: object
@@ -1587,6 +1854,43 @@ components:
           type: array
           items:
             type: object
+        byArea:
+          description: >
+            Desempenho pelas GRANDES ÁREAS DE PROVA (exam_great_areas, CNRM/ENARE:
+            Ciclo Básico, Clínica Médica, Cirurgia Geral, GO, Pediatria, Medicina
+            Preventiva) → disciplinas canônicas (via qbank_topics.disciplineSlug →
+            disciplines.examGreatAreaSlug). Cada área traz accuracy média + as
+            disciplinas, ordenadas mais fracas primeiro. Added 2026-07-16.
+          type: array
+          items:
+            type: object
+            required: [area, areaName, answered, accuracy, disciplines]
+            properties:
+              area:
+                type: string
+                description: Slug da grande área de prova (exam_great_areas, CNRM/ENARE)
+              areaName:
+                type: string
+                description: Nome da grande área (ex "Clínica Médica")
+              answered:
+                type: integer
+              accuracy:
+                type: integer
+                description: 0-100, média da área
+              disciplines:
+                type: array
+                items:
+                  type: object
+                  required: [slug, name, answered, accuracy]
+                  properties:
+                    slug:
+                      type: string
+                    name:
+                      type: string
+                    answered:
+                      type: integer
+                    accuracy:
+                      type: integer
         scope:
           description: >
             "global" when totals reflect the whole catalogue (stage-scoped), "enrolled" when
@@ -2247,21 +2551,6 @@ components:
           $ref: '#/components/schemas/JourneyType'
         journeyConfig:
           $ref: '#/components/schemas/JourneyConfig'
-        contentOrganizationMode:
-          $ref: '#/components/schemas/ContentOrganizationMode'
-
-    ContentOrganizationMode:
-      type: string
-      nullable: true
-      enum: [tradicional, pbl, great-areas, null]
-      description: |
-        Modo de organização do conteúdo (toggle 3 lentes). null = default
-        derivado de journeyType + university.curriculumMethod (override
-        pessoal sempre vence).
-        - 'tradicional': 96 disciplinas (Anatomia, Fisio, Cardio...)
-        - 'pbl': 12 sistemas integrados (Cardiovascular, Respiratório...)
-        - 'great-areas': 5 grandes áreas CNRM/Enare (Clínica/Cirurgia/GO/Pediatria/MPS)
-        SOT: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md
 
     MedicalSpecialty:
       type: object
@@ -2291,9 +2580,9 @@ components:
     OnboardingV2Request:
       type: object
       description: |
-        Payload do onboarding novo (Onda 5a). Backend deriva journeyType,
-        journeyConfig e contentOrganizationMode via tabela canônica.
-        SOT: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md §7
+        Payload do onboarding novo (Onda 5a). Backend deriva journeyType e
+        journeyConfig via tabela canônica. contentOrganizationMode foi removido
+        em 2026-07-16 — taxonomia = 1 árvore (vita-shell §1.1), sem lentes.
       required: [goal]
       properties:
         goal:
@@ -2302,14 +2591,14 @@ components:
           description: P1 — objetivo macro
         inFaculdade:
           type: string
-          enum: [yes, graduated]
-          description: P2 — status faculdade. Obrigatório exceto se goal=REVALIDA
+          enum: [not_started, yes, graduated]
+          description: P2 — status faculdade. not_started representa vestibular; obrigatório exceto se goal=REVALIDA
         semester:
           type: integer
           minimum: 1
           maximum: 12
           nullable: true
-          description: Obrigatório se inFaculdade=yes. 1-8=FACULDADE, 9-12=INTERNATO
+          description: 1-8=FACULDADE, 9-12=INTERNATO. Pode ser omitido quando a pessoa graduanda pula os detalhes da universidade.
         university:
           type: string
           nullable: true
@@ -2339,6 +2628,15 @@ components:
           type: string
           nullable: true
           description: Objetivo de estudo (Aprovar 1ª, Top 10%, etc)
+        academicPhase:
+          type: string
+          enum: [vestibulando, graduando, residencia, professional, other]
+          nullable: true
+          description: Fase acadêmica escolhida na abertura conversacional do onboarding
+        preferredName:
+          type: string
+          nullable: true
+          description: Nome pelo qual o usuário pediu para o Vita chamá-lo
         targetSpecialty:
           type: string
           nullable: true
@@ -2424,6 +2722,15 @@ components:
           type: string
           description: Universal — objetivo principal escrito pelo usuário
           nullable: true
+        onboardingPhase:
+          type: string
+          enum: [vestibulando, graduando, residencia, professional, other]
+          description: Fase acadêmica declarada no onboarding
+          nullable: true
+        preferredName:
+          type: string
+          description: Nome preferido declarado no onboarding
+          nullable: true
 
     UserJourney:
       type: object
@@ -2476,6 +2783,31 @@ components:
           items:
             type: object
 
+    DailyMission:
+      type: object
+      required: [id, title, icon, tier, target, progress, xpReward, completed, claimed]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        icon:
+          type: string
+          description: SF Symbol name (client renders as-is)
+        tier:
+          type: string
+          enum: [bronze, silver, gold]
+          description: Recompensa crescente (1ª fácil → 3ª difícil), padrão Duolingo
+        target:
+          type: integer
+        progress:
+          type: integer
+        xpReward:
+          type: integer
+        completed:
+          type: boolean
+        claimed:
+          type: boolean
     ActivityEntry:
       type: object
       properties:
@@ -2762,6 +3094,27 @@ components:
         state:
           type: string
           nullable: true
+        countryCode:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+          example: BR
+        countryName:
+          type: string
+          example: Brazil
+        wdomsSchoolId:
+          type: string
+          nullable: true
+        catalogSource:
+          type: string
+          example: wdoms
+        sourceDetailUrl:
+          type: string
+          format: uri
+          nullable: true
+        sourceSnapshotDate:
+          type: string
+          format: date
+          nullable: true
         enameConcept:
           type: integer
           nullable: true
@@ -2878,12 +3231,13 @@ components:
       description: >
         Linha de ranking. `scope=user` retorna `name` do aluno + streak. `scope=university`
         retorna `name` da faculdade (shortName quando existe), `studentCount`, `state`, `city`.
+        `scope=state` retorna `name` = UF, `state` = a mesma UF, `studentCount` (alunos do estado).
       properties:
         rank:
           type: integer
         scope:
           type: string
-          enum: [user, university]
+          enum: [user, university, state]
           description: Tipo da linha. Default "user" (retrocompat).
         name:
           type: string
@@ -3085,7 +3439,7 @@ components:
         area:
           type: string
           nullable: true
-          description: Catalog area (basica, clinica, cirurgica, etc.).
+          description: Grande área canônica da disciplina (Clínica Médica, Cirurgia Geral, Ciclo Básico, …), de vita.exam_great_areas. Nível 1 da árvore (vita-shell §1.1). Antes era o ciclo do curso — corrigido em 2026-07-16.
         icon:
           type: string
           nullable: true
@@ -3169,7 +3523,7 @@ components:
           type: integer
           nullable: true
         area:
-          description: Catalog area (basica, clinica, cirurgica, etc.) joined from vita.disciplines.
+          description: Grande área canônica da disciplina (Clínica Médica, Cirurgia Geral, Ciclo Básico, …), de vita.exam_great_areas. Nível 1 da árvore (vita-shell §1.1). Antes era o ciclo do curso — corrigido em 2026-07-16.
           type: string
           nullable: true
         icon:
@@ -3328,7 +3682,7 @@ components:
         area:
           type: string
           nullable: true
-          description: Catalog area (basica, clinica, cirurgica, etc.).
+          description: Grande área canônica da disciplina (Clínica Médica, Cirurgia Geral, Ciclo Básico, …), de vita.exam_great_areas. Nível 1 da árvore (vita-shell §1.1). Antes era o ciclo do curso — corrigido em 2026-07-16.
         icon:
           type: string
           nullable: true
@@ -4628,89 +4982,6 @@ paths:
   # STUDY
   # ════════════════════════════════════════
 
-  /api/estudos/plan:
-    get:
-      tags: [study]
-      operationId: getStudyPlan
-      summary: Get prioritized study plan based on difficulty, grades, accuracy, and exam proximity
-      responses:
-        '200':
-          description: Prioritized list of subjects to study. 2026-04-23 — Drizzle ANY() array serialization fix #158
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    subjectId:
-                      type: string
-                    name:
-                      type: string
-                    icon:
-                      type: string
-                    difficulty:
-                      type: string
-                    priorityScore:
-                      type: number
-                    confidence:
-                      type: string
-                      enum: [high, medium, low]
-                    reasons:
-                      type: array
-                      items:
-                        type: string
-                    accuracy:
-                      type: object
-                      nullable: true
-                      properties:
-                        total:
-                          type: integer
-                        correct:
-                          type: integer
-                        accuracy:
-                          type: number
-                    grade:
-                      type: object
-                      nullable: true
-                      properties:
-                        value:
-                          type: number
-                        maxValue:
-                          type: number
-                        normalized:
-                          type: number
-                    nextExam:
-                      type: object
-                      nullable: true
-                      properties:
-                        title:
-                          type: string
-                        date:
-                          type: string
-                        daysUntil:
-                          type: integer
-                    topics:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          name:
-                            type: string
-                          questionsAvailable:
-                            type: integer
-                    resources:
-                      type: object
-                      properties:
-                        questionsTotal:
-                          type: integer
-                        topicsCount:
-                          type: integer
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
   /api/planner:
     get:
       tags: [study]
@@ -4803,42 +5074,6 @@ paths:
                     type: object
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
-  /api/study/plan:
-    get:
-      tags: [study]
-      operationId: getStudyPlanHierarchy
-      summary: Estudar tab — hierarchy por lens (banca/tradicional/pbl)
-      description: >
-        Hierarchy de greatAreas/disciplines/pblSystems com question counts
-        filtrado por lens. UI Estudar consome.
-      parameters:
-        - name: lens
-          in: query
-          required: false
-          schema:
-            type: string
-            enum: [banca, tradicional, pbl]
-            default: banca
-      responses:
-        '200':
-          description: Hierarchy por lens
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  lens:
-                    type: string
-                  items:
-                    type: array
-                    items:
-                      type: object
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          description: Profile not found
         '500':
           $ref: '#/components/responses/ServerError'
   /api/study/overview:
@@ -4949,13 +5184,9 @@ paths:
         vistos), filtrado opcionalmente por groupSlug (disciplineSlug do deck).
         Mode `due|specific|new` ajusta o `projectedSessionTime`. Added 2026-04-29.
       parameters:
-        - name: lens
-          in: query
-          schema:
-            type: string
-            enum: [tradicional, pbl, great-areas]
         - name: groupSlug
           in: query
+          description: 'Nível 2 da árvore (vita-shell §1.1): slug de disciplina.'
           schema:
             type: string
         - name: mode
@@ -4976,15 +5207,61 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/study/flashcards/settings:
+    get:
+      tags: [study, flashcards]
+      operationId: getFlashcardSettings
+      summary: Config de estudo do aluno (Anki v2)
+      description: |
+        Settings efetivos do aluno (defaults Anki/FSRS se nunca configurou).
+        Uma linha por usuario em vita.flashcard_settings.
+      responses:
+        '200':
+          description: Settings efetivos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [study, flashcards]
+      operationId: updateFlashcardSettings
+      summary: Atualiza config de estudo (PATCH parcial)
+      description: |
+        So os campos enviados mudam. Aceita camelCase E snake_case (o app iOS
+        serializa em snake_case via convertToSnakeCase).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlashcardSettingsPatch'
+      responses:
+        '200':
+          description: Settings efetivos apos o merge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardSettings'
+        '400':
+          description: Body invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/study/flashcards/session:
     post:
       tags: [study, flashcards]
       operationId: createFlashcardSession
       summary: Cria fila SRS pra sessão de estudo (FSRS scheduling)
       description: |
-        Retorna sessionId (uuid client-side) + cardIds ordenados por prioridade
+        Persiste a fila e retorna sessionId + cardIds ordenados por prioridade
         FSRS (mais atrasado primeiro). Reviews subsequentes vão pelo endpoint
-        existente /api/study/flashcards/{id}/review. Added 2026-04-29.
+        /api/study/flashcards/{id}/review e o progresso pelo recurso da sessão.
       requestBody:
         required: true
         content:
@@ -5000,6 +5277,186 @@ paths:
                 $ref: '#/components/schemas/FlashcardSessionResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/study/flashcards/session/{id}:
+    get:
+      tags: [study, flashcards]
+      operationId: getFlashcardStudySession
+      summary: Carrega uma sessão de Flashcards persistida
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Sessão e fila completas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardStudySession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [study, flashcards]
+      operationId: updateFlashcardStudySession
+      summary: Persiste fila, progresso e tempo ativo da sessão
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cardIds:
+                  type: array
+                  items: { type: string }
+                ratings:
+                  type: array
+                  items: { type: integer, minimum: 1, maximum: 4 }
+                currentIndex: { type: integer, minimum: 0 }
+                correctCount: { type: integer, minimum: 0 }
+                elapsedSeconds: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Sessão atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardStudySession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Sessão já encerrada
+
+  /api/study/flashcards/session/{id}/finish:
+    post:
+      tags: [study, flashcards]
+      operationId: finishFlashcardStudySession
+      summary: Encerra explicitamente uma sessão de Flashcards
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Sessão encerrada de forma idempotente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardStudySession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/study/flashcards/decks:
+    post:
+      tags: [study, flashcards]
+      operationId: createFlashcardDeck
+      summary: Cria baralho vazio do aluno (idempotente por titulo)
+      description: |
+        Cria um flashcard_deck vazio (scope=user) pro aluno autenticado. Se ja
+        existe deck do mesmo aluno com o mesmo titulo (case-insensitive, nao
+        deletado) retorna o existente com existing=true em vez de duplicar.
+        Aceita disciplineSlug (camelCase) ou discipline_slug (snake_case).
+        Added 2026-07-12 (issue #188, T1).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlashcardDeckCreateRequest'
+      responses:
+        '200':
+          description: Deck ja existia (idempotencia por titulo) — existing=true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardDeckCreateResponse'
+        '201':
+          description: Deck criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardDeckCreateResponse'
+        '400':
+          description: Body invalido (title 1..120 obrigatorio)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/study/flashcards/from-question:
+    post:
+      tags: [study, flashcards]
+      operationId: createFlashcardFromQuestion
+      summary: Converte questao errada do QBank em flashcard deterministico
+      description: |
+        Cria flashcard deterministico (sem LLM) a partir de uma questao do
+        QBank, no deck "Questões erradas" do aluno (criado idempotente por
+        titulo via ensureUserDeck). front = enunciado + alternativas com
+        letras (A/B/C...); back = "Resposta: <LETRA>) <texto>" + explanation
+        da questao. tag herda difficulty; o card nasce state=NEW e entra na
+        fila de novos da sessao. Dedup por sourceQuestionId: se o aluno ja
+        tem card vivo dessa questao devolve 200 existing=true sem criar nada.
+        Aceita questionId (camelCase) ou question_id (snake_case).
+        Added 2026-07-12 (issue #188, "Card da questao errada").
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlashcardFromQuestionRequest'
+      responses:
+        '200':
+          description: Aluno ja tem card vivo dessa questao (dedup) — existing=true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardFromQuestionResponse'
+        '201':
+          description: Flashcard criado no deck "Questões erradas"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlashcardFromQuestionResponse'
+        '400':
+          description: Body invalido (questionId int positivo obrigatorio)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Questao inexistente, inativa ou sem alternativa correta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Questao discursiva nao vira flashcard automatico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -5070,6 +5527,90 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/study/flashcards/{id}:
+    patch:
+      tags: [study]
+      operationId: updateFlashcard
+      summary: Edit a flashcard's front/back or move it to another deck (own cards only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                front:
+                  type: string
+                back:
+                  type: string
+                deckId:
+                  type: string
+                  description: Move the card into this deck (must be your own)
+      responses:
+        '200':
+          description: Updated card
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  deckId:
+                    type: string
+                  front:
+                    type: string
+                  back:
+                    type: string
+                  cardType:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [study]
+      operationId: deleteFlashcard
+      summary: Delete (soft) a flashcard (own cards only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  id:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /api/study/flashcards/{id}/review:
     post:
       tags: [study]
@@ -5092,6 +5633,10 @@ paths:
                   type: integer
                   minimum: 1
                   maximum: 4
+                reviewId:
+                  type: string
+                  format: uuid
+                  description: Stable client-generated identity reused only for retries of this review.
               required: [rating]
       responses:
         '200':
@@ -5429,6 +5974,72 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/study/provas/{id}:
+    patch:
+      tags: [study]
+      operationId: updateExam
+      summary: Atualiza avaliação manual (título, nota, pontos, data, tipo)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  nullable: true
+                score:
+                  type: number
+                  nullable: true
+                  description: null remove a nota lançada
+                pointsPossible:
+                  type: number
+                  nullable: true
+                date:
+                  type: string
+                  nullable: true
+                type:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Avaliação atualizada
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [study]
+      operationId: deleteExam
+      summary: Remove avaliação manual (soft-delete)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Avaliação removida
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/study/sessions:
     get:
       tags: [study]
@@ -5452,6 +6063,29 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/StudySession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/study/active-sessions:
+    get:
+      tags: [study]
+      operationId: getActiveStudySessions
+      summary: Lista sessões retomáveis de Questões, Simulados e Flashcards
+      responses:
+        '200':
+          description: Sessões ativas ordenadas pela atividade mais recente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActiveStudySession'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -5743,22 +6377,19 @@ paths:
     get:
       tags: [qbank]
       operationId: getQBankFilters
-      summary: Get available filter options for QBank (lens-aware since 2026-04-28)
+      summary: Get available filter options for QBank (taxonomia = 1 árvore desde 2026-07-16)
+      description: |
+        Retorna os filtros da árvore canônica (vita-shell §1.1):
+        `groups[]` = as 6 grandes áreas (nível 1), cada uma com `children[]` =
+        as disciplinas daquela área (nível 2); `topics[]` = temas (nível 3).
+        Instituição, ano e dificuldade vêm como dimensões próprias.
       parameters:
-        - name: lens
+        - name: stage
           in: query
           required: false
-          description: |
-            Lente de organização do conteúdo. Define o agrupamento retornado
-            em `groups`:
-            - `tradicional`: 96 disciplinas Vita (vita.disciplines)
-            - `pbl`: 12 sistemas (vita.pbl_systems)
-            - `great-areas`: 5 grandes áreas CNRM/Enare (vita.exam_great_areas)
-            Quando ausente, usa profile.contentOrganizationMode (default
-            tradicional). SOT: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md
+          description: 'Etapa (cursinho/graduação/residência/revalida), ou "all" pra ignorar. Default = profile.moment.'
           schema:
             type: string
-            enum: [tradicional, pbl, great-areas]
       responses:
         '200':
           description: Filter options
@@ -5807,13 +6438,8 @@ paths:
       summary: Lista Q que o user errou — Caderno de Erros
       description: |
         Retorna Q que aluno respondeu errado, ordenadas por last-answered desc.
-        Filtrável por lente/groupSlugs pra "treinar Cardio que errei". Added 2026-04-28.
+        Filtrável por groupSlugs pra "treinar Cardio que errei". Added 2026-04-28.
       parameters:
-        - name: lens
-          in: query
-          schema:
-            type: string
-            enum: [tradicional, pbl, great-areas]
         - name: groupSlugs[]
           in: query
           schema:
@@ -6137,18 +6763,8 @@ paths:
                     type: boolean
                   answerId:
                     type: integer
-                  xpDelta:
-                    type: integer
-                    description: XP awarded this answer (+5 correct, +1 wrong)
-                  totalXp:
-                    type: integer
-                    description: User total XP after this answer
-                  newLevel:
-                    type: integer
-                    description: User level after this answer (floor(totalXp/100))
-                  leveledUp:
-                    type: boolean
-                    description: True if this answer caused a level up
+                  award:
+                    $ref: '#/components/schemas/GamificationAward'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '402':
@@ -6222,7 +6838,7 @@ paths:
     post:
       tags: [qbank]
       operationId: createQBankSession
-      summary: QBank session endpoints (handler aligned with 3 lens fields 2026-04-29)
+      summary: QBank session endpoints (taxonomia = 1 árvore, vita-shell §1.1)
       requestBody:
         required: true
         content:
@@ -6273,19 +6889,8 @@ paths:
                   items:
                     type: string
                   nullable: true
-                lens:
-                  description: 'Lente aplicada na sessão (tradicional/pbl/great-areas). Backend usa pra determinar qual coluna `groupSlugs[]` consulta. Added 2026-04-28.'
-                  type: string
-                  enum: [tradicional, pbl, great-areas]
-                  nullable: true
-                pblSystemSlugs:
-                  description: 'Filtra qbank_questions.pblSystemSlug IN (...). Usado quando lens=pbl. Added 2026-04-28.'
-                  type: array
-                  items:
-                    type: string
-                  nullable: true
                 examGreatAreaSlugs:
-                  description: 'Filtra qbank_questions.examGreatAreaSlug IN (...). Usado quando lens=great-areas. Added 2026-04-28.'
+                  description: 'Nível 1 da árvore (vita-shell §1.1): filtra qbank_questions.examGreatAreaSlug IN (...) — as 6 grandes áreas.'
                   type: array
                   items:
                     type: string
@@ -6396,6 +7001,15 @@ paths:
                     type: integer
                   score:
                     type: number
+                  byDiscipline:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DisciplineBreakdown'
+                  avgTimeMs:
+                    type: integer
+                    nullable: true
+                  award:
+                    $ref: '#/components/schemas/GamificationAward'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -6553,6 +7167,51 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/simulados/generate:
+    post:
+      tags: [simulados]
+      operationId: generateSimulado
+      summary: Cria simulado custom a partir de filtros (disciplina + nº de questões)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject]
+              properties:
+                subject:
+                  type: string
+                  description: disciplineSlug ou prefixo de área (ex "clinica-medica")
+                questionCount:
+                  type: integer
+                  nullable: true
+                question_count:
+                  type: integer
+                  nullable: true
+                timeLimitMinutes:
+                  type: integer
+                  nullable: true
+                time_limit_minutes:
+                  type: integer
+                  nullable: true
+      responses:
+        '201':
+          description: Attempt criado (id + questions[], mesmo shape do from-template)
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Body inválido (subject obrigatório)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: Limite semanal de simulados do plano atingido
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Nenhuma questão disponível para a disciplina
   /api/simulados/from-template:
     post:
       tags: [simulados]
@@ -6646,6 +7305,9 @@ paths:
                   type: string
                 chosenIdx:
                   type: integer
+                responseTimeMs:
+                  type: integer
+                  nullable: true
               required: [questionId, chosenIdx]
       responses:
         '200':
@@ -6661,6 +7323,8 @@ paths:
                     type: boolean
                   correctIdx:
                     type: integer
+                  award:
+                    $ref: '#/components/schemas/GamificationAward'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -6695,6 +7359,10 @@ paths:
                     type: integer
                   score:
                     type: number
+                  answeredCount:
+                    type: integer
+                  award:
+                    $ref: '#/components/schemas/GamificationAward'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -6745,6 +7413,13 @@ paths:
                     type: array
                     items:
                       type: object
+                  byDiscipline:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DisciplineBreakdown'
+                  avgTimeMs:
+                    type: integer
+                    nullable: true
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -7617,6 +8292,9 @@ paths:
                 deckId:
                   type: string
                   nullable: true
+                deckTitle:
+                  type: string
+                  description: Nome do deck ao criar (ex nome do PDF)
                 flashcards:
                   type: array
                   items:
@@ -8136,6 +8814,89 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/missions/today:
+    get:
+      tags: [user]
+      operationId: getDailyMissions
+      summary: Daily missions for today (deterministic pick, progress derived from activity logs)
+      responses:
+        '200':
+          description: Today's missions snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [day, missions, bonus, coinBalance]
+                properties:
+                  day:
+                    type: string
+                    description: YYYY-MM-DD (America/Sao_Paulo)
+                  missions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DailyMission'
+                  bonus:
+                    type: object
+                    required: [xpReward, eligible, claimed]
+                    properties:
+                      xpReward:
+                        type: integer
+                      eligible:
+                        type: boolean
+                      claimed:
+                        type: boolean
+                  coinBalance:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/missions/claim:
+    post:
+      tags: [user]
+      operationId: claimDailyMission
+      summary: Claim the reward of a completed daily mission (awards XP, coins follow 1:1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [missionId]
+              properties:
+                missionId:
+                  type: string
+      responses:
+        '200':
+          description: Claim result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, missionId, xpAwarded, bonusXpAwarded, coinBalance, totalXp, level]
+                properties:
+                  ok:
+                    type: boolean
+                  missionId:
+                    type: string
+                  xpAwarded:
+                    type: integer
+                  bonusXpAwarded:
+                    type: integer
+                  coinBalance:
+                    type: integer
+                  totalXp:
+                    type: integer
+                  level:
+                    type: integer
+        '400':
+          description: Invalid body or mission not in today's pick
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Mission not completed yet or already claimed
+        '500':
+          $ref: '#/components/responses/ServerError'
   /api/activity:
     get:
       tags: [user]
@@ -8157,7 +8918,8 @@ paths:
     post:
       tags: [user]
       operationId: logActivity
-      summary: Log an activity event (awards XP and badges)
+      summary: Log a client lifecycle event
+      description: Study rewards are accepted only through the domain route that verifies the action. The only client-triggered XP event here is daily_login, deduplicated by the server.
       requestBody:
         required: true
         content:
@@ -8186,6 +8948,8 @@ paths:
                 type: object
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Study event must be submitted through its authoritative domain route
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -8411,6 +9175,52 @@ paths:
         '403':
           description: Key does not belong to the caller
 
+  /api/skins/lootbox:
+    post:
+      tags: [user]
+      operationId: openLootbox
+      summary: "Aposentada: caixa paga virou baú gratuito de marco de nível (410)"
+      responses:
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '410':
+          description: lootbox_moved_to_level_chests — usar /api/chests/open
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/chests/open:
+    post:
+      tags: [user]
+      operationId: openLevelChest
+      summary: Abre baú de marco da trilha (grátis, nível alcançado, 1x por marco)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [level]
+              properties:
+                level:
+                  type: integer
+      responses:
+        '200':
+          description: Sorteio do baú (won, chestLevel, price, balance, duplicate)
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Nível não é marco de baú
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Nível ainda não alcançado
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Baú desse marco já aberto
   /api/skins/equip:
     post:
       tags: [skins]
@@ -8447,11 +9257,118 @@ paths:
                     type: object
                     nullable: true
         '400':
-          description: Skin fora do catálogo
+          description: Skin fora do catálogo ou não pertence ao slot
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Skin válida mas não possuída (compre antes de equipar)
+        '404':
+          description: Profile not found
+  /api/skins:
+    get:
+      tags: [skins]
+      operationId: getSkins
+      summary: Loja de skins — saldo de moeda (mérito, derivado do XP), catálogo com preço/raridade/posse e a skin equipada.
+      responses:
+        '200':
+          description: Estado da loja
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [level, balance, earned, spent, catalog]
+                properties:
+                  level:
+                    type: integer
+                    description: Nível atual calculado a partir do XP total
+                  balance:
+                    type: integer
+                    description: Saldo gastável (moeda_ganha − gasto)
+                  earned:
+                    type: integer
+                    description: Total de moeda já ganho (derivado do totalXp)
+                  spent:
+                    type: integer
+                  equipped:
+                    type: object
+                    nullable: true
+                  catalog:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, slot, name, rarity, price, unlockLevel, free, locked, owned]
+                      properties:
+                        id:
+                          type: string
+                        slot:
+                          type: string
+                          enum: [head, face, neck, palette]
+                        name:
+                          type: string
+                        rarity:
+                          type: string
+                          enum: [common, rare, epic, legendary]
+                        price:
+                          type: integer
+                        unlockLevel:
+                          type: integer
+                          description: Nível mínimo para comprar ou liberar o item
+                        free:
+                          type: boolean
+                        locked:
+                          type: boolean
+                        owned:
+                          type: boolean
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           description: Profile not found
+  /api/skins/buy:
+    post:
+      tags: [skins]
+      operationId: buySkin
+      summary: Compra uma skin com moeda de mérito (débito atômico). Não equipa.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [skinId]
+              properties:
+                skinId:
+                  type: string
+      responses:
+        '200':
+          description: Skin comprada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [skinId, price, balance, owned]
+                properties:
+                  skinId:
+                    type: string
+                  price:
+                    type: integer
+                  balance:
+                    type: integer
+                  owned:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: skinId inválido
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: Saldo insuficiente
+        '403':
+          description: Nível insuficiente
+        '404':
+          description: Profile not found
+        '409':
+          description: Skin já possuída (ou grátis)
   /api/user/ai-consent:
     get:
       tags: [user]
@@ -8779,19 +9696,21 @@ paths:
     get:
       tags: [social]
       operationId: getLeaderboard
-      summary: XP leaderboard (alunos ou faculdades, weekly/monthly/all)
+      summary: XP leaderboard (alunos, faculdades ou estados, weekly/monthly/all)
       description: >
         Ranking por XP. `scope=user` (default) ranqueia alunos individualmente
         — exclui quem optou OFF em `privacy_preferences.publicLeaderboard`.
         `scope=university` agrega XP por faculdade (soma de todos alunos da
         instituição) — sempre público (faculdade não tem privacy prefs).
+        `scope=state` agrega XP por UF (`userProfiles.universityState`, o estado
+        vem da faculdade) — sempre público, ignora perfis sem estado.
         `period=weekly` (últimos 7d) | `monthly` (30d) | `all` (totalXp).
       parameters:
         - name: scope
           in: query
           schema:
             type: string
-            enum: [user, university]
+            enum: [user, university, state]
             default: user
         - name: period
           in: query
@@ -10206,6 +11125,27 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/subjects/overview:
+    get:
+      tags: [academics]
+      operationId: getSubjectsOverview
+      summary: Disciplinas consolidadas (materiais, provas, trabalhos, notas) — paridade com MCP academics
+      responses:
+        '200':
+          description: Overview por matéria
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  subjects:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/subjects/manual:
     post:
       tags: [platform]
@@ -10769,10 +11709,23 @@ paths:
           in: query
           schema:
             type: string
+        - name: country
+          in: query
+          description: ISO 3166-1 alpha-2 country code; defaults to BR for older clients
+          schema:
+            type: string
+            default: BR
         - name: limit
           in: query
           schema:
             type: integer
+            default: 30
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
         '200':
           description: Universities
@@ -10787,8 +11740,43 @@ paths:
                       $ref: '#/components/schemas/University'
                   total:
                     type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  hasMore:
+                    type: boolean
         '500':
           $ref: '#/components/responses/ServerError'
+
+  /api/universities/countries:
+    get:
+      tags: [universities]
+      operationId: listUniversityCountries
+      summary: List countries represented in the medical-school catalog
+      security: []
+      responses:
+        '200':
+          description: Catalog countries and school counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  countries:
+                    type: array
+                    items:
+                      type: object
+                      required: [code, name, schoolCount]
+                      properties:
+                        code:
+                          type: string
+                        name:
+                          type: string
+                        schoolCount:
+                          type: integer
+                  total:
+                    type: integer
 
   /api/universities/request:
     post:
@@ -10992,6 +11980,7 @@ paths:
 
   /api/dashboard:
     # 2026-04-22: VitaScore (0-100) + vitaTier now populated per subject from gradeRisk+urgency+difficulty. Was null since 14/04 (helper commit f815a32 never shipped the math).
+    get:
       summary: Server-driven dashboard with hero cards, subjects, agenda
       security:
         - cookieAuth: []
@@ -11138,10 +12127,61 @@ paths:
                     nullable: true
                   provider:
                     type: string
+                    nullable: true
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/billing/verify/apple:
+    post:
+      tags: [billing]
+      operationId: verifyAppleSubscription
+      summary: Verify a StoreKit 2 signed transaction and activate its entitlement
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transactionId, productId, bundleId, signedTransaction]
+              properties:
+                transactionId:
+                  type: string
+                productId:
+                  type: string
+                  enum: [com.bymav.vitaai.pro, com.bymav.vitaai.premium]
+                bundleId:
+                  type: string
+                  enum: [com.bymav.vitaai]
+                signedTransaction:
+                  type: string
+                  description: Apple-signed StoreKit 2 JWS transaction.
+      responses:
+        '200':
+          description: Verified active entitlement
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, plan, periodEnd, environment]
+                properties:
+                  ok: { type: boolean, enum: [true] }
+                  plan: { type: string, enum: [pro, premium] }
+                  periodEnd: { type: string, format: date-time }
+                  environment: { type: string, enum: [Production, Sandbox] }
+        '400':
+          description: Invalid, expired, revoked, or mismatched Apple transaction
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Apple subscription is already linked to another Vita account
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -11550,10 +12590,10 @@ paths:
     post:
       tags: [onboarding]
       operationId: submitOnboardingV2
-      summary: Onboarding novo (P1+P2+P3 fork) — deriva journeyType + journeyConfig + contentOrganizationMode
+      summary: Onboarding novo (P1+P2+P3 fork) — deriva journeyType + journeyConfig
       description: |
         Recebe payload com goal (P1), inFaculdade (P2), e campos específicos (P3 + jornada).
-        Backend deriva automaticamente journeyType, journeyConfig e contentOrganizationMode
+        Backend deriva automaticamente journeyType e journeyConfig
         usando a tabela canônica do plano (decisions/2026-04-27_jornada-3lentes-FINAL.md §7).
 
         Combinação inválida bloqueada: goal=FACULDADE + inFaculdade=graduated → HTTP 400.
@@ -11584,8 +12624,6 @@ paths:
                         $ref: '#/components/schemas/JourneyType'
                       journeyConfig:
                         $ref: '#/components/schemas/JourneyConfig'
-                      contentOrganizationMode:
-                        $ref: '#/components/schemas/ContentOrganizationMode'
                       moment:
                         type: string
         '400':

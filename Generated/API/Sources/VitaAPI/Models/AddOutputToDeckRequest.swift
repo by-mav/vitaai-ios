@@ -11,17 +11,21 @@ public struct AddOutputToDeckRequest: Sendable, Codable, Hashable {
 
     public var flashcardIds: [String]?
     public var deckId: String?
+    /** Nome do deck ao criar (ex nome do PDF) */
+    public var deckTitle: String?
     public var flashcards: [AddOutputToDeckRequestFlashcardsInner]?
 
-    public init(flashcardIds: [String]? = nil, deckId: String? = nil, flashcards: [AddOutputToDeckRequestFlashcardsInner]? = nil) {
+    public init(flashcardIds: [String]? = nil, deckId: String? = nil, deckTitle: String? = nil, flashcards: [AddOutputToDeckRequestFlashcardsInner]? = nil) {
         self.flashcardIds = flashcardIds
         self.deckId = deckId
+        self.deckTitle = deckTitle
         self.flashcards = flashcards
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
         case flashcardIds
         case deckId
+        case deckTitle
         case flashcards
     }
 
@@ -31,6 +35,7 @@ public struct AddOutputToDeckRequest: Sendable, Codable, Hashable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(flashcardIds, forKey: .flashcardIds)
         try container.encodeIfPresent(deckId, forKey: .deckId)
+        try container.encodeIfPresent(deckTitle, forKey: .deckTitle)
         try container.encodeIfPresent(flashcards, forKey: .flashcards)
     }
 }

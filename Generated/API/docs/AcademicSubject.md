@@ -14,7 +14,7 @@ Name | Type | Description | Notes
 **professor** | **String** |  | [optional] 
 **semester** | **String** |  | [optional] 
 **workload** | **Int** |  | [optional] 
-**area** | **String** | Catalog area (basica, clinica, cirurgica, etc.) joined from vita.disciplines. | [optional] 
+**area** | **String** | Grande área canônica da disciplina (Clínica Médica, Cirurgia Geral, Ciclo Básico, …), de vita.exam_great_areas. Nível 1 da árvore (vita-shell §1.1). Antes era o ciclo do curso — corrigido em 2026-07-16. | [optional] 
 **icon** | **String** | Icon slug from vita.disciplines, used for row rendering. | [optional] 
 **needsReview** | **Bool** | True when the LLM normalizer couldn&#39;t place this subject in the 96-row catalog. | [optional] 
 **questionCount** | **Int** | Total QBank questions available for this discipline slug (derived from qbank_topics join). | [optional] 

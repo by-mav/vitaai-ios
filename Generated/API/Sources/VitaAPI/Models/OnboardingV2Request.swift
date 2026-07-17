@@ -7,7 +7,7 @@
 
 import Foundation
 
-/** Payload do onboarding novo (Onda 5a). Backend deriva journeyType, journeyConfig e contentOrganizationMode via tabela canônica. SOT: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md §7  */
+/** Payload do onboarding novo (Onda 5a). Backend deriva journeyType e journeyConfig via tabela canônica. contentOrganizationMode foi removido em 2026-07-16 — taxonomia &#x3D; 1 árvore (vita-shell §1.1), sem lentes.  */
 public struct OnboardingV2Request: Sendable, Codable, Hashable {
 
     public enum Goal: String, Sendable, Codable, CaseIterable {
@@ -17,8 +17,16 @@ public struct OnboardingV2Request: Sendable, Codable, Hashable {
         case revalida = "REVALIDA"
     }
     public enum InFaculdade: String, Sendable, Codable, CaseIterable {
+        case notStarted = "not_started"
         case _true = "true"
         case graduated = "graduated"
+    }
+    public enum AcademicPhase: String, Sendable, Codable, CaseIterable {
+        case vestibulando = "vestibulando"
+        case graduando = "graduando"
+        case residencia = "residencia"
+        case professional = "professional"
+        case other = "other"
     }
     public enum CurrentStage: String, Sendable, Codable, CaseIterable {
         case primeira = "PRIMEIRA"
@@ -27,9 +35,9 @@ public struct OnboardingV2Request: Sendable, Codable, Hashable {
     public static let semesterRule = NumericRule<Int>(minimum: 1, exclusiveMinimum: false, maximum: 12, exclusiveMaximum: false, multipleOf: nil)
     /** P1 — objetivo macro */
     public var goal: Goal
-    /** P2 — status faculdade. Obrigatório exceto se goal=REVALIDA */
+    /** P2 — status faculdade. not_started representa vestibular; obrigatório exceto se goal=REVALIDA */
     public var inFaculdade: InFaculdade?
-    /** Obrigatório se inFaculdade=yes. 1-8=FACULDADE, 9-12=INTERNATO */
+    /** 1-8=FACULDADE, 9-12=INTERNATO. Pode ser omitido quando a pessoa graduanda pula os detalhes da universidade. */
     public var semester: Int?
     /** Display name da universidade */
     public var university: String?
@@ -40,6 +48,10 @@ public struct OnboardingV2Request: Sendable, Codable, Hashable {
     public var selectedSubjects: [OnboardingV2RequestSelectedSubjectsInner]?
     /** Objetivo de estudo (Aprovar 1ª, Top 10%, etc) */
     public var studyGoal: String?
+    /** Fase acadêmica escolhida na abertura conversacional do onboarding */
+    public var academicPhase: AcademicPhase?
+    /** Nome pelo qual o usuário pediu para o Vita chamá-lo */
+    public var preferredName: String?
     /** Slug de medical_specialties (apenas goal=RESIDENCIA) */
     public var targetSpecialty: String?
     /** Bancas-alvo (apenas goal=RESIDENCIA) */
@@ -49,7 +61,7 @@ public struct OnboardingV2Request: Sendable, Codable, Hashable {
     /** Áreas de foco (apenas goal=REVALIDA) */
     public var focusAreas: [String]?
 
-    public init(goal: Goal, inFaculdade: InFaculdade? = nil, semester: Int? = nil, university: String? = nil, universityId: String? = nil, universityLms: String? = nil, selectedSubjects: [OnboardingV2RequestSelectedSubjectsInner]? = nil, studyGoal: String? = nil, targetSpecialty: String? = nil, targetInstitutions: [String]? = nil, currentStage: CurrentStage? = nil, focusAreas: [String]? = nil) {
+    public init(goal: Goal, inFaculdade: InFaculdade? = nil, semester: Int? = nil, university: String? = nil, universityId: String? = nil, universityLms: String? = nil, selectedSubjects: [OnboardingV2RequestSelectedSubjectsInner]? = nil, studyGoal: String? = nil, academicPhase: AcademicPhase? = nil, preferredName: String? = nil, targetSpecialty: String? = nil, targetInstitutions: [String]? = nil, currentStage: CurrentStage? = nil, focusAreas: [String]? = nil) {
         self.goal = goal
         self.inFaculdade = inFaculdade
         self.semester = semester
@@ -58,6 +70,8 @@ public struct OnboardingV2Request: Sendable, Codable, Hashable {
         self.universityLms = universityLms
         self.selectedSubjects = selectedSubjects
         self.studyGoal = studyGoal
+        self.academicPhase = academicPhase
+        self.preferredName = preferredName
         self.targetSpecialty = targetSpecialty
         self.targetInstitutions = targetInstitutions
         self.currentStage = currentStage
@@ -73,6 +87,8 @@ public struct OnboardingV2Request: Sendable, Codable, Hashable {
         case universityLms
         case selectedSubjects
         case studyGoal
+        case academicPhase
+        case preferredName
         case targetSpecialty
         case targetInstitutions
         case currentStage
@@ -91,6 +107,8 @@ public struct OnboardingV2Request: Sendable, Codable, Hashable {
         try container.encodeIfPresent(universityLms, forKey: .universityLms)
         try container.encodeIfPresent(selectedSubjects, forKey: .selectedSubjects)
         try container.encodeIfPresent(studyGoal, forKey: .studyGoal)
+        try container.encodeIfPresent(academicPhase, forKey: .academicPhase)
+        try container.encodeIfPresent(preferredName, forKey: .preferredName)
         try container.encodeIfPresent(targetSpecialty, forKey: .targetSpecialty)
         try container.encodeIfPresent(targetInstitutions, forKey: .targetInstitutions)
         try container.encodeIfPresent(currentStage, forKey: .currentStage)
