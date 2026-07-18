@@ -1274,8 +1274,12 @@ actor VitaAPI {
         let _: EmptyResponse = try await client.post("whatsapp/unlink", body: EmptyBody())
     }
 
-    func syncPushPreferences(_ prefs: PushPreferencesRequest) async throws {
-        let _: EmptyResponse = try await client.post("push/preferences", body: prefs)
+    func updateNotificationPreferences(_ prefs: NotificationPreferencesUpdateRequest) async throws {
+        let _: EmptyResponse = try await client.request(
+            "PUT",
+            path: "notifications/preferences",
+            body: prefs
+        )
     }
 
     // MARK: - Account Deletion (LGPD / App Store Â§5.1.1(v))

@@ -34,11 +34,16 @@ struct FeedbackRequest: Codable {
     var feedback: String  // "up" or "down"
 }
 
-struct PushPreferencesRequest: Codable {
-    var flashcardReminders: Bool
-    var streakAlerts: Bool
-    var studyReminders: Bool
-    var reminderTime: String
+struct NotificationPreferenceChannelUpdate: Codable {
+    var push: Bool
+}
+
+struct NotificationPreferencesUpdateRequest: Codable {
+    var flashcardDue: NotificationPreferenceChannelUpdate
+    var studyPlan: NotificationPreferenceChannelUpdate
+    var deadline: NotificationPreferenceChannelUpdate
+    var vitaInsight: NotificationPreferenceChannelUpdate
+    var digestTime: String
 }
 
 struct ChatRequest: Codable {
@@ -50,13 +55,13 @@ struct ChatRequest: Codable {
 // MARK: - Notification Preferences (from GET /api/notifications/preferences)
 
 struct NotificationPreferencesChannel: Codable {
+    var inApp: Bool?
     var push: Bool?
-    var email: Bool?
     var whatsapp: Bool?
 }
 
 struct NotificationPreferencesType: Codable {
-    var key: String?
+    var type: String?
     var label: String?
     var channels: NotificationPreferencesChannel?
 }

@@ -203,6 +203,7 @@ struct NotificationSettingsScreen: View {
         .onChange(of: studyEnabled) { _ in syncToBackend() }
         .onChange(of: reviewEnabled) { _ in syncToBackend() }
         .onChange(of: deadlineEnabled) { _ in syncToBackend() }
+        .onChange(of: updatesEnabled) { _ in syncToBackend() }
         .trackScreen("NotificationSettings")
     }
 
@@ -255,11 +256,11 @@ struct NotificationSettingsScreen: View {
         if let types = prefs.types {
             for t in types {
                 let enabled = t.channels?.push ?? true
-                switch t.key {
+                switch t.type {
                 case "studyPlan":    studyEnabled = enabled
                 case "flashcardDue": reviewEnabled = enabled
                 case "deadline":     deadlineEnabled = enabled
-                case "streak":       updatesEnabled = enabled
+                case "vitaInsight":  updatesEnabled = enabled
                 default: break
                 }
             }
@@ -275,14 +276,19 @@ struct NotificationSettingsScreen: View {
 
     /// Sync current push preferences to the backend (mirrors Android syncToBackend).
     private func syncToBackend() {
-        let prefs = PushPreferencesRequest(
-            flashcardReminders: reviewEnabled,
-            streakAlerts: deadlineEnabled,
-            studyReminders: studyEnabled,
-            reminderTime: studyTime
+        let prefs = NotificationPreferencesUpdateRequest(
+            flashcardDue: .init(push: reviewEnabled),
+            studyPlan: .init(push: studyEnabled),
+            deadline: .init(push: deadlineEnabled),
+            vitaInsight: .init(push: updatesEnabled),
+            digestTime: studyTime
         )
         Task {
-            try? await container.api.syncPushPreferences(prefs)
+            do {
+                try await container.api.updateNotificationPreferences(prefs)
+            } catch {
+                SentrySDK.capture(error: error)
+            }
         }
     }
 
