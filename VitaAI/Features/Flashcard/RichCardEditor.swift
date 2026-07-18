@@ -31,6 +31,11 @@ struct RichCardEditor: UIViewRepresentable {
         tv.textAlignment = centered ? .center : .natural
         tv.textContainerInset = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
         tv.isScrollEnabled = true
+        // O conteúdo é MARKUP/HTML (`<img src="…">`, `**…**`). Aspas "inteligentes"
+        // trocam `"` reto por `"` curvo e corrompem o `src="…"` das tags inseridas
+        // (a mídia deixa de renderizar). Desligado — é editor de marcação, não prosa.
+        tv.smartQuotesType = .no
+        tv.smartDashesType = .no
         tv.text = text
         tv.inputAccessoryView = context.coordinator.makeToolbar()
 
@@ -58,13 +63,15 @@ struct RichCardEditor: UIViewRepresentable {
 
     func updateUIView(_ tv: UITextView, context: Context) {
         // Só re-seta quando o texto CRU muda por fora (ex.: carregar outro card).
-        // Nesse caso reformata; edições do próprio usuário já mantêm o texto igual
-        // (o binding recebe o markup puro), então isto NÃO apaga a formatação viva.
-        if tv.text != text {
-            tv.text = text
-            context.coordinator.applyLiveFormatting(tv)
+        // Comparo com o markup RECONSTRUÍDO do display (attachments de mídia viram
+        // tag de novo) — `tv.text` sozinho traz `\u{FFFC}` no lugar da imagem/áudio,
+        // então bateria sempre "diferente" e re-setaria a cada frame.
+        let current = context.coordinator.reconstructMarkup(from: tv.attributedText)
+        if current != text {
+            tv.attributedText = context.coordinator.buildDisplay(from: text)
+            context.coordinator.resetTypingAttributes(tv)
         }
-        context.coordinator.placeholder?.isHidden = !tv.text.isEmpty
+        context.coordinator.placeholder?.isHidden = !text.isEmpty
     }
 
     final class Coordinator: NSObject, UITextViewDelegate, PHPickerViewControllerDelegate {
@@ -75,11 +82,12 @@ struct RichCardEditor: UIViewRepresentable {
         init(_ parent: RichCardEditor) { self.parent = parent }
 
         func textViewDidChange(_ tv: UITextView) {
-            parent.text = tv.text
-            placeholder?.isHidden = !tv.text.isEmpty
             // Não reformatar DURANTE composição de IME (marked text) — acento/ditado
             // ficam "pendentes" e re-setar o attributedText mataria a composição e
-            // pularia o cursor. Reformata assim que a composição fechar.
+            // pularia o cursor. Só atualiza o binding; reformata quando a composição fechar.
+            let markup = reconstructMarkup(from: tv.attributedText)
+            parent.text = markup
+            placeholder?.isHidden = !markup.isEmpty
             if tv.markedTextRange == nil {
                 applyLiveFormatting(tv)
             }
@@ -175,9 +183,18 @@ struct RichCardEditor: UIViewRepresentable {
         }
 
         private func insertAudio(_ ref: String) {
-            guard let tv = textView, let range = tv.selectedTextRange else { return }
+            guard let tv = textView, let range = insertionRange(tv) else { return }
             tv.replace(range, withText: "<audio src=\"\(ref)\"></audio>")
             sync(tv)
+        }
+
+        /// Ponto de inserção robusto pra mídia: o picker/sheet tira o first responder
+        /// do UITextView → `selectedTextRange` vira nil → o insert era descartado
+        /// (mídia não entrava). Reativa o teclado e, sem cursor, insere no FIM.
+        private func insertionRange(_ tv: UITextView) -> UITextRange? {
+            if !tv.isFirstResponder { tv.becomeFirstResponder() }
+            return tv.selectedTextRange
+                ?? tv.textRange(from: tv.endOfDocument, to: tv.endOfDocument)
         }
 
         /// VC mais acima pra apresentar o picker (o editor vive dentro de um sheet).
@@ -198,7 +215,7 @@ struct RichCardEditor: UIViewRepresentable {
             guard let data = image.jpegData(compressionQuality: 0.85) else { return }
             try? data.write(to: dir.appendingPathComponent(name), options: .atomic)
 
-            guard let tv = textView, let range = tv.selectedTextRange else { return }
+            guard let tv = textView, let range = insertionRange(tv) else { return }
             tv.replace(range, withText: "<img src=\"userdoc:flashcard-images/\(name)\">")
             sync(tv)
         }
@@ -273,28 +290,39 @@ struct RichCardEditor: UIViewRepresentable {
         }
 
         private func sync(_ tv: UITextView) {
-            parent.text = tv.text
-            placeholder?.isHidden = !tv.text.isEmpty
             applyLiveFormatting(tv)
+            let markup = reconstructMarkup(from: tv.attributedText)
+            parent.text = markup
+            placeholder?.isHidden = !markup.isEmpty
         }
 
         // MARK: - WYSIWYG (formatação ao vivo)
         //
         // Mostra o texto JÁ FORMATADO no editor (negrito em negrito, marcador
-        // apagado) enquanto o binding `parent.text` continua sendo o MARKUP puro —
-        // o FlashcardContentView renderiza pelo markup, então a fonte da verdade não
-        // muda. Aqui só ESTILIZAMOS o display: reconstruímos o `attributedText`
-        // preservando cada caractere (inclusive os marcadores, que ficam
-        // `textTertiary`), logo `tv.text` == markup e o cursor (NSRange UTF-16)
-        // continua válido.
+        // apagado, IMAGEM como imagem, ÁUDIO como mini-player) enquanto o binding
+        // `parent.text` continua sendo o MARKUP puro — o FlashcardContentView
+        // renderiza pelo markup, então a fonte da verdade não muda. O texto/áudio/
+        // imagem viram `NSTextAttachment` (1 char cada) carregando a src via
+        // `mediaKey`; ao editar, `reconstructMarkup` desfaz os attachments de volta
+        // pra `<img>/<audio>` e os runs de texto pros próprios chars (marcadores
+        // inclusive), então `parent.text` == markup mesmo com mídia embutida.
 
-        /// Reconstrói o `attributedText` estilizado, preservando cursor e seleção.
+        static let mediaKey = NSAttributedString.Key("vitaMediaSrc")
+
+        /// Reconstrói o `attributedText` estilizado, preservando cursor.
         func applyLiveFormatting(_ tv: UITextView) {
+            let markup = reconstructMarkup(from: tv.attributedText)
             let selected = tv.selectedRange
-            tv.attributedText = buildFormatted(tv.text)
-            tv.selectedRange = selected
-            // Cursor volta ao estilo BASE — senão o próximo char herda o marcador
-            // apagado / negrito e o caret "pula" de tamanho.
+            let rebuilt = buildDisplay(from: markup)
+            tv.attributedText = rebuilt
+            let loc = min(selected.location, rebuilt.length)
+            tv.selectedRange = NSRange(location: loc, length: 0)
+            resetTypingAttributes(tv)
+        }
+
+        /// Cursor volta ao estilo BASE — senão o próximo char herda o marcador
+        /// apagado / negrito / attachment e o caret "pula" de tamanho.
+        func resetTypingAttributes(_ tv: UITextView) {
             let para = NSMutableParagraphStyle()
             para.alignment = parent.centered ? .center : .natural
             tv.typingAttributes = [
@@ -304,8 +332,26 @@ struct RichCardEditor: UIViewRepresentable {
             ]
         }
 
-        /// Markup → NSAttributedString estilizado (mesmo caractere-a-caractere).
-        private func buildFormatted(_ raw: String) -> NSAttributedString {
+        /// Percorre o `attributedText` e reconstrói o MARKUP: cada attachment de
+        /// mídia (marcado com `mediaKey`) vira sua tag `<img>/<audio>`; o resto é o
+        /// texto literal (com os marcadores apagados que também são texto).
+        func reconstructMarkup(from attr: NSAttributedString) -> String {
+            var out = ""
+            let full = NSRange(location: 0, length: attr.length)
+            attr.enumerateAttribute(Self.mediaKey, in: full) { value, range, _ in
+                if let media = value as? String, let sep = media.firstIndex(of: "|") {
+                    let kind = String(media[..<sep])
+                    let src = String(media[media.index(after: sep)...])
+                    out += kind == "img" ? "<img src=\"\(src)\">" : "<audio src=\"\(src)\"></audio>"
+                } else {
+                    out += attr.attributedSubstring(from: range).string
+                }
+            }
+            return out
+        }
+
+        /// Markup → NSAttributedString estilizado (texto char-a-char + attachments).
+        func buildDisplay(from raw: String) -> NSAttributedString {
             let out = NSMutableAttributedString()
             let baseWeight: UIFont.Weight = parent.centered ? .medium : .regular
             let baseFont = UIFont.systemFont(ofSize: parent.fontSize, weight: baseWeight)
@@ -359,6 +405,24 @@ struct RichCardEditor: UIViewRepresentable {
 
             var rem = text[text.startIndex...]
             while !rem.isEmpty {
+                // Imagem: <img src="X"> → mostra a imagem no editor (não a tag).
+                if rem.hasPrefix("<img"), let close = rem.firstIndex(of: ">") {
+                    if let src = Self.extractSrc(String(rem[rem.startIndex...close])) {
+                        out.append(mediaRun(kind: "img", src: src))
+                    }
+                    rem = rem[rem.index(after: close)...]
+                    continue
+                }
+                // Áudio: <audio src="X"></audio> → mostra um mini-player no editor.
+                if rem.hasPrefix("<audio"), let close = rem.firstIndex(of: ">") {
+                    if let src = Self.extractSrc(String(rem[rem.startIndex...close])) {
+                        out.append(mediaRun(kind: "audio", src: src))
+                    }
+                    var after = rem[rem.index(after: close)...]
+                    if after.hasPrefix("</audio>") { after = after.dropFirst("</audio>".count) }
+                    rem = after
+                    continue
+                }
                 // Negrito: **x**
                 if rem.hasPrefix("**"), let end = findMarker("**", in: rem.dropFirst(2)) {
                     let inner = String(rem.dropFirst(2).prefix(upTo: end))
@@ -439,6 +503,116 @@ struct RichCardEditor: UIViewRepresentable {
 
         private func findChar(_ ch: Character, in sub: Substring) -> Substring.Index? {
             sub.firstIndex(of: ch)
+        }
+
+        // MARK: - Mídia inline (imagem real + mini-player de áudio no editor)
+        //
+        // Rafael 2026-07-18: "no editor tem que aparecer a imagem e o mini-player,
+        // não a tag <img>/<audio> — como a pessoa vai saber o que é?". Cada mídia
+        // vira um NSTextAttachment (a imagem em miniatura; o áudio um chip de player)
+        // carregando a src no `mediaKey` pra `reconstructMarkup` refazer a tag.
+
+        /// `<img>`/`<audio>` → attachment carregando a src em `mediaKey`.
+        private func mediaRun(kind: String, src: String) -> NSAttributedString {
+            let att: NSTextAttachment
+            if kind == "img" {
+                att = imageAttachment(src) ?? Self.chipAttachment(text: "Imagem", symbol: "photo")
+            } else {
+                att = Self.chipAttachment(text: "Áudio", symbol: "waveform")
+            }
+            let s = NSMutableAttributedString(attachment: att)
+            s.addAttribute(Self.mediaKey, value: "\(kind)|\(src)",
+                           range: NSRange(location: 0, length: s.length))
+            return s
+        }
+
+        /// Extrai o `src="…"` de uma tag `<img …>`/`<audio …>`. Aceita aspa reta OU
+        /// curva (conteúdo importado / teclado pode ter trocado por “ ”).
+        static func extractSrc(_ tag: String) -> String? {
+            let quotes: Set<Character> = ["\"", "\u{201C}", "\u{201D}", "'"]
+            guard let eq = tag.range(of: "src=") else { return nil }
+            var rest = tag[eq.upperBound...]
+            guard let open = rest.first, quotes.contains(open) else { return nil }
+            rest = rest.dropFirst()
+            guard let end = rest.firstIndex(where: { quotes.contains($0) }) else { return nil }
+            return String(rest[..<end])
+        }
+
+        // Cache: o `buildDisplay` roda a cada tecla — sem cache, cada imagem seria
+        // relida do disco e decodificada a cada caractere digitado (lag).
+        private var imageCache: [String: UIImage] = [:]
+        private static var chipCache: [String: UIImage] = [:]
+
+        /// Resolve a src de imagem (mesma regra do FlashcardImageSegment):
+        /// `userdoc:<rel>` = Documents; `file://`/`/…` = absoluto; senão bundle
+        /// `FlashcardMedia/<rel>`. Rede fica de fora do editor.
+        private func resolveImage(_ src: String) -> UIImage? {
+            if let cached = imageCache[src] { return cached }
+            let img: UIImage?
+            if src.hasPrefix("userdoc:") {
+                let rel = String(src.dropFirst("userdoc:".count))
+                let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                img = UIImage(contentsOfFile: docs.appendingPathComponent(rel).path)
+            } else if src.hasPrefix("http") {
+                img = nil
+            } else if src.hasPrefix("file://") {
+                img = UIImage(contentsOfFile: URL(string: src)?.path ?? "")
+            } else if src.hasPrefix("/") {
+                img = UIImage(contentsOfFile: src)
+            } else if let base = Bundle.main.resourceURL {
+                img = UIImage(contentsOfFile: base.appendingPathComponent("FlashcardMedia")
+                    .appendingPathComponent(src).path)
+            } else {
+                img = nil
+            }
+            if let img { imageCache[src] = img }
+            return img
+        }
+
+        private func imageAttachment(_ src: String) -> NSTextAttachment? {
+            guard let img = resolveImage(src) else { return nil }
+            let att = NSTextAttachment()
+            att.image = img
+            let maxW: CGFloat = 220
+            let scale = img.size.width > maxW ? maxW / img.size.width : 1
+            att.bounds = CGRect(x: 0, y: 0,
+                                width: (img.size.width * scale).rounded(),
+                                height: (img.size.height * scale).rounded())
+            return att
+        }
+
+        /// Chip desenhado (fundo gold suave + ícone + rótulo) — mini-player de áudio
+        /// e fallback de imagem sumida.
+        private static func chipAttachment(text: String, symbol: String) -> NSTextAttachment {
+            let att = NSTextAttachment()
+            att.image = chipImage(text: text, symbol: symbol)
+            att.bounds = CGRect(x: 0, y: -8, width: 132, height: 34)
+            return att
+        }
+
+        private static func chipImage(text: String, symbol: String) -> UIImage {
+            let key = "\(symbol)|\(text)"
+            if let cached = chipCache[key] { return cached }
+            let size = CGSize(width: 132, height: 34)
+            let tint = UIColor(VitaColors.accent)
+            let rendered = UIGraphicsImageRenderer(size: size).image { _ in
+                let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
+                let path = UIBezierPath(roundedRect: rect, cornerRadius: 10)
+                tint.withAlphaComponent(0.14).setFill(); path.fill()
+                tint.withAlphaComponent(0.40).setStroke(); path.lineWidth = 1; path.stroke()
+                let cfg = UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+                if let icon = UIImage(systemName: symbol, withConfiguration: cfg)?
+                    .withTintColor(tint, renderingMode: .alwaysOriginal) {
+                    icon.draw(in: CGRect(x: 11, y: 8, width: 18, height: 18))
+                }
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 14, weight: .medium),
+                    .foregroundColor: tint,
+                ]
+                (text as NSString).draw(at: CGPoint(x: 36, y: 8), withAttributes: attrs)
+            }
+            chipCache[key] = rendered
+            return rendered
         }
     }
 }
