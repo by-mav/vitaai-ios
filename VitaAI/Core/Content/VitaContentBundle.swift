@@ -63,6 +63,24 @@ actor VitaContentBundle {
         index().mapValues(\.count)
     }
 
+    /// Disciplina da Biblioteca (slug + título humano). Usado pelo sheet
+    /// "Mover para outro baralho" do navegador de cards.
+    struct Discipline: Identifiable, Equatable {
+        let slug: String
+        let title: String
+        let count: Int
+        var id: String { slug }
+    }
+
+    /// Todas as disciplinas curadas, ordenadas por título — pra o picker de mover.
+    func disciplines() -> [Discipline] {
+        index().compactMap { slug, cards -> Discipline? in
+            guard let first = cards.first else { return nil }
+            return Discipline(slug: slug, title: first.deckTitle, count: cards.count)
+        }
+        .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
     /// Existe conteúdo curado embutido? (falso só se o JSON sumiu do bundle.)
     func isAvailable() -> Bool {
         !index().isEmpty

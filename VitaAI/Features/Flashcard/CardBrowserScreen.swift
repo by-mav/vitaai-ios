@@ -30,6 +30,7 @@ struct CardBrowserScreen: View {
     @State private var editMode: EditMode = .inactive
     @State private var composerTarget: CardComposerTarget?
     @State private var pendingDelete: FlashcardEntry?
+    @State private var moveDestinations: [VitaContentBundle.Discipline]?
 
     var body: some View {
         VitaAmbientBackground {
@@ -50,10 +51,19 @@ struct CardBrowserScreen: View {
                     CardBrowserSelectionBar(
                         selectedCount: vm.selectedCount,
                         allSelected: vm.allVisibleSelected,
+                        isBundle: disciplineSlug?.isEmpty == false,
                         onDelete: { Task { await vm.deleteSelected() } },
                         onToggleSelectAll: {
                             if vm.allVisibleSelected { vm.clearSelection() } else { vm.selectAllVisible() }
                         },
+                        onEdit: {
+                            if let id = vm.selection.first, let card = vm.cards.first(where: { $0.id == id }) {
+                                composerTarget = .edit(card)
+                            }
+                        },
+                        onInvert: { withAnimation { vm.invertSelection() } },
+                        onDuplicate: { Task { await vm.duplicateSelected() } },
+                        onMove: { Task { await presentMoveSheet() } },
                         onSuspend: { Task { await vm.suspendSelected() } }
                     )
                     .padding(.horizontal, VitaTokens.Spacing.lg)
@@ -82,6 +92,20 @@ struct CardBrowserScreen: View {
                     return await vm.updateCard(id: card.id, front: front, back: back)
                 }
             }
+        }
+        .sheet(item: Binding(
+            get: { moveDestinations.map { MoveSheetPayload(destinations: $0) } },
+            set: { if $0 == nil { moveDestinations = nil } }
+        )) { payload in
+            MoveToDeckSheet(
+                count: vm.selectedCount,
+                destinations: payload.destinations,
+                onPick: { slug in
+                    moveDestinations = nil
+                    Task { await vm.moveSelected(to: slug) }
+                },
+                onCancel: { moveDestinations = nil }
+            )
         }
         .alert("Excluir card?", isPresented: Binding(
             get: { pendingDelete != nil },
@@ -277,11 +301,24 @@ struct CardBrowserScreen: View {
     // MARK: Ações de linha
 
     private func onRowTap(_ card: FlashcardEntry) {
+        guard editMode != .active else { return }
+        // Rafael 2026-07-18: no gerenciador, TOCAR seleciona (estilo Anki browser).
+        // O 1º toque entra em seleção já marcando o card; toques seguintes alternam.
+        // Editar 1 card = swipe pra direita (Editar) OU o botão Editar da barra
+        // quando só 1 está selecionado.
         if vm.isSelecting {
             vm.toggle(card.id)
-        } else if editMode != .active && !vm.isReadOnly {
-            composerTarget = .edit(card)
+        } else if !vm.isReadOnly {
+            withAnimation { vm.enterSelection(preselect: card.id) }
+        } else {
+            composerTarget = .edit(card)  // deck read-only (não deveria ocorrer)
         }
+    }
+
+    /// Carrega as disciplinas de destino e abre o sheet de mover.
+    private func presentMoveSheet() async {
+        let dests = await vm.availableDestinations()
+        moveDestinations = dests
     }
 
     private func dismiss() {
@@ -420,13 +457,20 @@ struct CardStatusPill: View {
 struct CardBrowserSelectionBar: View {
     let selectedCount: Int
     let allSelected: Bool
+    /// Biblioteca (edição local) → habilita Copiar / Mover para outro baralho.
+    /// Baralho do servidor → mostra Suspender no lugar.
+    let isBundle: Bool
     let onDelete: () -> Void
     let onToggleSelectAll: () -> Void
+    let onEdit: () -> Void
+    let onInvert: () -> Void
+    let onDuplicate: () -> Void
+    let onMove: () -> Void
     let onSuspend: () -> Void
 
     var body: some View {
         HStack(spacing: VitaTokens.Spacing.sm) {
-            action(label: "Excluir", system: "trash", tint: VitaColors.danger, enabled: selectedCount > 0, action: onDelete)
+            action(label: "Deletar", system: "trash", tint: VitaColors.danger, enabled: selectedCount > 0, action: onDelete)
 
             action(
                 label: allSelected ? "Limpar" : "Selecionar tudo",
@@ -437,12 +481,22 @@ struct CardBrowserSelectionBar: View {
             )
 
             Menu {
-                Button {
-                    onSuspend()
-                } label: { Label("Suspender", systemImage: "pause.circle") }
-                    .disabled(selectedCount == 0)
+                Button { onEdit() } label: { Label("Editar card", systemImage: "pencil") }
+                    .disabled(selectedCount != 1)
+
+                Button { onInvert() } label: { Label("Inverter seleção", systemImage: "arrow.triangle.2.circlepath") }
+
+                if isBundle {
+                    Button { onDuplicate() } label: { Label("Copiar", systemImage: "doc.on.doc") }
+                        .disabled(selectedCount == 0)
+                    Button { onMove() } label: { Label("Mover para outro baralho", systemImage: "tray.and.arrow.up") }
+                        .disabled(selectedCount == 0)
+                } else {
+                    Button { onSuspend() } label: { Label("Suspender", systemImage: "pause.circle") }
+                        .disabled(selectedCount == 0)
+                }
             } label: {
-                pill(label: "Mais", system: "ellipsis", tint: VitaColors.textSecondary, enabled: selectedCount > 0)
+                pill(label: "Mais", system: "ellipsis", tint: VitaColors.textSecondary, enabled: true)
             }
         }
         .padding(VitaTokens.Spacing.sm)
@@ -477,6 +531,90 @@ struct CardBrowserSelectionBar: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, VitaTokens.Spacing.sm)
         .contentShape(Rectangle())
+    }
+}
+
+// MARK: - MoveToDeckSheet — escolher o baralho de destino
+
+/// Wrapper Identifiable pra dirigir o `.sheet(item:)` (o array de destinos não é
+/// Identifiable sozinho).
+private struct MoveSheetPayload: Identifiable {
+    let id = UUID()
+    let destinations: [VitaContentBundle.Discipline]
+}
+
+struct MoveToDeckSheet: View {
+    let count: Int
+    let destinations: [VitaContentBundle.Discipline]
+    var onPick: (String) -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                VitaColors.surfaceElevated.ignoresSafeArea()
+                if destinations.isEmpty {
+                    VitaEmptyState(
+                        title: "Sem outros baralhos",
+                        message: "Não há outra disciplina na Biblioteca para receber os cards."
+                    )
+                } else {
+                    ScrollView {
+                        VStack(spacing: VitaTokens.Spacing.sm) {
+                            ForEach(destinations) { d in
+                                Button { onPick(d.slug) } label: { row(d) }
+                                    .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(VitaTokens.Spacing.lg)
+                    }
+                }
+            }
+            .navigationTitle("Mover \(count) \(count == 1 ? "card" : "cards")")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar", action: onCancel)
+                        .foregroundStyle(VitaColors.textSecondary)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationBackground(.ultraThinMaterial)
+    }
+
+    private func row(_ d: VitaContentBundle.Discipline) -> some View {
+        HStack(spacing: VitaTokens.Spacing.md) {
+            Image(systemName: "tray.full")
+                .font(.system(size: 16, weight: .semibold))  // ds-allow: tamanho óptico do SF Symbol
+                .foregroundStyle(VitaColors.accent)
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(VitaColors.accent.opacity(0.12)))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(d.title)
+                    .font(VitaTypography.titleSmall)
+                    .foregroundStyle(VitaColors.textPrimary)
+                    .lineLimit(1)
+                Text("\(d.count) \(d.count == 1 ? "card" : "cards")")
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))  // ds-allow: tamanho óptico do SF Symbol
+                .foregroundStyle(VitaColors.textTertiary)
+        }
+        .padding(VitaTokens.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg)
+                .fill(VitaColors.surfaceCard.opacity(0.75))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.lg)
+                .stroke(VitaColors.glassBorder, lineWidth: 1)
+        )
     }
 }
 

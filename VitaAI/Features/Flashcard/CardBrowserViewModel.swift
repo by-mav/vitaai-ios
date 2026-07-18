@@ -111,13 +111,17 @@ final class CardBrowserViewModel {
         await load()
     }
 
+    /// Biblioteca offline: os cards vivem no bundle. É editável — as mudanças
+    /// (excluir/adicionar/editar/mover) viram overlay LOCAL no device (LocalDeckStore),
+    /// modelo Anki, sem tocar o deck curado dos outros.
+    private var isBundle: Bool { !(disciplineSlug ?? "").isEmpty }
+
     func load() async {
-        // Biblioteca offline: os cards da disciplina vivem no bundle, não no servidor.
-        // Lê do VitaContentBundle (read-only — deck curado, ninguém edita direto).
+        // Biblioteca offline: bundle + overlay local do aluno.
         if let slug = disciplineSlug, !slug.isEmpty {
             let bundle = await VitaContentBundle.shared.cards(disciplineSlug: slug)
-            cards = bundle.map { FlashcardEntry(id: $0.id, front: $0.front, back: $0.back) }
-            isReadOnly = true
+            cards = await LocalDeckStore.shared.effectiveCards(bundle: bundle, disciplineSlug: slug)
+            isReadOnly = false
             didLoad = true
             isLoading = false
             return
@@ -172,11 +176,19 @@ final class CardBrowserViewModel {
     /// Cria 1 card NESTE baralho (reusa createFlashcard por título — o server
     /// resolve o deck existente pelo nome). Recarrega pra pegar o id do server.
     func createCard(front: String, back: String) async -> Bool {
-        guard let api else { return false }
         let f = front.trimmingCharacters(in: .whitespacesAndNewlines)
         let b = back.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !f.isEmpty, !b.isEmpty else { return false }
         isMutating = true; defer { isMutating = false }
+
+        // Biblioteca: grava no overlay local (device), sem servidor.
+        if isBundle, let slug = disciplineSlug {
+            _ = await LocalDeckStore.shared.add(front: f, back: b, disciplineSlug: slug)
+            await load()
+            return true
+        }
+
+        guard let api else { return false }
         do {
             _ = try await api.createFlashcard(front: f, back: b, deckTitle: deckTitle, subjectId: subjectId)
             await load()
@@ -189,7 +201,6 @@ final class CardBrowserViewModel {
 
     /// Edita frente/verso (otimista: aplica local, reverte no erro).
     func updateCard(id: String, front: String, back: String) async -> Bool {
-        guard let api else { return false }
         let f = front.trimmingCharacters(in: .whitespacesAndNewlines)
         let b = back.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !f.isEmpty, !b.isEmpty else { return false }
@@ -199,6 +210,14 @@ final class CardBrowserViewModel {
         cards[idx].front = f
         cards[idx].back = b
         isMutating = true; defer { isMutating = false }
+
+        // Biblioteca: edição vira overlay local (persiste no device).
+        if isBundle {
+            await LocalDeckStore.shared.edit(id: id, front: f, back: b)
+            return true
+        }
+
+        guard let api else { cards[idx] = snapshot; return false }
         do {
             try await api.updateFlashcard(cardId: id, front: f, back: b)
             return true
@@ -212,8 +231,17 @@ final class CardBrowserViewModel {
     /// Exclui 1 card. NÃO-otimista: só some depois do server confirmar, pra
     /// nunca "ressuscitar" num re-fetch.
     func delete(id: String) async {
-        guard let api else { return }
         isMutating = true; defer { isMutating = false }
+
+        // Biblioteca: marca deletado no overlay local.
+        if isBundle {
+            await LocalDeckStore.shared.delete(ids: [id])
+            cards.removeAll { $0.id == id }
+            selection.remove(id)
+            return
+        }
+
+        guard let api else { return }
         do {
             try await api.deleteFlashcard(cardId: id)
             cards.removeAll { $0.id == id }
@@ -224,9 +252,79 @@ final class CardBrowserViewModel {
     }
 
     func deleteSelected() async {
-        let ids = Array(selection)
-        for id in ids { await delete(id: id) }
+        let ids = selection
+        guard !ids.isEmpty else { return }
+        isMutating = true; defer { isMutating = false }
+
+        // Biblioteca: deleta o lote de uma vez no overlay.
+        if isBundle {
+            await LocalDeckStore.shared.delete(ids: ids)
+            cards.removeAll { ids.contains($0.id) }
+            cancelSelection()
+            return
+        }
+
+        for id in Array(ids) { await delete(id: id) }
         if selection.isEmpty { isSelecting = false }
+    }
+
+    // MARK: Ações de lote (⋯ do navegador)
+
+    /// Inverte a seleção dentro do que está visível (Anki "Inverter seleção").
+    func invertSelection() {
+        let visible = Set(filteredCards.map(\.id))
+        let newSelection = visible.subtracting(selection)
+        // preserva seleção fora do filtro atual + inverte a visível
+        selection.subtract(visible)
+        selection.formUnion(newSelection)
+    }
+
+    /// Duplica os selecionados como cópias locais na mesma disciplina.
+    func duplicateSelected() async {
+        guard isBundle, let slug = disciplineSlug else {
+            errorMessage = "Copiar cards só está disponível na Biblioteca."
+            return
+        }
+        let ids = selection
+        let toCopy = cards.filter { ids.contains($0.id) }.map { (front: $0.front, back: $0.back) }
+        guard !toCopy.isEmpty else { return }
+        isMutating = true; defer { isMutating = false }
+        await LocalDeckStore.shared.duplicate(cards: toCopy, in: slug)
+        await load()
+        cancelSelection()
+    }
+
+    /// Move os selecionados pra outra disciplina da Biblioteca.
+    func moveSelected(to targetSlug: String) async {
+        guard isBundle else {
+            errorMessage = "Mover cards só está disponível na Biblioteca."
+            return
+        }
+        let ids = selection
+        guard !ids.isEmpty, targetSlug != disciplineSlug else { return }
+        isMutating = true; defer { isMutating = false }
+        await LocalDeckStore.shared.move(ids: ids, to: targetSlug)
+        cards.removeAll { ids.contains($0.id) }
+        cancelSelection()
+    }
+
+    /// Disciplinas de destino (todas menos a atual) pro sheet de mover.
+    /// Prefere a biblioteca do servidor (nomes CURADOS = os mesmos da tela
+    /// Baralhos: "Farmacologia", "Fisiologia I"…); o `deckTitle` cru do bundle é
+    /// bagunçado (importação em massa deixou tudo como "Medicina"). Offline cai
+    /// no bundle.
+    func availableDestinations() async -> [VitaContentBundle.Discipline] {
+        if let api {
+            if let lib = try? await api.getFlashcardLibrary() {
+                let all = lib.areas.flatMap(\.disciplines)
+                if !all.isEmpty {
+                    return all
+                        .filter { $0.slug != disciplineSlug && !$0.slug.isEmpty }
+                        .map { VitaContentBundle.Discipline(slug: $0.slug, title: $0.name, count: $0.total) }
+                }
+            }
+        }
+        return await VitaContentBundle.shared.disciplines().filter { $0.slug != disciplineSlug }
     }
 
     /// Suspende os selecionados (endpoint existente suspendFlashcard). Suspenso
