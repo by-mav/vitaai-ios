@@ -93,18 +93,24 @@ struct FlashcardStudyCard: View {
                 )
 
             VStack(spacing: 0) {
-                faceContent(showHint: showHint)
-                    // Largura TRAVADA → o texto quebra. maxHeight infinito + o
-                    // minimumScaleFactor do FlashcardContentView fazem o texto
-                    // longo ENCOLHER pra caber em vez de vazar.
-                    .frame(width: textWidth)
-                    .frame(maxHeight: .infinity)
+                // Largura TRAVADA → o texto quebra. Conteúdo curto CENTRALIZA
+                // (minHeight = altura útil); conteúdo longo (card "livro" de 1000+
+                // chars) ROLA DENTRO do card em vez de vazar por trás dos botões.
+                // Rafael 2026-07-18: um card de 2700 chars batia no piso do
+                // minimumScaleFactor e transbordava a tela inteira.
+                ScrollView(.vertical, showsIndicators: false) {
+                    faceContent(showHint: showHint)
+                        .frame(width: textWidth)
+                        .frame(minHeight: max(size.height - 72, 1), alignment: .center)
+                }
+                .scrollBounceBehavior(.basedOnSize)
 
                 if showHint {
                     Text("Toque para ver a resposta")
                         .font(.system(size: 11, weight: .regular).italic())
                         .foregroundStyle(Color.white.opacity(0.18))
                         .frame(maxWidth: .infinity)
+                        .padding(.top, 4)
                 }
             }
             .padding(.horizontal, 24)
