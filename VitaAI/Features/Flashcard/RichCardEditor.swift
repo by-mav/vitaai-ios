@@ -51,11 +51,19 @@ struct RichCardEditor: UIViewRepresentable {
         context.coordinator.textView = tv
         context.coordinator.placeholder = ph
         ph.isHidden = !text.isEmpty
+        // Formata o conteúdo inicial (card já existente) ao vivo.
+        context.coordinator.applyLiveFormatting(tv)
         return tv
     }
 
     func updateUIView(_ tv: UITextView, context: Context) {
-        if tv.text != text { tv.text = text }
+        // Só re-seta quando o texto CRU muda por fora (ex.: carregar outro card).
+        // Nesse caso reformata; edições do próprio usuário já mantêm o texto igual
+        // (o binding recebe o markup puro), então isto NÃO apaga a formatação viva.
+        if tv.text != text {
+            tv.text = text
+            context.coordinator.applyLiveFormatting(tv)
+        }
         context.coordinator.placeholder?.isHidden = !tv.text.isEmpty
     }
 
@@ -69,6 +77,12 @@ struct RichCardEditor: UIViewRepresentable {
         func textViewDidChange(_ tv: UITextView) {
             parent.text = tv.text
             placeholder?.isHidden = !tv.text.isEmpty
+            // Não reformatar DURANTE composição de IME (marked text) — acento/ditado
+            // ficam "pendentes" e re-setar o attributedText mataria a composição e
+            // pularia o cursor. Reformata assim que a composição fechar.
+            if tv.markedTextRange == nil {
+                applyLiveFormatting(tv)
+            }
         }
 
         /// Barra ROLÁVEL (igual a referência): todos os botões cabem e o aluno
@@ -233,6 +247,170 @@ struct RichCardEditor: UIViewRepresentable {
         private func sync(_ tv: UITextView) {
             parent.text = tv.text
             placeholder?.isHidden = !tv.text.isEmpty
+            applyLiveFormatting(tv)
+        }
+
+        // MARK: - WYSIWYG (formatação ao vivo)
+        //
+        // Mostra o texto JÁ FORMATADO no editor (negrito em negrito, marcador
+        // apagado) enquanto o binding `parent.text` continua sendo o MARKUP puro —
+        // o FlashcardContentView renderiza pelo markup, então a fonte da verdade não
+        // muda. Aqui só ESTILIZAMOS o display: reconstruímos o `attributedText`
+        // preservando cada caractere (inclusive os marcadores, que ficam
+        // `textTertiary`), logo `tv.text` == markup e o cursor (NSRange UTF-16)
+        // continua válido.
+
+        /// Reconstrói o `attributedText` estilizado, preservando cursor e seleção.
+        func applyLiveFormatting(_ tv: UITextView) {
+            let selected = tv.selectedRange
+            tv.attributedText = buildFormatted(tv.text)
+            tv.selectedRange = selected
+            // Cursor volta ao estilo BASE — senão o próximo char herda o marcador
+            // apagado / negrito e o caret "pula" de tamanho.
+            let para = NSMutableParagraphStyle()
+            para.alignment = parent.centered ? .center : .natural
+            tv.typingAttributes = [
+                .font: UIFont.systemFont(ofSize: parent.fontSize, weight: parent.centered ? .medium : .regular),
+                .foregroundColor: UIColor(VitaColors.textPrimary),
+                .paragraphStyle: para,
+            ]
+        }
+
+        /// Markup → NSAttributedString estilizado (mesmo caractere-a-caractere).
+        private func buildFormatted(_ raw: String) -> NSAttributedString {
+            let out = NSMutableAttributedString()
+            let baseWeight: UIFont.Weight = parent.centered ? .medium : .regular
+            let baseFont = UIFont.systemFont(ofSize: parent.fontSize, weight: baseWeight)
+            let faded = UIColor(VitaColors.textTertiary)
+            let primary = UIColor(VitaColors.textPrimary)
+
+            // Preserva linhas em branco (o `\n` reconstrói o texto exato).
+            let lines = raw.split(separator: "\n", omittingEmptySubsequences: false)
+            for (i, line) in lines.enumerated() {
+                if i == 0, line == "{align:center}" || line == "{align:right}" || line == "{align:left}" {
+                    // Diretiva de alinhamento do campo — o card a esconde; aqui só apaga.
+                    out.append(NSAttributedString(string: String(line),
+                                                  attributes: [.font: baseFont, .foregroundColor: faded]))
+                } else if line.hasPrefix("# ") {
+                    // Título: `# ` apagado, resto maior + negrito.
+                    out.append(NSAttributedString(string: "# ",
+                                                  attributes: [.font: baseFont, .foregroundColor: faded]))
+                    appendInline(out, line.dropFirst(2), size: parent.fontSize * 1.35, weight: .bold)
+                } else {
+                    appendInline(out, line[line.startIndex...], size: parent.fontSize, weight: baseWeight)
+                }
+                if i < lines.count - 1 {
+                    out.append(NSAttributedString(string: "\n",
+                                                  attributes: [.font: baseFont, .foregroundColor: primary]))
+                }
+            }
+
+            let para = NSMutableParagraphStyle()
+            para.alignment = parent.centered ? .center : .natural
+            out.addAttribute(.paragraphStyle, value: para, range: NSRange(location: 0, length: out.length))
+            return out
+        }
+
+        /// Tokeniza uma linha em runs formatados — ESPELHA o `renderInline` do
+        /// FlashcardContentView (mesma ordem/prioridade), mas mantém os marcadores
+        /// no output (apagados) pra o texto puro ficar idêntico ao markup.
+        private func appendInline(_ out: NSMutableAttributedString,
+                                  _ text: Substring,
+                                  size: CGFloat,
+                                  weight: UIFont.Weight) {
+            let baseFont = UIFont.systemFont(ofSize: size, weight: weight)
+            let primary = UIColor(VitaColors.textPrimary)
+            let faded = UIColor(VitaColors.textTertiary)
+
+            func marker(_ s: String) -> NSAttributedString {
+                NSAttributedString(string: s, attributes: [.font: baseFont, .foregroundColor: faded])
+            }
+            func styled(_ s: String, _ attrs: [NSAttributedString.Key: Any]) -> NSAttributedString {
+                NSAttributedString(string: s, attributes: attrs)
+            }
+
+            var rem = text[text.startIndex...]
+            while !rem.isEmpty {
+                // Negrito: **x**
+                if rem.hasPrefix("**"), let end = findMarker("**", in: rem.dropFirst(2)) {
+                    let inner = String(rem.dropFirst(2).prefix(upTo: end))
+                    out.append(marker("**"))
+                    out.append(styled(inner, [
+                        .font: UIFont.systemFont(ofSize: size, weight: .bold),
+                        .foregroundColor: primary,
+                    ]))
+                    out.append(marker("**"))
+                    rem = rem.dropFirst(2)[end...].dropFirst(2)
+                    continue
+                }
+                // Tachado: ~~x~~
+                if rem.hasPrefix("~~"), let end = findMarker("~~", in: rem.dropFirst(2)) {
+                    let inner = String(rem.dropFirst(2).prefix(upTo: end))
+                    out.append(marker("~~"))
+                    out.append(styled(inner, [
+                        .font: baseFont, .foregroundColor: primary,
+                        .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                    ]))
+                    out.append(marker("~~"))
+                    rem = rem.dropFirst(2)[end...].dropFirst(2)
+                    continue
+                }
+                // Sublinhado: <u>x</u>
+                if rem.hasPrefix("<u>"), let end = findMarker("</u>", in: rem.dropFirst(3)) {
+                    let inner = String(rem.dropFirst(3).prefix(upTo: end))
+                    out.append(marker("<u>"))
+                    out.append(styled(inner, [
+                        .font: baseFont, .foregroundColor: primary,
+                        .underlineStyle: NSUnderlineStyle.single.rawValue,
+                    ]))
+                    out.append(marker("</u>"))
+                    rem = rem.dropFirst(3)[end...].dropFirst(4)
+                    continue
+                }
+                // Itálico: *x*  (não confundir com **)
+                if rem.hasPrefix("*"), !rem.hasPrefix("**"), let end = findChar("*", in: rem.dropFirst(1)) {
+                    let inner = String(rem.dropFirst(1).prefix(upTo: end))
+                    out.append(marker("*"))
+                    out.append(styled(inner, [.font: italicFont(size: size, weight: weight), .foregroundColor: primary]))
+                    out.append(marker("*"))
+                    rem = rem.dropFirst(1)[end...].dropFirst(1)
+                    continue
+                }
+                // Itálico: _x_
+                if rem.hasPrefix("_"), let end = findChar("_", in: rem.dropFirst(1)) {
+                    let inner = String(rem.dropFirst(1).prefix(upTo: end))
+                    out.append(marker("_"))
+                    out.append(styled(inner, [.font: italicFont(size: size, weight: weight), .foregroundColor: primary]))
+                    out.append(marker("_"))
+                    rem = rem.dropFirst(1)[end...].dropFirst(1)
+                    continue
+                }
+                // Caractere normal
+                out.append(styled(String(rem.removeFirst()), [.font: baseFont, .foregroundColor: primary]))
+            }
+        }
+
+        /// Fonte itálica do sistema no tamanho/peso pedidos (fallback = sem itálico).
+        private func italicFont(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+            let f = UIFont.systemFont(ofSize: size, weight: weight)
+            if let d = f.fontDescriptor.withSymbolicTraits(.traitItalic) {
+                return UIFont(descriptor: d, size: size)
+            }
+            return f
+        }
+
+        /// Primeira ocorrência do marcador multi-char (ex.: `**`, `</u>`).
+        private func findMarker(_ marker: String, in sub: Substring) -> Substring.Index? {
+            var idx = sub.startIndex
+            while idx < sub.endIndex {
+                if sub[idx...].hasPrefix(marker) { return idx }
+                idx = sub.index(after: idx)
+            }
+            return nil
+        }
+
+        private func findChar(_ ch: Character, in sub: Substring) -> Substring.Index? {
+            sub.firstIndex(of: ch)
         }
     }
 }
