@@ -10,6 +10,29 @@ enum FsrsCardStatus: Int, Codable {
     case relearning = 3
 }
 
+// MARK: - Maturidade do card (SSOT — Novo / Aprendendo / Dominado)
+
+/// Classificação canônica ÚNICA de maturidade de um card, modelo Anki/FSRS.
+/// Antes vivia duplicada: a tela de stats (decks do servidor) usava `interval`,
+/// o estudo local usava `scheduledDays` — mesma regra, campos diferentes, risco
+/// de divergir. Agora todo mundo (servidor + Biblioteca offline) chama isto.
+/// Rafael 2026-07-18: "os cards têm um jeito canônico só, estilo FSRS".
+enum CardMaturity {
+    case new       // nunca revisado (reps == 0)
+    case young     // revisado, intervalo ≤ 21 dias — ainda consolidando
+    case mature    // revisado, intervalo > 21 dias — dominado
+
+    /// Corte do Anki: young < 21 dias ≤ mature.
+    static let matureThresholdDays = 21
+
+    /// `intervalDays` = intervalo de reagendamento do card (FSRS `scheduledDays`
+    /// / o `interval` do servidor — são o mesmo conceito).
+    static func classify(reps: Int, intervalDays: Int) -> CardMaturity {
+        guard reps > 0 else { return .new }
+        return intervalDays > matureThresholdDays ? .mature : .young
+    }
+}
+
 // MARK: - FSRS-5 Card State
 
 /// Immutable snapshot of a card's FSRS-5 scheduling state.

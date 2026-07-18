@@ -157,6 +157,68 @@ actor LocalFlashcardStore {
         return entries.compactMap { $0.value.isDue(at: date) ? $0.key : nil }
     }
 
+    /// Resumo do estudo OFFLINE (Biblioteca) pra tela de Estatísticas — que antes
+    /// lia só do servidor e mostrava tudo 0. Deriva do estado FSRS por card:
+    /// reps = nº de reviews (soma = total), lapses = erros, lastReview = dia da
+    /// última revisão. `reviewsPerDay`/`streak` são aproximados (guardamos só o
+    /// ÚLTIMO review de cada card, não o log completo) — bom o bastante pra o
+    /// heatmap e a sequência não ficarem zerados. Rafael 2026-07-18.
+    struct Aggregate: Sendable {
+        var totalReviews = 0
+        var cardsStudied = 0
+        var lapses = 0
+        var todayReviews = 0
+        var dueCount = 0
+        var youngCards = 0
+        var matureCards = 0
+        var reviewsPerDay: [String: Int] = [:]   // "yyyy-MM-dd" → nº de cards revisados naquele dia
+        var streakDays = 0
+    }
+
+    private static let dayKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    func aggregate(now: Date = Date()) -> Aggregate {
+        ensureLoaded()
+        let cal = Calendar.current
+        var agg = Aggregate()
+        for e in entries.values {
+            agg.totalReviews += e.reps
+            agg.lapses += e.lapses
+            if let due = e.due, due <= now { agg.dueCount += 1 }
+            // Só conta como estudo/review REAL se rateou (reps>0). Card só "visto"
+            // pode ter estado salvo com reps=0 — não infla streak/heatmap/hoje.
+            guard e.reps > 0 else { continue }
+            agg.cardsStudied += 1
+            switch CardMaturity.classify(reps: e.reps, intervalDays: e.scheduledDays) {
+            case .mature: agg.matureCards += 1
+            case .young:  agg.youngCards += 1
+            case .new:    break   // reps>0 nunca é new
+            }
+            if let lr = e.lastReview {
+                let key = Self.dayKeyFormatter.string(from: lr)
+                agg.reviewsPerDay[key, default: 0] += 1
+                if cal.isDateInToday(lr) { agg.todayReviews += 1 }
+            }
+        }
+        // Sequência: dias consecutivos com ≥1 revisão terminando hoje (ou ontem,
+        // pra não zerar antes de estudar no dia).
+        var cursor = cal.startOfDay(for: now)
+        if agg.reviewsPerDay[Self.dayKeyFormatter.string(from: cursor)] == nil {
+            cursor = cal.date(byAdding: .day, value: -1, to: cursor) ?? cursor
+        }
+        while agg.reviewsPerDay[Self.dayKeyFormatter.string(from: cursor)] != nil {
+            agg.streakDays += 1
+            guard let prev = cal.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = prev
+        }
+        return agg
+    }
+
     // MARK: - Escrita
 
     /// Persiste o novo estado FSRS de um card. `due` é materializado a partir de

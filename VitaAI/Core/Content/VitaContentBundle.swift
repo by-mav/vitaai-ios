@@ -63,6 +63,18 @@ actor VitaContentBundle {
         index().mapValues(\.count)
     }
 
+    /// Total de cards curados no bundle (todas as disciplinas). Pra a tela de
+    /// Estatísticas contar a Biblioteca offline, que o servidor não conhece.
+    func totalCards() -> Int {
+        index().values.reduce(0) { $0 + $1.count }
+    }
+
+    /// Todos os ids curados (todas as disciplinas) — pra cruzar com o FSRS local
+    /// e classificar "novos" (nunca estudados) na tela de Estatísticas.
+    func allCardIds() -> [String] {
+        index().values.flatMap { $0.map(\.id) }
+    }
+
     /// Disciplina da Biblioteca (slug + título humano). Usado pelo sheet
     /// "Mover para outro baralho" do navegador de cards.
     struct Discipline: Identifiable, Equatable {

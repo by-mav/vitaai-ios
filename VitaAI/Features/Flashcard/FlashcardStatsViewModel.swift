@@ -55,13 +55,46 @@ final class FlashcardStatsViewModel {
             enrichFromServer(stats)
         }
 
+        // Dobra com o estudo OFFLINE da Biblioteca (o servidor não a conhece — era
+        // por isso que dava "0 em tudo" mesmo com 5801 cards e estudo local).
+        let bundleTotal = await VitaContentBundle.shared.totalCards()
+        let local = await LocalFlashcardStore.shared.aggregate()
+        foldInOffline(bundleTotal: bundleTotal, local: local)
+
         isLoading = false
+    }
+
+    /// Soma a Biblioteca curada (bundle, offline) + o estudo FSRS local ao que veio
+    /// do servidor. Rafael 2026-07-18 — a tela lia só o servidor e zerava.
+    private func foldInOffline(bundleTotal: Int, local: LocalFlashcardStore.Aggregate) {
+        guard bundleTotal > 0 else { return }
+        // Cards
+        totalCards += bundleTotal
+        matureCards += local.matureCards
+        youngCards += local.youngCards
+        newCards += max(bundleTotal - local.cardsStudied, 0)
+        // Reviews / hoje / sequência
+        totalReviews += local.totalReviews
+        todayReviews += local.todayReviews
+        streakDays = max(streakDays, local.streakDays)
+        // Retenção do estudo local = (reviews - erros) / reviews
+        if local.totalReviews > 0 {
+            let localRetention = Double(local.totalReviews - local.lapses) / Double(local.totalReviews) * 100
+            retentionRate = retentionRate > 0 ? (retentionRate + localRetention) / 2 : localRetention
+        }
+        // Heatmap
+        for (day, count) in local.reviewsPerDay {
+            reviewsPerDay[day, default: 0] += count
+        }
     }
 
     // MARK: - Local computation from deck entries
 
     private func computeLocally(decks: [FlashcardDeckEntry], progress: ProgressResponse) {
-        let allCards = decks.flatMap { $0.cards }
+        // Só os decks PRÓPRIOS do usuário (userId preenchido). A Biblioteca curada
+        // (userId vazio) é offline — entra pelo `foldInOffline`, senão contaria em
+        // dobro (bundle + servidor).
+        let allCards = decks.filter { !($0.userId ?? "").isEmpty }.flatMap { $0.cards }
 
         var newCount = 0
         var youngCount = 0
@@ -73,14 +106,11 @@ final class FlashcardStatsViewModel {
         let isoParser = ISO8601DateFormatter()
 
         for card in allCards {
-            // Maturity classification — mirrors Android FsrsDao logic
-            // new: never reviewed, young: scheduledDays 1-21, mature: scheduledDays > 21
-            if card.repetitions == 0 {
-                newCount += 1
-            } else if card.interval > 21 {
-                matureCount += 1
-            } else {
-                youngCount += 1
+            // Maturidade pelo classificador CANÔNICO (mesma regra do estudo local).
+            switch CardMaturity.classify(reps: card.repetitions, intervalDays: card.interval) {
+            case .new:    newCount += 1
+            case .young:  youngCount += 1
+            case .mature: matureCount += 1
             }
 
             // 7-day review forecast from nextReviewAt
@@ -107,11 +137,13 @@ final class FlashcardStatsViewModel {
         matureCards = matureCount
         forecastNext7Days = forecastCounts
 
-        // Aggregate stats from ProgressResponse
-        streakDays = progress.streakDays
-        retentionRate = progress.avgAccuracy
+        // Esta tela é ESPECÍFICA de flashcard. O `progress` é GERAL (qbank +
+        // simulados + flashcards) → usá-lo aqui mistura fontes e gera número
+        // furado (era o HOJE > total de revisões). Então "hoje", "sequência" e
+        // "retenção" vêm só de fonte de flashcard: stats do servidor
+        // (enrichFromServer) + estudo local (foldInOffline). Só o tempo total de
+        // estudo fica no geral (não há relógio por-ferramenta). Rafael 2026-07-18.
         totalStudyMinutes = Int(progress.totalStudyHours * 60)
-        todayReviews = progress.todayCompleted
     }
 
     // MARK: - Enrich from API stats endpoint
