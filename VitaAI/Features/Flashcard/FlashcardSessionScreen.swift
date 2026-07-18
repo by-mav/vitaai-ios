@@ -222,7 +222,11 @@ struct FlashcardSessionScreen: View {
                     Label("Ajustes de estudo", systemImage: "slider.horizontal.3")
                 }
                 Button {
-                    router.navigate(to: .cardBrowser(deckId: deckId, deckTitle: vm.deckTitle))
+                    // Sessão da Biblioteca traz o slug em sessionId="bundle:<slug>" →
+                    // o browser lê os cards do bundle offline por esse slug.
+                    let slug = sessionId?.hasPrefix("bundle:") == true
+                        ? String(sessionId!.dropFirst("bundle:".count)) : nil
+                    router.navigate(to: .cardBrowser(deckId: deckId, deckTitle: vm.deckTitle, disciplineSlug: slug))
                 } label: {
                     Label("Gerenciar cards", systemImage: "square.stack.3d.up")
                 }

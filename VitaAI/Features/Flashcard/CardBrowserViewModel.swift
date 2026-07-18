@@ -51,16 +51,18 @@ final class CardBrowserViewModel {
     private(set) var deckId = ""
     private(set) var deckTitle = ""
     private var subjectId: String?
+    private var disciplineSlug: String?
     private var didLoad = false
 
     // MARK: Setup
 
     func bind(api: VitaAPI) { self.api = api }
 
-    func configure(deckId: String, deckTitle: String, subjectId: String?) {
+    func configure(deckId: String, deckTitle: String, subjectId: String?, disciplineSlug: String? = nil) {
         self.deckId = deckId
         self.deckTitle = deckTitle
         self.subjectId = subjectId
+        self.disciplineSlug = disciplineSlug
     }
 
     // MARK: Derivados
@@ -110,6 +112,17 @@ final class CardBrowserViewModel {
     }
 
     func load() async {
+        // Biblioteca offline: os cards da disciplina vivem no bundle, não no servidor.
+        // Lê do VitaContentBundle (read-only — deck curado, ninguém edita direto).
+        if let slug = disciplineSlug, !slug.isEmpty {
+            let bundle = await VitaContentBundle.shared.cards(disciplineSlug: slug)
+            cards = bundle.map { FlashcardEntry(id: $0.id, front: $0.front, back: $0.back) }
+            isReadOnly = true
+            didLoad = true
+            isLoading = false
+            return
+        }
+
         guard let api else { return }
         isLoading = cards.isEmpty
         loadFailed = false

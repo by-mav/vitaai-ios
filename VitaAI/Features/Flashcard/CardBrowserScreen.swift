@@ -17,6 +17,9 @@ struct CardBrowserScreen: View {
     let deckTitle: String
     /// subjectId do deck (quando existe) — estreita o getFlashcardDecks.
     var subjectId: String? = nil
+    /// Disciplina da Biblioteca (offline): quando presente, o browser lê os cards
+    /// do bundle (VitaContentBundle), não do servidor. Read-only. Rafael 2026-07-17.
+    var disciplineSlug: String? = nil
     var onBack: (() -> Void)? = nil
 
     /// Injeção só de #Preview: pula a rede e semeia cards fake.
@@ -67,7 +70,7 @@ struct CardBrowserScreen: View {
             }
             #endif
             vm.bind(api: container.api)
-            vm.configure(deckId: deckId, deckTitle: deckTitle, subjectId: subjectId)
+            vm.configure(deckId: deckId, deckTitle: deckTitle, subjectId: subjectId, disciplineSlug: disciplineSlug)
             await vm.loadIfNeeded()
         }
         .sheet(item: $composerTarget) { target in
