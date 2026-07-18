@@ -241,6 +241,32 @@ private struct FlashcardTextSegment: View {
                 continue
             }
 
+            // Strikethrough: ~~text~~
+            if remaining.hasPrefix("~~"),
+               let endIdx = findMarker("~~", in: remaining.dropFirst(2)) {
+                let inner = String(remaining.dropFirst(2).prefix(upTo: endIdx))
+                var s = AttributedString(inner)
+                s.font = .system(size: fontSize, weight: .medium)
+                s.foregroundColor = textColor
+                s.strikethroughStyle = .single
+                result.append(s)
+                remaining = remaining.dropFirst(2)[endIdx...].dropFirst(2)
+                continue
+            }
+
+            // Underline: <u>text</u> (markdown não tem sublinhado → tag HTML)
+            if remaining.hasPrefix("<u>"),
+               let endIdx = findMarker("</u>", in: remaining.dropFirst(3)) {
+                let inner = String(remaining.dropFirst(3).prefix(upTo: endIdx))
+                var s = AttributedString(inner)
+                s.font = .system(size: fontSize, weight: .medium)
+                s.foregroundColor = textColor
+                s.underlineStyle = .single
+                result.append(s)
+                remaining = remaining.dropFirst(3)[endIdx...].dropFirst(4)
+                continue
+            }
+
             // Italic: *text* or _text_
             if remaining.hasPrefix("*"),
                !remaining.hasPrefix("**"),
@@ -498,8 +524,13 @@ private enum ContentSegmentParser {
         result = result.replacingOccurrences(of: "</li>", with: "", options: .regularExpression)
         result = result.replacingOccurrences(of: "</?[uo]l>", with: "", options: .regularExpression)
 
+        // Preserva <u>/</u> (sublinhado do editor rico) do strip catch-all abaixo.
+        result = result.replacingOccurrences(of: "<u>", with: "\u{FFF9}")
+        result = result.replacingOccurrences(of: "</u>", with: "\u{FFFA}")
         // Strip remaining HTML tags
         result = result.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        result = result.replacingOccurrences(of: "\u{FFF9}", with: "<u>")
+        result = result.replacingOccurrences(of: "\u{FFFA}", with: "</u>")
 
         // Decode basic HTML entities
         result = result

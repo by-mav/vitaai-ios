@@ -79,15 +79,18 @@ struct RichCardEditor: UIViewRepresentable {
             }
             let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
             let done = UIBarButtonItem(title: "Concluir", style: .done, target: self, action: #selector(tapDone))
-            var items: [UIBarButtonItem] = [
-                item("bold", #selector(tapBold)),
-                item("italic", #selector(tapItalic)),
-                item("list.bullet", #selector(tapBullet)),
-                item("list.number", #selector(tapNumbered)),
-            ]
+            var items: [UIBarButtonItem] = []
             if parent.onImage != nil {
                 items.append(item("photo.on.rectangle", #selector(tapImage)))
             }
+            items.append(contentsOf: [
+                item("bold", #selector(tapBold)),
+                item("italic", #selector(tapItalic)),
+                item("underline", #selector(tapUnderline)),
+                item("strikethrough", #selector(tapStrike)),
+                item("list.bullet", #selector(tapBullet)),
+                item("list.number", #selector(tapNumbered)),
+            ])
             items.append(contentsOf: [flex, done])
             bar.items = items
             return bar
@@ -97,16 +100,24 @@ struct RichCardEditor: UIViewRepresentable {
         @objc private func tapDone() { textView?.resignFirstResponder() }
         @objc private func tapBold() { wrap("**", placeholder: "negrito") }
         @objc private func tapItalic() { wrap("*", placeholder: "itálico") }
+        @objc private func tapStrike() { wrap("~~", placeholder: "tachado") }
+        @objc private func tapUnderline() { wrapPair("<u>", "</u>", placeholder: "sublinhado") }
         @objc private func tapBullet() { linePrefix("- ") }
         @objc private func tapNumbered() { linePrefix("1. ") }
 
         /// Envolve a seleção nos marcadores; sem seleção, insere um exemplo com o
         /// cursor dentro pro aluno digitar por cima.
         private func wrap(_ marker: String, placeholder ph: String) {
+            wrapPair(marker, marker, placeholder: ph)
+        }
+
+        /// Igual `wrap`, mas com marcador de abertura/fechamento diferentes
+        /// (ex.: sublinhado `<u>…</u>`).
+        private func wrapPair(_ open: String, _ close: String, placeholder ph: String) {
             guard let tv = textView, let range = tv.selectedTextRange else { return }
             let selected = tv.text(in: range) ?? ""
             let inner = selected.isEmpty ? ph : selected
-            tv.replace(range, withText: marker + inner + marker)
+            tv.replace(range, withText: open + inner + close)
             sync(tv)
         }
 
