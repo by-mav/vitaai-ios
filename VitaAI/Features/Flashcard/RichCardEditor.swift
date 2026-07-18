@@ -82,6 +82,7 @@ struct RichCardEditor: UIViewRepresentable {
             let done = UIBarButtonItem(title: "Concluir", style: .done, target: self, action: #selector(tapDone))
             var items: [UIBarButtonItem] = [
                 item("photo", #selector(tapImage)),
+                item("textformat.size", #selector(tapHeading)),
             ]
             items.append(contentsOf: [
                 item("bold", #selector(tapBold)),
@@ -146,6 +147,7 @@ struct RichCardEditor: UIViewRepresentable {
         @objc private func tapUnderline() { wrapPair("<u>", "</u>", placeholder: "sublinhado") }
         @objc private func tapBullet() { linePrefix("- ") }
         @objc private func tapNumbered() { linePrefix("1. ") }
+        @objc private func tapHeading() { linePrefix("# ") }   // título maior
 
         /// Envolve a seleção nos marcadores; sem seleção, insere um exemplo com o
         /// cursor dentro pro aluno digitar por cima.

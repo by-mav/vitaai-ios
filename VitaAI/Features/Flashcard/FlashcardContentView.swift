@@ -144,9 +144,9 @@ private struct FlashcardTextSegment: View {
 
     var body: some View {
         let lines = text.components(separatedBy: "\n")
-        let hasListItems = lines.contains { isListItem($0) }
+        let hasBlocks = lines.contains { isListItem($0) || heading($0) != nil }
 
-        if hasListItems {
+        if hasBlocks {
             listView(lines: lines)
         } else {
             // Single paragraph — inline markdown spans
@@ -166,6 +166,16 @@ private struct FlashcardTextSegment: View {
             ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                 let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmedLine.isEmpty { EmptyView() }
+                else if let title = heading(trimmedLine) {
+                    // Título (# ) — maior e em destaque.
+                    Text(renderInline(title))
+                        .font(.system(size: fontSize * 1.35, weight: .bold))  // ds-allow: título = proporção do fontSize do card
+                        .foregroundStyle(textColor)
+                        .multilineTextAlignment(alignment)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
+                }
                 else if let (bullet, itemText) = unorderedItem(trimmedLine) {
                     HStack(alignment: .top, spacing: 8) {
                         Text(bullet)
@@ -206,6 +216,13 @@ private struct FlashcardTextSegment: View {
     private func isListItem(_ line: String) -> Bool {
         let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
         return unorderedItem(t) != nil || orderedItem(t) != nil
+    }
+
+    /// Título markdown `# texto` → devolve o texto sem o marcador.
+    private func heading(_ line: String) -> String? {
+        let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.hasPrefix("# ") { return String(t.dropFirst(2)) }
+        return nil
     }
 
     private func unorderedItem(_ line: String) -> (String, String)? {
