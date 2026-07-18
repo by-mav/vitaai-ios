@@ -79,6 +79,9 @@ final class FlashcardBuilderViewModel {
 
     func boot() {
         Task { await loadAll() }
+        // Aquece o agendamento FSRS salvo no device pra a 1ª abertura de
+        // disciplina já ordenar por `due` sem esperar I/O. Idempotente.
+        Task { await LocalFlashcardStore.shared.load() }
     }
 
     /// Pré-seleciona uma disciplina (vem de DisciplineDetailScreen → flashcardHome).
@@ -116,7 +119,11 @@ final class FlashcardBuilderViewModel {
         // 1) Bundle primeiro — offline, instantâneo, nunca falha por rede.
         let bundleCards = await VitaContentBundle.shared.cards(disciplineSlug: slug)
         if !bundleCards.isEmpty {
-            let cards = bundleCards.map { FlashcardCard(id: $0.id, front: $0.front, back: $0.back) }
+            // Aplica o agendamento FSRS salvo no device e ORDENA estilo Anki:
+            // vencidos primeiro (por `due`), depois novos (teto diário). Sem isto
+            // a fila vinha SEMPRE na ordem fixa do JSON e todo card nascia `new`.
+            let saved = await LocalFlashcardStore.shared.states(forIds: bundleCards.map(\.id))
+            let cards = Self.orderedBundleQueue(bundleCards, saved: saved)
             FlashcardMultiDeckHandoff.shared.setBundleCards(cards, title: title)
             // Marcador não-vazio só pra a tela navegar (a fila real está no handoff).
             return "bundle:\(slug)"
@@ -168,6 +175,68 @@ final class FlashcardBuilderViewModel {
             NSLog("[FlashcardBuilder] openDiscipline(%@) error: %@", slug, String(describing: error))
             return nil
         }
+    }
+
+    // MARK: - Fila Anki-style (offline, do bundle)
+
+    /// Teto de cards NOVOS por abertura (Anki default = 20/dia). Evita despejar
+    /// milhares de cards de uma vez; os novos entram aos poucos.
+    private static let dailyNewLimit = 20
+
+    /// Monta a fila de estudo estilo Anki a partir dos cards do bundle + o estado
+    /// FSRS salvo no device:
+    ///   1. VENCIDOS (due <= agora) primeiro, do mais atrasado pro menos.
+    ///   2. depois NOVOS (nunca vistos), na ordem do bundle, com teto diário.
+    /// Cards já revisados mas AINDA não vencidos ficam fora da fila de hoje (é o
+    /// comportamento do Anki). Se não houver vencido nem novo, cai pra cram (todos
+    /// na ordem salva) — disciplina que o aluno TOCOU nunca abre vazia.
+    ///
+    /// O estado salvo entra pela via dos campos FSRS do `FlashcardCard`
+    /// (stability/difficulty/state/scheduledDays/nextReviewAt); o
+    /// `FlashcardViewModel.startSession` re-hidrata o `FsrsCardState` a partir
+    /// deles. Card sem estado salvo = New.
+    static func orderedBundleQueue(
+        _ bundle: [VitaContentBundle.BundleCard],
+        saved: [String: FsrsCardState],
+        now: Date = Date()
+    ) -> [FlashcardCard] {
+        let newLimit = dailyNewLimit
+        var due: [(card: FlashcardCard, due: Date)] = []
+        var news: [FlashcardCard] = []
+        var future: [FlashcardCard] = []   // revisados, ainda não vencidos
+
+        for bc in bundle {
+            guard let s = saved[bc.id] else {
+                // Nunca visto = New (difficulty 0 / stability default => vira new no VM).
+                news.append(FlashcardCard(id: bc.id, front: bc.front, back: bc.back))
+                continue
+            }
+            let dueDate = LocalFlashcardStore.dueDate(for: s) ?? now
+            let card = FlashcardCard(
+                id: bc.id,
+                front: bc.front,
+                back: bc.back,
+                stability: s.stability,
+                difficulty: s.difficulty,   // FSRS clamp 1–10 => hidrata via ramo nativo
+                state: s.status.rawValue,
+                scheduledDays: s.scheduledDays,
+                nextReviewAt: dueDate
+            )
+            if dueDate <= now {
+                due.append((card, dueDate))
+            } else {
+                future.append(card)
+            }
+        }
+
+        due.sort { $0.due < $1.due }   // mais atrasado primeiro
+        let cappedNew = Array(news.prefix(max(0, newLimit)))
+        let queue = due.map(\.card) + cappedNew
+        if !queue.isEmpty { return queue }
+
+        // Nada vencido nem novo (tudo agendado pro futuro): cram — nunca abre vazio.
+        if !future.isEmpty { return future }
+        return bundle.map { FlashcardCard(id: $0.id, front: $0.front, back: $0.back) }
     }
 
     private func loadLibrary() async {

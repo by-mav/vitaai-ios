@@ -213,6 +213,14 @@ final class FlashcardViewModel {
         )
         fsrsStates[currentIndex] = result.card
 
+        // Persiste o agendamento no device (offline-first, estilo Anki). É o que
+        // faz a próxima abertura da disciplina ordenar por `due` em vez de
+        // recomeçar tudo `new`. O sync ao servidor abaixo continua best-effort —
+        // isto grava LOCAL primeiro, independente de rede.
+        let scheduledState = result.card
+        let scheduledCardId = card.id
+        Task { await LocalFlashcardStore.shared.save(id: scheduledCardId, state: scheduledState) }
+
         // Leech detection: auto-suspend cards that exceed the lapse threshold
         if result.card.lapses >= leechThreshold && leechThreshold < 999 {
             let leechCardId = card.id
