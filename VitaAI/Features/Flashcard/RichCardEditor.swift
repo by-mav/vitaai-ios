@@ -107,6 +107,7 @@ struct RichCardEditor: UIViewRepresentable {
                 ("strikethrough", #selector(tapStrike)),
                 ("list.bullet", #selector(tapBullet)),
                 ("list.number", #selector(tapNumbered)),
+                ("text.aligncenter", #selector(tapAlign)),
                 ("keyboard.chevron.compact.down", #selector(tapDone)),
             ]
             buttons.forEach { stack.addArrangedSubview(button($0.0, $0.1)) }
@@ -176,6 +177,19 @@ struct RichCardEditor: UIViewRepresentable {
         @objc private func tapBullet() { linePrefix("- ") }
         @objc private func tapNumbered() { linePrefix("1. ") }
         @objc private func tapHeading() { linePrefix("# ") }   // título maior
+
+        /// Alinhamento do CAMPO inteiro via diretiva no início: cicla
+        /// esquerda → centro → direita → esquerda. O renderer lê e some com ela.
+        @objc private func tapAlign() {
+            guard let tv = textView else { return }
+            var t = tv.text ?? ""
+            let center = "{align:center}\n", right = "{align:right}\n"
+            if t.hasPrefix(center) { t = right + String(t.dropFirst(center.count)) }
+            else if t.hasPrefix(right) { t = String(t.dropFirst(right.count)) }
+            else { t = center + t }
+            tv.text = t
+            sync(tv)
+        }
 
         /// Envolve a seleção nos marcadores; sem seleção, insere um exemplo com o
         /// cursor dentro pro aluno digitar por cima.

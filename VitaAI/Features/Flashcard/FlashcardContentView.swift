@@ -64,8 +64,32 @@ struct FlashcardContentView: View {
         self.alignment = alignment
     }
 
+    /// Diretiva de alinhamento no INÍCIO do conteúdo (`{align:center|right|left}`)
+    /// — aplica ao campo inteiro e some do texto renderizado. Zero efeito nos cards
+    /// sem a diretiva (retorna o alignment/content originais). Rafael 2026-07-18.
+    private var aligned: (align: TextAlignment, body: String) {
+        let map: [(String, TextAlignment)] = [
+            ("{align:center}", .center), ("{align:right}", .trailing), ("{align:left}", .leading),
+        ]
+        let lead = content.drop(while: { $0 == "\n" || $0 == " " })
+        for (marker, a) in map where lead.hasPrefix(marker) {
+            let rest = lead.dropFirst(marker.count).drop(while: { $0 == "\n" })
+            return (a, String(rest))
+        }
+        return (alignment, content)
+    }
+    private var effContent: String { aligned.body }
+    private var effAlign: TextAlignment { aligned.align }
+    /// Mapeia o alinhamento pra os tipos de layout do SwiftUI.
+    private var hAlign: HorizontalAlignment {
+        switch effAlign { case .center: return .center; case .trailing: return .trailing; default: return .leading }
+    }
+    private var frameAlign: Alignment {
+        switch effAlign { case .center: return .center; case .trailing: return .trailing; default: return .leading }
+    }
+
     private var segments: [ContentSegment] {
-        ContentSegmentParser.parse(content)
+        ContentSegmentParser.parse(effContent)
     }
 
     /// Tem conteúdo "rico" (imagem OU áudio) → usa a renderização segmentada em vez
@@ -90,10 +114,10 @@ struct FlashcardContentView: View {
     var body: some View {
         if !hasRichContent {
             // Texto puro — decodifica entidades HTML (&nbsp;) e remove tags (<div> do Anki)
-            Text(flashcardDecodeText(content))
+            Text(flashcardDecodeText(effContent))
                 .font(.system(size: fontSize, weight: .medium))
                 .foregroundStyle(textColor)
-                .multilineTextAlignment(alignment)
+                .multilineTextAlignment(effAlign)
                 .lineSpacing(4)
                 // O pai trava a LARGURA (o texto quebra). Se ainda for alto demais
                 // pro card, ENCOLHE em vez de vazar (Rafael 2026-07-17). Card curto
@@ -102,12 +126,12 @@ struct FlashcardContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         } else {
             // Mixed content — text + inline images
-            VStack(alignment: alignment == .center ? .center : .leading, spacing: 8) {
+            VStack(alignment: hAlign, spacing: 8) {
                 ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
                     segmentView(segment)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
+            .frame(maxWidth: .infinity, alignment: frameAlign)
         }
     }
 
@@ -121,7 +145,7 @@ struct FlashcardContentView: View {
                     text: trimmed,
                     fontSize: fontSize,
                     textColor: textColor,
-                    alignment: alignment
+                    alignment: effAlign
                 )
             }
 
