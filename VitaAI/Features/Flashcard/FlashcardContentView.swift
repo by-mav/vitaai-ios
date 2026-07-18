@@ -5,15 +5,34 @@ import UIKit
 // do card e no reveal do cloze (contextos SÓ-texto; não passar HTML com <img> aqui).
 func flashcardDecodeText(_ raw: String) -> String {
     var r = raw
+    // <br> = quebra de linha explícita.
     r = r.replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: .regularExpression)
+    // Item de lista vira "• " numa linha nova (ANTES de remover as tags de bloco).
+    r = r.replacingOccurrences(of: "<li[^>]*>", with: "\n• ", options: .regularExpression)
+    // 🚨 Tags de BLOCO (div/p/ul/ol/li/tr/table/h1-6) = quebra de linha. Sem isto, a
+    // remoção genérica de tags GRUDAVA palavras de linhas/itens diferentes
+    // ("<li>sangramento</li><li>osteoporose</li>" → "sangramentoosteoporose").
+    // O conteúdo da fonte é bem-formado; era a nossa extração que destruía (Rafael 2026-07-17).
+    r = r.replacingOccurrences(
+        of: "</?(div|p|ul|ol|li|tr|table|h[1-6])[^>]*>",
+        with: "\n", options: .regularExpression
+    )
+    // Sobrou alguma tag inline (span/b/i…) → remove sem separador.
     r = r.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+    // "§" usado como marcador de lista no deck de origem é lixo — vira "• " duplo
+    // ("• § Prednisona"). Remove o § quando ele age de marcador (após o nosso •
+    // ou início de linha). Rafael 2026-07-17.
+    r = r.replacingOccurrences(of: "•\\s*§\\s*", with: "• ", options: .regularExpression)
+        .replacingOccurrences(of: "(^|\\n)\\s*§\\s+", with: "$1• ", options: .regularExpression)
     r = r.replacingOccurrences(of: "&nbsp;", with: " ")
         .replacingOccurrences(of: "&amp;", with: "&")
         .replacingOccurrences(of: "&lt;", with: "<")
         .replacingOccurrences(of: "&gt;", with: ">")
         .replacingOccurrences(of: "&#39;", with: "'")
         .replacingOccurrences(of: "&quot;", with: "\"")
+    // Colapsa espaços em volta das quebras e limita linhas em branco consecutivas.
     r = r.replacingOccurrences(of: "[ \\t]+\\n", with: "\n", options: .regularExpression)
+        .replacingOccurrences(of: "\\n[ \\t]+", with: "\n", options: .regularExpression)
         .replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
     return r.trimmingCharacters(in: .whitespacesAndNewlines)
 }
@@ -61,7 +80,11 @@ struct FlashcardContentView: View {
                 .foregroundStyle(textColor)
                 .multilineTextAlignment(alignment)
                 .lineSpacing(4)
-                .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
+                // O pai trava a LARGURA (o texto quebra). Se ainda for alto demais
+                // pro card, ENCOLHE em vez de vazar (Rafael 2026-07-17). Card curto
+                // fica no tamanho cheio; card longo diminui a fonte pra caber.
+                .minimumScaleFactor(0.4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         } else {
             // Mixed content — text + inline images
             VStack(alignment: alignment == .center ? .center : .leading, spacing: 8) {
@@ -253,10 +276,12 @@ private struct FlashcardImageSegment: View {
     let url: String
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    // Cap image height so it never overflows the card container.
-    // iPhone: 200pt max. iPad (regular width): 300pt max.
+    // Teto de altura da imagem. Com scaledToFit, subir o teto faz a imagem crescer
+    // até encostar na largura do card → aproveita melhor o espaço (Rafael 2026-07-17).
+    // O card de estudo tem ~324pt úteis de altura; 300pt no iPhone preenche bem sem estourar.
+    // iPhone: 300pt. iPad (regular): 440pt.
     private var maxImageHeight: CGFloat {
-        horizontalSizeClass == .regular ? 300 : 200
+        horizontalSizeClass == .regular ? 440 : 300
     }
 
     // Refs relativas (ex: "medicina/foo.webp") = mídia EMBUTIDA no app
@@ -274,6 +299,7 @@ private struct FlashcardImageSegment: View {
                 .scaledToFit()
                 .frame(maxWidth: .infinity, maxHeight: maxImageHeight)
                 .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.sm))
+                .pinchToZoom()
         } else if let imageURL = URL(string: url) {
             AsyncImage(url: imageURL) { phase in
                 switch phase {
@@ -294,6 +320,7 @@ private struct FlashcardImageSegment: View {
                         .scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: maxImageHeight)
                         .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.sm))
+                        .pinchToZoom()
 
                 case .failure:
                     // Broken image indicator
@@ -317,6 +344,59 @@ private struct FlashcardImageSegment: View {
             }
         }
     }
+}
+
+// MARK: - Pinch to zoom
+//
+// Permite ampliar a imagem com dois dedos DIRETO nela (Rafael 2026-07-17), arrastar
+// pra mover quando ampliada, e double-tap pra voltar ao normal. Os gestos são
+// simultâneos e a pinça é de 2 dedos → o tap de 1 dedo (virar o card) continua vivo.
+private struct PinchToZoom: ViewModifier {
+    @State private var scale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scale)
+            .offset(offset)
+            .gesture(magnification.simultaneously(with: pan))
+            .onTapGesture(count: 2) { reset() }
+            // Enquanto ampliada, sobe na pilha pra a imagem aparecer por cima do resto.
+            .zIndex(scale > 1 ? 10 : 0)
+    }
+
+    private var magnification: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in scale = min(max(lastScale * value, 1), 4) }
+            .onEnded { _ in
+                lastScale = scale
+                if scale <= 1 { reset() }
+            }
+    }
+
+    private var pan: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                guard scale > 1 else { return }   // só move quando ampliada
+                offset = CGSize(
+                    width: lastOffset.width + value.translation.width,
+                    height: lastOffset.height + value.translation.height
+                )
+            }
+            .onEnded { _ in lastOffset = offset }
+    }
+
+    private func reset() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            scale = 1; lastScale = 1; offset = .zero; lastOffset = .zero
+        }
+    }
+}
+
+private extension View {
+    func pinchToZoom() -> some View { modifier(PinchToZoom()) }
 }
 
 // MARK: - Content Segment Parser

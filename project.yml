@@ -39,6 +39,9 @@ targets:
       - path: VitaAI
         excludes:
           - "**/*.md"
+          - "Resources/FlashcardMedia"
+      - path: VitaAI/Resources/FlashcardMedia
+        type: folder
     info:
       path: VitaAI/Info.plist
       properties:

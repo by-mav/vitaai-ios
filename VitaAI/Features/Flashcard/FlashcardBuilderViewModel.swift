@@ -103,16 +103,26 @@ final class FlashcardBuilderViewModel {
         }
     }
 
-    /// Abre uma DISCIPLINA da Biblioteca: pede ao servidor a fila de cards dela
-    /// (na ordem FSRS) e devolve o id da sessão pra navegar.
+    /// Abre uma DISCIPLINA da Biblioteca. OFFLINE-FIRST: os cards curados vêm do
+    /// bundle (VitaContentBundle) — o card SEMPRE abre, sem internet. Cai no
+    /// servidor só se o bundle não tiver a disciplina (ex: build antigo).
     ///
     /// Uma disciplina não é um baralho — os cards dela vivem espalhados por
     /// vários (Cardiologia está dentro do acervo "Medicina"). Então não há
-    /// `deckId` pra abrir: o que existe é a fila, e é ela que o
-    /// `FlashcardViewModel` já sabe consumir (`consumeQuickSession`).
+    /// `deckId` pra abrir: o que existe é a fila de cards.
     ///
-    /// Retorna nil quando a disciplina não tem card pra estudar agora.
+    /// Retorna um marcador de sessão pra navegar; nil quando não há card.
     func openDiscipline(slug: String, title: String, due: Int) async -> String? {
+        // 1) Bundle primeiro — offline, instantâneo, nunca falha por rede.
+        let bundleCards = await VitaContentBundle.shared.cards(disciplineSlug: slug)
+        if !bundleCards.isEmpty {
+            let cards = bundleCards.map { FlashcardCard(id: $0.id, front: $0.front, back: $0.back) }
+            FlashcardMultiDeckHandoff.shared.setBundleCards(cards, title: title)
+            // Marcador não-vazio só pra a tela navegar (a fila real está no handoff).
+            return "bundle:\(slug)"
+        }
+
+        // 2) Fallback servidor (disciplina fora do bundle / build antigo).
         // `specific` = so REVIEW/LEARNING (card ja estudado). Disciplina virgem —
         // e a Biblioteca inteira eh NEW — devolvia fila VAZIA nesse modo. Tem
         // vencido? revisa. Nao tem? abre os novos.

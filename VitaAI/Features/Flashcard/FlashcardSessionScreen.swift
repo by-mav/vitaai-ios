@@ -28,6 +28,7 @@ struct FlashcardSessionScreen: View {
     private let timer = Timer.publish(every: 1, on: .main, in: .common)
 
     var body: some View {
+      GeometryReader { screenGeo in
         ZStack {
             // Background handled by shell VitaAmbientBackground — no duplicate here
 
@@ -40,7 +41,7 @@ struct FlashcardSessionScreen: View {
                     emptyState
 
                 case .studying, .reviewing:
-                    studyingBody(vm: vm)
+                    studyingBody(vm: vm, screenWidth: screenGeo.size.width)
 
                 case .finished:
                     if let result = vm.result {
@@ -119,12 +120,17 @@ struct FlashcardSessionScreen: View {
         } message: {
             Text("O progresso já feito fica salvo. A sessão só deixará de aparecer na Home depois de ser encerrada.")
         }
+        // Estudar = imersivo: a bottom-nav some suavemente enquanto o baralho está
+        // aberto e reaparece animada ao sair (o shell anima isImmersiveMode em 0.25s).
+        // Rafael 2026-07-17.
+        .preference(key: ImmersivePreferenceKey.self, value: true)
+      }
     }
 
     // MARK: Main Study Layout
 
     @ViewBuilder
-    private func studyingBody(vm: FlashcardViewModel) -> some View {
+    private func studyingBody(vm: FlashcardViewModel, screenWidth: CGFloat) -> some View {
         VStack(spacing: 0) {
             // No TOPO: só o < grande + título (igual às outras telas). Rafael 2026-07-15.
             VitaScreenHeader(title: vm.deckTitle, onBack: onBack)
@@ -143,10 +149,11 @@ struct FlashcardSessionScreen: View {
                 .padding(.bottom, 12)
 
             if let card = vm.currentCard {
-                FlashcardCardView(
+                // Card reescrito (FlashcardStudyCard): GeometryReader na própria raiz
+                // trava a largura → o texto nunca vaza. Rafael 2026-07-17.
+                FlashcardStudyCard(
                     front: card.front,
                     back: card.back,
-                    deckTitle: vm.deckTitle,
                     isFlipped: vm.isFlipped,
                     onFlip: { vm.flipCard() }
                 )
@@ -163,7 +170,12 @@ struct FlashcardSessionScreen: View {
             Spacer(minLength: 20)
         }
         // Ancora no topo (o ZStack pai centralizava e criava o vão acima do header).
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // Largura TRAVADA na da tela (screenWidth, medida na raiz do body ANTES de
+        // qualquer inflação por conteúdo). Sem isto, `maxWidth: .infinity` deixava a
+        // VStack crescer até a largura do card longo (888pt!) → card e texto saíam da
+        // tela. Rafael 2026-07-17.
+        .frame(width: screenWidth, alignment: .top)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: Session Header — chevron+Voltar | title | count (purple)

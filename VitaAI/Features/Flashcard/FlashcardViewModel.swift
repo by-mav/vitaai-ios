@@ -105,6 +105,21 @@ final class FlashcardViewModel {
         sessionStartDate = Date()
         cardStartDate = Date()
 
+        // OFFLINE do bundle: abrir uma disciplina da Biblioteca traz os cards
+        // curados PRONTOS do handoff (VitaContentBundle) — monta a sessão sem
+        // tocar a rede. É o offline de verdade: o card sempre abre. Um sessionId
+        // "bundle:<slug>" (ou cards no handoff) marca este caminho.
+        let bundle = FlashcardMultiDeckHandoff.shared.consumeBundleCards()
+        if !bundle.cards.isEmpty {
+            let deck = FlashcardDeck(
+                id: "",
+                title: bundle.title ?? "Flashcards",
+                cards: bundle.cards
+            )
+            startSession(deck: deck, initialIndex: 0, initialCorrectCount: 0, initialRatings: [])
+            return
+        }
+
         // Multi-seleção: se o builder gravou vários ids, estuda todos juntos.
         let handoff = FlashcardMultiDeckHandoff.shared.consume()
         let deckIds = (handoff.count > 1 && handoff.contains(deckId)) ? handoff : [deckId]

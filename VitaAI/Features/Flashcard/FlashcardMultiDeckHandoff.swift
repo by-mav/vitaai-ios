@@ -51,4 +51,27 @@ final class FlashcardMultiDeckHandoff {
         pendingQuickSessionId = nil
         return out
     }
+
+    // MARK: - Sessão OFFLINE do bundle (conteúdo curado, sem rede)
+    //
+    // Abrir uma disciplina da Biblioteca lê os cards DIRETO do bundle
+    // (VitaContentBundle) — os cards já vêm completos (front/back), então não há
+    // 2ª ida ao servidor pra resolver. É o offline de verdade: o card sempre
+    // abre, sem internet (Rafael 2026-07-17). Diferente do quick session acima,
+    // que traz só ids e depende do servidor.
+
+    private var pendingBundleCards: [FlashcardCard] = []
+    private var pendingBundleTitle: String? = nil
+
+    func setBundleCards(_ cards: [FlashcardCard], title: String?) {
+        pendingBundleCards = cards
+        pendingBundleTitle = title
+    }
+
+    func consumeBundleCards() -> (cards: [FlashcardCard], title: String?) {
+        let out = (pendingBundleCards, pendingBundleTitle)
+        pendingBundleCards = []
+        pendingBundleTitle = nil
+        return out
+    }
 }
