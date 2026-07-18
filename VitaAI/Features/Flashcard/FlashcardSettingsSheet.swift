@@ -62,9 +62,12 @@ final class FlashcardSettings {
     var showTimer: Bool = false
     var showIntervalPreview: Bool = true
     var autoAdvanceSeconds: Int = 0  // 0 = off
-    /// Ponto de controle a cada 10 cartas (resumo da leva). Rafael 2026-07-17.
+    /// Ponto de controle: resumo da leva a cada N cartas. Flexível — o aluno
+    /// escolhe o N (padrão 10). Rafael 2026-07-17.
     var checkpointEnabled: Bool = true
+    var checkpointInterval: Int = 10
 
+    static let checkpointOptions = [5, 10, 15, 20, 25, 30]
     static let newLimitOptions = [5, 10, 20, 30, 50, 100, 999]
     static let reviewLimitOptions = [50, 100, 150, 200, 300, 500, 999]
     static let retentionOptions = [0.80, 0.85, 0.90, 0.92, 0.95, 0.97]
@@ -210,6 +213,16 @@ struct FlashcardSettingsScreen: View {
                 isOn: settings.checkpointEnabled,
                 onToggle: { settings.checkpointEnabled = $0 }
             )
+
+            if settings.checkpointEnabled {
+                limitPicker(
+                    label: "A cada quantas cartas",
+                    icon: "flag.checkered",
+                    value: settings.checkpointInterval,
+                    options: FlashcardSettings.checkpointOptions,
+                    onChange: { settings.checkpointInterval = $0 }
+                )
+            }
 
             Spacer().frame(height: 80)
         }

@@ -38,6 +38,7 @@ final class FlashcardViewModel {
     // do toggle de ajustes. Rafael 2026-07-17.
     var checkpointVisible: Bool = false
     var checkpointEnabled: Bool = true
+    var checkpointInterval: Int = 10
 
     /// Dados do ponto de controle, derivados do histórico de respostas.
     var checkpointData: FlashcardCheckpointData {
@@ -427,6 +428,7 @@ final class FlashcardViewModel {
         scheduler = FsrsScheduler(params: FsrsParameters(requestedRetention: settings.desiredRetention))
         leechThreshold = settings.leechThreshold
         checkpointEnabled = settings.checkpointEnabled
+        checkpointInterval = settings.checkpointInterval
 
         // Sort order
         switch settings.sortOrder {
@@ -585,7 +587,7 @@ final class FlashcardViewModel {
             phase = .studying
             // Ponto de controle: a cada 10 cartas, pausa e mostra o progresso da
             // sessão (nota, distribuição, tempo). Desligável nos ajustes. Rafael 2026-07-17.
-            if checkpointEnabled, totalReviewed % 10 == 0 {
+            if checkpointEnabled, checkpointInterval > 0, totalReviewed % checkpointInterval == 0 {
                 checkpointVisible = true
             }
             Task { await persistSession() }
