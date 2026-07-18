@@ -74,9 +74,17 @@ final class AudioClipPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         updateLabel()
     }
 
-    /// Ref relativa = mídia embutida (FlashcardMedia). Caminho absoluto/`file:` =
-    /// áudio gravado pelo usuário.
-    private static func resolve(_ url: String) -> URL? {
+    /// Resolve a src do áudio:
+    /// • `userdoc:<rel>` = áudio GRAVADO pelo usuário, em `Documents/<rel>` (portável
+    ///   a reinstalar — o path absoluto do container muda, o relativo não).
+    /// • `file://` / `/…` = caminho absoluto.
+    /// • resto = mídia EMBUTIDA no bundle (`FlashcardMedia/<rel>`).
+    static func resolve(_ url: String) -> URL? {
+        if url.hasPrefix("userdoc:") {
+            let rel = String(url.dropFirst("userdoc:".count))
+            let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            return docs.appendingPathComponent(rel)
+        }
         if url.hasPrefix("file://") { return URL(string: url) }
         if url.hasPrefix("/") { return URL(fileURLWithPath: url) }
         guard let base = Bundle.main.resourceURL else { return nil }
