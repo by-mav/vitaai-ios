@@ -81,29 +81,85 @@ final class AudioRecorder: NSObject, ObservableObject, AVAudioRecorderDelegate {
     }
 }
 
-// MARK: - CardAudioRecorderView — controle no composer
+// MARK: - AudioRecordSheet — gravação aberta pelo mic da BARRA do editor
+//
+// Rafael 2026-07-18: o mic fica na barra de formatação (do lado da imagem), NÃO
+// numa seção separada. Toca no mic → abre este sheet → grava → "Anexar" insere
+// a tag `<audio src="userdoc:…">` no cursor (igual a imagem); o player renderiza
+// no card.
 
-struct CardAudioRecorderView: View {
-    /// Ref `userdoc:…` do áudio anexado (nil = nenhum).
-    @Binding var audioSrc: String?
+struct AudioRecordSheet: View {
+    var onAttach: (String) -> Void
+    var onCancel: () -> Void
+
     @StateObject private var recorder = AudioRecorder()
+    @State private var recordedSrc: String?
     @State private var showMicDenied = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
-            Text("ÁUDIO (OPCIONAL)")
-                .font(VitaTypography.labelSmall)
-                .kerning(1.0)
-                .foregroundStyle(VitaColors.accentLight.opacity(0.7))
+        VStack(spacing: VitaTokens.Spacing.xl) {
+            Text("Gravar áudio")
+                .font(VitaTypography.titleMedium)
+                .foregroundStyle(VitaColors.textPrimary)
+                .padding(.top, VitaTokens.Spacing.xl)
 
-            if recorder.isRecording {
-                recordingBar
-            } else if let src = audioSrc {
-                attachedPlayer(src)
-            } else {
-                recordButton
+            Text(timeString(recorder.elapsed))
+                .font(.system(size: 44, weight: .semibold))  // ds-allow: cronômetro grande do gravador
+                .monospacedDigit()
+                .foregroundStyle(recorder.isRecording ? VitaColors.danger : VitaColors.textPrimary)
+
+            Button { toggle() } label: {
+                ZStack {
+                    Circle()
+                        .fill((recorder.isRecording ? VitaColors.danger : VitaColors.accent).opacity(0.15))
+                        .frame(width: 96, height: 96)
+                    Image(systemName: recorder.isRecording ? "stop.fill" : "mic.fill")
+                        .font(.system(size: 36, weight: .semibold))  // ds-allow: ícone do botão gravar
+                        .foregroundStyle(recorder.isRecording ? VitaColors.danger : VitaColors.accent)
+                }
             }
+            .buttonStyle(.plain)
+            .disabled(recordedSrc != nil)
+
+            Text(hint)
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+
+            Spacer()
+
+            HStack(spacing: VitaTokens.Spacing.md) {
+                Button {
+                    recorder.cancel()
+                    onCancel()
+                } label: {
+                    Text("Cancelar")
+                        .font(VitaTypography.labelLarge)
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .glassCard(cornerRadius: VitaTokens.Radius.md)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    if let src = recordedSrc { onAttach(src) }
+                } label: {
+                    Text("Anexar")
+                        .font(VitaTypography.labelLarge)
+                        .foregroundStyle(VitaColors.surface)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(VitaColors.accent.opacity(recordedSrc == nil ? 0.4 : 1),
+                                    in: RoundedRectangle(cornerRadius: VitaTokens.Radius.md))
+                }
+                .buttonStyle(.plain)
+                .disabled(recordedSrc == nil)
+            }
+            .padding(.bottom, VitaTokens.Spacing.xl)
         }
+        .padding(.horizontal, VitaTokens.Spacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(VitaColors.surfaceElevated.ignoresSafeArea())
         .alert("Microfone bloqueado", isPresented: $showMicDenied) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -111,65 +167,19 @@ struct CardAudioRecorderView: View {
         }
     }
 
-    private var recordButton: some View {
-        Button { requestAndRecord() } label: {
-            HStack(spacing: VitaTokens.Spacing.sm) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone
-                Text("Gravar áudio")
-                    .font(VitaTypography.labelLarge)
-                Spacer()
-            }
-            .foregroundStyle(VitaColors.accent)
-            .padding(VitaTokens.Spacing.lg)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(VitaColors.glassBg, in: RoundedRectangle(cornerRadius: VitaTokens.Radius.lg))
-            .overlay(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).stroke(VitaColors.glassBorder, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
+    private var hint: String {
+        if recordedSrc != nil { return "Gravado. Toque em Anexar." }
+        return recorder.isRecording ? "Gravando… toque pra parar." : "Toque no microfone pra gravar."
     }
 
-    private var recordingBar: some View {
-        Button { audioSrc = recorder.stop() } label: {
-            HStack(spacing: VitaTokens.Spacing.sm) {
-                Circle().fill(VitaColors.danger).frame(width: 12, height: 12)
-                Text("Gravando  \(timeString(recorder.elapsed))")
-                    .font(VitaTypography.labelLarge)
-                    .foregroundStyle(VitaColors.textPrimary)
-                    .monospacedDigit()
-                Spacer()
-                Text("Parar")
-                    .font(VitaTypography.labelLarge)
-                    .foregroundStyle(VitaColors.danger)
-            }
-            .padding(VitaTokens.Spacing.lg)
-            .frame(maxWidth: .infinity)
-            .background(VitaColors.danger.opacity(0.10), in: RoundedRectangle(cornerRadius: VitaTokens.Radius.lg))
-            .overlay(RoundedRectangle(cornerRadius: VitaTokens.Radius.lg).stroke(VitaColors.danger.opacity(0.4), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func attachedPlayer(_ src: String) -> some View {
-        HStack(spacing: VitaTokens.Spacing.sm) {
-            FlashcardAudioSegment(url: src)
-            Button {
-                AudioRecorder.deleteFile(for: src)
-                audioSrc = nil
-            } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 16, weight: .semibold))  // ds-allow: ícone
-                    .foregroundStyle(VitaColors.danger)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func requestAndRecord() {
-        AVAudioApplication.requestRecordPermission { granted in
-            DispatchQueue.main.async {
-                if granted { recorder.start() } else { showMicDenied = true }
+    private func toggle() {
+        if recorder.isRecording {
+            recordedSrc = recorder.stop()
+        } else if recordedSrc == nil {
+            AVAudioApplication.requestRecordPermission { granted in
+                DispatchQueue.main.async {
+                    if granted { recorder.start() } else { showMicDenied = true }
+                }
             }
         }
     }

@@ -114,6 +114,7 @@ struct RichCardEditor: UIViewRepresentable {
             }
             let buttons: [(String, Selector)] = [
                 ("photo", #selector(tapImage)),
+                ("mic", #selector(tapMic)),
                 ("textformat.size", #selector(tapHeading)),
                 ("bold", #selector(tapBold)),
                 ("italic", #selector(tapItalic)),
@@ -151,6 +152,33 @@ struct RichCardEditor: UIViewRepresentable {
             Self.topPresenter(from: tv)?.present(picker, animated: true)
         }
         @objc private func tapDone() { textView?.resignFirstResponder() }
+
+        /// Mic da barra → abre o sheet de gravação → "Anexar" insere a tag
+        /// `<audio src="userdoc:…">` no cursor (igual a imagem). Rafael 2026-07-18.
+        @objc private func tapMic() {
+            guard let tv = textView, let presenter = Self.topPresenter(from: tv) else { return }
+            var host: UIViewController?
+            let sheet = AudioRecordSheet(
+                onAttach: { [weak self] ref in
+                    host?.dismiss(animated: true)
+                    self?.insertAudio(ref)
+                },
+                onCancel: { host?.dismiss(animated: true) }
+            )
+            let h = UIHostingController(rootView: sheet)
+            host = h
+            if let sc = h.sheetPresentationController {
+                sc.detents = [.medium()]
+                sc.prefersGrabberVisible = true
+            }
+            presenter.present(h, animated: true)
+        }
+
+        private func insertAudio(_ ref: String) {
+            guard let tv = textView, let range = tv.selectedTextRange else { return }
+            tv.replace(range, withText: "<audio src=\"\(ref)\"></audio>")
+            sync(tv)
+        }
 
         /// VC mais acima pra apresentar o picker (o editor vive dentro de um sheet).
         private static func topPresenter(from view: UIView) -> UIViewController? {

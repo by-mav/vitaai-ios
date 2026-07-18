@@ -33,29 +33,10 @@ struct CardComposerSheet: View {
 
     @State private var front: String
     @State private var back: String
-    /// Áudio gravado pelo usuário anexado à FRENTE (ref `userdoc:…`), separado do
-    /// texto pra o composer editar com um player em vez da tag crua.
-    @State private var audioSrc: String?
     @State private var isSaving = false
     @FocusState private var focus: Field?
 
     private enum Field { case front, back }
-
-    // Extrai a 1ª tag `<audio src="userdoc:…">` do texto (áudio do usuário) e
-    // devolve o texto SEM ela + a src. Áudio embutido do bundle (ausculta) não é
-    // `userdoc:`, então não é mexido aqui.
-    private static let userAudioPattern = #"<audio[^>]*\bsrc="(userdoc:[^"]+)"[^>]*>(?:\s*</audio>)?"#
-
-    private static func splitAudio(_ text: String) -> (text: String, src: String?) {
-        guard let range = text.range(of: userAudioPattern, options: .regularExpression) else {
-            return (text, nil)
-        }
-        let tag = String(text[range])
-        let src = tag.range(of: #"userdoc:[^"]+"#, options: .regularExpression).map { String(tag[$0]) }
-        var stripped = text
-        stripped.removeSubrange(range)
-        return (stripped.trimmingCharacters(in: .whitespacesAndNewlines), src)
-    }
 
     init(
         target: CardComposerTarget,
@@ -69,19 +50,17 @@ struct CardComposerSheet: View {
         case .create:
             _front = State(initialValue: "")
             _back = State(initialValue: "")
-            _audioSrc = State(initialValue: nil)
         case .edit(let card):
-            let split = Self.splitAudio(card.front)
-            _front = State(initialValue: split.text)
+            // Mantém o texto como está — áudio/imagem são tags inline no próprio texto.
+            _front = State(initialValue: card.front)
             _back = State(initialValue: card.back)
-            _audioSrc = State(initialValue: split.src)
         }
     }
 
     private var isEditing: Bool { if case .edit = target { return true }; return false }
 
     private var canSave: Bool {
-        let hasFront = !front.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || audioSrc != nil
+        let hasFront = !front.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasBack = !back.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return hasFront && hasBack
     }
@@ -92,7 +71,6 @@ struct CardComposerSheet: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: VitaTokens.Spacing.xl) {
                     field(label: "FRENTE", text: $front, placeholder: "Pergunta ou caso clínico…", field: .front)
-                    CardAudioRecorderView(audioSrc: $audioSrc)
                     field(label: "VERSO", text: $back, placeholder: "Resposta…", field: .back)
                 }
                 .padding(.horizontal, VitaTokens.Spacing.lg)
@@ -179,12 +157,9 @@ struct CardComposerSheet: View {
     private func submit() async {
         guard canSave, !isSaving else { return }
         isSaving = true
-        // Re-embute o áudio gravado na FRENTE (o player o renderiza no estudo).
-        var frontToSave = front.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let src = audioSrc {
-            let tag = "<audio src=\"\(src)\"></audio>"
-            frontToSave = frontToSave.isEmpty ? tag : "\(frontToSave)<div>\(tag)</div>"
-        }
+        // Áudio/imagem já vivem INLINE no texto (tags <audio>/<img> inseridas pela
+        // barra) — o front vai como está; o renderer do card mostra os players.
+        let frontToSave = front.trimmingCharacters(in: .whitespacesAndNewlines)
         let ok = await onSubmit(frontToSave, back)
         isSaving = false
         if ok {
