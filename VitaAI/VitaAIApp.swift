@@ -121,7 +121,9 @@ struct VitaAIApp: App {
             #else
             Group {
                 #if DEBUG
-                if ProcessInfo.processInfo.arguments.contains("--preview-onboarding") {
+                if ProcessInfo.processInfo.arguments.contains("--person-lab") {
+                    PersonMascotLab()
+                } else if ProcessInfo.processInfo.arguments.contains("--preview-onboarding") {
                     VitaOnboarding(
                         userName: "Rafael",
                         onLogout: nil,
