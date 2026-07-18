@@ -68,12 +68,27 @@ struct FlashcardContentView: View {
         ContentSegmentParser.parse(content)
     }
 
-    private var hasImages: Bool {
-        segments.contains { if case .image = $0 { return true }; return false }
+    /// Tem conteúdo "rico" (imagem OU áudio) → usa a renderização segmentada em vez
+    /// do texto puro. Card só de áudio (ex.: gravado pelo usuário) também entra aqui.
+    private var hasRichContent: Bool {
+        segments.contains {
+            switch $0 {
+            case .image, .audio: return true
+            case .text:          return false
+            }
+        }
+    }
+
+    /// Card de ausculta = imagem (posição do estetoscópio) + PLAYER de áudio. O
+    /// player é o ponto do card; a foto é contexto. Com áudio, a imagem fica
+    /// COMPACTA pra o player caber na tela sem depender de rolar (o card não rola
+    /// bem no flip 3D). Rafael 2026-07-18.
+    private var hasAudio: Bool {
+        segments.contains { if case .audio = $0 { return true }; return false }
     }
 
     var body: some View {
-        if !hasImages {
+        if !hasRichContent {
             // Texto puro — decodifica entidades HTML (&nbsp;) e remove tags (<div> do Anki)
             Text(flashcardDecodeText(content))
                 .font(.system(size: fontSize, weight: .medium))
@@ -111,7 +126,10 @@ struct FlashcardContentView: View {
             }
 
         case .image(let url):
-            FlashcardImageSegment(url: url)
+            FlashcardImageSegment(url: url, compact: hasAudio)
+
+        case .audio(let url):
+            FlashcardAudioSegment(url: url)
         }
     }
 }
@@ -274,14 +292,17 @@ private struct FlashcardTextSegment: View {
 
 private struct FlashcardImageSegment: View {
     let url: String
+    /// Card com áudio: encolhe a foto pra o player caber sem rolar.
+    var compact: Bool = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     // Teto de altura da imagem. Com scaledToFit, subir o teto faz a imagem crescer
     // até encostar na largura do card → aproveita melhor o espaço (Rafael 2026-07-17).
     // O card de estudo tem ~324pt úteis de altura; 300pt no iPhone preenche bem sem estourar.
-    // iPhone: 300pt. iPad (regular): 440pt.
+    // iPhone: 300pt. iPad (regular): 440pt. Compacto (card de áudio): 130pt.
     private var maxImageHeight: CGFloat {
-        horizontalSizeClass == .regular ? 440 : 300
+        if compact { return 130 }
+        return horizontalSizeClass == .regular ? 440 : 300
     }
 
     // Refs relativas (ex: "medicina/foo.webp") = mídia EMBUTIDA no app
@@ -404,45 +425,50 @@ private extension View {
 private enum ContentSegment {
     case text(String)
     case image(url: String)
+    case audio(url: String)
 }
 
 private enum ContentSegmentParser {
-    // Matches <img src="..." ...> and <img src='...' ...>
-    // Also handles self-closing />
+    // <img src="..." ...>  (self-closing / também)
     private static let imgPattern = /<img[^>]*\bsrc=["']([^"']+)["'][^>]*\/?>/
+    // <audio ... src="..." ...></audio>  (consome o fechamento pra a tag não vazar)
+    private static let audioPattern = /<audio[^>]*\bsrc=["']([^"']+)["'][^>]*>(?:\s*<\/audio>)?/
 
     static func parse(_ input: String) -> [ContentSegment] {
-        // Quick bail-out — no img tags
-        guard input.contains("<img") else {
+        // Quick bail-out — nada de mídia
+        guard input.contains("<img") || input.contains("<audio") else {
             return [.text(input)]
         }
 
+        // Coleta TODAS as mídias (img + audio) com posição, pra intercalar o texto
+        // na ordem certa mesmo quando as duas aparecem no mesmo card (ausculta:
+        // foto + player).
+        struct Media { let range: Range<String.Index>; let segment: ContentSegment }
+        var media: [Media] = []
+        for m in input.matches(of: imgPattern) {
+            media.append(Media(range: m.range, segment: .image(url: String(m.output.1))))
+        }
+        for m in input.matches(of: audioPattern) {
+            media.append(Media(range: m.range, segment: .audio(url: String(m.output.1))))
+        }
+        media.sort { $0.range.lowerBound < $1.range.lowerBound }
+
         var segments: [ContentSegment] = []
-        var searchRange = input.startIndex..<input.endIndex
         var cursor = input.startIndex
-
-        for match in input.matches(of: imgPattern) {
-            let matchStart = match.range.lowerBound
-            let matchEnd = match.range.upperBound
-            let imgURL = String(match.output.1)
-
-            // Text before this image
-            if cursor < matchStart {
-                let textChunk = String(input[cursor..<matchStart])
-                let stripped = stripOtherHTML(textChunk)
+        for item in media {
+            if cursor < item.range.lowerBound {
+                let stripped = stripOtherHTML(String(input[cursor..<item.range.lowerBound]))
                 if !stripped.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     segments.append(.text(stripped))
                 }
             }
-
-            segments.append(.image(url: imgURL))
-            cursor = matchEnd
+            segments.append(item.segment)
+            cursor = item.range.upperBound
         }
 
-        // Remaining text after last image
+        // Texto após a última mídia
         if cursor < input.endIndex {
-            let textChunk = String(input[cursor...])
-            let stripped = stripOtherHTML(textChunk)
+            let stripped = stripOtherHTML(String(input[cursor...]))
             if !stripped.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 segments.append(.text(stripped))
             }
