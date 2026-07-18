@@ -79,7 +79,10 @@ struct RichCardEditor: UIViewRepresentable {
                 UIBarButtonItem(image: UIImage(systemName: symbol), style: .plain, target: self, action: action)
             }
             let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
-            let done = UIBarButtonItem(title: "Concluir", style: .done, target: self, action: #selector(tapDone))
+            // Ícone compacto (não "Concluir" texto) pra sobrar espaço a todos os
+            // botões de formatação (imagem/AA/B/I/U/S/listas) na largura do iPhone.
+            let done = UIBarButtonItem(image: UIImage(systemName: "keyboard.chevron.compact.down"),
+                                       style: .done, target: self, action: #selector(tapDone))
             var items: [UIBarButtonItem] = [
                 item("photo", #selector(tapImage)),
                 item("textformat.size", #selector(tapHeading)),
@@ -90,7 +93,6 @@ struct RichCardEditor: UIViewRepresentable {
                 item("underline", #selector(tapUnderline)),
                 item("strikethrough", #selector(tapStrike)),
                 item("list.bullet", #selector(tapBullet)),
-                item("list.number", #selector(tapNumbered)),
             ])
             items.append(contentsOf: [flex, done])
             bar.items = items
