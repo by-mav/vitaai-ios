@@ -102,11 +102,12 @@ struct FlashcardCheckpointView: View {
         GeometryReader { geo in
             let total = max(data.totalCards, 1)
             let w = geo.size.width
+            // MESMAS cores dos botões Erro/Difícil/Bom/Fácil (Rafael 2026-07-17).
             let seg: [(Int, Color)] = [
                 (data.again, VitaColors.dataRed),
                 (data.hard, VitaColors.dataAmber),
                 (data.good, VitaColors.accentHover),
-                (data.easy, VitaColors.dataBlue),
+                (data.easy, VitaColors.dataGreen),
             ]
             HStack(spacing: 0) {
                 ForEach(Array(seg.enumerated()), id: \.offset) { _, s in
@@ -132,7 +133,7 @@ struct FlashcardCheckpointView: View {
             ratingCell("Erro", data.again, VitaColors.dataRed)
             ratingCell("Difícil", data.hard, VitaColors.dataAmber)
             ratingCell("Bom", data.good, VitaColors.accentHover)
-            ratingCell("Fácil", data.easy, VitaColors.dataBlue)
+            ratingCell("Fácil", data.easy, VitaColors.dataGreen)
         }
     }
 
