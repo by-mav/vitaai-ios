@@ -331,9 +331,16 @@ private struct FlashcardImageSegment: View {
         return horizontalSizeClass == .regular ? 440 : 300
     }
 
-    // Refs relativas (ex: "medicina/foo.webp") = mídia EMBUTIDA no app
-    // (folder reference FlashcardMedia). http(s) segue pela rede via AsyncImage.
+    // Resolve a imagem local:
+    // • `userdoc:<rel>` = imagem INSERIDA pelo usuário (Documents/<rel>).
+    // • ref relativa (ex "medicina/foo.webp") = mídia EMBUTIDA (FlashcardMedia).
+    // • http(s) = rede (via AsyncImage no else).
     private var bundledImage: UIImage? {
+        if url.hasPrefix("userdoc:") {
+            let rel = String(url.dropFirst("userdoc:".count))
+            let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            return UIImage(contentsOfFile: docs.appendingPathComponent(rel).path)
+        }
         guard !url.hasPrefix("http"), let base = Bundle.main.resourceURL else { return nil }
         let path = base.appendingPathComponent("FlashcardMedia").appendingPathComponent(url).path
         return UIImage(contentsOfFile: path)

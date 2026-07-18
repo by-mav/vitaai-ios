@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import PhotosUI
 
 // MARK: - RichCardEditor
 //
@@ -58,7 +59,7 @@ struct RichCardEditor: UIViewRepresentable {
         context.coordinator.placeholder?.isHidden = !tv.text.isEmpty
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, PHPickerViewControllerDelegate {
         let parent: RichCardEditor
         weak var textView: UITextView?
         weak var placeholder: UILabel?
@@ -79,10 +80,9 @@ struct RichCardEditor: UIViewRepresentable {
             }
             let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
             let done = UIBarButtonItem(title: "Concluir", style: .done, target: self, action: #selector(tapDone))
-            var items: [UIBarButtonItem] = []
-            if parent.onImage != nil {
-                items.append(item("photo.on.rectangle", #selector(tapImage)))
-            }
+            var items: [UIBarButtonItem] = [
+                item("photo", #selector(tapImage)),
+            ]
             items.append(contentsOf: [
                 item("bold", #selector(tapBold)),
                 item("italic", #selector(tapItalic)),
@@ -96,8 +96,50 @@ struct RichCardEditor: UIViewRepresentable {
             return bar
         }
 
-        @objc private func tapImage() { parent.onImage?() }
+        @objc private func tapImage() {
+            parent.onImage?()   // hook opcional (legado)
+            guard let tv = textView else { return }
+            var config = PHPickerConfiguration()
+            config.filter = .images
+            config.selectionLimit = 1
+            let picker = PHPickerViewController(configuration: config)
+            picker.delegate = self
+            Self.topPresenter(from: tv)?.present(picker, animated: true)
+        }
         @objc private func tapDone() { textView?.resignFirstResponder() }
+
+        /// VC mais acima pra apresentar o picker (o editor vive dentro de um sheet).
+        private static func topPresenter(from view: UIView) -> UIViewController? {
+            var top = view.window?.rootViewController
+            while let presented = top?.presentedViewController { top = presented }
+            return top
+        }
+
+        /// Salva a imagem escolhida em `Documents/flashcard-images/` e insere a tag
+        /// `<img src="userdoc:…">` no cursor (o renderer do card já a mostra).
+        private func insertImage(_ image: UIImage) {
+            let dir = FileManager.default
+                .urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("flashcard-images", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let name = "\(UUID().uuidString).jpg"
+            guard let data = image.jpegData(compressionQuality: 0.85) else { return }
+            try? data.write(to: dir.appendingPathComponent(name), options: .atomic)
+
+            guard let tv = textView, let range = tv.selectedTextRange else { return }
+            tv.replace(range, withText: "<img src=\"userdoc:flashcard-images/\(name)\">")
+            sync(tv)
+        }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            picker.dismiss(animated: true)
+            guard let provider = results.first?.itemProvider,
+                  provider.canLoadObject(ofClass: UIImage.self) else { return }
+            provider.loadObject(ofClass: UIImage.self) { [weak self] obj, _ in
+                guard let self, let image = obj as? UIImage else { return }
+                DispatchQueue.main.async { self.insertImage(image) }
+            }
+        }
         @objc private func tapBold() { wrap("**", placeholder: "negrito") }
         @objc private func tapItalic() { wrap("*", placeholder: "itálico") }
         @objc private func tapStrike() { wrap("~~", placeholder: "tachado") }
