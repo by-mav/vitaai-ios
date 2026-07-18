@@ -83,9 +83,16 @@ struct FlashcardSettingsScreen: View {
     private let accentGold = VitaColors.accent
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            if let settings {
-                settingsContent(settings: settings)
+        VStack(spacing: 0) {
+            // Header próprio com voltar. A sessão de flashcard entra em modo imersivo
+            // (esconde a chrome global), então esta tela empurrada por cima precisa
+            // do SEU próprio botão de voltar — senão fica sem saída. Rafael 2026-07-17.
+            VitaScreenHeader(title: "Ajustes de estudo", onBack: onBack)
+
+            ScrollView(showsIndicators: false) {
+                if let settings {
+                    settingsContent(settings: settings)
+                }
             }
         }
         // No duplicate background — shell provides VitaAmbientBackground
