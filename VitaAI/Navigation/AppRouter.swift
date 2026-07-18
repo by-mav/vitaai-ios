@@ -766,6 +766,8 @@ struct MainTabView: View {
                     router.navigate(to: .flashcardSession(deckId: deckId, tagFilter: tagPrefix))
                 }
             )
+        case .cardBrowser(let deckId, let deckTitle, let subjectId):
+            CardBrowserScreen(deckId: deckId, deckTitle: deckTitle, subjectId: subjectId, onBack: { router.goBack() })
         case .flashcardSession(let deckId, let tagFilter, let sessionId):
             FlashcardSessionScreen(
                 deckId: deckId,

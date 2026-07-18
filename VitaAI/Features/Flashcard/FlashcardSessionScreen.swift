@@ -221,6 +221,11 @@ struct FlashcardSessionScreen: View {
                 Button { onOpenSettings() } label: {
                     Label("Ajustes de estudo", systemImage: "slider.horizontal.3")
                 }
+                Button {
+                    router.navigate(to: .cardBrowser(deckId: deckId, deckTitle: vm.deckTitle))
+                } label: {
+                    Label("Gerenciar cards", systemImage: "square.stack.3d.up")
+                }
                 if vm.studySessionId != nil {
                     Button(role: .destructive) {
                         showEndSessionConfirmation = true

@@ -28,6 +28,7 @@ extension Route {
         // MARK: - Estudos
         case .flashcardHome:       return "Flashcards"
         case .flashcardTopics(_, let title): return title
+        case .cardBrowser(_, let title, _): return title
         case .flashcardSession:    return "Sessão"
         case .flashcardSettings:   return "Configurações"
         case .flashcardStats:      return "Estatísticas"
