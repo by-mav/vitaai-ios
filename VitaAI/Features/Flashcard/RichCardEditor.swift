@@ -71,32 +71,58 @@ struct RichCardEditor: UIViewRepresentable {
             placeholder?.isHidden = !tv.text.isEmpty
         }
 
-        func makeToolbar() -> UIToolbar {
-            let bar = UIToolbar()
-            bar.sizeToFit()
-            bar.tintColor = UIColor(VitaColors.accent)
-            func item(_ symbol: String, _ action: Selector) -> UIBarButtonItem {
-                UIBarButtonItem(image: UIImage(systemName: symbol), style: .plain, target: self, action: action)
+        /// Barra ROLÁVEL (igual a referência): todos os botões cabem e o aluno
+        /// rola horizontal se a tela for estreita — o UIToolbar cortava as pontas.
+        /// Ordem = referência: imagem·AA·B·I·U·S·lista·numerada + fechar. Rafael 2026-07-18.
+        func makeToolbar() -> UIView {
+            let container = UIView(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 48))
+            container.autoresizingMask = [.flexibleWidth]
+
+            let scroll = UIScrollView()
+            scroll.translatesAutoresizingMaskIntoConstraints = false
+            scroll.showsHorizontalScrollIndicator = false
+            scroll.alwaysBounceHorizontal = true
+            container.addSubview(scroll)
+
+            let stack = UIStackView()
+            stack.axis = .horizontal
+            stack.spacing = 4
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            scroll.addSubview(stack)
+
+            func button(_ symbol: String, _ action: Selector) -> UIButton {
+                let b = UIButton(type: .system)
+                b.setImage(UIImage(systemName: symbol), for: .normal)
+                b.tintColor = UIColor(VitaColors.accent)
+                b.addTarget(self, action: action, for: .touchUpInside)
+                b.widthAnchor.constraint(equalToConstant: 42).isActive = true
+                return b
             }
-            let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
-            // Ícone compacto (não "Concluir" texto) pra sobrar espaço a todos os
-            // botões de formatação (imagem/AA/B/I/U/S/listas) na largura do iPhone.
-            let done = UIBarButtonItem(image: UIImage(systemName: "keyboard.chevron.compact.down"),
-                                       style: .done, target: self, action: #selector(tapDone))
-            var items: [UIBarButtonItem] = [
-                item("photo", #selector(tapImage)),
-                item("textformat.size", #selector(tapHeading)),
+            let buttons: [(String, Selector)] = [
+                ("photo", #selector(tapImage)),
+                ("textformat.size", #selector(tapHeading)),
+                ("bold", #selector(tapBold)),
+                ("italic", #selector(tapItalic)),
+                ("underline", #selector(tapUnderline)),
+                ("strikethrough", #selector(tapStrike)),
+                ("list.bullet", #selector(tapBullet)),
+                ("list.number", #selector(tapNumbered)),
+                ("keyboard.chevron.compact.down", #selector(tapDone)),
             ]
-            items.append(contentsOf: [
-                item("bold", #selector(tapBold)),
-                item("italic", #selector(tapItalic)),
-                item("underline", #selector(tapUnderline)),
-                item("strikethrough", #selector(tapStrike)),
-                item("list.bullet", #selector(tapBullet)),
+            buttons.forEach { stack.addArrangedSubview(button($0.0, $0.1)) }
+
+            NSLayoutConstraint.activate([
+                scroll.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
+                scroll.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+                scroll.topAnchor.constraint(equalTo: container.topAnchor),
+                scroll.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+                stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor),
+                stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor),
+                stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
+                stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
+                stack.heightAnchor.constraint(equalTo: scroll.frameLayoutGuide.heightAnchor),
             ])
-            items.append(contentsOf: [flex, done])
-            bar.items = items
-            return bar
+            return container
         }
 
         @objc private func tapImage() {
