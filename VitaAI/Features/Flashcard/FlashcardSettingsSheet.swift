@@ -62,6 +62,8 @@ final class FlashcardSettings {
     var showTimer: Bool = false
     var showIntervalPreview: Bool = true
     var autoAdvanceSeconds: Int = 0  // 0 = off
+    /// Ponto de controle a cada 10 cartas (resumo da leva). Rafael 2026-07-17.
+    var checkpointEnabled: Bool = true
 
     static let newLimitOptions = [5, 10, 20, 30, 50, 100, 999]
     static let reviewLimitOptions = [50, 100, 150, 200, 300, 500, 999]
@@ -200,6 +202,13 @@ struct FlashcardSettingsScreen: View {
                 icon: "calendar.badge.clock",
                 isOn: settings.showIntervalPreview,
                 onToggle: { settings.showIntervalPreview = $0 }
+            )
+
+            toggleRow(
+                label: "Ponto de controle",
+                icon: "flag.checkered",
+                isOn: settings.checkpointEnabled,
+                onToggle: { settings.checkpointEnabled = $0 }
             )
 
             Spacer().frame(height: 80)

@@ -34,6 +34,36 @@ final class FlashcardViewModel {
     // segmentados do progresso (cada traço colorido pela resposta do aluno).
     private(set) var ratingHistory: [ReviewRating] = []
 
+    // Ponto de controle (a cada 10 cartas): visível pausa a sessão; enabled vem
+    // do toggle de ajustes. Rafael 2026-07-17.
+    var checkpointVisible: Bool = false
+    var checkpointEnabled: Bool = true
+
+    /// Dados do ponto de controle, derivados do histórico de respostas.
+    var checkpointData: FlashcardCheckpointData {
+        var counts = [ReviewRating: Int]()
+        for r in ratingHistory { counts[r, default: 0] += 1 }
+        // Nota ponderada: Erro=0, Difícil=⅓, Bom=⅔, Fácil=1.
+        let weights: [ReviewRating: Double] = [.again: 0, .hard: 1.0/3, .good: 2.0/3, .easy: 1]
+        let grade = ratingHistory.isEmpty ? 0
+            : ratingHistory.reduce(0.0) { $0 + (weights[$1] ?? 0) } / Double(ratingHistory.count) * 100
+        let studied = totalReviewed
+        let total = cards.count
+        let perCard = studied > 0 ? Double(elapsedSeconds) / Double(studied) : 0
+        let remainingSecs = Int((Double(max(total - studied, 0)) * perCard).rounded())
+        return FlashcardCheckpointData(
+            gradePercent: Int(grade.rounded()),
+            again: counts[.again] ?? 0,
+            hard: counts[.hard] ?? 0,
+            good: counts[.good] ?? 0,
+            easy: counts[.easy] ?? 0,
+            elapsedSeconds: elapsedSeconds,
+            cardsStudied: studied,
+            totalCards: total,
+            estimatedRemainingSeconds: remainingSecs
+        )
+    }
+
     // FSRS-5 per-card state (parallel array, indexed by cards)
     private(set) var fsrsStates: [FsrsCardState] = []
 
@@ -396,6 +426,7 @@ final class FlashcardViewModel {
         // Update FSRS scheduler with desired retention
         scheduler = FsrsScheduler(params: FsrsParameters(requestedRetention: settings.desiredRetention))
         leechThreshold = settings.leechThreshold
+        checkpointEnabled = settings.checkpointEnabled
 
         // Sort order
         switch settings.sortOrder {
@@ -552,6 +583,11 @@ final class FlashcardViewModel {
             isFlipped = false
             cardStartDate = Date()
             phase = .studying
+            // Ponto de controle: a cada 10 cartas, pausa e mostra o progresso da
+            // sessão (nota, distribuição, tempo). Desligável nos ajustes. Rafael 2026-07-17.
+            if checkpointEnabled, totalReviewed % 10 == 0 {
+                checkpointVisible = true
+            }
             Task { await persistSession() }
         }
     }

@@ -60,7 +60,23 @@ struct FlashcardSessionScreen: View {
             } else {
                 FlashcardLoadingSkeleton()
             }
+
+            // Ponto de controle (a cada 10 cartas): escurece o fundo e mostra o
+            // resumo da leva por cima da sessão. Rafael 2026-07-17.
+            if let vm = viewModel, vm.checkpointVisible {
+                Color.black.opacity(0.55)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture { }  // absorve toques, não deixa vazar pro card
+                FlashcardCheckpointView(
+                    data: vm.checkpointData,
+                    onContinue: { withAnimation(.easeInOut(duration: 0.25)) { vm.checkpointVisible = false } },
+                    onStats: { router.navigate(to: .flashcardStats) }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.3), value: viewModel?.checkpointVisible)
         .onAppear {
             if viewModel == nil {
                 let vm = FlashcardViewModel(api: container.api, gamificationEvents: container.gamificationEvents)
