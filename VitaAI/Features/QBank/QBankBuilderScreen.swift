@@ -16,9 +16,6 @@ struct QBankBuilderScreen: View {
 
     // Configuração avançada fica fora do fluxo principal para reduzir carga visual.
     @State private var activeSheet: QBankBuilderSheet? = nil
-    @State private var yearsExpanded: Bool = false
-    @State private var formatExpanded: Bool = false
-    @State private var difficultyExpanded: Bool = false
     @State private var showStudioImport = false
 
     var body: some View {
@@ -249,6 +246,8 @@ struct QBankBuilderScreen: View {
             .padding(.horizontal, 16)
         }
 
+        // Ano → range (presets + mín/máx), sempre à mostra
+        // (Rafael 2026-07-19: "uma barra com dois lados", não escondido em drawer)
         if !vm.state.years.isEmpty {
             YearsRangeSection(
                 minYear: Binding(
@@ -262,20 +261,15 @@ struct QBankBuilderScreen: View {
                 availableMin: vm.state.years.min() ?? 1995,
                 availableMax: vm.state.years.max() ?? 2026,
                 theme: .questoes,
-                expanded: $yearsExpanded,
+                expanded: .constant(true),
                 onChange: { vm.scheduleRefreshPreview() },
                 counts: vm.state.yearCounts
             )
             .padding(.horizontal, 16)
         }
 
-        CollapsibleSectionCard(
-            title: "Formato",
-            icon: "doc.text",
-            summary: formatSummary(vm: vm),
-            theme: .questoes,
-            expanded: $formatExpanded
-        ) {
+        // Formato → 3 opções à mostra (FormatPills já traz label + as 3 opções inline)
+        VitaGlassCard(cornerRadius: 14) {
             FormatPills(
                 selected: Binding(
                     get: { vm.state.selectedFormats },
@@ -289,30 +283,14 @@ struct QBankBuilderScreen: View {
                 theme: .questoes,
                 counts: vm.state.formatCounts
             )
+            .padding(14)
         }
         .padding(.horizontal, 16)
 
+        // Dificuldade → 3 opções à mostra (card inline reusado, sem chevron)
         if !vm.state.difficulties.isEmpty {
-            CollapsibleSectionCard(
-                title: "Dificuldade",
-                icon: "chart.bar",
-                summary: difficultySummary(vm: vm),
-                theme: .questoes,
-                expanded: $difficultyExpanded
-            ) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(vm.state.difficulties) { dc in
-                            let label = "\(dc.displayLabel) (\(dc.count))"
-                            QBankChip(
-                                label: label,
-                                isSelected: vm.state.selectedDifficulties.contains(dc.difficulty)
-                            ) { vm.toggleDifficulty(dc.difficulty) }
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
+            difficultySection(vm: vm)
+                .padding(.horizontal, 16)
         }
 
         AdvancedSection(
@@ -444,16 +422,6 @@ struct QBankBuilderScreen: View {
     private func heroAccuracyLabel(vm: QBankBuilderViewModel) -> String {
         guard vm.state.progressAnswered > 0 else { return "—" }
         return "\(Int((vm.state.progressAccuracy * 100).rounded()))%"
-    }
-
-    private func formatSummary(vm: QBankBuilderViewModel) -> String {
-        if vm.state.selectedFormats.isEmpty { return "Todos" }
-        return "\(vm.state.selectedFormats.count) selec."
-    }
-
-    private func difficultySummary(vm: QBankBuilderViewModel) -> String {
-        if vm.state.selectedDifficulties.isEmpty { return "Todas" }
-        return "\(vm.state.selectedDifficulties.count) selec."
     }
 
     private func disciplineSummary(vm: QBankBuilderViewModel) -> String {
