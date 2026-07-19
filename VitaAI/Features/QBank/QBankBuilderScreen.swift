@@ -71,6 +71,18 @@ struct QBankBuilderScreen: View {
                         onClearAll: { vm.clearAllFilters() }
                     )
 
+                    // 2b. FILTROS na própria página (Rafael 2026-07-19): banca · anos ·
+                    // formato · dificuldade · avançadas. Antes só viviam na sheet de
+                    // settings; agora ficam à vista, cada um abre seu drawer collapsible.
+                    Text("FILTROS")
+                        .font(PixioTypo.sectionLabel)
+                        .tracking(0.8)
+                        .foregroundStyle(VitaColors.sectionLabel)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+
+                    secondaryFilters(vm: vm)
+
                     // 3. Quantidade e modo são controles globais da sessão.
                     quantitySection(vm: vm)
                         .padding(.horizontal, 16)
@@ -404,13 +416,6 @@ struct QBankBuilderScreen: View {
                 description: "Só Q com comentário detalhado",
                 isOn: vm.state.excludeNoExplanation,
                 action: { vm.setExcludeNoExplanation(!vm.state.excludeNoExplanation) }
-            ),
-            AdvancedToggleItem(
-                icon: "rosette",
-                title: "Apenas oficiais",
-                description: "Exclui Q geradas por IA",
-                isOn: !vm.state.includeSynthetic,
-                action: { vm.setIncludeSynthetic(!(!vm.state.includeSynthetic)) }
             ),
         ]
     }
@@ -1114,13 +1119,6 @@ private struct QBankSettingsSheet: View {
                 description: "Só Q com comentário detalhado",
                 isOn: vm.state.excludeNoExplanation,
                 action: { vm.setExcludeNoExplanation(!vm.state.excludeNoExplanation) }
-            ),
-            AdvancedToggleItem(
-                icon: "rosette",
-                title: "Apenas oficiais",
-                description: "Exclui Q geradas por IA",
-                isOn: !vm.state.includeSynthetic,
-                action: { vm.setIncludeSynthetic(!(!vm.state.includeSynthetic)) }
             ),
         ]
     }
