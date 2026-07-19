@@ -578,6 +578,9 @@ struct QBankCreateSessionRequest: Encodable {
     let hideReviewed: Bool?
     /// Spec §3.1 — formato (objective/discursive/withImage). Multi-select.
     let format: [String]?
+    /// "1 sessão aberta global": quando true, o backend encerra a sessão aberta
+    /// existente (de qualquer tipo) antes de criar esta. nil ⇒ respeita o guard (409).
+    let abandonExisting: Bool?
 
     init(
         questionCount: Int,
@@ -598,7 +601,8 @@ struct QBankCreateSessionRequest: Encodable {
         includeSynthetic: Bool? = nil,
         hideAnnulled: Bool? = nil,
         hideReviewed: Bool? = nil,
-        format: [String]? = nil
+        format: [String]? = nil,
+        abandonExisting: Bool? = nil
     ) {
         self.questionCount = questionCount
         self.institutionIds = institutionIds
@@ -619,6 +623,33 @@ struct QBankCreateSessionRequest: Encodable {
         self.hideAnnulled = hideAnnulled
         self.hideReviewed = hideReviewed
         self.format = format
+        self.abandonExisting = abandonExisting
+    }
+}
+
+/// Corpo do 409 `open_session_exists` — "1 sessão aberta global". O create-route
+/// devolve isso quando já há um treino aberto (de qualquer tipo). O app oferece
+/// "encerrar e começar" (recria com abandonExisting) ou cancelar.
+struct OpenSessionConflict: Decodable {
+    let error: String
+    let openSession: OpenSessionInfo
+}
+
+struct OpenSessionInfo: Decodable, Identifiable, Equatable {
+    let type: String   // "questions" | "flashcards" | "simulado"
+    let id: String
+    let title: String?
+    let currentIndex: Int
+    let total: Int
+    let startedAt: String?
+
+    /// Rótulo PT-BR do tipo de treino aberto.
+    var typeLabel: String {
+        switch type {
+        case "flashcards": return "Flashcards"
+        case "simulado": return "Simulado"
+        default: return "Questões"
+        }
     }
 }
 

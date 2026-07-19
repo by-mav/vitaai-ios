@@ -73,6 +73,10 @@ struct QBankBuilderState {
     var creatingSession: Bool = false
     var error: String? = nil
 
+    /// "1 sessão aberta global": setado quando o create-route devolve 409. A tela
+    /// mostra o prompt "encerrar e começar / cancelar". nil = sem conflito.
+    var openSessionConflict: OpenSessionInfo? = nil
+
     /// Display count: SEMPRE reflete preview API (count real com filtros aplicados).
     /// Reclamação Rafael #14: 'o 2327 questões não sai dali, independente do que tá selecionado'.
     /// Bug antigo: fallback em `totalQuestions` (count do banco com filtros vazios) ficava fixo
@@ -404,7 +408,7 @@ final class QBankBuilderViewModel {
     // MARK: - Create session
 
     /// Cria sessão com filtros aplicados. Retorna sessionId pra navegação.
-    func createSession() async -> String? {
+    func createSession(abandonExisting: Bool = false) async -> String? {
         state.creatingSession = true
         defer { state.creatingSession = false }
 
@@ -432,12 +436,23 @@ final class QBankBuilderViewModel {
             // até table de revisão). Enviar somente quando true (nil omite).
             hideAnnulled: state.hideAnnulled ? true : nil,
             hideReviewed: state.hideReviewed ? true : nil,
-            format: Array(state.selectedFormats).nilIfEmpty
+            format: Array(state.selectedFormats).nilIfEmpty,
+            abandonExisting: abandonExisting ? true : nil
         )
 
         do {
             let session = try await api.createQBankSession(request: req)
+            state.openSessionConflict = nil
             return session.id
+        } catch let APIError.conflict(_, body) {
+            // "1 sessão aberta global" → mostra prompt (encerrar e começar / cancelar).
+            if let conflict = try? JSONDecoder().decode(OpenSessionConflict.self, from: body),
+               conflict.error == "open_session_exists" {
+                state.openSessionConflict = conflict.openSession
+            } else {
+                state.error = "Não foi possível iniciar a sessão"
+            }
+            return nil
         } catch {
             print("[QBankBuilder] createSession: \(error)")
             state.error = "Não foi possível iniciar a sessão"

@@ -482,6 +482,11 @@ actor HTTPClient {
                 }
                 lastError = APIError.serverError(http.statusCode)
                 continue
+            case 409:
+                if let body = String(data: data, encoding: .utf8) {
+                    NSLog("[HTTPClient] 409 error body: %@", String(body.prefix(500)))
+                }
+                throw APIError.conflict(status: 409, body: data)
             default:
                 if let body = String(data: data, encoding: .utf8) {
                     NSLog("[HTTPClient] %d error body: %@", http.statusCode, String(body.prefix(500)))

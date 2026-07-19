@@ -6,6 +6,7 @@ enum APIError: LocalizedError {
     case forbidden
     case consentRequired
     case serverError(Int)
+    case conflict(status: Int, body: Data)
     case decodingError(Error)
     case networkError(Error)
     case noData
@@ -23,6 +24,8 @@ enum APIError: LocalizedError {
             return "Ative o Chat IA para continuar."
         case .serverError(let code):
             return "Erro no servidor (\(code))"
+        case .conflict:
+            return "Conflito com um recurso existente"
         case .decodingError:
             return "Erro ao processar resposta"
         case .networkError(let error):

@@ -146,6 +146,27 @@ struct QBankBuilderScreen: View {
                 return .init(label: "\(pack.counts.questions) questões criadas", open: { onSessionCreated(sid, .pratica) })
             }
         }
+        // "1 sessão aberta global": Iniciar com um treino já aberto → prompt.
+        .alert(
+            "Você já tem um treino em aberto",
+            isPresented: Binding(
+                get: { vm.state.openSessionConflict != nil },
+                set: { if !$0 { vm.state.openSessionConflict = nil } }
+            ),
+            presenting: vm.state.openSessionConflict
+        ) { open in
+            Button("Encerrar e começar novo", role: .destructive) {
+                Task {
+                    if let id = await vm.createSession(abandonExisting: true) {
+                        onSessionCreated(id, vm.state.mode)
+                    }
+                }
+            }
+            Button("Cancelar", role: .cancel) { vm.state.openSessionConflict = nil }
+        } message: { open in
+            let name = open.title.map { " (\($0))" } ?? ""
+            Text("Há um treino de \(open.typeLabel)\(name) em andamento. Começar um novo vai encerrá-lo.")
+        }
     }
 
     // MARK: - Studio import row
