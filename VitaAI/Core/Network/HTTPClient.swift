@@ -213,13 +213,23 @@ actor HTTPClient {
 
     /// POST with pre-serialized JSON data (bypasses convertToSnakeCase encoding).
     func postRaw<T: Decodable>(_ path: String, body: Data, timeoutInterval: TimeInterval? = nil) async throws -> T {
+        try await sendRaw("POST", path: path, body: body, timeoutInterval: timeoutInterval)
+    }
+
+    /// PATCH with pre-serialized JSON data (bypasses convertToSnakeCase encoding).
+    /// Mesmo motivo do postRaw: o encoder global converte camelCase→snake_case e
+    /// o zod do server (camelCase-only) dropa a chave em silêncio (ex.: deckId).
+    func patchRaw<T: Decodable>(_ path: String, body: Data, timeoutInterval: TimeInterval? = nil) async throws -> T {
+        try await sendRaw("PATCH", path: path, body: body, timeoutInterval: timeoutInterval)
+    }
+
+    private func sendRaw<T: Decodable>(_ method: String, path: String, body: Data, timeoutInterval: TimeInterval? = nil) async throws -> T {
         guard let url = URL(string: AppConfig.apiBaseURL + "/" + path) else {
             throw APIError.invalidURL
         }
-        NSLog("[HTTPClient] POST %@ (raw body: %d bytes)", url.absoluteString, body.count)
         let (data, _) = try await performWithRetry {
             var request = URLRequest(url: url)
-            request.httpMethod = "POST"
+            request.httpMethod = method
             if let timeoutInterval { request.timeoutInterval = timeoutInterval }
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             if let token = await self.tokenStore.token {
@@ -232,7 +242,7 @@ actor HTTPClient {
             request.httpBody = body
             let traceId = UUID().uuidString.prefix(8).lowercased()
             request.setValue(String(traceId), forHTTPHeaderField: "X-Trace-Id")
-            NSLog("[HTTPClient] traceId=%@ POST %@", traceId, url.absoluteString)
+            NSLog("[HTTPClient] traceId=%@ %@ %@ (raw body: %d bytes)", traceId, method, url.absoluteString, body.count)
             return request
         }
         return try decoder.decode(T.self, from: data)

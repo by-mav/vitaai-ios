@@ -315,9 +315,13 @@ struct CardBrowserScreen: View {
         }
     }
 
-    /// Carrega as disciplinas de destino e abre o sheet de mover.
+    /// Carrega os destinos (disciplinas ou baralhos do aluno) e abre o sheet.
     private func presentMoveSheet() async {
         let dests = await vm.availableDestinations()
+        guard !dests.isEmpty else {
+            vm.errorMessage = "Você não tem outro baralho para mover os cards."
+            return
+        }
         moveDestinations = dests
     }
 
@@ -489,12 +493,15 @@ struct CardBrowserSelectionBar: View {
                 if isBundle {
                     Button { onDuplicate() } label: { Label("Copiar", systemImage: "doc.on.doc") }
                         .disabled(selectedCount == 0)
-                    Button { onMove() } label: { Label("Mover para outro baralho", systemImage: "tray.and.arrow.up") }
-                        .disabled(selectedCount == 0)
                 } else {
                     Button { onSuspend() } label: { Label("Suspender", systemImage: "pause.circle") }
                         .disabled(selectedCount == 0)
                 }
+                // Mover vale pros dois mundos: Biblioteca → outra disciplina
+                // (overlay local); baralho do aluno → outro baralho dele
+                // (PATCH deckId). Destinos vêm de availableDestinations().
+                Button { onMove() } label: { Label("Mover para outro baralho", systemImage: "tray.and.arrow.up") }
+                    .disabled(selectedCount == 0)
             } label: {
                 pill(label: "Mais", system: "ellipsis", tint: VitaColors.textSecondary, enabled: true)
             }

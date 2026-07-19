@@ -17,13 +17,21 @@ extension VitaAPI {
     ///
     /// Só front/back: são chaves de uma palavra, então o encoder padrão
     /// (convertToSnakeCase) não as altera — chegam intactas no zod do server.
-    /// "Mover pra outro deck" (campo `deckId`) NÃO está aqui de propósito: o
-    /// encoder converteria `deckId`→`deck_id` e o zod camelCase-only dropa
-    /// (mesma pegadinha do createFlashcard/deckTitle, ver VitaAPI.swift:237).
-    /// Mover card = gap documentado até haver postRaw/patchRaw pro PATCH.
     func updateFlashcard(cardId: String, front: String, back: String) async throws {
         struct Body: Encodable { let front: String; let back: String }
         try await client.patch("study/flashcards/\(cardId)", body: Body(front: front, back: back))
+    }
+
+    /// PATCH /api/study/flashcards/{id} com `deckId` — move o card pra outro
+    /// baralho DO PRÓPRIO aluno (o server valida o dono do destino; mover pra
+    /// deck da Biblioteca ou de terceiro responde 403/404).
+    ///
+    /// Usa patchRaw: o encoder padrão converteria `deckId`→`deck_id` e o zod
+    /// camelCase-only dropa a chave em silêncio (mesma pegadinha do
+    /// createFlashcard/deckTitle, ver VitaAPI.swift:237).
+    func moveFlashcard(cardId: String, toDeckId deckId: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["deckId": deckId])
+        let _: EmptyResponse = try await client.patchRaw("study/flashcards/\(cardId)", body: body)
     }
 
     /// DELETE /api/study/flashcards/{id} — soft-delete do card (só cards do

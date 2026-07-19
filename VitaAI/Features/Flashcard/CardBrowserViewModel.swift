@@ -294,26 +294,52 @@ final class CardBrowserViewModel {
         cancelSelection()
     }
 
-    /// Move os selecionados pra outra disciplina da Biblioteca.
-    func moveSelected(to targetSlug: String) async {
-        guard isBundle else {
-            errorMessage = "Mover cards só está disponível na Biblioteca."
+    /// Move os selecionados pra outro destino. Biblioteca: outra disciplina
+    /// (overlay local). Baralho do servidor: outro baralho DO aluno
+    /// (PATCH deckId, moveFlashcard) — o server valida o dono do destino.
+    func moveSelected(to target: String) async {
+        let ids = selection
+        guard !ids.isEmpty else { return }
+        isMutating = true; defer { isMutating = false }
+
+        if isBundle {
+            guard target != disciplineSlug else { return }
+            await LocalDeckStore.shared.move(ids: ids, to: target)
+            cards.removeAll { ids.contains($0.id) }
+            cancelSelection()
             return
         }
-        let ids = selection
-        guard !ids.isEmpty, targetSlug != disciplineSlug else { return }
-        isMutating = true; defer { isMutating = false }
-        await LocalDeckStore.shared.move(ids: ids, to: targetSlug)
-        cards.removeAll { ids.contains($0.id) }
-        cancelSelection()
+
+        guard let api, target != deckId else { return }
+        // NÃO-otimista: só some da lista o que o server confirmou (canon delete).
+        var moved: Set<String> = []
+        for id in Array(ids) {
+            do {
+                try await api.moveFlashcard(cardId: id, toDeckId: target)
+                moved.insert(id)
+            } catch {
+                errorMessage = "Não foi possível mover algum card."
+            }
+        }
+        cards.removeAll { moved.contains($0.id) }
+        selection.subtract(moved)
+        if selection.isEmpty { cancelSelection() }
     }
 
-    /// Disciplinas de destino (todas menos a atual) pro sheet de mover.
-    /// Prefere a biblioteca do servidor (nomes CURADOS = os mesmos da tela
-    /// Baralhos: "Farmacologia", "Fisiologia I"…); o `deckTitle` cru do bundle é
-    /// bagunçado (importação em massa deixou tudo como "Medicina"). Offline cai
-    /// no bundle.
+    /// Destinos pro sheet de mover (todos menos o atual).
+    /// Biblioteca: disciplinas curadas (nomes = tela Baralhos; o `deckTitle`
+    /// cru do bundle é bagunçado). Baralho do servidor: os OUTROS baralhos do
+    /// próprio aluno (`userId != nil` exclui a Biblioteca, que é read-only);
+    /// o `slug` carrega o deckId — o sheet só exibe título+contagem.
     func availableDestinations() async -> [VitaContentBundle.Discipline] {
+        if !isBundle {
+            guard let api,
+                  let decks = try? await api.getFlashcardDecks(deckLimit: 1000, summary: true)
+            else { return [] }
+            return decks
+                .filter { $0.userId != nil && $0.id != deckId }
+                .map { VitaContentBundle.Discipline(slug: $0.id, title: $0.title, count: $0.cardCount) }
+        }
         if let api {
             if let lib = try? await api.getFlashcardLibrary() {
                 let all = lib.areas.flatMap(\.disciplines)
