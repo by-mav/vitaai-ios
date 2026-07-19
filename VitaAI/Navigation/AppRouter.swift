@@ -774,7 +774,6 @@ struct MainTabView: View {
                 tagFilter: tagFilter,
                 sessionId: sessionId,
                 onBack: { router.goBack() },
-                onFinished: { router.goBack() },
                 onOpenSettings: { router.navigate(to: .flashcardSettings) }
             )
         case .flashcardSettings:

@@ -314,8 +314,12 @@ actor VitaAPI {
     /// POST /api/study/flashcards/session â€” cria fila SRS (FSRS scheduling) pro
     /// Flashcard Builder. Retorna sessionId (uuid client-side) + cardIds ordenados.
     /// Spec: openapi.yaml linha 5169. Added 2026-04-29.
+    /// postRaw + encodeCamelCase (mesmo canon do createQBankSession): o encoder
+    /// padrao snake-caseia as chaves e o zod/route camelCase-only dropa em
+    /// silencio — `abandonExisting` virava `abandon_existing` e o "Encerrar e
+    /// comecar novo" nunca abandonava a sessao aberta (409 em loop).
     func createFlashcardSession(body: FlashcardSessionBody) async throws -> FlashcardSessionResp {
-        try await client.post("study/flashcards/session", body: body)
+        try await client.postRaw("study/flashcards/session", body: Self.encodeCamelCase(body))
     }
 
     func getFlashcardStudySession(id: String) async throws -> FlashcardStudySession {

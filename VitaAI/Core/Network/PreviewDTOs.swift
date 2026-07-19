@@ -83,6 +83,10 @@ struct FlashcardSessionBody: Codable {
     let cardIds: [String]?
     let deckId: String?
     let title: String?
+    /// "1 sessao aberta global": true encerra a sessao aberta e cria esta
+    /// ("Encerrar e comecar novo"). nil/false -> o server responde 409 com a
+    /// sessao aberta pra o cliente perguntar (mesmo contrato do QBank).
+    let abandonExisting: Bool?
 
     // `lens` saiu em 2026-07-17: as lentes morreram (vita-shell §1.1) e a rota
     // nao le mais o campo — mandava-lo era so ruido no corpo.
@@ -94,7 +98,8 @@ struct FlashcardSessionBody: Codable {
         skipEasy: Bool?,
         cardIds: [String]? = nil,
         deckId: String? = nil,
-        title: String? = nil
+        title: String? = nil,
+        abandonExisting: Bool? = nil
     ) {
         self.groupSlugs = groupSlugs
         self.mode = mode
@@ -104,6 +109,7 @@ struct FlashcardSessionBody: Codable {
         self.cardIds = cardIds
         self.deckId = deckId
         self.title = title
+        self.abandonExisting = abandonExisting
     }
 }
 

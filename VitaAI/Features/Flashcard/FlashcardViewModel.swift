@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Sentry
 
 // MARK: - Session State
 
@@ -29,6 +30,13 @@ final class FlashcardViewModel {
     private(set) var correctCount: Int = 0
     private(set) var result: FlashcardSessionResult? = nil
     private(set) var studySessionId: String? = nil
+
+    /// "1 sessao aberta global" (open-session.ts): o create respondeu 409 porque
+    /// ja ha treino aberto. A tela pergunta "encerrar e comecar novo?" — mesmo
+    /// contrato/UX do QBank (QBankBuilderScreen). Sem isto o 409 ficava so num
+    /// NSLog, `studySessionId` nascia nil e a sessao NUNCA fechava no servidor
+    /// (39 abandoned / 0 finished no banco de dev).
+    var openSessionConflict: OpenSessionInfo? = nil
 
     // Rating dado a cada card respondido, em ordem — alimenta os "risquinhos"
     // segmentados do progresso (cada traço colorido pela resposta do aluno).
@@ -83,6 +91,8 @@ final class FlashcardViewModel {
     private let gamificationEvents: GamificationEventManager
     private var scheduler = FsrsScheduler()
     private var leechThreshold: Int = 8
+    /// Deck da fila em estudo — usado pra recriar a sessao no "comecar novo".
+    private var currentDeckId: String = ""
 
     private struct UndoSnapshot {
         let cardIndex: Int
@@ -180,25 +190,7 @@ final class FlashcardViewModel {
                 // direta de baralho, por outro lado, precisa registrar a fila
                 // exata que acabou de ser montada antes do primeiro review.
                 if studySessionId == nil, !deck.cards.isEmpty {
-                    do {
-                        let created = try await api.createFlashcardSession(
-                            body: FlashcardSessionBody(
-                                groupSlugs: nil,
-                                mode: "specific",
-                                limit: nil,
-                                showHints: nil,
-                                skipEasy: nil,
-                                cardIds: deck.cards.map(\.id),
-                                deckId: deck.id,
-                                title: deck.title
-                            )
-                        )
-                        studySessionId = created.sessionId
-                    } catch {
-                        // Keep the study flow usable during a transient network
-                        // failure; the log makes the persistence failure visible.
-                        NSLog("[Flashcard] create study session failed: %@", String(describing: error))
-                    }
+                    await createSession(for: deck, abandonExisting: false)
                 }
                 startSession(
                     deck: deck,
@@ -210,6 +202,51 @@ final class FlashcardViewModel {
                 phase = .error("Erro ao carregar flashcards: \(error.localizedDescription)")
             }
         }
+    }
+
+    /// Registra a fila no servidor. O 409 do guard "1 sessao aberta global"
+    /// vira pergunta na tela (`openSessionConflict`) em vez de sumir num log:
+    /// sem sessao registrada o estudo ate roda, mas `endSession()` nao tem o
+    /// que fechar e a sessao antiga fica `active` pra sempre, bloqueando TODAS
+    /// as proximas (a espiral que zerou os `finished`).
+    private func createSession(for deck: FlashcardDeck, abandonExisting: Bool) async {
+        do {
+            let created = try await api.createFlashcardSession(
+                body: FlashcardSessionBody(
+                    groupSlugs: nil,
+                    mode: "specific",
+                    limit: nil,
+                    showHints: nil,
+                    skipEasy: nil,
+                    cardIds: deck.cards.map(\.id),
+                    deckId: deck.id,
+                    title: deck.title,
+                    abandonExisting: abandonExisting ? true : nil
+                )
+            )
+            studySessionId = created.sessionId
+            openSessionConflict = nil
+        } catch let APIError.conflict(_, body) {
+            if let conflict = try? JSONDecoder().decode(OpenSessionConflict.self, from: body),
+               conflict.error == "open_session_exists" {
+                openSessionConflict = conflict.openSession
+            } else {
+                NSLog("[Flashcard] create study session conflict (unparsed)")
+            }
+        } catch {
+            // Falha transitoria de rede: o estudo segue utilizavel; o log torna
+            // a falha de persistencia visivel.
+            NSLog("[Flashcard] create study session failed: %@", String(describing: error))
+        }
+    }
+
+    /// "Encerrar e comecar novo" do alerta de conflito: fecha a sessao aberta
+    /// (qualquer atividade) e registra esta.
+    func resolveOpenSessionConflict() async {
+        openSessionConflict = nil
+        guard studySessionId == nil, !cards.isEmpty else { return }
+        let deck = FlashcardDeck(id: currentDeckId, title: deckTitle, cards: cards)
+        await createSession(for: deck, abandonExisting: true)
     }
 
     // MARK: - User actions
@@ -331,15 +368,32 @@ final class FlashcardViewModel {
         }
     }
 
-    /// Único caminho que fecha manualmente uma sessão incompleta.
+    /// Fecha a sessao no servidor (status `finished`). Chamado no fim natural da
+    /// fila, no encerramento manual e quando suspender/enterrar esvazia a fila.
+    ///
+    /// Com retry (3x): um finish perdido deixa a sessao `active` pra sempre, e o
+    /// guard "1 sessao aberta global" passa a barrar TODAS as proximas — o
+    /// mesmo padrao de retry que `reviewFlashcard` ja usa.
     func endSession() async {
         guard let id = studySessionId else { return }
         await persistSession()
-        do {
-            _ = try await api.finishFlashcardStudySession(id: id)
-            studySessionId = nil
-        } catch {
-            NSLog("[Flashcard] finish session failed: %@", String(describing: error))
+        for attempt in 1...3 {
+            do {
+                _ = try await api.finishFlashcardStudySession(id: id)
+                studySessionId = nil
+                return
+            } catch {
+                if attempt == 3 {
+                    NSLog("[Flashcard] finish session failed after 3 attempts: %@", String(describing: error))
+                    SentrySDK.capture(message: "flashcard finish session failed") { scope in
+                        scope.setLevel(.warning)
+                        scope.setExtra(value: id, key: "session_id")
+                        scope.setExtra(value: String(describing: error), key: "error")
+                    }
+                } else {
+                    try? await Task.sleep(for: .milliseconds(400 * attempt))
+                }
+            }
         }
     }
 
@@ -365,6 +419,9 @@ final class FlashcardViewModel {
                 streakCount: correctCount
             )
             phase = .finished
+            // Suspender o ultimo card TERMINA a sessao — fechar aqui tambem,
+            // senao ela fica `active` e trava as proximas (guard 1-global).
+            Task { await endSession() }
         } else if currentIndex >= cards.count {
             currentIndex = cards.count - 1
         }
@@ -414,6 +471,8 @@ final class FlashcardViewModel {
                 streakCount: correctCount
             )
             phase = .finished
+            // Enterrar o ultimo card TERMINA a sessao — mesmo motivo do suspend.
+            Task { await endSession() }
         } else if currentIndex >= cards.count {
             currentIndex = cards.count - 1
         }
@@ -502,6 +561,7 @@ final class FlashcardViewModel {
         }
 
         deckTitle = deck.title
+        currentDeckId = deck.id
         cards = deck.cards
         let safeIndex = min(max(0, initialIndex), deck.cards.count)
         currentIndex = min(safeIndex, max(0, deck.cards.count - 1))

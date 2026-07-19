@@ -14,7 +14,6 @@ struct FlashcardSessionScreen: View {
     var tagFilter: String? = nil
     var sessionId: String? = nil
     var onBack: () -> Void
-    var onFinished: () -> Void = {}
     var onOpenSettings: () -> Void = {}
 
     @Environment(\.appContainer) private var container
@@ -135,6 +134,25 @@ struct FlashcardSessionScreen: View {
             Button("Continuar estudando", role: .cancel) {}
         } message: {
             Text("O progresso já feito fica salvo. A sessão só deixará de aparecer na Home depois de ser encerrada.")
+        }
+        // "1 sessão aberta global": mesma UX do QBank (QBankBuilderScreen) —
+        // sem isso o 409 sumia num log e a sessão nunca era registrada nem
+        // fechada no servidor.
+        .alert(
+            "Você já tem um treino em aberto",
+            isPresented: Binding(
+                get: { viewModel?.openSessionConflict != nil },
+                set: { if !$0 { viewModel?.openSessionConflict = nil } }
+            ),
+            presenting: viewModel?.openSessionConflict
+        ) { open in
+            Button("Encerrar e começar novo", role: .destructive) {
+                Task { await viewModel?.resolveOpenSessionConflict() }
+            }
+            Button("Cancelar", role: .cancel) { viewModel?.openSessionConflict = nil }
+        } message: { open in
+            let name = open.title.map { " (\($0))" } ?? ""
+            Text("Há um treino de \(open.typeLabel)\(name) em andamento. Começar um novo vai encerrá-lo.")
         }
         // Estudar = imersivo: a bottom-nav some suavemente enquanto o baralho está
         // aberto e reaparece animada ao sair (o shell anima isImmersiveMode em 0.25s).
