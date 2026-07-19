@@ -1078,46 +1078,16 @@ struct YearsRangeSection: View {
                         .foregroundStyle(theme.primaryLight)
                 }
 
-                // Min/Max sliders (SwiftUI native; double-handle range slider not native iOS 16,
-                // mantemos 2 sliders empilhados claros — sem AI slop de gesture custom).
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Ano mínimo")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(VitaColors.textTertiary)
-                    Slider(
-                        value: Binding(
-                            get: { Double(minYear ?? availableMin) },
-                            set: { newVal in
-                                let v = Int(newVal.rounded())
-                                minYear = v == availableMin ? nil : v
-                                if let mx = maxYear, v > mx { maxYear = v }
-                                onChange()
-                            }
-                        ),
-                        in: Double(availableMin)...Double(availableMax),
-                        step: 1
-                    )
-                    .tint(theme.primaryLight)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Ano máximo")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(VitaColors.textTertiary)
-                    Slider(
-                        value: Binding(
-                            get: { Double(maxYear ?? availableMax) },
-                            set: { newVal in
-                                let v = Int(newVal.rounded())
-                                maxYear = v == availableMax ? nil : v
-                                if let mn = minYear, v < mn { minYear = v }
-                                onChange()
-                            }
-                        ),
-                        in: Double(availableMin)...Double(availableMax),
-                        step: 1
-                    )
-                    .tint(theme.primaryLight)
-                }
+                // 1 barra de range com 2 alças (Rafael 2026-07-19: "nao faz sentido
+                // ter duas barras, da pra fazer aquilo com 1 barra soh").
+                YearRangeBar(
+                    minYear: $minYear,
+                    maxYear: $maxYear,
+                    availableMin: availableMin,
+                    availableMax: availableMax,
+                    theme: theme,
+                    onChange: onChange
+                )
             }
         }
     }
@@ -1145,6 +1115,78 @@ struct YearsRangeSection: View {
                 )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - YearRangeBar — 1 barra de range com 2 alças (min/max numa track só)
+
+/// Range slider de duas alças numa única track. Substitui os 2 sliders empilhados
+/// (Rafael 2026-07-19). iOS 16+ não traz double-handle nativo — este é sob medida,
+/// contido (track + range ativo + 2 thumbs), sem gesture exótica.
+struct YearRangeBar: View {
+    @Binding var minYear: Int?
+    @Binding var maxYear: Int?
+    let availableMin: Int
+    let availableMax: Int
+    let theme: StudyShellTheme
+    let onChange: () -> Void
+
+    private let trackHeight: CGFloat = 4
+    private let thumb: CGFloat = 26
+
+    private var lo: Int { minYear ?? availableMin }
+    private var hi: Int { maxYear ?? availableMax }
+    private var span: CGFloat { CGFloat(max(1, availableMax - availableMin)) }
+
+    var body: some View {
+        GeometryReader { geo in
+            let usable = max(1, geo.size.width - thumb)
+            let loX = CGFloat(lo - availableMin) / span * usable
+            let hiX = CGFloat(hi - availableMin) / span * usable
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(VitaColors.glassBorder)
+                    .frame(height: trackHeight)
+                    .padding(.horizontal, thumb / 2)
+                Capsule()
+                    .fill(theme.primaryLight)
+                    .frame(width: max(0, hiX - loX), height: trackHeight)
+                    .offset(x: loX + thumb / 2)
+                handle
+                    .offset(x: loX)
+                    .gesture(dragGesture(usable: usable, isMin: true))
+                handle
+                    .offset(x: hiX)
+                    .gesture(dragGesture(usable: usable, isMin: false))
+            }
+            .frame(height: thumb)
+        }
+        .frame(height: thumb)
+    }
+
+    private var handle: some View {
+        Circle()
+            .fill(Color.white)
+            .frame(width: thumb, height: thumb)
+            .overlay(Circle().stroke(theme.primaryLight, lineWidth: 2))
+            .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
+    }
+
+    private func dragGesture(usable: CGFloat, isMin: Bool) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                let frac = min(max(0, (value.location.x - thumb / 2) / usable), 1)
+                let year = availableMin + Int((frac * span).rounded())
+                if isMin {
+                    let clamped = min(year, hi)
+                    minYear = clamped == availableMin ? nil : clamped
+                } else {
+                    let clamped = max(year, lo)
+                    maxYear = clamped == availableMax ? nil : clamped
+                }
+                onChange()
+            }
     }
 }
 

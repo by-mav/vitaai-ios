@@ -1216,7 +1216,7 @@ extension String {
     var difficultyLabel: String {
         switch self {
         case "easy":   return "Fácil"
-        case "medium": return "Medio"
+        case "medium": return "Médio"
         case "hard":   return "Difícil"
         default:       return self.capitalized
         }
