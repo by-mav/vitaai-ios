@@ -24,6 +24,11 @@ struct FlashcardSessionScreen: View {
     @State private var timerCancellable: (any Cancellable)?
     @State private var settings = FlashcardSettings()
     @State private var showEndSessionConfirmation = false
+    // Editar / mover / excluir o card em estudo (reusa CardComposerSheet e
+    // MoveToDeckSheet do Card Browser — nada bespoke aqui).
+    @State private var editingCard: CardComposerTarget?
+    @State private var moveDestinations: [VitaContentBundle.Discipline]?
+    @State private var showDeleteCardConfirmation = false
     private let timer = Timer.publish(every: 1, on: .main, in: .common)
 
     var body: some View {
@@ -154,6 +159,41 @@ struct FlashcardSessionScreen: View {
             let name = open.title.map { " (\($0))" } ?? ""
             Text("Há um treino de \(open.typeLabel)\(name) em andamento. Começar um novo vai encerrá-lo.")
         }
+        // Editar o card em estudo — mesma sheet do Card Browser.
+        .sheet(item: $editingCard) { target in
+            CardComposerSheet(
+                target: target,
+                deckTitle: viewModel?.deckTitle ?? "",
+                onSubmit: { front, back in
+                    await viewModel?.editCurrentCard(front: front, back: back) ?? false
+                }
+            )
+            .presentationBackground(.ultraThinMaterial)
+        }
+        // Mover o card em estudo — mesma sheet do Card Browser.
+        .sheet(item: Binding(
+            get: { moveDestinations.map { MoveCardDestinations(destinations: $0) } },
+            set: { if $0 == nil { moveDestinations = nil } }
+        )) { payload in
+            MoveToDeckSheet(
+                count: 1,
+                destinations: payload.destinations,
+                onPick: { deckId in
+                    moveDestinations = nil
+                    Task { _ = await viewModel?.moveCurrentCard(toDeckId: deckId) }
+                },
+                onCancel: { moveDestinations = nil }
+            )
+            .presentationBackground(.ultraThinMaterial)
+        }
+        .alert("Excluir card?", isPresented: $showDeleteCardConfirmation) {
+            Button("Excluir", role: .destructive) {
+                Task { _ = await viewModel?.deleteCurrentCard() }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("O card sai desta sessão e do baralho.")
+        }
         // Estudar = imersivo: a bottom-nav some suavemente enquanto o baralho está
         // aberto e reaparece animada ao sair (o shell anima isImmersiveMode em 0.25s).
         // Rafael 2026-07-17.
@@ -264,6 +304,27 @@ struct FlashcardSessionScreen: View {
                 } label: {
                     Label("Gerenciar cards", systemImage: "square.stack.3d.up")
                 }
+                // Ações do card em estudo — só no baralho do aluno (card da
+                // Biblioteca é acervo compartilhado: o server responde 403).
+                if vm.canMutateCurrentCard, let card = vm.currentCard {
+                    Divider()
+                    Button {
+                        editingCard = .edit(FlashcardEntry(id: card.id, front: card.front, back: card.back))
+                    } label: {
+                        Label("Editar card", systemImage: "pencil")
+                    }
+                    Button {
+                        Task { moveDestinations = await vm.moveDestinations() }
+                    } label: {
+                        Label("Mover para outro baralho", systemImage: "tray.and.arrow.up")
+                    }
+                    Button(role: .destructive) {
+                        showDeleteCardConfirmation = true
+                    } label: {
+                        Label("Excluir card", systemImage: "trash")
+                    }
+                    Divider()
+                }
                 if vm.studySessionId != nil {
                     Button(role: .destructive) {
                         showEndSessionConfirmation = true
@@ -271,8 +332,6 @@ struct FlashcardSessionScreen: View {
                         Label("Encerrar sessão", systemImage: "xmark.circle")
                     }
                 }
-                // Editar / Mover / Excluir card entram aqui no próximo brick
-                // (usam o backend PATCH/DELETE já pronto).
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 17, weight: .semibold)) // ds-allow: tamanho óptico do SF Symbol
@@ -452,3 +511,10 @@ private struct FlashcardLoadingSkeleton: View {
 }
 
 // Uses ShimmerModifier from VitaShimmer.swift (DesignSystem/Components)
+
+// MARK: - Payload do sheet de mover (Identifiable pro .sheet(item:))
+
+struct MoveCardDestinations: Identifiable {
+    let id = UUID()
+    let destinations: [VitaContentBundle.Discipline]
+}

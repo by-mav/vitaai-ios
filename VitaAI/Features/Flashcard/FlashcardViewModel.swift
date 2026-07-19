@@ -397,6 +397,100 @@ final class FlashcardViewModel {
         }
     }
 
+    // MARK: - Editar / mover / excluir o card em estudo
+    //
+    // Cards da Biblioteca (sessão de bundle, sem deck do aluno) são acervo
+    // compartilhado: o servidor responde 403. A tela esconde as ações nesse
+    // caso — `canMutateCurrentCard` é o gate único.
+
+    var canMutateCurrentCard: Bool { !currentDeckId.isEmpty && currentCard != nil }
+
+    /// Salva frente/verso do card em estudo e reflete na tela na hora.
+    func editCurrentCard(front: String, back: String) async -> Bool {
+        guard let card = currentCard, cards.indices.contains(currentIndex) else { return false }
+        let f = front.trimmingCharacters(in: .whitespacesAndNewlines)
+        let b = back.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !f.isEmpty else { return false }
+        do {
+            try await api.updateFlashcard(cardId: card.id, front: f, back: b)
+            var updated = card
+            updated = FlashcardCard(
+                id: card.id,
+                front: f,
+                back: b,
+                stability: card.stability,
+                difficulty: card.difficulty,
+                state: card.state,
+                scheduledDays: card.scheduledDays,
+                nextReviewAt: card.nextReviewAt
+            )
+            cards[currentIndex] = updated
+            return true
+        } catch {
+            NSLog("[Flashcard] edit card failed: %@", String(describing: error))
+            return false
+        }
+    }
+
+    /// Move o card em estudo pra outro baralho do aluno e tira ele da fila.
+    func moveCurrentCard(toDeckId deckId: String) async -> Bool {
+        guard let card = currentCard else { return false }
+        do {
+            try await api.moveFlashcard(cardId: card.id, toDeckId: deckId)
+            removeCurrentCardFromQueue()
+            return true
+        } catch {
+            NSLog("[Flashcard] move card failed: %@", String(describing: error))
+            return false
+        }
+    }
+
+    /// Exclui (soft-delete) o card em estudo. NÃO-otimista: só sai da fila
+    /// depois do server confirmar, pra nunca ressuscitar num re-fetch.
+    func deleteCurrentCard() async -> Bool {
+        guard let card = currentCard else { return false }
+        do {
+            try await api.deleteFlashcard(cardId: card.id)
+            removeCurrentCardFromQueue()
+            return true
+        } catch {
+            NSLog("[Flashcard] delete card failed: %@", String(describing: error))
+            return false
+        }
+    }
+
+    /// Tira o card atual da fila — mesma mecânica de índice do suspend/bury,
+    /// inclusive fechar a sessão quando o card removido era o último.
+    private func removeCurrentCardFromQueue() {
+        guard cards.indices.contains(currentIndex) else { return }
+        cards.remove(at: currentIndex)
+        if fsrsStates.indices.contains(currentIndex) { fsrsStates.remove(at: currentIndex) }
+
+        if cards.isEmpty {
+            result = FlashcardSessionResult(
+                totalCards: totalReviewed,
+                correctCount: correctCount,
+                timeSpentMs: Int64(Date().timeIntervalSince(sessionStartDate) * 1000),
+                streakCount: correctCount
+            )
+            phase = .finished
+            Task { await endSession() }
+        } else if currentIndex >= cards.count {
+            currentIndex = cards.count - 1
+        }
+        isFlipped = false
+        cardStartDate = Date()
+        Task { await persistSession() }
+    }
+
+    /// Baralhos de destino (os outros do aluno) pro sheet de mover.
+    func moveDestinations() async -> [VitaContentBundle.Discipline] {
+        guard let decks = try? await api.getFlashcardDecks(deckLimit: 1000, summary: true) else { return [] }
+        return decks
+            .filter { $0.userId != nil && $0.id != currentDeckId }
+            .map { VitaContentBundle.Discipline(slug: $0.id, title: $0.title, count: $0.cardCount) }
+    }
+
     /// Remove the current card from the session (suspend)
     func suspendCurrentCard() {
         guard case .studying = phase, let card = currentCard else { return }
