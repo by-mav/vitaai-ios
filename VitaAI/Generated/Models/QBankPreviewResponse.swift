@@ -11,19 +11,25 @@ public struct QBankPreviewResponse: Sendable, Codable, Hashable {
 
     /** Quantas Q batem com TODOS os filtros aplicados. */
     public var total: Int
-    /** Breakdown por dificuldade (easy/medium/hard). */
+    /** Contagem por dificuldade (easy/medium/hard) — facetada minus-self: reflete todos os OUTROS filtros aplicados menos a própria dificuldade.  */
     public var byDifficulty: [String: Int]?
-    /** Top 10 anos com mais Q dentro do filtro. */
+    /** Contagem por ano (facetada minus-self). */
     public var byYear: [String: Int]?
+    /** Contagem por institutionId (facetada minus-self). */
+    public var byInstitution: [String: Int]?
+    /** Contagem por formato (objective/discursive/withImage), facetada minus-self. */
+    public var byFormat: [String: Int]?
     /** Top 5 grupos (disciplines/systems/areas) dentro do filtro. */
     public var topGroups: [QBankPreviewResponseTopGroupsInner]?
     /** Echo do journeyType usado pra ranking automático (debug-friendly). */
     public var appliedJourneyBoost: String?
 
-    public init(total: Int, byDifficulty: [String: Int]? = nil, byYear: [String: Int]? = nil, topGroups: [QBankPreviewResponseTopGroupsInner]? = nil, appliedJourneyBoost: String? = nil) {
+    public init(total: Int, byDifficulty: [String: Int]? = nil, byYear: [String: Int]? = nil, byInstitution: [String: Int]? = nil, byFormat: [String: Int]? = nil, topGroups: [QBankPreviewResponseTopGroupsInner]? = nil, appliedJourneyBoost: String? = nil) {
         self.total = total
         self.byDifficulty = byDifficulty
         self.byYear = byYear
+        self.byInstitution = byInstitution
+        self.byFormat = byFormat
         self.topGroups = topGroups
         self.appliedJourneyBoost = appliedJourneyBoost
     }
@@ -32,6 +38,8 @@ public struct QBankPreviewResponse: Sendable, Codable, Hashable {
         case total
         case byDifficulty
         case byYear
+        case byInstitution
+        case byFormat
         case topGroups
         case appliedJourneyBoost
     }
@@ -43,6 +51,8 @@ public struct QBankPreviewResponse: Sendable, Codable, Hashable {
         try container.encode(total, forKey: .total)
         try container.encodeIfPresent(byDifficulty, forKey: .byDifficulty)
         try container.encodeIfPresent(byYear, forKey: .byYear)
+        try container.encodeIfPresent(byInstitution, forKey: .byInstitution)
+        try container.encodeIfPresent(byFormat, forKey: .byFormat)
         try container.encodeIfPresent(topGroups, forKey: .topGroups)
         try container.encodeIfPresent(appliedJourneyBoost, forKey: .appliedJourneyBoost)
     }

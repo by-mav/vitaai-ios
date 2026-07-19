@@ -340,27 +340,36 @@ final class QBankBuilderViewModel {
     private func applyPreviewFacets(_ facets: QBankPreviewFacets?) {
         guard let facets else { return }
         state.previewFacets = facets
-        state.formatCounts = facets.formats
-        state.yearCounts = facets.years
-        state.groups = state.groups.map { current in
-            var group = current
-            group.count = facets.groups[group.slug] ?? 0
-            group.children = group.children.map { currentChild in
-                var child = currentChild
-                child.count = facets.subgroups[child.id] ?? 0
-                return child
+        // Só sobrescreve cada faceta quando o backend manda algo (não-vazio).
+        // Assim as contagens de FILTROS (formato/ano/instituição/dificuldade)
+        // ficam vivas (minus-self) sem zerar Disciplinas quando groups vem vazio.
+        if !facets.formats.isEmpty { state.formatCounts = facets.formats }
+        if !facets.years.isEmpty { state.yearCounts = facets.years }
+        if !facets.groups.isEmpty || !facets.subgroups.isEmpty {
+            state.groups = state.groups.map { current in
+                var group = current
+                group.count = facets.groups[group.slug] ?? group.count
+                group.children = group.children.map { currentChild in
+                    var child = currentChild
+                    child.count = facets.subgroups[child.id] ?? child.count
+                    return child
+                }
+                return group
             }
-            return group
         }
-        state.institutions = state.institutions.map { current in
-            var institution = current
-            institution.count = facets.institutions[String(institution.id)] ?? 0
-            return institution
+        if !facets.institutions.isEmpty {
+            state.institutions = state.institutions.map { current in
+                var institution = current
+                institution.count = facets.institutions[String(institution.id)] ?? institution.count
+                return institution
+            }
         }
-        state.difficulties = state.difficulties.map { current in
-            var difficulty = current
-            difficulty.count = facets.difficulties[difficulty.difficulty] ?? 0
-            return difficulty
+        if !facets.difficulties.isEmpty {
+            state.difficulties = state.difficulties.map { current in
+                var difficulty = current
+                difficulty.count = facets.difficulties[difficulty.difficulty] ?? difficulty.count
+                return difficulty
+            }
         }
     }
 

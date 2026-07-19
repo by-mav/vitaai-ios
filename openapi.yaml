@@ -1380,12 +1380,28 @@ components:
           type: object
           additionalProperties:
             type: integer
-          description: 'Breakdown por dificuldade (easy/medium/hard).'
+          description: >
+            Contagem por dificuldade (easy/medium/hard) — facetada minus-self:
+            reflete todos os OUTROS filtros aplicados menos a própria dificuldade.
         byYear:
           type: object
           additionalProperties:
             type: integer
-          description: 'Top 10 anos com mais Q dentro do filtro.'
+          description: 'Contagem por ano (facetada minus-self).'
+        byInstitution:
+          type: object
+          additionalProperties:
+            type: integer
+          description: 'Contagem por institutionId (facetada minus-self).'
+        byFormat:
+          type: object
+          additionalProperties:
+            type: integer
+          description: 'Contagem por formato (objective/discursive/withImage), facetada minus-self.'
+        # `facets` (espelho aninhado das contagens) é devolvido pelo backend e
+        # consumido pelo DTO hand-written do iOS (QBankPreviewFacets). Não é
+        # tipado aqui: o codegen swift6 gera tipo aninhado não-Hashable e o
+        # cliente gerado deste response é órfão (o app usa o DTO próprio).
         topGroups:
           type: array
           description: 'Top 5 grupos (disciplines/systems/areas) dentro do filtro.'
@@ -1602,6 +1618,30 @@ components:
           maxLength: 120
           nullable: true
 
+    OpenSession:
+      type: object
+      description: >
+        Sessão em aberto (regra "1 global", 2026-07-19) — normalizada das 3
+        tabelas (questões/flashcards/simulado). A Home lê pra o card "continuar";
+        o guard de criação lê pra bloquear/prompt.
+      required: [type, id, title, currentIndex, total, startedAt]
+      properties:
+        type:
+          type: string
+          enum: [questions, flashcards, simulado]
+        id:
+          type: string
+        title:
+          type: string
+        currentIndex:
+          type: integer
+          description: Questões respondidas / cards vistos (0 em simulado).
+        total:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+
     FlashcardSessionResponse:
       type: object
       required: [sessionId, cardIds, totalCards, expectedMinutes, budget]
@@ -1614,6 +1654,27 @@ components:
           type: array
           items: { type: string }
           description: 'Ordem da fila SRS (mais atrasado primeiro).'
+        cards:
+          type: array
+          description: >-
+            A fila JÁ com o conteúdo de cada card (front/back/state/nextReviewAt/
+            stability/difficulty/reps/lapses/tag), na mesma ordem de cardIds. O
+            cliente estuda direto disto, sem 2ª chamada — e pode persistir pra
+            offline. Added 2026-07-17.
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              deckId: { type: string, nullable: true }
+              front: { type: string }
+              back: { type: string }
+              state: { type: string }
+              nextReviewAt: { type: string, format: date-time, nullable: true }
+              stability: { type: number }
+              difficulty: { type: number }
+              reps: { type: integer }
+              lapses: { type: integer }
+              tag: { type: string, nullable: true }
         totalCards:
           type: integer
         expectedMinutes:
@@ -1793,36 +1854,12 @@ components:
           type: string
           nullable: true
         examGreatAreaSlug:
-          description: |
-            Grande área CNRM/Enare (5 fixas). Derivada de disciplineSlug e/ou
-            medevoArea via mapping declarativo. Usada por Jornada-com-objetivo
-            (Residência/ENAMED/Revalida) e modo great-areas do toggle 3 lentes.
-            SOT da decisão: agent-brain/decisions/2026-04-27_jornada-3lentes-FINAL.md
-            Cobertura atual: 88.8% das Q reais (não-sintéticas). Updated 2026-04-27.
+          description: >-
+            Nível 1 da árvore canônica (vita-shell §1.1): uma das grandes áreas de
+            `vita.exam_great_areas`. Derivada da disciplina — nunca julgada
+            isoladamente. Sem enum fixo aqui: a fonte é a tabela.
           type: string
           nullable: true
-          enum: [clinica-medica, cirurgia-geral, ginecologia-obstetricia, pediatria, medicina-preventiva-social]
-        pblSystemSlug:
-          description: |
-            Sistema PBL (12 fixos). Derivada de disciplineSlug via mapping
-            declarativo. Usada pelo modo PBL do toggle 3 lentes (faculdades
-            modulares: UFRN, FAMETRO, USP-RP, UFOP, CESUPA).
-            Cobertura atual: 77.1% das Q reais. Updated 2026-04-27.
-          type: string
-          nullable: true
-          enum:
-            - cardiovascular
-            - respiratorio
-            - renal-urinario
-            - endocrino-metabolico
-            - digestorio
-            - nervoso
-            - hematologico-imunologico
-            - locomotor
-            - reprodutor-sexualidade
-            - saude-mental-comportamento
-            - infectoparasitario
-            - integrado-aps
         isSynthetic:
           description: 'true se Q gerada (sem institutionId + year>=2025 + source=medsimple). false se prova real. Filtrar isSynthetic=false para Jornada-com-objetivo. Added 2026-04-27.'
           type: boolean
@@ -3963,6 +4000,20 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    OpenSessionConflict:
+      description: >
+        Já existe uma sessão em aberto (regra "1 global", 2026-07-19). O cliente
+        mostra "retomar ou começar novo?"; reenviar com abandonExisting=true.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: open_session_exists
+              openSession:
+                $ref: '#/components/schemas/OpenSession'
 
 paths:
   /api/farmaco/chat:
@@ -4154,6 +4205,23 @@ paths:
   # INTERNAL / CRON
   # ════════════════════════════════════════
 
+  /api/cron/google-watch-renewal:
+    get:
+      tags: [internal]
+      operationId: cronGoogleWatchRenewal
+      summary: Cron — renova os watch channels do Google (stub de spec)
+      security: [{ bearerAuth: [] }]
+      responses:
+        200:
+          description: OK
+  /api/webhooks/google:
+    post:
+      tags: [internal]
+      operationId: googleWebhook
+      summary: Webhook do Google (push notifications) (stub de spec)
+      responses:
+        200:
+          description: OK
   /api/cron/observability/bullmq-runs-snapshot:
     get:
       tags: [internal]
@@ -4343,12 +4411,16 @@ paths:
         User-scoped MCP server. Exposes 64 user-scoped tools (admin-only blocked: run_query, write_query, reset_user_academic_data, get_catalog_status, list_tools)
         that act on behalf of the authenticated user only. Auth via
         `x-internal-request` + `x-internal-secret` + `x-user-id`
-        (internal proxy) or OAuth Bearer (claude.ai connectors, WIP).
+        (internal proxy) or OAuth Bearer (Custom Connector — claude.ai /
+        Claude Desktop, via the /oauth flow; JWT sub = user_profiles.id).
       responses:
         '200':
           description: MCP response (Streamable HTTP — SSE or JSON)
         '401':
-          description: Unauthorized — no valid auth header present
+          description: |
+            Unauthorized — no valid auth. Inclui header `WWW-Authenticate`
+            (RFC 9728) apontando pro resource metadata, pra o Claude iniciar
+            o OAuth flow (Custom Connector).
     get:
       tags: [internal]
       operationId: mcpUserEndpointGet
@@ -4357,7 +4429,7 @@ paths:
         '200':
           description: MCP SSE stream
         '401':
-          description: Unauthorized
+          description: Unauthorized — inclui `WWW-Authenticate` (RFC 9728) pro OAuth flow
   /api/mcp/catalog:
     post:
       tags: [internal]
@@ -4598,13 +4670,21 @@ paths:
           application/json:
             schema:
               type: object
-              required: [token, baseUrl]
+              required: [token]
+              anyOf:
+                - required: [baseUrl]
+                - required: [base_url]
               properties:
                 token:
                   type: string
                   format: password
                 baseUrl:
                   type: string
+                  example: https://ulbra.instructure.com
+                base_url:
+                  type: string
+                  deprecated: true
+                  description: Legacy mobile alias for baseUrl.
                   example: https://ulbra.instructure.com
       responses:
         '200':
@@ -4632,6 +4712,8 @@ paths:
                         nullable: true
         '400':
           description: Missing token/baseUrl or invalid Canvas URL
+        '422':
+          description: Canvas rejected the Personal Access Token
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -4684,17 +4766,109 @@ paths:
         '502':
           description: Portal ingest failed
 
+  /api/connectors/moodle/token:
+    post:
+      tags: [portal]
+      operationId: connectMoodleToken
+      summary: Connect Moodle using an official Web Service token
+      description: |
+        Validates the student token with `core_webservice_get_site_info`,
+        protects it with the Vita credential cipher, and persists the active
+        Moodle portal connection.
+      security:
+        - cookieAuth: []
+        - extensionToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              anyOf:
+                - required: [baseUrl]
+                - required: [base_url]
+              properties:
+                token: { type: string, format: password }
+                baseUrl: { type: string, example: https://moodle.example.edu }
+                base_url:
+                  type: string
+                  deprecated: true
+                  description: Legacy mobile alias for baseUrl.
+                  example: https://moodle.example.edu
+      responses:
+        '200':
+          description: Moodle token validated and stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connectionId, instanceUrl, moodleSite]
+                properties:
+                  connectionId: { type: string }
+                  instanceUrl: { type: string }
+                  moodleSite:
+                    type: object
+                    required: [userId, fullName]
+                    properties:
+                      userId: { type: integer }
+                      fullName: { type: string }
+                      userName: { type: string, nullable: true }
+                      siteName: { type: string, nullable: true }
+        '400': { description: Missing token/baseUrl or invalid Moodle URL }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { description: Moodle rejected the Web Service token }
+
+  /api/connectors/moodle/sync:
+    post:
+      tags: [portal]
+      operationId: syncMoodleToken
+      summary: Sync Moodle through the stored Web Service token
+      security:
+        - cookieAuth: []
+        - extensionToken: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                connectionId: { type: string }
+      responses:
+        '200':
+          description: Moodle sync completed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, connectionId, subjects, evaluations, files, calendarEvents, warnings]
+                properties:
+                  ok: { type: boolean }
+                  connectionId: { type: string }
+                  subjects: { type: integer }
+                  evaluations: { type: integer }
+                  files: { type: integer }
+                  calendarEvents: { type: integer }
+                  warnings:
+                    type: array
+                    items: { type: string }
+        '401': { description: Unauthorized }
+        '404': { description: Moodle connection not found }
+        '409': { description: Moodle connection requires reconnect }
+        '502': { description: Moodle API or sync failed }
+
   /api/portal/status:
     get:
       tags: [portal]
       operationId: portalStatus
-      summary: Get portal connection status
+      summary: Get Canvas and Moodle connection status
       security:
         - cookieAuth: []
         - extensionToken: []
       responses:
         '200':
-          description: Connection status
+          description: Per-connection status and academic counts for Canvas and Moodle
           content:
             application/json:
               schema:
@@ -5098,6 +5272,52 @@ paths:
           description: Profile not found
         '500':
           $ref: '#/components/responses/ServerError'
+  /api/study/flashcards/library:
+    get:
+      tags: [study]
+      operationId: getFlashcardLibrary
+      summary: Biblioteca Vita pela árvore canônica (área → disciplina)
+      description: >-
+        Os cards dos decks `scope='library'` agrupados pela taxonomia canônica
+        (vita-shell §1.1), com contagem real por disciplina. Existe porque o deck
+        da Biblioteca é um acervo ("Medicina" = 6.391 cards de Reumato + Nefro +
+        Cardio…): listar o deck esconde tudo atrás de uma pilha. Card sem
+        `disciplineSlug` fica de fora — não vira "Outros".
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Áreas com suas disciplinas e contagens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  areas:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        slug: { type: string }
+                        name: { type: string }
+                        total: { type: integer, description: cards da área }
+                        due: { type: integer, description: cards vencidos (state != NEW) }
+                        disciplines:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              slug: { type: string, description: vita.disciplines.slug }
+                              name: { type: string }
+                              total: { type: integer }
+                              due: { type: integer }
+                  totalCards: { type: integer }
+                  totalDue: { type: integer }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /api/study/flashcards:
     get:
       tags: [study]
@@ -5262,6 +5482,12 @@ paths:
         Persiste a fila e retorna sessionId + cardIds ordenados por prioridade
         FSRS (mais atrasado primeiro). Reviews subsequentes vão pelo endpoint
         /api/study/flashcards/{id}/review e o progresso pelo recurso da sessão.
+
+        Escopo: os baralhos do aluno E a Biblioteca Vita (scope='library', sem
+        dono). `groupSlugs` filtra a disciplina do CARD
+        (flash_cards.disciplineSlug) — o acervo da Biblioteca mistura
+        disciplinas num deck só, então filtrar pelo deck devolvia fila vazia
+        (corrigido 2026-07-17).
       requestBody:
         required: true
         content:
@@ -5275,6 +5501,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FlashcardSessionResponse'
+        '409':
+          $ref: '#/components/responses/OpenSessionConflict'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -6431,58 +6659,6 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
-  /api/qbank/wrongAnswers:
-    get:
-      tags: [qbank]
-      operationId: getQBankWrongAnswers
-      summary: Lista Q que o user errou — Caderno de Erros
-      description: |
-        Retorna Q que aluno respondeu errado, ordenadas por last-answered desc.
-        Filtrável por groupSlugs pra "treinar Cardio que errei". Added 2026-04-28.
-      parameters:
-        - name: groupSlugs[]
-          in: query
-          schema:
-            type: array
-            items:
-              type: string
-          style: form
-          explode: true
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-        - name: olderThan
-          in: query
-          description: 'ISO date — só Q erradas há mais de N dias (ótimo pra revisão espaçada).'
-          schema:
-            type: string
-            format: date
-      responses:
-        '200':
-          description: Wrong answers
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  questions:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/QBankQuestion'
-                  stats:
-                    type: object
-                    properties:
-                      totalWrong:
-                        type: integer
-                      recoveredAfterReview:
-                        type: integer
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
   /api/qbank/lists:
     get:
       tags: [qbank]
@@ -6698,6 +6874,34 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/qbank/images/{id}:
+    get:
+      tags: [qbank]
+      operationId: getQBankImage
+      summary: Serve a QBank question figure from our own storage (R2)
+      description: >
+        Proxies the question figure. Serves our mirrored copy from R2 (Cache-Control
+        immutable, CDN-cacheable) when available, else 302-redirects to the source.
+        Public on purpose (exam figures, no PII) so the CDN can cache it.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Image bytes
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '302':
+          description: Redirect to source image (not yet mirrored)
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/qbank/questions/{id}:
     get:
       tags: [qbank]
@@ -6889,8 +7093,8 @@ paths:
                   items:
                     type: string
                   nullable: true
-                examGreatAreaSlugs:
-                  description: 'Nível 1 da árvore (vita-shell §1.1): filtra qbank_questions.examGreatAreaSlug IN (...) — as 6 grandes áreas.'
+                areaSlugs:
+                  description: 'Nível 1 da árvore (vita-shell §1.1): filtra qbank_questions.examGreatAreaSlug IN (...) — as 6 grandes áreas. Mesmo nome do campo em /api/qbank/preview: um nível, um nome, em toda rota.'
                   type: array
                   items:
                     type: string
@@ -6939,6 +7143,13 @@ paths:
                     Quality filter — when false, drop LLM-generated questions
                     (isSynthetic=true; year>=2025, source=medsimple). Default
                     true. Added 2026-04-27.
+                abandonExisting:
+                  type: boolean
+                  nullable: true
+                  description: >
+                    Regra "1 sessão aberta global" (2026-07-19). true = fecha a
+                    sessão em aberto (questões/flashcards/simulado) e cria a nova.
+                    false + já existe aberta → 409.
       responses:
         '201':
           description: Session created
@@ -6946,8 +7157,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/QBankSession'
+        '409':
+          description: >
+            Já existe uma sessão em aberto (regra "1 global"). O cliente mostra
+            "retomar ou começar novo?"; reenviar com abandonExisting=true.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: open_session_exists
+                  openSession:
+                    $ref: '#/components/schemas/OpenSession'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/sessions/open:
+    get:
+      tags: [sessions]
+      operationId: getOpenSession
+      summary: >
+        Sessão em aberto do user (regra "1 global"). A Home lê pra o card
+        "continuar". Retorna openSession=null quando não há nenhuma.
+      responses:
+        '200':
+          description: Open session (or null)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  openSession:
+                    nullable: true
+                    allOf:
+                      - $ref: '#/components/schemas/OpenSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Profile not found
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -7088,6 +7339,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SimuladoAttempt'
+        '409':
+          $ref: '#/components/responses/OpenSessionConflict'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '402':
@@ -7171,18 +7424,36 @@ paths:
     post:
       tags: [simulados]
       operationId: generateSimulado
-      summary: Cria simulado custom a partir de filtros (disciplina + nº de questões)
+      summary: Cria simulado custom a partir da árvore (área/disciplina + nº de questões)
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [subject]
+              description: >-
+                Escopo pela taxonomia canônica (vita-shell §1.1), com os mesmos nomes
+                de /api/qbank/preview. Exige ao menos um de areaSlugs/disciplineSlugs
+                (ou o `subject` legado).
               properties:
+                areaSlugs:
+                  description: 'Nível 1: slugs das 6 grandes áreas (vita.exam_great_areas).'
+                  type: array
+                  items:
+                    type: string
+                  nullable: true
+                disciplineSlugs:
+                  description: 'Nível 2: slugs de disciplina (vita.disciplines.slug).'
+                  type: array
+                  items:
+                    type: string
+                  nullable: true
                 subject:
                   type: string
-                  description: disciplineSlug ou prefixo de área (ex "clinica-medica")
+                  description: >-
+                    [LEGADO] Uma disciplina; casa o slug exato ou sub-slugs por prefixo
+                    ("clinica-medica" pega "clinica-medica-1"). Prefira areaSlugs, que
+                    filtra pela coluna real examGreatAreaSlug.
                 questionCount:
                   type: integer
                   nullable: true
@@ -7208,6 +7479,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '402':
           description: Limite semanal de simulados do plano atingido
+        '409':
+          $ref: '#/components/responses/OpenSessionConflict'
         '404':
           $ref: '#/components/responses/NotFound'
         '503':
@@ -7246,6 +7519,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '402':
           $ref: '#/components/responses/PlanLimit'
+        '409':
+          $ref: '#/components/responses/OpenSessionConflict'
         '404':
           description: Template not found
         '503':
@@ -8449,6 +8724,11 @@ paths:
       tags: [studio]
       operationId: uploadStudioSource
       summary: Upload a source file (PDF, images, audio - max 20MB)
+      description: >-
+        Sobe o arquivo pro R2 e dispara a extração em background (fire-and-forget):
+        o source nasce `status=processing` e vira `ready` (ou `error`) — acompanhe
+        por GET /api/studio/sources/{id}. O contrato não mudou em 2026-07-17; só a
+        extração, que lia o arquivo pela própria API autenticada e levava 401.
       requestBody:
         required: true
         content:
@@ -10585,9 +10865,9 @@ paths:
     post:
       tags: [notifications]
       operationId: linkWhatsapp
-      summary: Send a 6-digit OTP to the given phone via ZAP API (GOWA)
+      summary: Send a 6-digit OTP through the canonical wacli gateway
       description: |
-        Generates a short-lived (10 min) 6-digit code, persists it in
+        Generates a short-lived (10 min) 6-digit code, persists only its HMAC in
         `whatsapp_verifications`, and sends it as a WhatsApp message to the
         provided phone. Rate-limited to 1 request per minute per user.
       requestBody:
@@ -10610,7 +10890,7 @@ paths:
                 type: object
                 properties:
                   success: { type: boolean }
-                  phone: { type: string }
+                  phoneLast4: { type: string }
                   expiresAt: { type: string, format: date-time }
         '400':
           description: Invalid phone
@@ -10619,7 +10899,7 @@ paths:
         '429':
           description: Rate limited (cooldown 60s)
         '502':
-          description: GOWA unreachable / send failed
+          description: wacli unreachable / send failed; failed attempts do not block retry
 
   /api/whatsapp/verify:
     post:
@@ -10647,12 +10927,17 @@ paths:
                 properties:
                   ok: { type: boolean }
                   verified: { type: boolean }
+                  welcomeSent:
+                    type: boolean
+                    description: Whether the best-effort welcome message was delivered through wacli.
         '400':
           description: Wrong code / invalid format
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           description: No active code (ask for a new one)
+        '409':
+          description: Phone is already linked to another Vita account
         '429':
           description: Too many wrong attempts (ask for a new code)
 
@@ -10675,91 +10960,96 @@ paths:
         '404':
           description: Profile not found
 
-  /api/whatsapp/webhook:
-    get:
-      tags: [notifications]
-      operationId: whatsappWebhookVerify
-      summary: Meta Cloud API webhook verification (GET challenge)
-      description: |
-        Meta Cloud API initial verification. Meta calls
-        `GET /api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=X&hub.challenge=Y`
-        when configuring webhook URL. We respond with `Y` if `X` matches
-        env `META_WEBHOOK_VERIFY_TOKEN`. Otherwise 403.
-
-        Decisão 2026-04-30: provider canônico = Meta Cloud API. GOWA mantido
-        como fallback dev via flag `WHATSAPP_PROVIDER=cloud|gowa`.
-      security: []
-      parameters:
-        - name: hub.mode
-          in: query
-          schema: { type: string, enum: [subscribe] }
-        - name: hub.verify_token
-          in: query
-          schema: { type: string }
-        - name: hub.challenge
-          in: query
-          schema: { type: string }
-      responses:
-        200:
-          description: Challenge echoed back (verification successful)
-          content: { text/plain: { schema: { type: string } } }
-        403:
-          description: Verification failed (token mismatch or wrong mode)
+  /api/whatsapp/gateway/resolve:
     post:
       tags: [notifications]
-      operationId: whatsappInboundWebhook
-      summary: Inbound webhook (Meta Cloud API + GOWA legacy)
+      operationId: resolveWhatsappGatewayBinding
+      summary: Resolve a verified Vita binding for the shared BYMAV WhatsApp gateway
       description: |
-        Dual provider webhook. Auto-detects format pelo body shape:
-        - **Cloud API** (default): `{ entry: [{ changes: [{ value: { messages: [...] } }] }] }`
-        - **GOWA** (legacy fallback): `{ event: message, payload: { ... } }`
-
-        Cada provider tem secret próprio:
-        - Cloud: `META_APP_SECRET` (HMAC SHA256, header `X-Hub-Signature-256`)
-        - GOWA: `WHATSAPP_WEBHOOK_SECRET` (HMAC SHA256, mesmo header)
-
-        Pra cada msg inbound: dedupe via `messageId` em `whatsapp_inbound_messages`,
-        resolve user via `notification_preferences.whatsappPhone` (whatsappVerified=true),
-        roda agent loop `runVitaChatTurn` (LiteLLM + MCPs vita-brain/user/catalog),
-        responde via `sendWhatsAppMessage` (provider abstraction).
-
-        Decisão: agent-brain/decisions/2026-04-30_whatsapp-cloud-api-llm-agent.md
+        Internal service endpoint protected by the strict `X-WACLI-TOKEN`.
+        `eligible=true` is returned only when exactly one Vita profile owns an
+        OAuth-derived, OTP-verified binding for the supplied phone. Duplicate
+        bindings fail closed and no profile identifier is exposed.
       security: []
       parameters:
-        - name: X-Hub-Signature-256
+        - name: X-WACLI-TOKEN
           in: header
           required: true
-          schema:
-            type: string
-          description: '`sha256=<hex>` — HMAC SHA256 of the raw request body with WHATSAPP_WEBHOOK_SECRET'
+          schema: { type: string }
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [phone]
               properties:
-                event: { type: string, example: message }
-                device_id: { type: string }
-                payload:
+                phone: { type: string, example: "+5511999998888" }
+      responses:
+        '200':
+          description: Binding eligibility without user data
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [app, eligible, bindingStatus]
+                properties:
+                  app: { type: string, enum: [vita] }
+                  eligible: { type: boolean }
+                  bindingStatus: { type: string, enum: [verified, not_linked, conflict] }
+        '400':
+          description: Invalid phone
+        '401':
+          description: Missing or invalid gateway token
+
+  /api/whatsapp/webhook:
+    post:
+      tags: [notifications]
+      operationId: whatsappInboundWebhook
+      summary: Inbound webhook from the canonical wacli linked-device gateway
+      description: |
+        Accepts the wacli `message.new` event envelope or its native parsed-message
+        payload. For each inbound message, deduplicates by `messageId` in
+        `whatsapp_inbound_messages`,
+        resolve user via `notification_preferences.whatsappPhone` (whatsappVerified=true),
+        roda agent loop `runVitaChatTurn` (LiteLLM + MCPs vita-brain/user/catalog),
+        e responde pelo mesmo wacli. Mensagens enviadas pelo próprio dispositivo
+        são ignoradas para evitar loop.
+      security: []
+      parameters:
+        - name: X-WACLI-TOKEN
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Shared wacli forwarder token. Native wacli webhooks are also identified by their User-Agent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                event: { type: string, example: message.new }
+                data:
                   type: object
+                  additionalProperties: true
                   properties:
-                    id: { type: string }
-                    chat_id: { type: string }
-                    from: { type: string }
-                    from_name: { type: string }
+                    msgId: { type: string }
+                    chatJid: { type: string }
+                    senderJid: { type: string }
+                    senderName: { type: string }
                     timestamp: { type: string, format: date-time }
-                    is_from_me: { type: boolean }
-                    body: { type: string }
+                    fromMe: { type: boolean }
+                    text: { type: string }
       responses:
         '200':
           description: Event processed or skipped
         '400':
           description: Invalid JSON
         '401':
-          description: Invalid HMAC signature
-        '500':
-          description: WHATSAPP_WEBHOOK_SECRET not set
+          description: Request was not sent by wacli
 
   # ════════════════════════════════════════
   # PLATFORM
@@ -11028,23 +11318,6 @@ paths:
           description: Invalid email
         '500':
           $ref: '#/components/responses/ServerError'
-
-  /api/testping:
-    get:
-      tags: [platform]
-      operationId: testPing
-      summary: Minimal connectivity ping
-      security: []
-      responses:
-        '200':
-          description: Pong
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  pong:
-                    type: boolean
 
   /api/errors:
     post:
@@ -12468,6 +12741,12 @@ paths:
                         status: { type: string }
                         providerAccountEmail: { type: string, nullable: true }
                         lastSyncAt: { type: string, format: date-time, nullable: true }
+                        lastError: { type: string, nullable: true }
+                        counts:
+                          type: object
+                          properties:
+                            imported: { type: integer }
+                            updated: { type: integer }
         '401': { description: Unauthorized }
 
   /api/integrations/{provider}:
@@ -12545,8 +12824,45 @@ paths:
                   status: { type: string }
                   providerAccountEmail: { type: string, nullable: true }
                   lastSyncAt: { type: string, format: date-time, nullable: true }
+                  lastError: { type: string, nullable: true }
+                  counts:
+                    type: object
+                    properties:
+                      imported: { type: integer }
+                      updated: { type: integer }
         '401': { description: Unauthorized }
         '404': { description: Provider not found }
+
+  /api/integrations/{provider}/sync:
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [google_calendar, google_drive]
+    post:
+      tags: [integrations]
+      operationId: syncIntegration
+      summary: Import data from a connected Google Calendar or Google Drive account
+      responses:
+        '200':
+          description: Sync completed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, provider, imported, updated, skipped]
+                properties:
+                  ok: { type: boolean }
+                  provider: { type: string }
+                  imported: { type: integer }
+                  updated: { type: integer }
+                  skipped: { type: integer }
+        '401': { description: Unauthorized }
+        '404': { description: Provider not connected }
+        '409': { description: Reconnect required or provider cannot sync }
+        '502': { description: Provider API failed }
 
   # ════════════════════════════════════════
   # SCREEN BFF endpoints (1-RTT pre-aggregated payloads per tela)
