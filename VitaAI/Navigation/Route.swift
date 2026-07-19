@@ -21,6 +21,10 @@ enum Route: Hashable {
     case mindMapList
     case mindMapEditor(id: String)
     case flashcardHome(subjectId: String? = nil)
+    /// Tela CENTRAL do baralho (Rafael 2026-07-19) — todo deck abre aqui, nunca direto nos cards.
+    case flashcardDeck(deckId: String, deckTitle: String? = nil)
+    /// Explorar decks pré-fabricados/comunidade (gaveta do "+").
+    case flashcardExplore
     case flashcardTopics(deckId: String, deckTitle: String)
     case cardBrowser(deckId: String, deckTitle: String, subjectId: String? = nil, disciplineSlug: String? = nil)
     case flashcardSession(deckId: String, tagFilter: String? = nil, sessionId: String? = nil)

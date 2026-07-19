@@ -13,6 +13,8 @@ struct CardEditorScreen: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var hSize
     var onCreated: () -> Void = {}
+    /// Baralho pré-selecionado (tela central do baralho abre o editor já mirando ele).
+    var presetDeckTitle: String? = nil
 
     @State private var front = ""
     @State private var back = ""
@@ -255,6 +257,9 @@ struct CardEditorScreen: View {
         myDecks = decks
             .filter { !($0.userId ?? "").isEmpty }
             .sorted { cleanTitle($0.title).localizedCaseInsensitiveCompare(cleanTitle($1.title)) == .orderedAscending }
+        if selectedDeckTitle == nil, let presetDeckTitle {
+            selectedDeckTitle = presetDeckTitle
+        }
     }
 
     @MainActor

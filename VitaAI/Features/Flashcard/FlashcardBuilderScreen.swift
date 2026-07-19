@@ -22,10 +22,9 @@ struct FlashcardBuilderScreen: View {
     /// Baralhos marcados pra estudar juntos (Cardiologia + Medicina de Família...). Rafael 2026-07-10.
     @State private var selectedDeckIds: Set<String> = []
     @State private var showStudioImport = false
-    /// Menu do "+" (criar flashcard / criar baralho / gerar do material) — issue #188.
-    @State private var showCreateMenu = false
+    /// Gaveta do "+" — "Selecione o que você quer fazer" (Rafael 2026-07-19).
+    @State private var showCreateHub = false
     @State private var showCreateDeck = false
-    @State private var showCreateCard = false
     @State private var deckSearch: String = ""
     @State private var showSessionSettings = false
     /// Quando vem de DisciplineDetailScreen → flashcardHome(subjectId), pré-seleciona
@@ -33,6 +32,8 @@ struct FlashcardBuilderScreen: View {
     var initialSubjectId: String? = nil
     let onBack: () -> Void
     let onOpenDeck: (String) -> Void
+    /// Abre "Explorar decks pré-fabricados" (rota .flashcardExplore).
+    var onExplore: () -> Void = {}
     /// Abre a sessão de uma disciplina da Biblioteca: recebe o id da sessão que o
     /// servidor montou (a fila já está no `FlashcardMultiDeckHandoff`).
     let onOpenDisciplineSession: (_ sessionId: String) -> Void
@@ -113,10 +114,17 @@ struct FlashcardBuilderScreen: View {
             FlashcardSettingsV2Sheet()
         }
         .sheet(isPresented: $showCreateDeck) {
-            CreateDeckSheet(onCreated: { Task { await vm.refresh() } })
+            CreateDeckSheet(
+                onCreated: { Task { await vm.refresh() } },
+                onCreatedDeck: { deckId, _ in onOpenDeck(deckId) }
+            )
         }
-        .sheet(isPresented: $showCreateCard) {
-            CardEditorScreen(onCreated: { Task { await vm.refresh() } })
+        .sheet(isPresented: $showCreateHub) {
+            FlashcardCreateHubSheet(
+                onCreateDeck: { showCreateDeck = true },
+                onExplore: { onExplore() },
+                onMagicImport: { showStudioImport = true }
+            )
         }
     }
 
@@ -124,8 +132,7 @@ struct FlashcardBuilderScreen: View {
 
     private var appBar: some View {
         VitaScreenHeader(title: "Baralhos", onBack: onBack) {
-            appBarButton(icon: "plus") { showCreateMenu = true }
-                .vitaBubble(isPresented: $showCreateMenu, arrowEdge: .top) { createMenu }
+            appBarButton(icon: "plus") { showCreateHub = true }
         }
         .padding(.bottom, VitaTokens.Spacing.sm)
     }
@@ -142,66 +149,6 @@ struct FlashcardBuilderScreen: View {
                 .overlay(
                     Circle().stroke(icon == "plus" ? Color.clear : VitaColors.glassBorder, lineWidth: 0.75)
                 )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Menu do "+" — criar flashcard / baralho / gerar do material (issue #188)
-
-    private var createMenu: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            createMenuRow(
-                icon: "square.and.pencil",
-                title: "Criar flashcard",
-                subtitle: "Escreva frente e verso"
-            ) { openFromMenu { showCreateCard = true } }
-            Divider().overlay(VitaColors.glassBorder.opacity(0.5))
-            createMenuRow(
-                icon: "rectangle.stack.badge.plus",
-                title: "Criar baralho",
-                subtitle: "Organize seus cards por tema"
-            ) { openFromMenu { showCreateDeck = true } }
-            Divider().overlay(VitaColors.glassBorder.opacity(0.5))
-            createMenuRow(
-                icon: "doc.badge.plus",
-                title: "Gerar do meu material",
-                subtitle: "PDF, slides ou foto viram cards"
-            ) { openFromMenu { showStudioImport = true } }
-        }
-        .frame(width: 272)
-    }
-
-    /// Fecha o bubble e abre a sheet DEPOIS do dismiss — apresentar sheet com o
-    /// popover ainda vivo faz o UIKit cancelar a apresentação silenciosamente.
-    private func openFromMenu(_ open: @escaping () -> Void) {
-        showCreateMenu = false
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            open()
-        }
-    }
-
-    private func createMenuRow(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: VitaTokens.Spacing.md) {
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone do menu (área de toque)
-                    .foregroundStyle(VitaColors.accent)
-                    .frame(width: 34, height: 34)
-                    .background(Circle().fill(VitaColors.glassBg))
-                    .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(VitaTypography.titleSmall)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text(subtitle)
-                        .font(VitaTypography.labelSmall)
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, VitaTokens.Spacing.md)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

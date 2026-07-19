@@ -757,6 +757,22 @@ struct MainTabView: View {
             } else {
                 EmptyView()
             }
+        case .flashcardDeck(let deckId, let deckTitle):
+            DeckHomeScreen(
+                deckId: deckId,
+                deckTitle: deckTitle,
+                onBack: { router.goBack() },
+                onStudy: { id in router.navigate(to: .flashcardSession(deckId: id)) }
+            )
+        case .flashcardExplore:
+            CommunityDecksScreen(
+                onBack: { router.goBack() },
+                onOpenDiscipline: { d in
+                    // Disciplina da Biblioteca = browser read-only do bundle (mesma
+                    // rota que a lista de Baralhos usa pra Biblioteca).
+                    router.navigate(to: .cardBrowser(deckId: "", deckTitle: d.name, disciplineSlug: d.slug))
+                }
+            )
         case .flashcardTopics(let deckId, let deckTitle):
             FlashcardTopicsScreen(
                 deckId: deckId,
@@ -983,7 +999,16 @@ struct MainTabView: View {
             FlashcardBuilderScreen(
                 initialSubjectId: subjectId,
                 onBack: { router.goBack() },
-                onOpenDeck: { deckId in router.navigate(to: .flashcardSession(deckId: deckId)) },
+                onOpenDeck: { deckId in
+                    // Baralho REAL abre na tela central (Rafael 2026-07-19); deckId
+                    // vazio = fila multi-deck de disciplina → vai direto pra sessão.
+                    if deckId.isEmpty {
+                        router.navigate(to: .flashcardSession(deckId: deckId))
+                    } else {
+                        router.navigate(to: .flashcardDeck(deckId: deckId))
+                    }
+                },
+                onExplore: { router.navigate(to: .flashcardExplore) },
                 // A fila já está no FlashcardMultiDeckHandoff; `deckId` vazio é só
                 // rótulo (a sessão de uma disciplina cruza vários baralhos).
                 // Antes isto navegava pra `.flashcardHome` — a PRÓPRIA tela: tocar

@@ -2,9 +2,11 @@ import SwiftUI
 
 // MARK: - CreateDeckSheet — criação manual de baralho (issue vitaai-web#188)
 //
-// Aberta pelo menu "+" do FlashcardBuilderScreen. POST /api/study/flashcards/decks
-// via VitaAPI.createDeck(title:) — idempotente por título (server reusa se já
-// existe). Irmã visual da FlashcardSettingsV2Sheet: section label uppercase,
+// Fluxo em 2 passos (Rafael 2026-07-19, refs 1/2 em specs/vitaai/references/
+// importacao-magica): NOME → TAG (disciplina, com busca + "Outro") → cria e
+// abre a TELA CENTRAL do baralho. POST /api/study/flashcards/decks via
+// VitaAPI.createDeck(title:disciplineSlug:) — idempotente por título.
+// Irmã visual da FlashcardSettingsV2Sheet: section label uppercase,
 // campos glass, CTA cheio em accent.
 
 struct CreateDeckSheet: View {
@@ -13,8 +15,15 @@ struct CreateDeckSheet: View {
 
     /// Chamado após criar com sucesso — o builder usa pra recarregar os baralhos.
     var onCreated: () -> Void = {}
+    /// Quando presente, recebe (deckId, title) pra navegar pra tela central do baralho.
+    var onCreatedDeck: ((String, String) -> Void)? = nil
 
+    private enum Step { case name, tag }
+
+    @State private var step: Step = .name
     @State private var title = ""
+    @State private var tagSlug: String? = nil
+    @State private var tagName: String? = nil
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -23,22 +32,32 @@ struct CreateDeckSheet: View {
     }
 
     var body: some View {
-        VitaSheet(title: "Novo baralho", detents: [.medium]) {
+        VitaSheet(
+            title: step == .name ? "Novo baralho" : "Selecione uma tag",
+            detents: step == .name ? [.medium] : [.large]
+        ) {
             VStack(alignment: .leading, spacing: VitaTokens.Spacing._2xl) {
-                section(title: "Nome", subtitle: "Como o baralho aparece em Meus baralhos.") {
-                    GlassTextField(
-                        placeholder: "Ex.: Cardiologia — Arritmias",
-                        text: $title,
-                        icon: "rectangle.stack"
-                    )
+                switch step {
+                case .name:
+                    section(title: "Nome", subtitle: "Como o baralho aparece em Meus baralhos.") {
+                        GlassTextField(
+                            placeholder: "Ex.: Cardiologia — Arritmias",
+                            text: $title,
+                            icon: "rectangle.stack"
+                        )
+                    }
+                case .tag:
+                    section(title: "Disciplina", subtitle: "Pode ser alterada depois nas configurações do baralho.") {
+                        DeckTagPickerView(selectedSlug: $tagSlug, selectedName: $tagName)
+                    }
                 }
                 if let errorMessage {
                     Text(errorMessage)
                         .font(VitaTypography.labelSmall)
                         .foregroundStyle(VitaColors.danger)
                 }
-                createButton
-                Spacer(minLength: 0)
+                ctaButton
+                if step == .name { Spacer(minLength: 0) }
             }
             .padding(.horizontal, VitaTokens.Spacing.xl)
             .padding(.top, VitaTokens.Spacing.md)
@@ -48,18 +67,23 @@ struct CreateDeckSheet: View {
 
     // MARK: - CTA
 
-    private var createButton: some View {
+    private var ctaButton: some View {
         Button {
-            Task { await create() }
+            switch step {
+            case .name:
+                withAnimation(.easeInOut(duration: 0.2)) { step = .tag }
+            case .tag:
+                Task { await create() }
+            }
         } label: {
             HStack(spacing: VitaTokens.Spacing.sm) {
                 if isSaving {
                     ProgressView().tint(VitaColors.surface)
                 } else {
-                    Image(systemName: "plus")
+                    Image(systemName: step == .name ? "arrow.right" : "checkmark")
                         .font(.system(size: 13, weight: .bold))  // ds-allow: ícone do CTA
                 }
-                Text(isSaving ? "Criando…" : "Criar baralho")
+                Text(step == .name ? "Continuar" : (isSaving ? "Criando…" : "Salvar"))
                     .font(VitaTypography.labelMedium)
             }
             .foregroundStyle(VitaColors.surface)
@@ -80,10 +104,19 @@ struct CreateDeckSheet: View {
         isSaving = true
         errorMessage = nil
         do {
-            _ = try await container.api.createDeck(title: trimmedTitle)
+            let resp = try await container.api.createDeck(title: trimmedTitle, disciplineSlug: tagSlug)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             onCreated()
             dismiss()
+            if let id = resp.id, let onCreatedDeck {
+                // Abre a tela central DEPOIS do dismiss (mesmo padrão openFromMenu:
+                // apresentar navegação com a sheet viva faz o UIKit cancelar).
+                let deckTitle = resp.title ?? trimmedTitle
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    onCreatedDeck(id, deckTitle)
+                }
+            }
         } catch {
             errorMessage = "Não foi possível criar o baralho. Tente de novo."
         }
