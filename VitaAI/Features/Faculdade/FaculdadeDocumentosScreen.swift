@@ -201,12 +201,12 @@ struct FaculdadeDocumentosScreen: View {
                 }
             } label: {
                 HStack(spacing: 8) {
-                    // Discipline icon
-                    Image(DisciplineImages.imageAsset(for: label))
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 28, height: 28)
-                        .clipShape(Circle())
+                    // Ícone da disciplina — o MESMO badge dos flashcards e da
+                    // comunidade. Antes aqui havia uma foto por disciplina, o que
+                    // exigia ~90 imagens no bundle pra alimentar um círculo de 28px
+                    // numa tela só. Símbolo + cor dá a mesma leitura, é consistente
+                    // com o resto do app e não pesa nada.
+                    DisciplineIconBadge(name: label, size: 28)
 
                     Text(label)
                         .font(.system(size: 13, weight: .semibold))

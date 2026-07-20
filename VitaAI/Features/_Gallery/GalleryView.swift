@@ -252,13 +252,13 @@ struct ButtonsGallery: View {
                 }
 
                 GalleryCard(
-                    label: "DisciplineCircleButton",
-                    sublabel: "Fire badge circular com disciplina + label abaixo"
+                    label: "DisciplineIconBadge",
+                    sublabel: "Badge de disciplina — símbolo semântico + cor (único sistema de ícone)"
                 ) {
                     HStack(spacing: 16) {
-                        DisciplineCircleButton(name: "anatomia", size: 72, action: {})
-                        DisciplineCircleButton(name: "cardiologia", size: 72, action: {})
-                        DisciplineCircleButton(name: "bioquimica", size: 72, action: {})
+                        DisciplineIconBadge(name: "anatomia", size: 72)
+                        DisciplineIconBadge(name: "cardiologia", size: 72)
+                        DisciplineIconBadge(name: "bioquimica", size: 72)
                     }
                 }
 
