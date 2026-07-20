@@ -8,17 +8,17 @@ enum TabItem: String, CaseIterable {
 
     var icon: String {
         switch self {
-        case .home: return "house"
+        case .home: return "map"
         case .estudos: return "book"
-        case .faculdade: return "graduationcap"
+        case .faculdade: return "calendar"
         case .progresso: return "chart.bar"
         }
     }
     var selectedIcon: String {
         switch self {
-        case .home: return "house.fill"
+        case .home: return "map.fill"
         case .estudos: return "book.fill"
-        case .faculdade: return "graduationcap.fill"
+        case .faculdade: return "calendar"
         case .progresso: return "chart.bar.fill"
         }
     }
