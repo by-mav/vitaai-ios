@@ -29,6 +29,7 @@ struct FlashcardBuilderScreen: View {
     /// "Criar com o Vita" — hub dos 6 caminhos de criação assistida.
     @State private var showCreateWithVita = false
     @State private var showPasteNotes = false
+    @State private var showAnkiImport = false
     @State private var showNotesCamera = false
     @State private var showNotesPhotoLibrary = false
     @State private var notesPhotoItem: PhotosPickerItem?
@@ -148,7 +149,14 @@ struct FlashcardBuilderScreen: View {
                 onRecordLecture: { onOpenTranscricao() },
                 onAudioFile: { onOpenTranscricao() },
                 onPhoto: { captureNotesPhoto() },
+                onAnki: { showAnkiImport = true },
                 onPaste: { showPasteNotes = true }
+            )
+        }
+        .sheet(isPresented: $showAnkiImport) {
+            AnkiImportSheet(
+                onOpenDeck: { deckId in onOpenDeck(deckId) },
+                onImported: { Task { await vm.refresh() } }
             )
         }
         .sheet(isPresented: $showPasteNotes) {

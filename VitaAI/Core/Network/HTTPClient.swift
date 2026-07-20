@@ -347,7 +347,8 @@ actor HTTPClient {
         _ path: String,
         fileData: Data,
         fileName: String,
-        mimeType: String
+        mimeType: String,
+        timeoutInterval: TimeInterval? = nil
     ) async throws -> T {
         guard let url = URL(string: AppConfig.apiBaseURL + "/" + path) else {
             throw APIError.invalidURL
@@ -374,6 +375,7 @@ actor HTTPClient {
                 req.setValue(forwardedHost, forHTTPHeaderField: "x-forwarded-host")
             }
             req.httpBody = body
+            if let timeoutInterval { req.timeoutInterval = timeoutInterval }
             let traceId = UUID().uuidString.prefix(8).lowercased()
             req.setValue(String(traceId), forHTTPHeaderField: "X-Trace-Id")
             return req
@@ -500,6 +502,15 @@ actor HTTPClient {
             default:
                 if let body = String(data: data, encoding: .utf8) {
                     NSLog("[HTTPClient] %d error body: %@", http.statusCode, String(body.prefix(500)))
+                }
+                // 400 com `{error}` = mensagem amigável da rota (zod/validação) —
+                // mostrar ela, não "Erro no servidor (400)".
+                if http.statusCode == 400 {
+                    struct ErrorBody: Decodable { let error: String }
+                    if let parsed = try? JSONDecoder().decode(ErrorBody.self, from: data),
+                       !parsed.error.isEmpty {
+                        throw APIError.serverMessage(parsed.error)
+                    }
                 }
                 throw APIError.serverError(http.statusCode)
             }

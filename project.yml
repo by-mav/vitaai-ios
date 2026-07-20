@@ -59,6 +59,10 @@ targets:
         NSCameraUsageDescription: "VitaAI usa a câmera para fotografar suas anotações e transformá-las em flashcards."
         NSMicrophoneUsageDescription: "VitaAI precisa do microfone para gravar suas aulas e gerar transcrições automáticas."
         NSSpeechRecognitionUsageDescription: "VitaAI usa reconhecimento de fala para transcrever suas aulas em tempo real."
+        # Pasta do app visível no Arquivos (import .apkg do Anki: o aluno acha
+        # o arquivo baixado em "No meu iPhone → VitaAI"; também usado no QA).
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         UIBackgroundModes:
           - fetch
           - processing

@@ -581,6 +581,30 @@ actor VitaAPI {
         try await client.uploadFileMultipart("studio/upload", fileData: fileData, fileName: fileName, mimeType: mimeType)
     }
 
+    struct AnkiImportResponse: Decodable {
+        struct DeckResult: Decodable {
+            let deckId: String
+            let title: String
+            let cards: Int
+        }
+        let decks: [DeckResult]
+        let totalCards: Int
+        let mediaCount: Int
+        let skippedNotes: Int
+    }
+
+    /// POST /api/study/flashcards/import-anki — sobe um .apkg do Anki; cada
+    /// deck vira baralho novo (cards nascem NEW no FSRS, mídia via R2).
+    func importAnkiDeck(fileData: Data, fileName: String) async throws -> AnkiImportResponse {
+        try await client.uploadFileMultipart(
+            "study/flashcards/import-anki",
+            fileData: fileData,
+            fileName: fileName,
+            mimeType: "application/octet-stream",
+            timeoutInterval: 300
+        )
+    }
+
     /// Sobe um PDF direto pra disciplina (POST /api/documents/upload, multipart
     /// file+subjectId). Aparece na aba Arquivos. Rafael 2026-07-13.
     func uploadDocument(fileData: Data, fileName: String, subjectId: String) async throws -> VitaDocument {
