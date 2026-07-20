@@ -1,13 +1,6 @@
 {
-  "images": [
-    {
-      "filename": "vita-btn-idle.webp",
-      "idiom": "universal",
-      "scale": "1x"
-    }
+  "images" : [
+    { "filename" : "vita-btn-idle.png", "idiom" : "universal", "scale" : "1x" }
   ],
-  "info": {
-    "author": "xcode",
-    "version": 1
-  }
+  "info" : { "author" : "xcode", "version" : 1 }
 }
