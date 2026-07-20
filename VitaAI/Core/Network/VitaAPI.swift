@@ -408,7 +408,10 @@ actor VitaAPI {
     func waitForStudioSourceTerminal(id: String, timeout: TimeInterval = 180) async throws -> StudioSourceDetail {
         let deadline = Date().addingTimeInterval(timeout)
         var detail = try await getStudioSourceDetail(id: id)
-        while detail.status != "ready", detail.status != "failed", Date() < deadline {
+        // Backend marca falha como "error" (studio_sources.status); "failed" fica
+        // por compat. Sem o "error" aqui, a falha girava os 180s inteiros.
+        while detail.status != "ready", detail.status != "failed", detail.status != "error",
+              Date() < deadline {
             try Task.checkCancellation()
             try await Task.sleep(nanoseconds: 2_000_000_000)
             detail = try await getStudioSourceDetail(id: id)
@@ -615,6 +618,25 @@ actor VitaAPI {
             deckTitle: deckTitle,
             flashcards: cards.map { CardBody(front: $0.front, back: $0.back) }
         ))
+    }
+
+    struct StudioAddMaterialResponse: Decodable {
+        let sourceId: String
+        let title: String
+        let type: String
+        let status: String
+        let chunks: Int
+    }
+
+    /// POST /api/studio/add-material — "Colar suas anotações" (Criar com o Vita).
+    /// Texto vira studio_source `ready` na hora (chunking síncrono, sem LLM).
+    func addStudioTextMaterial(text: String, title: String? = nil) async throws -> StudioAddMaterialResponse {
+        struct Body: Encodable { let text: String; let title: String? }
+        return try await client.post(
+            "studio/add-material",
+            body: Body(text: text, title: title),
+            timeoutInterval: 60
+        )
     }
 
     func generateStudioOutput(sourceId: String, outputType: String) async throws -> StudioOutput {

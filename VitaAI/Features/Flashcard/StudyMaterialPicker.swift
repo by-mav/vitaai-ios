@@ -33,6 +33,16 @@ struct StudyMaterialPicker: View {
     /// Material único a gerar DIRETO ao abrir (botão rápido num material
     /// recente): pula a escolha e já entra gerando. nil = fluxo normal de escolha.
     var autoStartDocument: VitaDocument? = nil
+    /// Arquivo cru a subir DIRETO ao abrir (foto da câmera do "Criar com o
+    /// Vita"): pula a escolha e reusa upload→progresso→done. nil = fluxo normal.
+    var autoUploadFile: AutoUploadFile? = nil
+
+    /// Payload do auto-upload (foto de anotações etc).
+    struct AutoUploadFile {
+        let data: Data
+        let fileName: String
+        let mimeType: String
+    }
 
     @Environment(\.appContainer) private var container
     @Environment(\.dismiss) private var dismiss
@@ -92,6 +102,9 @@ struct StudyMaterialPicker: View {
                 selected = [doc.id]
                 isLoading = false
                 await run()
+            } else if let file = autoUploadFile {
+                isLoading = false
+                await runUploadedFile(file.data, fileName: file.fileName, mimeType: file.mimeType)
             } else {
                 await load()
             }

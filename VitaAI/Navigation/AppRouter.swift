@@ -1009,6 +1009,9 @@ struct MainTabView: View {
                     }
                 },
                 onExplore: { router.navigate(to: .flashcardExplore) },
+                // "Criar com o Vita": Gravar aula / Arquivo de áudio caem na
+                // Transcrição (o motor que já grava, transcreve e gera cards).
+                onOpenTranscricao: { router.navigate(to: .transcricao) },
                 // A fila já está no FlashcardMultiDeckHandoff; `deckId` vazio é só
                 // rótulo (a sessão de uma disciplina cruza vários baralhos).
                 // Antes isto navegava pra `.flashcardHome` — a PRÓPRIA tela: tocar

@@ -58,12 +58,27 @@ struct FlashcardCreateHubSheet: View {
     }
 
     private func optionCard(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+        HubOptionCard(icon: icon, title: title, subtitle: subtitle, action: action)
+    }
+}
+
+// MARK: - HubOptionCard — card de opção compartilhado das gavetas de criação
+// (usado pela gaveta do "+" e pela "Criar com o Vita" — 1 componente, 2 sheets).
+
+struct HubOptionCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    var compact: Bool = false
+    let action: () -> Void
+
+    var body: some View {
         Button(action: action) {
             HStack(spacing: VitaTokens.Spacing.lg) {
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .semibold))  // ds-allow: ícone do card de opção (área de toque)
+                    .font(.system(size: compact ? 17 : 20, weight: .semibold))  // ds-allow: ícone do card de opção (área de toque)
                     .foregroundStyle(VitaColors.accentLight)
-                    .frame(width: 52, height: 52)
+                    .frame(width: compact ? 44 : 52, height: compact ? 44 : 52)
                     .background(
                         RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
                             .fill(
@@ -95,7 +110,7 @@ struct FlashcardCreateHubSheet: View {
                     .font(.system(size: 13, weight: .semibold))  // ds-allow: chevron do card
                     .foregroundStyle(VitaColors.textTertiary)
             }
-            .padding(VitaTokens.Spacing.xl)
+            .padding(compact ? VitaTokens.Spacing.lg : VitaTokens.Spacing.xl)
             .background(
                 RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
                     .fill(VitaColors.glassBg)

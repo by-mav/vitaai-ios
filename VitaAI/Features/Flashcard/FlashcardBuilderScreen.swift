@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 import Sentry
 
@@ -25,6 +26,19 @@ struct FlashcardBuilderScreen: View {
     /// Gaveta do "+" — "Selecione o que você quer fazer" (Rafael 2026-07-19).
     @State private var showCreateHub = false
     @State private var showCreateDeck = false
+    /// "Criar com o Vita" — hub dos 6 caminhos de criação assistida.
+    @State private var showCreateWithVita = false
+    @State private var showPasteNotes = false
+    @State private var showNotesCamera = false
+    @State private var showNotesPhotoLibrary = false
+    @State private var notesPhotoItem: PhotosPickerItem?
+    /// Foto capturada → StudyMaterialPicker em modo auto-upload (sheet por item).
+    @State private var notesPhotoUpload: NotesPhotoUpload?
+
+    private struct NotesPhotoUpload: Identifiable {
+        let id = UUID()
+        let file: StudyMaterialPicker.AutoUploadFile
+    }
     @State private var deckSearch: String = ""
     @State private var showSessionSettings = false
     /// Quando vem de DisciplineDetailScreen → flashcardHome(subjectId), pré-seleciona
@@ -34,6 +48,8 @@ struct FlashcardBuilderScreen: View {
     let onOpenDeck: (String) -> Void
     /// Abre "Explorar decks pré-fabricados" (rota .flashcardExplore).
     var onExplore: () -> Void = {}
+    /// Abre a Transcrição (Gravar aula / Arquivo de áudio do "Criar com o Vita").
+    var onOpenTranscricao: () -> Void = {}
     /// Abre a sessão de uma disciplina da Biblioteca: recebe o id da sessão que o
     /// servidor montou (a fila já está no `FlashcardMultiDeckHandoff`).
     let onOpenDisciplineSession: (_ sessionId: String) -> Void
@@ -123,8 +139,76 @@ struct FlashcardBuilderScreen: View {
             FlashcardCreateHubSheet(
                 onCreateDeck: { showCreateDeck = true },
                 onExplore: { onExplore() },
-                onMagicImport: { showStudioImport = true }
+                onMagicImport: { showCreateWithVita = true }
             )
+        }
+        .sheet(isPresented: $showCreateWithVita) {
+            CreateWithVitaSheet(
+                onPDF: { showStudioImport = true },
+                onRecordLecture: { onOpenTranscricao() },
+                onAudioFile: { onOpenTranscricao() },
+                onPhoto: { captureNotesPhoto() },
+                onPaste: { showPasteNotes = true }
+            )
+        }
+        .sheet(isPresented: $showPasteNotes) {
+            PasteNotesSheet(onOpenDeck: { deckId in onOpenDeck(deckId) })
+        }
+        // vita-modals-ignore: câmera é UI de sistema (mesmo padrão do ExamUploadSheet)
+        .sheet(isPresented: $showNotesCamera) {
+            CameraPickerView { image in handleNotesPhoto(image) }
+                .ignoresSafeArea()
+        }
+        .photosPicker(isPresented: $showNotesPhotoLibrary, selection: $notesPhotoItem, matching: .images)
+        .onChange(of: notesPhotoItem) { _, item in
+            guard let item else { return }
+            Task { @MainActor in
+                defer { notesPhotoItem = nil }
+                guard let data = try? await item.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data) else { return }
+                handleNotesPhoto(image)
+            }
+        }
+        .sheet(item: $notesPhotoUpload) { payload in
+            StudyMaterialPicker(
+                title: "Fotografar anotações",
+                actionVerb: "Gerar flashcards",
+                onGenerate: { sourceIds in
+                    let pack = try await container.api.generateStudyPack(
+                        sourceIds: sourceIds, mode: "practice",
+                        includeQuestions: false, includeFlashcards: true
+                    )
+                    let deckId = pack.flashcardDeckId ?? ""
+                    return .init(label: "\(pack.counts.flashcards) flashcards criados", open: { onOpenDeck(deckId) })
+                },
+                autoUploadFile: payload.file
+            )
+        }
+    }
+
+    /// Câmera quando existe (aparelho); galeria como fallback (simulador/iPad
+    /// sem câmera) — o motor é o mesmo (imagem → studio/upload → Vision).
+    private func captureNotesPhoto() {
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            showNotesCamera = true
+        } else {
+            showNotesPhotoLibrary = true
+        }
+    }
+
+    /// Foto → JPEG (o backend só aceita png/jpeg/webp; HEIC da galeria vira JPEG
+    /// aqui) → StudyMaterialPicker em modo auto-upload (reusa progresso/done).
+    private func handleNotesPhoto(_ image: UIImage) {
+        showNotesCamera = false
+        guard let data = image.jpegData(compressionQuality: 0.85) else { return }
+        let file = StudyMaterialPicker.AutoUploadFile(
+            data: data,
+            fileName: "anotacoes-\(Int(Date().timeIntervalSince1970)).jpg",
+            mimeType: "image/jpeg"
+        )
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            notesPhotoUpload = NotesPhotoUpload(file: file)
         }
     }
 
