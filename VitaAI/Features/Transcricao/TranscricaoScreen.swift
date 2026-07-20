@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import Sentry
+import UniformTypeIdentifiers
 
 private func openAppSettings() {
     if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -150,6 +151,8 @@ private struct TranscricaoContent: View {
     /// Toast visual (appear + auto-dismiss) pra quick-actions (gerar, favoritar).
     /// Sem Sheets/Alerts — UX pattern Instagram/WhatsApp.
     @State private var toastMessage: String? = nil
+    // O seletor de arquivo da Apple É a UI do importar — sem tela nossa no meio.
+    @State private var showFileImporter = false
 
     /// Disciplinas do aluno — fonte canônica ÚNICA (`/api/subjects` via
     /// `AppDataManager.canonicalDisciplines`, já ordenada). Sem mesclar
@@ -232,7 +235,7 @@ private struct TranscricaoContent: View {
                                         viewModel.discardRecording()
                                     },
                                     onImportAudio: {
-                                        // Phase 1: file importer — handled by showFileImporter state
+                                        showFileImporter = true
                                     }
                                 )
                             }
@@ -383,6 +386,21 @@ private struct TranscricaoContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Importar áudio de fora. `.audio` cobre m4a/mp3/wav/aac; o ViewModel
+        // converte pra m4a quando precisa e reusa o mesmo envio da gravação.
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.audio],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                Task { await viewModel.importAudio(from: url) }
+            case .failure(let error):
+                toastMessage = "Não foi possível abrir o arquivo: \(error.localizedDescription)"
+            }
+        }
         // Detail sheet when tapping a recording.
         // presentationDetents fixado em .large: precisa mostrar TODAS as ações
         // (gerar resumo/flashcards/questões/conceitos/mindmap) sem scroll

@@ -802,6 +802,115 @@ final class TranscricaoViewModel {
     }
 
 
+    // MARK: - Importar áudio que já existe no aparelho
+
+    /// Importa um áudio de fora (Arquivos, iCloud, WhatsApp...) e o manda pelo
+    /// MESMO caminho de uma gravação: salva local → sobe em background.
+    ///
+    /// Dois cuidados que nao sao detalhe:
+    ///  1. O arquivo escolhido vive FORA do sandbox, e `TranscricaoLocalStore.save`
+    ///     faz `moveItem`. Mover o original tiraria o áudio de onde o dono guardou.
+    ///     Por isso sempre produzimos uma cópia nossa em `tmp` antes.
+    ///  2. O store nomeia tudo `.m4a`. Importar um `.wav` e só trocar a extensão é
+    ///     mentira que quebra lá na frente, no Whisper, longe daqui. Formato
+    ///     diferente é CONVERTIDO de verdade.
+    func importAudio(from pickedURL: URL) async {
+        let scoped = pickedURL.startAccessingSecurityScopedResource()
+        defer { if scoped { pickedURL.stopAccessingSecurityScopedResource() } }
+
+        let asset = AVURLAsset(url: pickedURL)
+        let duration: Int
+        do {
+            let secs = CMTimeGetSeconds(try await asset.load(.duration))
+            guard secs.isFinite, secs > 0 else {
+                setError("Esse arquivo não parece ter áudio.")
+                return
+            }
+            duration = Int(secs.rounded())
+        } catch {
+            setError("Não foi possível ler o áudio: \(error.localizedDescription)")
+            return
+        }
+
+        let preparado: URL
+        do {
+            preparado = try await Self.prepararM4A(de: pickedURL, asset: asset)
+        } catch {
+            setError("Não foi possível preparar o áudio: \(error.localizedDescription)")
+            return
+        }
+
+        let nomeDoArquivo = pickedURL.deletingPathExtension().lastPathComponent
+        let localRec: LocalRecording
+        do {
+            localRec = try TranscricaoLocalStore.shared.save(
+                tempURL: preparado,
+                title: nomeDoArquivo.isEmpty ? Self.defaultTitleForNow() : nomeDoArquivo,
+                durationSeconds: duration,
+                language: selectedLanguage,
+                discipline: selectedDiscipline == "Auto-detectar" ? nil : selectedDiscipline
+            )
+        } catch {
+            try? FileManager.default.removeItem(at: preparado)
+            setError("Não foi possível salvar: \(error.localizedDescription)")
+            return
+        }
+
+        loadLocalRecordings()
+
+        VitaAnalytics.capture(event: "transcription_import_started", properties: [
+            "duration_seconds": duration,
+            "file_size_mb": Double(localRec.fileSize) / 1_048_576.0,
+            "converted": pickedURL.pathExtension.lowercased() != "m4a",
+        ])
+
+        if transcribeWithAI {
+            Task.detached(priority: .userInitiated) { [weak self] in
+                await self?.uploadLocalInBackground(id: localRec.id, liveTranscript: "")
+            }
+        }
+    }
+
+    enum ImportAudioError: LocalizedError {
+        case semExportador
+        case conversaoFalhou
+
+        var errorDescription: String? {
+            switch self {
+            case .semExportador: return "Formato de áudio não suportado."
+            case .conversaoFalhou: return "A conversão do áudio falhou."
+            }
+        }
+    }
+
+    /// Devolve SEMPRE um `.m4a` novo em `tmp`, pronto pro store mover.
+    private static func prepararM4A(de origem: URL, asset: AVURLAsset) async throws -> URL {
+        let destino = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("m4a")
+
+        if origem.pathExtension.lowercased() == "m4a" {
+            try FileManager.default.copyItem(at: origem, to: destino)
+            return destino
+        }
+
+        guard let sessao = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
+            throw ImportAudioError.semExportador
+        }
+        sessao.outputURL = destino
+        sessao.outputFileType = .m4a
+
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            sessao.exportAsynchronously { cont.resume() }
+        }
+
+        guard sessao.status == .completed else {
+            try? FileManager.default.removeItem(at: destino)
+            throw sessao.error ?? ImportAudioError.conversaoFalhou
+        }
+        return destino
+    }
+
     private func setError(_ msg: String) {
         phase = .error
         errorMessage = msg
