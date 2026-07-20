@@ -13,9 +13,6 @@ struct TranscricaoRecorderArea: View {
     let onToggle: () -> Void
     let onPauseResume: () -> Void
     let onDiscard: () -> Void
-    /// Importar áudio existente (m4a/mp3/wav) — abre fileImporter da Apple.
-    /// Sem popout: o picker da Apple É a UI. Por isso o chip não tem chevron.down.
-    let onImportAudio: () -> Void
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showDiscardConfirm = false
@@ -28,8 +25,8 @@ struct TranscricaoRecorderArea: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            // Timer gigante centralizado; caixa de ferramentas + Importar
-            // ancorados à direita, na altura do cronômetro (Rafael 2026-07-01:
+            // Timer gigante centralizado; caixa de ferramentas ancorada à
+            // direita, na altura do cronômetro (Rafael 2026-07-01:
             // consolida Disciplina/Idioma/Modo numa caixa só — área limpa).
             ZStack {
                 Text(formatTranscricaoElapsed(elapsedSeconds))
@@ -52,7 +49,6 @@ struct TranscricaoRecorderArea: View {
                         transcribeWithAI: $transcribeWithAI,
                         disabled: isRecording
                     )
-                    TranscricaoImportButton(disabled: isRecording, onImport: onImportAudio)
                 }
                 .padding(.trailing, VitaTokens.Spacing.xs)
             }
@@ -458,34 +454,6 @@ struct TranscricaoDisciplinaPicker: View {
             if selected == subject.preferredName { selected = "" }
             try? await appData.removeDiscipline(id: subject.id)
         }
-    }
-}
-
-// MARK: - Import Button (ao lado da caixa de ferramentas)
-
-struct TranscricaoImportButton: View {
-    let disabled: Bool
-    let onImport: () -> Void
-
-    var body: some View {
-        Button(action: {
-            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-            onImport()
-        }) {
-            Image(systemName: "square.and.arrow.down")
-                .font(VitaTypography.labelMedium)
-                .fontWeight(.semibold)
-                .foregroundStyle(VitaColors.accentLight)
-                .frame(width: 30, height: 30)
-                .background(Circle().fill(VitaColors.glassBg))
-                .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.5))
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .disabled(disabled)
-        .opacity(disabled ? 0.5 : 1)
-        .accessibilityLabel("Importar áudio")
     }
 }
 

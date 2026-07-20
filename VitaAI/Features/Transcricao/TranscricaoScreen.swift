@@ -165,7 +165,28 @@ private struct TranscricaoContent: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                VitaScreenHeader(title: "Transcrição", onBack: onBack)
+                // Importar mora no header, como em Perfil/Documentos: icone puro,
+                // sem fundo, alvo de 44pt. Ficava ao lado do cronometro, onde
+                // competia com o timer e ninguem lia o que era.
+                VitaScreenHeader(title: "Transcrição", onBack: onBack) {
+                    Button(action: {
+                        PixioHaptics.tap()
+                        showFileImporter = true
+                    }) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 15, weight: .semibold))  // ds-allow: icone SF do botao de importar
+                            .foregroundStyle(VitaColors.textPrimary)
+                            .frame(width: 38, height: 38)
+                            .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
+                            .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.phase == .recording)
+                    .opacity(viewModel.phase == .recording ? 0.4 : 1)
+                    .accessibilityLabel("Importar áudio")
+                }
 
                 switch viewModel.phase {
                 case .error:
@@ -233,9 +254,6 @@ private struct TranscricaoContent: View {
                                     },
                                     onDiscard: {
                                         viewModel.discardRecording()
-                                    },
-                                    onImportAudio: {
-                                        showFileImporter = true
                                     }
                                 )
                             }
