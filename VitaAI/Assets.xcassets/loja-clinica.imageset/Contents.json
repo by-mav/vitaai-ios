@@ -1,6 +1,13 @@
 {
-  "images" : [
-    { "filename" : "loja-clinica.png", "idiom" : "universal", "scale" : "1x" }
+  "images": [
+    {
+      "filename": "loja-clinica.webp",
+      "idiom": "universal",
+      "scale": "1x"
+    }
   ],
-  "info" : { "author" : "xcode", "version" : 1 }
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
 }

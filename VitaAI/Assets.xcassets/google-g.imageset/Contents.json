@@ -1,27 +1,27 @@
 {
-  "images" : [
+  "images": [
     {
-      "idiom" : "universal",
-      "scale" : "1x",
-      "filename" : "g-logo-1x.png"
+      "idiom": "universal",
+      "scale": "1x",
+      "filename": "g-logo-1x.webp"
     },
     {
-      "idiom" : "universal",
-      "scale" : "2x",
-      "filename" : "g-logo-2x.png"
+      "idiom": "universal",
+      "scale": "2x",
+      "filename": "g-logo-2x.webp"
     },
     {
-      "idiom" : "universal",
-      "scale" : "3x",
-      "filename" : "g-logo-3x.png"
+      "idiom": "universal",
+      "scale": "3x",
+      "filename": "g-logo-3x.webp"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
+  "info": {
+    "author": "xcode",
+    "version": 1
   },
-  "properties" : {
-    "preserves-vector-representation" : true,
-    "template-rendering-intent" : "original"
+  "properties": {
+    "preserves-vector-representation": true,
+    "template-rendering-intent": "original"
   }
 }
