@@ -19,8 +19,13 @@ enum VitaTokens {
         static let bgSubtle = Color(red: 0.784, green: 0.627, blue: 0.314).opacity(0.08) // #c8a05014
         static let borderSurface = Color(red: 1.000, green: 0.941, blue: 0.839).opacity(0.04) // #fff0d60a
         static let text = Color(red: 1.000, green: 0.988, blue: 0.973).opacity(0.96) // #fffcf8f5
-        static let textSecondary = Color(red: 1.000, green: 0.941, blue: 0.843).opacity(0.40) // #fff0d766
-        static let textMuted = Color(red: 1.000, green: 0.941, blue: 0.843).opacity(0.25) // #fff0d740
+        // Contraste MEDIDO sobre o card (12,9,7): 0.40 dava 3.48:1 — reprova em
+        // texto de corpo (WCAG AA pede 4.5:1). 0.62 = 6.0:1. O texto secundário
+        // carrega informação (contagens, subtítulos), não é decoração.
+        static let textSecondary = Color(red: 1.000, green: 0.941, blue: 0.843).opacity(0.62)
+        // 0.25 dava 2.02:1 — ilegível, era o motivo de rótulos como "Novas" e
+        // "Para revisar" sumirem no fundo. 0.48 = 4.56:1 (piso do corpo).
+        static let textMuted = Color(red: 1.000, green: 0.941, blue: 0.843).opacity(0.48)
         static let dataBlue = Color(red: 0.376, green: 0.647, blue: 0.980) // #60a5fa
         static let dataGreen = Color(red: 0.290, green: 0.871, blue: 0.502) // #4ade80
         static let dataAmber = Color(red: 0.984, green: 0.749, blue: 0.141) // #fbbf24

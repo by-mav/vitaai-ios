@@ -331,6 +331,7 @@ struct DeckHomeScreen: View {
             VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     CountUpText(value: summary.scorePercent, font: VitaTypography.headlineLarge)
+                        .accessibilityHidden(true)
                         .foregroundStyle(VitaColors.accent)
                     Text("%")
                         .font(VitaTypography.titleMedium)
@@ -341,6 +342,9 @@ struct DeckHomeScreen: View {
                         .foregroundStyle(VitaColors.textTertiary)
                         .padding(.leading, 4)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Nota")
+                .accessibilityValue("\(summary.scorePercent) por cento")
 
                 ratingBar
 
@@ -350,6 +354,7 @@ struct DeckHomeScreen: View {
                     ratingLegend("Bom", summary.ratings[2], VitaColors.dataGreen)
                     ratingLegend("Fácil", summary.ratings[3], VitaColors.accentLight)
                 }
+                .accessibilityElement(children: .combine)
             }
             .padding(VitaTokens.Spacing.lg)
         }
@@ -381,6 +386,7 @@ struct DeckHomeScreen: View {
             .clipShape(Capsule())
         }
         .frame(height: 8)
+        .accessibilityHidden(true)   // a legenda abaixo já fala os números
     }
 
     private func ratingLegend(_ label: String, _ value: Int, _ tint: Color) -> some View {
@@ -435,9 +441,12 @@ struct DeckHomeScreen: View {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone da app bar (área de toque)
                 .foregroundStyle(prominent ? VitaColors.surface : VitaColors.accent)
-                .frame(width: 36, height: 36)
+                .frame(width: 38, height: 38)
                 .background(Circle().fill(prominent ? VitaColors.accent : VitaColors.glassBg))
                 .overlay(Circle().stroke(prominent ? Color.clear : VitaColors.glassBorder, lineWidth: 0.75))
+                // Alvo de toque de 44pt (HIG) sem inchar o círculo visível.
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }
@@ -478,6 +487,8 @@ private struct DeckGaugeView: View {
     /// Progresso da animação de entrada (0→1): o arco preenche e o número sobe
     /// junto. Uma curva só governa os dois — eles chegam no fim no mesmo instante.
     @State private var animation: Double = 0
+    /// Reduce Motion ligado = sem contagem, sem varredura do arco: valor final direto.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var fraction: Double {
         guard total > 0 else { return 0 }
@@ -491,6 +502,12 @@ private struct DeckGaugeView: View {
 
     /// Ângulo da ponta do arco — onde mora o brilho especular que "corre" junto.
     private var tipAngle: Angle { .degrees(180 + 180 * drawn) }
+
+    private func play(duration: Double) {
+        guard !reduceMotion else { animation = 1; return }
+        // Desacelera no fim (o número "assenta" no lugar em vez de estancar).
+        withAnimation(.easeOut(duration: duration)) { animation = 1 }
+    }
 
     var body: some View {
         ZStack {
@@ -567,13 +584,15 @@ private struct DeckGaugeView: View {
         }
         .frame(height: 150)
         .padding(.top, VitaTokens.Spacing.sm)
-        .onAppear {
-            // Desacelera no fim (o número "assenta" no lugar em vez de estancar).
-            withAnimation(.easeOut(duration: 1.1)) { animation = 1 }
-        }
+        // VoiceOver lê o medidor como UMA frase; sem isto ele solta o número
+        // cru sem dizer do que se trata.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(caption)
+        .accessibilityValue("\(value) de \(total) cartões")
+        .onAppear { play(duration: 1.1) }
         .onChange(of: value) { _, _ in
-            animation = 0
-            withAnimation(.easeOut(duration: 0.9)) { animation = 1 }
+            if !reduceMotion { animation = 0 }
+            play(duration: 0.9)
         }
     }
 }
@@ -586,6 +605,7 @@ struct CountUpText: View {
     var duration: Double = 1.0
 
     @State private var shown: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Text("\(Int(shown.rounded()))")
@@ -593,10 +613,14 @@ struct CountUpText: View {
             .monospacedDigit()
             .contentTransition(.numericText())
             .onAppear { animate() }
-            .onChange(of: value) { _, _ in shown = 0; animate() }
+            .onChange(of: value) { _, _ in
+                if !reduceMotion { shown = 0 }
+                animate()
+            }
     }
 
     private func animate() {
+        guard !reduceMotion else { shown = Double(value); return }
         withAnimation(.easeOut(duration: duration)) { shown = Double(value) }
     }
 }
