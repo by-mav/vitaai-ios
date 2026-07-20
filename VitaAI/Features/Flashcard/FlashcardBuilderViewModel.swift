@@ -116,6 +116,18 @@ final class FlashcardBuilderViewModel {
     ///
     /// Retorna um marcador de sessão pra navegar; nil quando não há card.
     func openDiscipline(slug: String, title: String, due: Int) async -> String? {
+        await Self.openDiscipline(slug: slug, title: title, due: due, api: api)
+    }
+
+    /// Mesma abertura, sem depender de uma instância do view model — a tela
+    /// central do baralho (DeckHomeScreen via AppRouter) monta a fila da
+    /// Biblioteca por aqui. UM caminho só; nada de fila duplicada.
+    static func openDiscipline(
+        slug: String,
+        title: String,
+        due: Int,
+        api: VitaAPI
+    ) async -> String? {
         // 1) Bundle primeiro — offline, instantâneo, nunca falha por rede.
         let bundleCards = await VitaContentBundle.shared.cards(disciplineSlug: slug)
         if !bundleCards.isEmpty {
@@ -240,13 +252,44 @@ final class FlashcardBuilderViewModel {
     }
 
     private func loadLibrary() async {
+        // OFFLINE PRIMEIRO: o que já está BAIXADO no aparelho aparece na hora,
+        // sem rede. Sem isto, o aluno em modo avião via só o skeleton — tinha o
+        // baralho no device e não conseguia chegar nele (Rafael 2026-07-19).
+        let downloaded = await DeckPackStore.shared.allManifests()
+        if !downloaded.isEmpty {
+            state.library = Self.offlineLibrary(downloaded)
+            state.libraryFailed = false
+        }
+
         do {
             state.library = try await api.getFlashcardLibrary()
             state.libraryFailed = false
         } catch {
-            state.libraryFailed = true
+            // Sem rede: fica o que está no aparelho (se houver).
+            state.libraryFailed = downloaded.isEmpty
             NSLog("[FlashcardBuilder] loadLibrary error: %@", String(describing: error))
         }
+    }
+
+    /// Árvore montada com o que existe NO APARELHO — a Biblioteca offline.
+    private static func offlineLibrary(
+        _ manifests: [DeckPackStore.Manifest]
+    ) -> FlashcardLibraryResponse {
+        var area = FlashcardLibraryArea()
+        area.slug = "baixados"
+        area.name = "No aparelho"
+        area.total = manifests.reduce(0) { $0 + $1.cardCount }
+        area.disciplines = manifests.map { m in
+            var d = FlashcardLibraryDiscipline()
+            d.slug = m.slug
+            d.name = m.title
+            d.total = m.cardCount
+            return d
+        }
+        var lib = FlashcardLibraryResponse()
+        lib.areas = [area]
+        lib.totalCards = area.total
+        return lib
     }
 
     private func loadDecks() async {

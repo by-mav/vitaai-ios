@@ -394,7 +394,7 @@ struct HomeScreen: View {
                     let leading = spot.side == .leading
                     let houseX = geo.size.width * (leading ? 0.20 : 0.80)
                     // Placa no MEIO do caminho entre a casa e a rua (centro=0.5).
-                    let signX = geo.size.width * (leading ? 0.37 : 0.63)
+                    let signX = geo.size.width * (leading ? 0.44 : 0.56)   // afastada da casa (Rafael 2026-07-19: separar o clique casa vs missoes)
                     let houseY = Self.trailTopInset + (spot.row * Self.rowStride) - 60
 
                     // Placa entre casa e rua. Button (não onTapGesture) — hit-
@@ -415,16 +415,7 @@ struct HomeScreen: View {
                     .transaction { $0.animation = nil }
                     .position(x: signX, y: houseY + 40)
 
-                    // Vita na frente da casa, junto à porta (base da casa)
-                    Button { openIfCurrent(isCurrent) } label: {
-                        signNPC(active: isCurrent)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .allowsHitTesting(isCurrent)
-                    .accessibilityIdentifier("trail_mission_npc")
-                    .transaction { $0.animation = nil }
-                    .position(x: houseX, y: houseY + 58)
+
                 }
             }
         }
@@ -435,20 +426,6 @@ struct HomeScreen: View {
         guard isCurrent else { return }
         HapticManager.shared.fire(.medium)
         showMissions = true
-    }
-
-    /// O Vita NPC que atende a placa. Na fase atual fica desperto e iluminado;
-    /// nas outras, dorme (cenário).
-    private func signNPC(active: Bool) -> some View {
-        VitaMascotEquipped(
-            state: active ? .awake : .sleeping,
-            size: 42,
-            bounceEnabled: false,
-            idleEnabled: active
-        )
-        .frame(width: 42, height: 42)
-        .opacity(active ? 1 : 0.42)
-        .shadow(color: TrailWorld.fireflyGold.opacity(active ? 0.5 : 0), radius: 10)
     }
 
     private var worldLandmarks: some View {
@@ -591,6 +568,9 @@ struct HomeScreen: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .overlay(alignment: .top) {
+            trailTopPills
         }
         .overlay(alignment: .top) {
             if showTrailCelebration, let trailCelebration {
@@ -1080,6 +1060,40 @@ struct HomeScreen: View {
             }
         }
         .frame(width: size + 22, height: size + 24)
+    }
+
+    // Streak + moedas SEMPRE visíveis no topo (Rafael 2026-07-19, padrão Duolingo).
+    // Toque em qualquer uma abre a loja da fase ATUAL (currentStage.tierIdx).
+    private var trailTopPills: some View {
+        let tier = max(0, min(4, currentStage.tierIdx))
+        return HStack(spacing: 8) {
+            Button { router.navigate(to: .progresso) } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 14, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                        .foregroundStyle(.orange)
+                    Text("\(dash.streakDays)")
+                        .font(.system(size: 15, weight: .bold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Capsule().fill(Color.black.opacity(0.4)))
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            Button { router.navigate(to: .skinAppearance(shopTier: tier)) } label: {
+                HStack(spacing: 5) {
+                    CoinIcon(size: 15)
+                    Text("\(skins.balance)")
+                        .font(.system(size: 15, weight: .bold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Capsule().fill(Color.black.opacity(0.4)))
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.top, 12)
+        .opacity(isTrailHydrated ? 1 : 0)
     }
 
     private var mascot: some View {
@@ -2366,11 +2380,10 @@ struct SkinAppearanceScreen: View {
     // MARK: - Derivados do store
 
     private var itemsForSlot: [SkinStoreItem] {
-        let all = store.items(slot: slot.api)
-        // ACUMULADO: a loja da fase mostra tudo desbloqueado ATÉ o teto do tier (não
-        // só a fatia) — assim Acadêmico/Residente/Lenda não ficam vazias. Rafael 2026-07-14.
-        guard let range = shopTierInfo?.range else { return all }
-        return all.filter { $0.unlockLevel <= range.upperBound }
+        // CATÁLOGO COMPLETO em toda loja (Rafael 2026-07-19, substitui o acumulado de
+        // 2026-07-14): itens de fase acima do teto aparecem TRAVADOS via isLocked —
+        // dá pra ver o que espera, sem selecionar/pré-visualizar/comprar.
+        store.items(slot: slot.api)
     }
 
     /// Cadeado do item. Em PROD usa a verdade do backend (`it.locked`, calculado com
@@ -2378,6 +2391,8 @@ struct SkinAppearanceScreen: View {
     /// simulado pra a loja bater com o mapa/badge — prod fica INTOCADO. Rafael 2026-07-14.
     private func isLocked(_ it: SkinStoreItem) -> Bool {
         if it.owned { return false }
+        // Fase acima do teto DESTA loja: visível mas travado (Rafael 2026-07-19).
+        if let range = shopTierInfo?.range, it.unlockLevel > range.upperBound { return true }
         if let lv = VitaDebug.forcedLevel { return lv < it.unlockLevel }
         return it.locked
     }
@@ -2450,11 +2465,14 @@ struct SkinAppearanceScreen: View {
                     // mapa (abertos com chave). Rafael 2026-07-14.
                     tabsBar
                     HStack(alignment: .top, spacing: 12) {
-                        leftPane
+                        // layoutPriority + maxWidth: o leftPane NUNCA estoura o espaco
+                        // (o estouro centralizava a tela toda e colava a ficha na borda,
+                        // medido em runtime: ficha a 3.5pt em vez de 24. Rafael 2026-07-19)
+                        leftPane.frame(maxWidth: .infinity).layoutPriority(-1)
                         rightList.frame(width: 88)
                     }
-                    .padding(.leading, 16)
-                    .padding(.trailing, 26)   // puxa os cards da direita pra dentro (não vazam)
+                    .padding(.leading, 24)
+                    .padding(.trailing, 24)   // regua canon do app (VitaTopBar = 24)
                     .padding(.top, 6)
                     // Limpa a TabBar (overlay ~92pt): ficha (descricao) e os cards
                     // de baixo nao ficam mais escondidos atras da barra. Rafael 2026-07-13.
@@ -2581,7 +2599,7 @@ struct SkinAppearanceScreen: View {
             .padding(.horizontal, 12).padding(.vertical, 8)
             .background(Capsule().fill(Color.black.opacity(0.4)))
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 24)   // 24 = regua do VitaTopBar (canon de header do app)
         .padding(.top, 10)
     }
 
@@ -2624,7 +2642,7 @@ struct SkinAppearanceScreen: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 24)   // regua canon do app (VitaTopBar = 24)
         .padding(.top, 16)
     }
 
@@ -2641,6 +2659,11 @@ struct SkinAppearanceScreen: View {
                     .stroke(gold.opacity(0.85), lineWidth: 3)
                     .frame(width: 128, height: 38).blur(radius: 0.6).offset(y: 86)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                 OrbMascot(palette: previewPalette, size: 148, accessories: previewAccessories, animated: false, bounceEnabled: false, bob: false)
+                    // CLAMP do footprint (Rafael 2026-07-19): acessorio largo (coroa) desenha
+                    // alem dos 148 e EMPURRAVA a largura do leftPane pra fora da tela —
+                    // era isso que cortava o C do "Coroa" na borda. Layout fixo; o desenho
+                    // continua livre por cima (SwiftUI nao clipa por padrao).
+                    .frame(width: 148, height: 148)
             }
             .frame(maxWidth: .infinity)
             Spacer(minLength: 12)
@@ -2677,7 +2700,8 @@ struct SkinAppearanceScreen: View {
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, 16)         // margem de segurança: nome/raridade nunca colam na borda esquerda
+        // margem vem do corpo (24, canon). O clamp do orb-hero matou o vazamento que
+        // exigia a antiga "margem de seguranca" — ficha alinhada na regua unica.
         .padding(.bottom, 10)
     }
 
@@ -2687,6 +2711,7 @@ struct SkinAppearanceScreen: View {
             Button { removeSlot() } label: {
                 Text("Remover")
                     .font(.system(size: 15, weight: .semibold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
+                    .lineLimit(1).minimumScaleFactor(0.75)
                     .frame(maxWidth: .infinity).padding(.vertical, 11)
                     .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.08)))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
             }
@@ -2773,7 +2798,9 @@ struct SkinAppearanceScreen: View {
                 .overlay(RoundedRectangle(cornerRadius: 18)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
                     .stroke(isSel ? gold : Color.white.opacity(0.12), lineWidth: isSel ? 2 : 1))
             VStack(spacing: 4) {
-                orb.frame(width: 50, height: 50).drawingGroup().opacity(showLock ? 0.4 : 1)
+                // Sem drawingGroup (rasterizava num quadrado 50pt e GUILHOTINAVA chapeu+glow —
+                // o "quadrado mal cropado", Rafael 2026-07-19) + frame com respiro pro acessorio.
+                orb.frame(width: 62, height: 62).opacity(showLock ? 0.4 : 1).padding(.top, 6)
                 if showLock {
                     Text("Nível \(item.unlockLevel)")
                         .font(.system(size: 10, weight: .semibold)).foregroundColor(gold.opacity(0.85))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature

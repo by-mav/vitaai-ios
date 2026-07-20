@@ -382,7 +382,15 @@ private struct FlashcardImageSegment: View {
             let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             return UIImage(contentsOfFile: docs.appendingPathComponent(rel).path)
         }
-        guard !url.hasPrefix("http"), let base = Bundle.main.resourceURL else { return nil }
+        guard !url.hasPrefix("http") else { return nil }
+        // Pack BAIXADO primeiro (download por baralho): a mídia mora em
+        // Documents/flashcards/decks/<slug>/media/<nome achatado>. O pack achata
+        // o caminho ("medicina/x.jpg" → "x.jpg"), então casa pelo nome do arquivo.
+        if let fileName = url.split(separator: "/").last.map(String.init),
+           let packed = DeckMediaResolver.image(named: fileName) {
+            return packed
+        }
+        guard let base = Bundle.main.resourceURL else { return nil }
         let path = base.appendingPathComponent("FlashcardMedia").appendingPathComponent(url).path
         return UIImage(contentsOfFile: path)
     }

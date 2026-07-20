@@ -332,7 +332,7 @@ struct PdfViewerScreen: View {
         // vita-modals-ignore: ShareSheet (UIActivityViewController) é UIKit wrapper, não SwiftUI content — VitaSheet quebra a apresentação nativa do share dialog
         .sheet(isPresented: $showExportSheet) {
             if let exportedURL {
-                ShareSheet(items: [exportedURL])
+                VitaShareSheet(items: [exportedURL])
                     .presentationDetents([.medium, .large])
             }
         }
@@ -2934,16 +2934,6 @@ private struct PdfSearchBar: View {
             alignment: .bottom
         )
     }
-}
-
-// MARK: - Share Sheet
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - UIView helper

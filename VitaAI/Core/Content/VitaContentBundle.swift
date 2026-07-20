@@ -1,25 +1,19 @@
 import Foundation
 
-/// Conteúdo curado da Vita EMBUTIDO no app (bundle read-only) — offline total.
+/// Conteúdo curado da Vita — os cards que o aluno BAIXOU no device.
 ///
-/// Os cards da Biblioteca Vita (curados, iguais pra todo aluno) vêm no
-/// `vita-flashcards-library.json` dentro da apk. Estudá-los NUNCA deve precisar
-/// de rede — igual o Anki lê o `collection.anki2` local (Rafael 2026-07-17).
+/// 🚨 Nada de conteúdo vai embarcado na apk (Rafael 2026-07-19, spec
+/// `flashcards-offline-download-por-baralho.md`): o aluno TOCA em baixar, o
+/// pack `.apkg` do baralho vem do servidor e fica salvo — a partir daí estuda
+/// offline pra sempre, até remover. Antes o app carregava 71 MB
+/// (`FlashcardMedia/` + `vita-flashcards-library.json`) que TODO aluno baixava
+/// na App Store mesmo sem abrir flashcards.
 ///
-/// Isto é só a Biblioteca (conteúdo #1, congelado por versão do app). O que o
-/// aluno cria (#2 escrito à mão, #3 gerado pela IA) vai pro banco local
-/// read-write dele, não aqui.
-///
-/// As imagens dos cards já estão no bundle (`FlashcardMedia/`, 69 MB) e o
-/// `FlashcardContentView` já as resolve — então texto + imagem ficam offline.
+/// Esta camada é a leitura: o `DeckPackStore` guarda os packs; aqui eles viram
+/// os cards que as telas consomem. O que o aluno cria (escrito à mão ou gerado
+/// pela IA) vive no banco dele, não aqui.
 actor VitaContentBundle {
     static let shared = VitaContentBundle()
-
-    private struct Payload: Decodable {
-        let version: Int
-        let totalCards: Int
-        let cards: [BundleCard]
-    }
 
     struct BundleCard: Decodable {
         let id: String
@@ -29,54 +23,39 @@ actor VitaContentBundle {
         let deckTitle: String
     }
 
-    /// Índice disciplina → cards, montado uma vez (lazy). ~5.900 cards / ~2 MB —
-    /// cabe em memória tranquilo (é o JSON pequeno; as 154k questões usam SQLite).
-    private var byDiscipline: [String: [BundleCard]]?
+    /// Os cards curados de uma disciplina BAIXADA — sem rede, sem bundle.
+    /// Vazio = o aluno ainda não baixou esse baralho (a tela oferece baixar).
+    func cards(disciplineSlug: String) async -> [BundleCard] {
+        let packed = await DeckPackStore.shared.cards(slug: disciplineSlug)
+        guard !packed.isEmpty else { return [] }
+        let title = await DeckPackStore.shared.manifest(slug: disciplineSlug)?.title
+            ?? disciplineSlug
+        return packed.map {
+            BundleCard(
+                id: $0.id,
+                front: $0.front,
+                back: $0.back,
+                disciplineSlug: disciplineSlug,
+                deckTitle: title
+            )
+        }
+    }
 
-    private func index() -> [String: [BundleCard]] {
-        if let byDiscipline { return byDiscipline }
-        var map: [String: [BundleCard]] = [:]
-        guard
-            let url = Bundle.main.url(forResource: "vita-flashcards-library", withExtension: "json"),
-            let data = try? Data(contentsOf: url),
-            let payload = try? JSONDecoder().decode(Payload.self, from: data)
-        else {
-            NSLog("[VitaContentBundle] vita-flashcards-library.json ausente ou inválido no bundle")
-            byDiscipline = [:]
-            return [:]
+    /// Contagem por disciplina baixada (tela monta a árvore offline).
+    func countsByDiscipline() async -> [String: Int] {
+        var map: [String: Int] = [:]
+        for m in await DeckPackStore.shared.allManifests() {
+            map[m.slug] = m.cardCount
         }
-        for card in payload.cards {
-            map[card.disciplineSlug, default: []].append(card)
-        }
-        byDiscipline = map
-        NSLog("[VitaContentBundle] %d cards curados em %d disciplinas (offline)", payload.cards.count, map.count)
         return map
     }
 
-    /// Os cards curados de uma disciplina, do bundle — sem rede.
-    func cards(disciplineSlug: String) -> [BundleCard] {
-        index()[disciplineSlug] ?? []
+    /// Total de cards curados NO DEVICE (Estatísticas conta o que existe aqui).
+    func totalCards() async -> Int {
+        await DeckPackStore.shared.allManifests().reduce(0) { $0 + $1.cardCount }
     }
 
-    /// Contagem por disciplina, pra tela montar a árvore sem chamar o servidor.
-    func countsByDiscipline() -> [String: Int] {
-        index().mapValues(\.count)
-    }
-
-    /// Total de cards curados no bundle (todas as disciplinas). Pra a tela de
-    /// Estatísticas contar a Biblioteca offline, que o servidor não conhece.
-    func totalCards() -> Int {
-        index().values.reduce(0) { $0 + $1.count }
-    }
-
-    /// Todos os ids curados (todas as disciplinas) — pra cruzar com o FSRS local
-    /// e classificar "novos" (nunca estudados) na tela de Estatísticas.
-    func allCardIds() -> [String] {
-        index().values.flatMap { $0.map(\.id) }
-    }
-
-    /// Disciplina da Biblioteca (slug + título humano). Usado pelo sheet
-    /// "Mover para outro baralho" do navegador de cards.
+    /// Disciplina curada baixada (slug + título humano) — picker de mover.
     struct Discipline: Identifiable, Equatable {
         let slug: String
         let title: String
@@ -84,17 +63,14 @@ actor VitaContentBundle {
         var id: String { slug }
     }
 
-    /// Todas as disciplinas curadas, ordenadas por título — pra o picker de mover.
-    func disciplines() -> [Discipline] {
-        index().compactMap { slug, cards -> Discipline? in
-            guard let first = cards.first else { return nil }
-            return Discipline(slug: slug, title: first.deckTitle, count: cards.count)
-        }
-        .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    func disciplines() async -> [Discipline] {
+        await DeckPackStore.shared.allManifests()
+            .map { Discipline(slug: $0.slug, title: $0.title, count: $0.cardCount) }
+            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
 
-    /// Existe conteúdo curado embutido? (falso só se o JSON sumiu do bundle.)
-    func isAvailable() -> Bool {
-        !index().isEmpty
+    /// O aluno já baixou algum baralho curado?
+    func isAvailable() async -> Bool {
+        !(await DeckPackStore.shared.allManifests().isEmpty)
     }
 }

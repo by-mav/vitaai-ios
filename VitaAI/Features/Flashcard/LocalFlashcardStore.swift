@@ -42,6 +42,12 @@ actor LocalFlashcardStore {
         var status: FsrsCardStatus   // já é Int + Codable no FsrsScheduler
         var lastReview: Date?
         var due: Date?
+        /// Quantas vezes o aluno apertou cada botão NESTE card (índice = rating
+        /// FSRS 1..4 = Novamente/Difícil/Bom/Fácil). O `reps`/`lapses` sozinhos
+        /// não dizem isso, e a tela do baralho mostra a distribuição — sem estes
+        /// contadores aquele bloco seria chute. Opcional: entrada antiga (que não
+        /// tem o campo) decodifica e começa zerada.
+        var ratingCounts: [Int]?
 
         /// Reconstrói o estado FSRS completo (reps/lapses inclusive) pro scheduler.
         var fsrs: FsrsCardState {
@@ -63,7 +69,7 @@ actor LocalFlashcardStore {
             return due <= date
         }
 
-        init(state s: FsrsCardState, due: Date?) {
+        init(state s: FsrsCardState, due: Date?, ratingCounts: [Int]? = nil) {
             self.stability     = s.stability
             self.difficulty    = s.difficulty
             self.elapsedDays   = s.elapsedDays
@@ -73,6 +79,16 @@ actor LocalFlashcardStore {
             self.status        = s.status
             self.lastReview    = s.lastReviewDate
             self.due           = due
+            self.ratingCounts  = ratingCounts
+        }
+
+        /// Soma o rating recém-dado aos contadores (1..4).
+        func counting(rating: Int) -> [Int] {
+            var counts = ratingCounts ?? [0, 0, 0, 0]
+            if counts.count < 4 { counts += Array(repeating: 0, count: 4 - counts.count) }
+            let idx = min(max(rating, 1), 4) - 1
+            counts[idx] += 1
+            return counts
         }
     }
 
@@ -224,11 +240,56 @@ actor LocalFlashcardStore {
     /// Persiste o novo estado FSRS de um card. `due` é materializado a partir de
     /// lastReview + scheduledDays (mesma conta do Anki). Escrita atômica imediata
     /// — durável a fechar/matar o app.
-    func save(id: String, state: FsrsCardState) {
+    /// `rating` (1..4) acumula a distribuição de respostas do card — é o que a
+    /// tela do baralho mostra em Novamente/Difícil/Bom/Fácil.
+    func save(id: String, state: FsrsCardState, rating: Int? = nil) {
         ensureLoaded()
         let due = Self.dueDate(for: state)
-        entries[id] = Entry(state: state, due: due)
+        var counts = entries[id]?.ratingCounts
+        if let rating {
+            var next = counts ?? [0, 0, 0, 0]
+            if next.count < 4 { next += Array(repeating: 0, count: 4 - next.count) }
+            next[min(max(rating, 1), 4) - 1] += 1
+            counts = next
+        }
+        entries[id] = Entry(state: state, due: due, ratingCounts: counts)
         persist()
+    }
+
+    /// Resumo POR BARALHO (ids do deck) pra tela central: quantos novos, quantos
+    /// pra revisar hoje, quantos já estudados e a distribuição de respostas.
+    struct DeckSummary: Sendable, Equatable {
+        var total = 0
+        var studied = 0
+        var due = 0
+        var newCards = 0
+        /// [Novamente, Difícil, Bom, Fácil]
+        var ratings = [0, 0, 0, 0]
+
+        /// Nota = acertos "de primeira" sobre o total de respostas (Bom+Fácil).
+        var scorePercent: Int {
+            let total = ratings.reduce(0, +)
+            guard total > 0 else { return 0 }
+            return Int((Double(ratings[2] + ratings[3]) / Double(total) * 100).rounded())
+        }
+    }
+
+    func deckSummary(cardIds: [String], now: Date = Date()) -> DeckSummary {
+        ensureLoaded()
+        var s = DeckSummary()
+        s.total = cardIds.count
+        for id in cardIds {
+            guard let e = entries[id], e.reps > 0 else {
+                s.newCards += 1
+                continue
+            }
+            s.studied += 1
+            if e.isDue(at: now) { s.due += 1 }
+            if let counts = e.ratingCounts {
+                for (i, c) in counts.prefix(4).enumerated() { s.ratings[i] += c }
+            }
+        }
+        return s
     }
 
     /// Data em que o card volta a vencer. Cards em learning/relearning têm

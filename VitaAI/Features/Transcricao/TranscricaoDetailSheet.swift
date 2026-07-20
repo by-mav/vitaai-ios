@@ -288,7 +288,7 @@ struct TranscricaoDetailSheet: View {
                 Text("Compartilhar")
                     .font(VitaTypography.titleSmall)
                     .foregroundStyle(VitaColors.textPrimary)
-                TranscricaoShareSheet(items: shareItems)
+                VitaShareSheet(items: shareItems)
             }
             .frame(width: 280)
         }
@@ -730,18 +730,6 @@ struct TranscricaoDetailSheet: View {
             }
         }
     }
-}
-
-// MARK: - Share Sheet (UIActivityViewController bridge)
-
-private struct TranscricaoShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Real Transcript Section
@@ -1681,7 +1669,7 @@ struct TranscricaoKaraokeTranscriptSection: View {
         .sheet(isPresented: $showExportSheet) {
             // Share sheet pra exportar Markdown — user escolhe destino (Notion,
             // Notes, Files, Mail, etc). UIActivityViewController padrão iOS.
-            TranscricaoShareSheet(items: exportItems)
+            VitaShareSheet(items: exportItems)
         }
     }
 }

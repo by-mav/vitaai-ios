@@ -287,7 +287,12 @@ final class FlashcardViewModel {
         // isto grava LOCAL primeiro, independente de rede.
         let scheduledState = result.card
         let scheduledCardId = card.id
-        Task { await LocalFlashcardStore.shared.save(id: scheduledCardId, state: scheduledState) }
+        let scheduledRating = rating.rawValue
+        Task {
+            await LocalFlashcardStore.shared.save(
+                id: scheduledCardId, state: scheduledState, rating: scheduledRating
+            )
+        }
 
         // Leech detection: auto-suspend cards that exceed the lapse threshold
         if result.card.lapses >= leechThreshold && leechThreshold < 999 {

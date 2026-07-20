@@ -30,6 +30,9 @@ struct FlashcardBuilderScreen: View {
     @State private var showCreateWithVita = false
     @State private var showPasteNotes = false
     @State private var showAnkiImport = false
+    /// Download por baralho (offline): estado por disciplina + confirmação de remover.
+    @State private var downloads = DeckDownloadManager.shared
+    @State private var removingSlug: String?
     @State private var showNotesCamera = false
     @State private var showNotesPhotoLibrary = false
     @State private var notesPhotoItem: PhotosPickerItem?
@@ -51,11 +54,8 @@ struct FlashcardBuilderScreen: View {
     var onExplore: () -> Void = {}
     /// Abre a Transcrição (Gravar aula / Arquivo de áudio do "Criar com o Vita").
     var onOpenTranscricao: () -> Void = {}
-    /// Abre a sessão de uma disciplina da Biblioteca: recebe o id da sessão que o
-    /// servidor montou (a fila já está no `FlashcardMultiDeckHandoff`).
-    let onOpenDisciplineSession: (_ sessionId: String) -> Void
-    /// Toque numa disciplina em andamento — trava a linha e evita sessão dupla.
-    @State private var openingDisciplineSlug: String? = nil
+    /// Abre a TELA CENTRAL de uma disciplina da Biblioteca (slug + nome).
+    var onOpenLibraryDeck: (_ slug: String, _ name: String, _ total: Int) -> Void = { _, _, _ in }
 
     var body: some View {
         Group {
@@ -70,6 +70,7 @@ struct FlashcardBuilderScreen: View {
                 vm = FlashcardBuilderViewModel(api: container.api)
                 vm?.boot()
                 vm?.setInitialSubject(slug: initialSubjectId)
+                Task { await downloads.refreshInstalled() }
                 SentrySDK.reportFullyDisplayed()
             } else {
                 // Voltou da sessao (VM viva): re-busca stats+decks pra "hoje"/
@@ -152,6 +153,20 @@ struct FlashcardBuilderScreen: View {
                 onAnki: { showAnkiImport = true },
                 onPaste: { showPasteNotes = true }
             )
+        }
+        .alert(
+            "Remover do aparelho?",
+            isPresented: Binding(get: { removingSlug != nil }, set: { if !$0 { removingSlug = nil } })
+        ) {
+            Button("Cancelar", role: .cancel) { removingSlug = nil }
+            Button("Remover", role: .destructive) {
+                if let slug = removingSlug {
+                    Task { await downloads.remove(slug: slug) }
+                }
+                removingSlug = nil
+            }
+        } message: {
+            Text("Os cartões saem do aparelho e voltam a precisar de internet. Teu progresso é mantido.")
         }
         .sheet(isPresented: $showAnkiImport) {
             AnkiImportSheet(
@@ -318,34 +333,99 @@ struct FlashcardBuilderScreen: View {
                         .foregroundStyle(disc.due > 0 ? VitaColors.accent : VitaColors.textSecondary)
                 }
                 Spacer()
-                if openingDisciplineSlug == disc.slug {
-                    // Montar a fila é uma ida ao servidor: sem isto o toque não
-                    // dá sinal nenhum e o aluno toca de novo (sessão dupla).
-                    ProgressView().tint(VitaColors.accent)
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))  // ds-allow: chevron da linha
-                        .foregroundStyle(VitaColors.textTertiary)
-                }
+                downloadControl(disc)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))  // ds-allow: chevron da linha
+                    .foregroundStyle(VitaColors.textTertiary)
             }
             .padding(.vertical, VitaTokens.Spacing.sm)
             .padding(.horizontal, VitaTokens.Spacing.xs)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(openingDisciplineSlug != nil)
     }
 
-    /// Pede a fila da disciplina ao servidor e navega pra sessão.
-    private func openDiscipline(_ disc: FlashcardLibraryDiscipline) {
-        guard let vm, openingDisciplineSlug == nil else { return }
-        openingDisciplineSlug = disc.slug
-        Task { @MainActor in
-            defer { openingDisciplineSlug = nil }
-            if let sessionId = await vm.openDiscipline(slug: disc.slug, title: disc.name, due: disc.due) {
-                onOpenDisciplineSession(sessionId)
+    /// Baixar / baixando (%) / baixado — ação deliberada, offline depois
+    /// (spec flashcards-offline-download-por-baralho.md).
+    @ViewBuilder
+    private func downloadControl(_ disc: FlashcardLibraryDiscipline) -> some View {
+        let state = downloads.state(for: disc.slug)
+        switch state {
+        case .downloading(let fraction):
+            Button {
+                downloads.cancel(slug: disc.slug)
+            } label: {
+                ZStack {
+                    Circle()
+                        .stroke(VitaColors.glassBorder, lineWidth: 2)
+                    Circle()
+                        .trim(from: 0, to: max(0.02, fraction))
+                        .stroke(VitaColors.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    Image(systemName: "stop.fill")  // ds-allow: cancelar dentro do anel
+                        .font(.system(size: 9))  // ds-allow: glifo pequeno no anel
+                        .foregroundStyle(VitaColors.accent)
+                }
+                .frame(width: 26, height: 26)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Cancelar download de \(disc.name)")
+
+        case .installing:
+            ProgressView()
+                .tint(VitaColors.accent)
+                .frame(width: 26, height: 26)
+
+        case .failed:
+            Button {
+                downloads.clearError(slug: disc.slug)
+                startDownload(disc)
+            } label: {
+                Image(systemName: "exclamationmark.arrow.triangle.2.circlepath")  // ds-allow: tentar de novo
+                    .font(.system(size: 14, weight: .semibold))  // ds-allow: ícone da linha
+                    .foregroundStyle(VitaColors.dataRed)
+                    .frame(width: 26, height: 26)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Tentar baixar \(disc.name) de novo")
+
+        case .idle:
+            if downloads.isDownloaded(disc.slug) {
+                Button {
+                    removingSlug = disc.slug
+                } label: {
+                    Image(systemName: "checkmark.circle.fill")  // ds-allow: estado baixado
+                        .font(.system(size: 16, weight: .semibold))  // ds-allow: ícone da linha
+                        .foregroundStyle(VitaColors.accent)
+                        .frame(width: 26, height: 26)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(disc.name) baixado. Remover do aparelho")
+                .accessibilityIdentifier("deck_downloaded_\(disc.slug)")
+            } else {
+                Button {
+                    startDownload(disc)
+                } label: {
+                    Image(systemName: "arrow.down.circle")  // ds-allow: baixar
+                        .font(.system(size: 16, weight: .semibold))  // ds-allow: ícone da linha
+                        .foregroundStyle(VitaColors.textTertiary)
+                        .frame(width: 26, height: 26)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Baixar \(disc.name) para estudar offline")
+                .accessibilityIdentifier("deck_download_\(disc.slug)")
             }
         }
+    }
+
+    private func startDownload(_ disc: FlashcardLibraryDiscipline) {
+        downloads.download(slug: disc.slug, title: disc.name, tokenStore: container.tokenStore)
+    }
+
+    /// TODO baralho — inclusive disciplina da Biblioteca — abre na tela CENTRAL
+    /// (performance + opções), nunca direto nos cards (Rafael 2026-07-19).
+    private func openDiscipline(_ disc: FlashcardLibraryDiscipline) {
+        onOpenLibraryDeck(disc.slug, disc.name, disc.total)
     }
 
     private func deckSectionHeader(

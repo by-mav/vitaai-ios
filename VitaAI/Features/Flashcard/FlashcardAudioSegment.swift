@@ -87,6 +87,11 @@ final class AudioClipPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
         }
         if url.hasPrefix("file://") { return URL(string: url) }
         if url.hasPrefix("/") { return URL(fileURLWithPath: url) }
+        // Pack BAIXADO primeiro (mídia achatada por nome de arquivo).
+        if let fileName = url.split(separator: "/").last.map(String.init),
+           let packed = DeckMediaResolver.path(named: fileName) {
+            return URL(fileURLWithPath: packed)
+        }
         guard let base = Bundle.main.resourceURL else { return nil }
         return base.appendingPathComponent("FlashcardMedia").appendingPathComponent(url)
     }

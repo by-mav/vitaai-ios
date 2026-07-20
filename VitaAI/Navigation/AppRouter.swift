@@ -757,12 +757,28 @@ struct MainTabView: View {
             } else {
                 EmptyView()
             }
-        case .flashcardDeck(let deckId, let deckTitle):
+        case .flashcardDeck(let deckId, let deckTitle, let librarySlug, let libraryTotal):
             DeckHomeScreen(
                 deckId: deckId,
                 deckTitle: deckTitle,
+                librarySlug: librarySlug,
+                libraryTotalCards: libraryTotal,
                 onBack: { router.goBack() },
-                onStudy: { id in router.navigate(to: .flashcardSession(deckId: id)) }
+                onStudy: { id in
+                    // Biblioteca: a fila é montada do pack/bundle local (offline)
+                    // e entregue pelo handoff; o deckId vazio sinaliza isso.
+                    if let slug = librarySlug {
+                        Task { @MainActor in
+                            if let sessionId = await FlashcardBuilderViewModel.openDiscipline(
+                                slug: slug, title: deckTitle ?? slug, due: 0, api: container.api
+                            ) {
+                                router.navigate(to: .flashcardSession(deckId: "", sessionId: sessionId))
+                            }
+                        }
+                    } else {
+                        router.navigate(to: .flashcardSession(deckId: id))
+                    }
+                }
             )
         case .flashcardExplore:
             CommunityDecksScreen(
@@ -1012,13 +1028,11 @@ struct MainTabView: View {
                 // "Criar com o Vita": Gravar aula / Arquivo de áudio caem na
                 // Transcrição (o motor que já grava, transcreve e gera cards).
                 onOpenTranscricao: { router.navigate(to: .transcricao) },
-                // A fila já está no FlashcardMultiDeckHandoff; `deckId` vazio é só
-                // rótulo (a sessão de uma disciplina cruza vários baralhos).
-                // Antes isto navegava pra `.flashcardHome` — a PRÓPRIA tela: tocar
-                // numa disciplina reabria Baralhos por cima de Baralhos, e parecia
-                // que "voltava" (Rafael 2026-07-17).
-                onOpenDisciplineSession: { sessionId in
-                    router.navigate(to: .flashcardSession(deckId: "", sessionId: sessionId))
+                // Disciplina da Biblioteca também abre na TELA CENTRAL (nunca
+                // direto nos cards — Rafael 2026-07-19). A fila é montada lá,
+                // pelo mesmo openDiscipline (offline-first, sem duplicar).
+                onOpenLibraryDeck: { slug, name, total in
+                    router.navigate(to: .flashcardDeck(deckId: "lib:\(slug)", deckTitle: name, librarySlug: slug, libraryTotalCards: total))
                 }
             )
         case .disciplineDetail(let disciplineId, let disciplineName):

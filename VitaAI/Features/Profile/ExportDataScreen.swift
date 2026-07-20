@@ -54,7 +54,7 @@ struct ExportDataScreen: View {
         // (Files/Mail/AirDrop) — não pode viver dentro de VitaSheet (é tela de sistema).
         .sheet(isPresented: $showShareSheet) {
             if let url = exportedFileURL {
-                ShareSheet(items: [url])
+                VitaShareSheet(items: [url])
                     .ignoresSafeArea()
             }
         }
@@ -191,16 +191,4 @@ struct ExportDataScreen: View {
             errorMessage = "Não foi possível gerar o arquivo agora. Tente novamente em instantes."
         }
     }
-}
-
-// MARK: - ShareSheet bridge
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

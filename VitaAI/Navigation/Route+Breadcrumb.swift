@@ -27,7 +27,7 @@ extension Route {
 
         // MARK: - Estudos
         case .flashcardHome:       return "Flashcards"
-        case .flashcardDeck(_, let title): return title ?? "Baralho"
+        case .flashcardDeck(_, let title, _, _): return title ?? "Baralho"
         case .flashcardExplore:    return "Explorar decks"
         case .flashcardTopics(_, let title): return title
         case .cardBrowser(_, let title, _, _): return title

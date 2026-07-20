@@ -22,7 +22,9 @@ enum Route: Hashable {
     case mindMapEditor(id: String)
     case flashcardHome(subjectId: String? = nil)
     /// Tela CENTRAL do baralho (Rafael 2026-07-19) — todo deck abre aqui, nunca direto nos cards.
-    case flashcardDeck(deckId: String, deckTitle: String? = nil)
+    /// Tela central do baralho. `librarySlug` = disciplina da Biblioteca (curada)
+    /// — habilita download offline e lê os cards do pack/bundle em vez do servidor.
+    case flashcardDeck(deckId: String, deckTitle: String? = nil, librarySlug: String? = nil, libraryTotalCards: Int = 0)
     /// Explorar decks pré-fabricados/comunidade (gaveta do "+").
     case flashcardExplore
     case flashcardTopics(deckId: String, deckTitle: String)

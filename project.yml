@@ -21,6 +21,10 @@ packages:
   GLTFKit2:
     url: https://github.com/warrenm/GLTFKit2
     from: "0.5.0"
+  # Unzip do pack .apkg (download por baralho offline) — puro Swift, Apache-2.0.
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation
+    from: "0.9.19"
 
 
 settings:
@@ -39,9 +43,12 @@ targets:
       - path: VitaAI
         excludes:
           - "**/*.md"
+          # Conteudo NAO vai embarcado na apk (Rafael 2026-07-19): flashcards e
+          # midia sao BAIXADOS por baralho (spec flashcards-offline-download-por-
+          # baralho.md). Antes eram 71 MB que todo aluno baixava na App Store
+          # mesmo sem abrir flashcards.
           - "Resources/FlashcardMedia"
-      - path: VitaAI/Resources/FlashcardMedia
-        type: folder
+          - "Resources/vita-flashcards-library.json"
     info:
       path: VitaAI/Info.plist
       properties:
@@ -84,6 +91,8 @@ targets:
         product: SentrySwiftUI
       - package: GLTFKit2
         product: GLTFKit2
+      - package: ZIPFoundation
+        product: ZIPFoundation
     settings:
       base:
         PRODUCT_NAME: VitaAI
