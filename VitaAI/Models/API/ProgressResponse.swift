@@ -213,6 +213,8 @@ struct FlashcardEntry: Codable, Identifiable {
     var id: String = ""
     var front: String = ""
     var back: String = ""
+    /// Grupo de lacuna deste card (o N de {{cN::}}). Ausente = card comum.
+    var clozeOrd: Int?
     var nextReviewAt: String?
     var lastReviewAt: String?
     var stability: Double?

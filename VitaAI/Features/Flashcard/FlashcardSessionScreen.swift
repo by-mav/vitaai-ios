@@ -226,6 +226,7 @@ struct FlashcardSessionScreen: View {
                 // Card reescrito (FlashcardStudyCard): GeometryReader na própria raiz
                 // trava a largura → o texto nunca vaza. Rafael 2026-07-17.
                 FlashcardStudyCard(
+                    clozeOrd: card.clozeOrd,
                     front: card.front,
                     back: card.back,
                     isFlipped: vm.isFlipped,

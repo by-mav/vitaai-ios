@@ -403,6 +403,30 @@ private struct FlashcardImageSegment: View {
                 .frame(maxWidth: .infinity, maxHeight: maxImageHeight)
                 .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.sm))
                 .pinchToZoom()
+        } else if !url.hasPrefix("http") {
+            // Mídia EMBUTIDA que ainda não veio: só existe depois de baixar o
+            // baralho. Antes isto virava um AsyncImage com URL relativa
+            // inválida e não desenhava NADA — o card ficava em branco e parecia
+            // card vazio (Rafael 2026-07-20: "0 cards?"). Silêncio é o pior
+            // estado possível: agora o aluno lê o motivo.
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.sm)
+                .fill(VitaColors.glassBg.opacity(0.5))
+                .frame(maxWidth: .infinity)
+                .frame(height: 92)
+                .overlay(
+                    VStack(spacing: 6) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 20))  // ds-allow: ícone do aviso de mídia não baixada
+                            .foregroundStyle(VitaColors.accent.opacity(0.85))
+                        Text("Imagem no download do baralho")
+                            .font(PixioTypo.micro)
+                            .foregroundStyle(VitaColors.textSecondary)
+                    }
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: VitaTokens.Radius.sm)
+                        .stroke(VitaColors.glassBorder, lineWidth: 0.75)
+                )
         } else if let imageURL = URL(string: url) {
             AsyncImage(url: imageURL) { phase in
                 switch phase {

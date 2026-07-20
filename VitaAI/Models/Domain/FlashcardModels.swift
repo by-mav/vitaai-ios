@@ -20,6 +20,12 @@ struct FlashcardCard: Identifiable, Hashable {
     let front: String
     let back: String
 
+    /// Qual grupo de lacuna ESTE card esconde (o N de `{{cN::}}`). nil = card
+    /// comum, ou card antigo ainda não separado. Sem isto o app escondia TODAS
+    /// as lacunas de uma vez e o card ficava impossível de responder — era o
+    /// "Na ____ cursa com ____" (Rafael 2026-07-20).
+    var clozeOrd: Int? = nil
+
     // FSRS-5 spaced repetition state
     var stability: Double = 2.5      // FSRS S (or SM-2 EF for legacy cards)
     var difficulty: Double = 0.0     // FSRS D 1–10 (0 = legacy card, will be migrated)
@@ -99,6 +105,7 @@ extension FlashcardEntry {
             back:  back.isEmpty
                 ? (front.range(of: #"\{\{c\d+::"#, options: .regularExpression) != nil ? "" : "Resposta não disponível")
                 : back,
+            clozeOrd:     clozeOrd,
             stability:    easeFactor,
             difficulty:   0.0,
             state:        repetitions > 0 ? 2 : 0,

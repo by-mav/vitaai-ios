@@ -14,6 +14,8 @@ import SwiftUI
 // Mantém tudo do card antigo: flip 3D, frente/verso, cloze, superfície (gradiente
 // + borda + brilho + sombra), tap pra virar.
 struct FlashcardStudyCard: View {
+    /// Grupo de lacuna deste card. nil = card comum ou ainda não separado.
+    var clozeOrd: Int? = nil
 
     let front: String
     let back: String
@@ -27,10 +29,26 @@ struct FlashcardStudyCard: View {
         front.range(of: #"\{\{c\d+::[^}]+\}\}"#, options: .regularExpression) != nil
     }
 
+    /// Esconde SÓ o grupo deste card e revela os outros — é assim que o Anki
+    /// funciona: nota com c1 e c2 vira dois cards, cada um escondendo um lado.
+    /// Sem `clozeOrd` (card antigo, ainda não separado) esconde todos, que é o
+    /// comportamento velho: ruim, mas não quebra a tela.
     private var displayFront: String {
-        front.replacingOccurrences(
-            of: #"\{\{c\d+::[^}]+\}\}"#, with: "____", options: .regularExpression
+        guard let ord = clozeOrd else {
+            return front.replacingOccurrences(
+                of: #"\{\{c\d+::[^}]+\}\}"#, with: "____", options: .regularExpression
+            )
+        }
+        // 1) o grupo desta carta vira lacuna
+        var r = front.replacingOccurrences(
+            of: #"\{\{c\#(ord)::[^}]+\}\}"#, with: "____", options: .regularExpression
         )
+        // 2) os OUTROS grupos aparecem escritos (é o contexto que faz a pergunta
+        //    ter resposta possível)
+        r = r.replacingOccurrences(
+            of: #"\{\{c\d+::([^}]+)\}\}"#, with: "$1", options: .regularExpression
+        )
+        return r
     }
 
     private var displayBack: String {
