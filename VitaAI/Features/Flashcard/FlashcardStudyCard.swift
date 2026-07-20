@@ -68,7 +68,14 @@ struct FlashcardStudyCard: View {
     /// aluno não sabe qual delas ele deveria ter acertado.
     /// (Rafael 2026-07-20: "tem que mostrar o que tava escondendo ali".)
     private var displayBack: String {
-        guard isCloze else { return back }
+        // Mesmo card "sem lacuna" pode ter lacuna guardada no verso: existe nota
+        // cujo campo com {{cN::}} caiu no back e a imagem no front. Sem resolver
+        // aqui, o "{{c1::Velpeau::nome}}" ia cru pra tela.
+        guard isCloze else {
+            return back.replacingOccurrences(
+                of: Self.clozeResposta, with: "$1", options: .regularExpression
+            )
+        }
         var revealed = front
         if let ord = clozeOrd {
             revealed = revealed.replacingOccurrences(
@@ -79,7 +86,10 @@ struct FlashcardStudyCard: View {
         revealed = revealed.replacingOccurrences(
             of: Self.clozeResposta, with: "$1", options: .regularExpression
         )
-        let complement = back.trimmingCharacters(in: .whitespacesAndNewlines)
+        // O "extra" do Anki também pode conter lacuna — resolve antes de exibir.
+        let complement = back
+            .replacingOccurrences(of: Self.clozeResposta, with: "$1", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         return complement.isEmpty ? revealed : "\(revealed)\n\n\(complement)"
     }
 
