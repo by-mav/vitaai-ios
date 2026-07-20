@@ -114,6 +114,7 @@
 		2EB9BC4DA508140BDB0F8D49 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E1AF08937C97A79EB9351D1 /* SectionHeader.swift */; };
 		2EBA6BD1D6E6506B391676F9 /* MindMapEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74E43BE1839E1855652DF329 /* MindMapEditorView.swift */; };
 		2ED752FCAC57E01E5CBCA494 /* QBankBuilderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71AA7FA079A0F707F475518E /* QBankBuilderScreen.swift */; };
+		3A7BBB00859BB16AD567DFAE /* QBankStartSessionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F59BE0D8DAE75743F11A4A6 /* QBankStartSessionSheet.swift */; };
 		2F780D695604E4AA6A4D3437 /* CanvasModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F46FC65E46432288132289 /* CanvasModels.swift */; };
 		305CEED5D49052D0DCC78E5F /* HeatmapCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E970AF5E86340355DF449F9 /* HeatmapCalendarView.swift */; };
 		312F2EEAFACF6CF0C65FEA23 /* RevalidaStageStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18A94DC11F7C944C50643CD9 /* RevalidaStageStep.swift */; };
@@ -702,6 +703,7 @@
 		709C4F8D8EC0B0BE357490A1 /* ImmersivePreferenceKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImmersivePreferenceKey.swift; sourceTree = "<group>"; };
 		71A803CD05ACDB97E5A85BD7 /* VitaAIUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = VitaAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		71AA7FA079A0F707F475518E /* QBankBuilderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankBuilderScreen.swift; sourceTree = "<group>"; };
+		9F59BE0D8DAE75743F11A4A6 /* QBankStartSessionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QBankStartSessionSheet.swift; sourceTree = "<group>"; };
 		72CE7EA9BA0EA4B90790643F /* VoiceModeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceModeScreen.swift; sourceTree = "<group>"; };
 		72F6501BF097D2C6E365B2C2 /* MindMapEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapEditorViewModel.swift; sourceTree = "<group>"; };
 		7418A42151FCD355836ADB78 /* WeekAgendaSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekAgendaSection.swift; sourceTree = "<group>"; };
@@ -1201,6 +1203,7 @@
 			isa = PBXGroup;
 			children = (
 				71AA7FA079A0F707F475518E /* QBankBuilderScreen.swift */,
+				9F59BE0D8DAE75743F11A4A6 /* QBankStartSessionSheet.swift */,
 				F4803A4E33C3222E0C7EE622 /* QBankBuilderViewModel.swift */,
 				564E8E7192471F3F1E0AD40A /* QBankCoordinatorScreen.swift */,
 				409712121A5E2B5A4828C9B8 /* QBankDisciplineContent.swift */,
@@ -2449,6 +2452,7 @@
 				BD1EF077C70636A3CDE40A78 /* ProgressoViewModel.swift in Sources */,
 				94CC00D0CF7ED87DB67D15BB /* PushManager.swift in Sources */,
 				2ED752FCAC57E01E5CBCA494 /* QBankBuilderScreen.swift in Sources */,
+				3A7BBB00859BB16AD567DFAE /* QBankStartSessionSheet.swift in Sources */,
 				6BDD21E613CE3D319DE0C18B /* QBankBuilderViewModel.swift in Sources */,
 				1AFFBC16681CED1E25E2EAAB /* QBankCoordinatorScreen.swift in Sources */,
 				10D829548AC55E50CF4CF67A /* QBankDisciplineContent.swift in Sources */,
