@@ -57,6 +57,6 @@ tags:
     text: "Início"
     optional: true
 - tapOn:
-    text: "Home"
+    text: "Jornada"
     optional: true
 - waitForAnimationToEnd

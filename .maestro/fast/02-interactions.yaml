@@ -109,7 +109,7 @@ tags:
     text: "Progresso"
     optional: true
 - tapOn:
-    text: "Home"
+    text: "Jornada"
     optional: true
 - tapOn:
     text: "Início"

@@ -1800,15 +1800,15 @@ struct HomeScreen: View {
     // 5 SEÇÕES (20 níveis cada) com cores distintas. Cada seção começa num gate
     // múltiplo de 20; dentro dela, os nós avançam em blocos de 5 níveis.
     private static let tiers: [Tier] = [
-        Tier(idx: 0, name: "Vestibulando", minLevel: 0, maxLevel: 20,
+        Tier(idx: 0, name: "Calouro", minLevel: 0, maxLevel: 20,
              bright: TrailWorld.tier0Bright, mid: TrailWorld.tier0Mid, dark: TrailWorld.tier0Dark),
         Tier(idx: 1, name: "Acadêmico", minLevel: 20, maxLevel: 40,
              bright: TrailWorld.tier1Bright, mid: TrailWorld.tier1Mid, dark: TrailWorld.tier1Dark),
-        Tier(idx: 2, name: "Clínico", minLevel: 40, maxLevel: 60,
+        Tier(idx: 2, name: "Interno", minLevel: 40, maxLevel: 60,
              bright: TrailWorld.tier2Bright, mid: TrailWorld.tier2Mid, dark: TrailWorld.tier2Dark),
-        Tier(idx: 3, name: "Internato", minLevel: 60, maxLevel: 80,
+        Tier(idx: 3, name: "Residente", minLevel: 60, maxLevel: 80,
              bright: TrailWorld.tier3Bright, mid: TrailWorld.tier3Mid, dark: TrailWorld.tier3Dark),
-        Tier(idx: 4, name: "Lenda", minLevel: 80, maxLevel: 100,
+        Tier(idx: 4, name: "Médico", minLevel: 80, maxLevel: 100,
              bright: TrailWorld.tier4Bright, mid: TrailWorld.tier4Mid, dark: TrailWorld.tier4Dark),
     ]
 
@@ -1839,7 +1839,7 @@ struct HomeScreen: View {
         // 1 casa por SEÇÃO, no MEIO dela (linha k*4+2) — longe do banner (em k*4)
         // e do próximo (k*4+4). Antes: 8 casas, 2 na seção 1 e algumas ATRÁS do
         // banner (Rafael 2026-07-05). Temática por fase da carreira.
-        // shopTier 0-4 = a loja da fase (Calouro/Acadêmico/Residente/Especialista/Lenda).
+        // shopTier 0-4 = a loja da fase (Calouro/Acadêmico/Interno/Residente/Médico).
         Landmark(id: "sec1-school",     kind: .school,        side: .leading,  row: 2,  scale: 1.02, opacity: 0.95, shopTier: 0),
         Landmark(id: "sec2-university", kind: .university,    side: .trailing, row: 6,  scale: 1.02, opacity: 0.93, shopTier: 1),
         Landmark(id: "sec3-healthpost", kind: .healthPost,    side: .leading,  row: 10, scale: 1.00, opacity: 0.92, shopTier: 2),
@@ -2303,14 +2303,14 @@ struct SkinAppearanceScreen: View {
         .init(name: "Acadêmico", range: 21...40, asset: "loja-faculdade",
               greeting: "Subiu de nível, hein? Chegou coisa nova na faculdade.",
               attendant: [.labCoat]),
-        .init(name: "Residente", range: 41...60, asset: "loja-posto",
-              greeting: "Plantonista raiz merece um visual à altura. Escolhe aí.",
+        .init(name: "Interno", range: 41...60, asset: "loja-posto",
+              greeting: "Interno de plantão merece um visual à altura. Escolhe aí.",
               attendant: [.stethoscope]),
-        .init(name: "Especialista", range: 61...80, asset: "loja-hospital",
-              greeting: "Especialista na área… temos peças à altura do seu nome.",
+        .init(name: "Residente", range: 61...80, asset: "loja-hospital",
+              greeting: "Residência é maratona. Pelo menos entra bem vestido.",
               attendant: [.headMirror]),
-        .init(name: "Lenda", range: 81...99, asset: "loja-clinica",
-              greeting: "Poucos chegam aqui. Vista-se como a lenda que você é.",
+        .init(name: "Médico", range: 81...99, asset: "loja-clinica",
+              greeting: "Poucos chegam aqui. Agora o visual tem que estar à altura do jaleco.",
               attendant: [.laurel]),
     ]
     private var shopTierInfo: TierShop? {

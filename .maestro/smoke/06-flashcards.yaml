@@ -11,7 +11,7 @@ tags:
     visible:
       anyOf:
         - "dias de streak"
-        - "Home"
+        - "Jornada"
         - "ESTUDOS"
     timeout: 15000
 

@@ -62,8 +62,8 @@ enum TrailWorld {
     static let vialBlue    = Color(red: 0.55, green: 0.68, blue: 0.98)
 
     // MARK: Tiers — tons de JOIA (mantêm o hue de progressão, afinados pra noite)
-    // 0 Vestibulando=Ouro · 1 Acadêmico=Esmeralda · 2 Clínico=Safira ·
-    // 3 Internato=Ametista · 4 Lenda=Rubi
+    // 0 Calouro=Ouro · 1 Acadêmico=Esmeralda · 2 Interno=Safira ·
+    // 3 Residente=Ametista · 4 Médico=Rubi
     static let tier0Bright = Color(red: 0.97, green: 0.78, blue: 0.42)
     static let tier0Mid    = Color(red: 0.80, green: 0.58, blue: 0.28)
     static let tier0Dark   = Color(red: 0.36, green: 0.24, blue: 0.10)

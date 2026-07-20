@@ -12,7 +12,7 @@ tags:
 
 # Wait for dashboard
 - extendedWaitUntil:
-    visible: "Home"
+    visible: "Jornada"
     timeout: 15000
 
 - takeScreenshot: "11-settings-dashboard"

@@ -18,9 +18,9 @@ tags:
 # All content asserts use optional: true to handle both states.
 - launchApp
 
-# Wait for dashboard (Home bottom nav label confirmed in NavGraph.kt)
+# Wait for dashboard (label da aba raiz = "Jornada" desde 2026-07-20)
 - extendedWaitUntil:
-    visible: "Home"
+    visible: "Jornada"
     timeout: 15000
 
 - takeScreenshot: "12-canvas-dashboard"

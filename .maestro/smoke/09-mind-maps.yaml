@@ -10,7 +10,7 @@ tags:
 
 # Wait for dashboard to be visible — any of the known landmark texts
 - extendedWaitUntil:
-    visible: "Home"
+    visible: "Jornada"
     timeout: 15000
 
 - takeScreenshot: "09-mindmaps-dashboard"

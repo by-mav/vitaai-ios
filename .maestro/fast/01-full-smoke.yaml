@@ -98,9 +98,9 @@ tags:
 - waitForAnimationToEnd
 - takeScreenshot: "fast-08-progresso"
 
-# ── Back to Home ──
+# ── Back to Jornada ──
 - tapOn:
-    text: "Home"
+    text: "Jornada"
     optional: true
 - tapOn:
     text: "Início"

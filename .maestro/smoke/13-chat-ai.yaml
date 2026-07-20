@@ -28,7 +28,7 @@ tags:
 
 # Wait for dashboard
 - extendedWaitUntil:
-    visible: "Home"
+    visible: "Jornada"
     timeout: 15000
 
 - takeScreenshot: "13-chat-dashboard"
@@ -77,7 +77,7 @@ tags:
 
 # Verify we are back on dashboard
 - assertVisible:
-    text: "Home"
+    text: "Jornada"
     optional: true
 
 - takeScreenshot: "13-chat-closed"

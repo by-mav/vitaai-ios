@@ -1,9 +1,9 @@
 import SwiftUI
 
 enum TabItem: String, CaseIterable {
-    case home = "Home"
+    case home = "Jornada"
     case estudos = "Estudos"
-    case faculdade = "Jornada"
+    case faculdade = "Rotina"
     case progresso = "Progresso"
 
     var icon: String {
@@ -24,9 +24,9 @@ enum TabItem: String, CaseIterable {
     }
     var shortLabel: String {
         switch self {
-        case .home: return "Home"
+        case .home: return "Jornada"
         case .estudos: return "Estudos"
-        case .faculdade: return "Jornada"
+        case .faculdade: return "Rotina"
         case .progresso: return "Progresso"
         }
     }

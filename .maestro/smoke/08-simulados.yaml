@@ -10,7 +10,7 @@ tags:
 
 # Wait for dashboard
 - extendedWaitUntil:
-    visible: "Home"
+    visible: "Jornada"
     timeout: 15000
 
 - takeScreenshot: "08-simulados-smoke-dashboard"

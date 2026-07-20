@@ -74,9 +74,9 @@ struct VitaBreadcrumb: View {
         let path = router.currentPath
         let isOnHomeRoot = router.selectedTab == .home && path.isEmpty
 
-        // 1. Home is always the first crumb.
+        // 1. Jornada (tab raiz) is always the first crumb.
         list.append(BreadcrumbItem(
-            label: "Home",
+            label: "Jornada",
             isCurrent: isOnHomeRoot,
             action: {
                 withAnimation(.easeInOut(duration: 0.22)) {

@@ -55,12 +55,12 @@ tags:
 - waitForAnimationToEnd
 - takeScreenshot: "00-simulados"
 
-# Back via Home tab (cross-platform)
+# Back via aba raiz "Jornada" (cross-platform)
 - tapOn:
     text: "Início"
     optional: true
 - tapOn:
-    text: "Home"
+    text: "Jornada"
     optional: true
 - tapOn:
     id: "tab_home"
@@ -81,7 +81,7 @@ tags:
     text: "Início"
     optional: true
 - tapOn:
-    text: "Home"
+    text: "Jornada"
     optional: true
 - tapOn:
     id: "tab_home"
@@ -105,7 +105,7 @@ tags:
     text: "Início"
     optional: true
 - tapOn:
-    text: "Home"
+    text: "Jornada"
     optional: true
 - tapOn:
     id: "tab_home"
@@ -126,7 +126,7 @@ tags:
     text: "Início"
     optional: true
 - tapOn:
-    text: "Home"
+    text: "Jornada"
     optional: true
 - tapOn:
     id: "tab_home"

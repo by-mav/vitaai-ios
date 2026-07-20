@@ -65,7 +65,7 @@ struct JornadaEmptyStateCards: View {
             VStack(alignment: .leading, spacing: 14) {
                 StudyImageHeroStat(
                     imageAsset: "hero-jornada-v2",
-                    eyebrow: "Jornada",
+                    eyebrow: "Rotina",
                     primary: journeyName,
                     primaryCaption: tagline,
                     stats: [

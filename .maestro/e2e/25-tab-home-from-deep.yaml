@@ -34,12 +34,12 @@ tags:
     optional: true
 - waitForAnimationToEnd
 
-# Home via tab
+# Aba raiz (Jornada) via tab
 - tapOn:
     text: "Início"
     optional: true
 - tapOn:
-    text: "Home"
+    text: "Jornada"
     optional: true
 - tapOn:
     id: "tab_home"
