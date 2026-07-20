@@ -33,28 +33,51 @@ struct FlashcardStudyCard: View {
     /// funciona: nota com c1 e c2 vira dois cards, cada um escondendo um lado.
     /// Sem `clozeOrd` (card antigo, ainda não separado) esconde todos, que é o
     /// comportamento velho: ruim, mas não quebra a tela.
+    /// `{{cN::resposta}}` e `{{cN::resposta::dica}}` — captura SÓ a resposta.
+    /// Sem separar a dica, ela vazava junto e o card revelava
+    /// "glaucoma::efeitos úteis" como se fosse conteúdo.
+    private static let clozeResposta = #"\{\{c\d+::((?:(?!::)[^}])+)(?:::[^}]*)?\}\}"#
+
     private var displayFront: String {
         guard let ord = clozeOrd else {
             return front.replacingOccurrences(
                 of: #"\{\{c\d+::[^}]+\}\}"#, with: "____", options: .regularExpression
             )
         }
-        // 1) o grupo desta carta vira lacuna
+        // 1) a lacuna DESTA carta: se o autor escreveu uma dica, é ela que
+        //    aparece entre colchetes — é a dica que torna a pergunta
+        //    respondível ("[efeitos úteis]" em vez de um traço mudo).
         var r = front.replacingOccurrences(
+            of: #"\{\{c\#(ord)::(?:(?!::)[^}])+::([^}]*)\}\}"#,
+            with: "[$1]", options: .regularExpression
+        )
+        // sem dica, traço mesmo
+        r = r.replacingOccurrences(
             of: #"\{\{c\#(ord)::[^}]+\}\}"#, with: "____", options: .regularExpression
         )
-        // 2) os OUTROS grupos aparecem escritos (é o contexto que faz a pergunta
-        //    ter resposta possível)
+        // 2) os OUTROS grupos aparecem escritos — é o contexto que faz a
+        //    pergunta ter resposta possível. Sem a dica: ela é do card dele.
         r = r.replacingOccurrences(
-            of: #"\{\{c\d+::([^}]+)\}\}"#, with: "$1", options: .regularExpression
+            of: Self.clozeResposta, with: "$1", options: .regularExpression
         )
         return r
     }
 
+    /// O verso mostra a frase inteira com a resposta DESTA carta em destaque.
+    /// Revelar tudo em texto corrido não basta: numa frase com três lacunas o
+    /// aluno não sabe qual delas ele deveria ter acertado.
+    /// (Rafael 2026-07-20: "tem que mostrar o que tava escondendo ali".)
     private var displayBack: String {
         guard isCloze else { return back }
-        let revealed = front.replacingOccurrences(
-            of: #"\{\{c\d+::([^}]+)\}\}"#, with: "$1", options: .regularExpression
+        var revealed = front
+        if let ord = clozeOrd {
+            revealed = revealed.replacingOccurrences(
+                of: #"\{\{c\#(ord)::((?:(?!::)[^}])+)(?:::[^}]*)?\}\}"#,
+                with: "**$1**", options: .regularExpression
+            )
+        }
+        revealed = revealed.replacingOccurrences(
+            of: Self.clozeResposta, with: "$1", options: .regularExpression
         )
         let complement = back.trimmingCharacters(in: .whitespacesAndNewlines)
         return complement.isEmpty ? revealed : "\(revealed)\n\n\(complement)"
