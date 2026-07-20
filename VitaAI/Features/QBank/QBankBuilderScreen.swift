@@ -45,10 +45,9 @@ struct QBankBuilderScreen: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 12) {
                     QBankBuilderHeader(
-                        settingsCount: settingsActiveCount(vm: vm),
                         onBack: onBack,
                         onCreate: { showStudioImport = true },
-                        onSettings: { activeSheet = .settings }
+                        onHistory: { activeSheet = .recents }
                     )
 
                     // 1. Hero
@@ -129,11 +128,6 @@ struct QBankBuilderScreen: View {
                 .presentationDetents([.medium, .large])
                 .presentationBackground(.ultraThinMaterial)
                 .presentationDragIndicator(.visible)
-            case .settings:
-                QBankSettingsSheet(vm: vm)
-                    .presentationDetents([.medium, .large])
-                    .presentationBackground(.ultraThinMaterial)
-                    .presentationDragIndicator(.visible)
             }
         }
         .sheet(isPresented: $showStudioImport) {
@@ -409,36 +403,7 @@ struct QBankBuilderScreen: View {
     }
 
     private func advancedItems(vm: QBankBuilderViewModel) -> [AdvancedToggleItem] {
-        [
-            AdvancedToggleItem(
-                icon: "checkmark.circle.fill",
-                title: "Ocultar já acertadas",
-                description: "Pula questões que você acertou",
-                isOn: vm.state.hideAnswered,
-                action: { vm.setHideAnswered(!vm.state.hideAnswered) }
-            ),
-            AdvancedToggleItem(
-                icon: "bookmark.slash",
-                title: "Ocultar revisadas",
-                description: "Cards já marcados como revisados",
-                isOn: vm.state.hideReviewed,
-                action: { vm.setHideReviewed(!vm.state.hideReviewed) }
-            ),
-            AdvancedToggleItem(
-                icon: "exclamationmark.octagon",
-                title: "Ocultar anuladas",
-                description: "Questões anuladas oficialmente pela banca",
-                isOn: vm.state.hideAnnulled,
-                action: { vm.setHideAnnulled(!vm.state.hideAnnulled) }
-            ),
-            AdvancedToggleItem(
-                icon: "checkmark.seal.fill",
-                title: "Apenas com gabarito",
-                description: "Só Q com comentário detalhado",
-                isOn: vm.state.excludeNoExplanation,
-                action: { vm.setExcludeNoExplanation(!vm.state.excludeNoExplanation) }
-            ),
-        ]
+        qbankAdvancedToggles(vm: vm)
     }
 
     /// Hero do builder: pool disponível como métrica principal; histórico pessoal
@@ -503,19 +468,6 @@ struct QBankBuilderScreen: View {
         return "Revisar histórico"
     }
 
-    private func settingsActiveCount(vm: QBankBuilderViewModel) -> Int {
-        var count = 0
-        if !vm.state.selectedInstitutionIds.isEmpty { count += 1 }
-        if vm.state.selectedYearMin != nil || vm.state.selectedYearMax != nil { count += 1 }
-        if !vm.state.selectedFormats.isEmpty { count += 1 }
-        if !vm.state.selectedDifficulties.isEmpty { count += 1 }
-        if vm.state.hideAnswered { count += 1 }
-        if vm.state.hideReviewed { count += 1 }
-        if vm.state.hideAnnulled { count += 1 }
-        if !vm.state.excludeNoExplanation { count += 1 }
-        if vm.state.includeSynthetic { count += 1 }
-        return count
-    }
 
     private var groupsSkeleton: some View {
         VitaGlassCard(cornerRadius: 14) {
@@ -570,7 +522,6 @@ struct QBankBuilderScreen: View {
 private enum QBankBuilderSheet: String, Identifiable {
     case disciplines
     case recents
-    case settings
 
     var id: String { rawValue }
 }
@@ -901,10 +852,9 @@ private struct QBankRecentSessionsSheet: View {
 }
 
 private struct QBankBuilderHeader: View {
-    let settingsCount: Int
     let onBack: () -> Void
     let onCreate: () -> Void
-    let onSettings: () -> Void
+    let onHistory: () -> Void
 
     var body: some View {
         VitaScreenHeader(title: "Questões", onBack: onBack) {
@@ -921,228 +871,75 @@ private struct QBankBuilderHeader: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Criar questões do meu material")
 
-                Button(action: onSettings) {
-                    ZStack(alignment: .topTrailing) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone SF do botão de filtros
-                            .foregroundStyle(VitaColors.textPrimary)
-                            .frame(width: 38, height: 38)
-                            .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
-                            .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
-
-                        if settingsCount > 0 {
-                            Text("\(settingsCount)")
-                                .font(PixioTypo.micro)
-                                .foregroundStyle(Color.black.opacity(0.88))
-                                .frame(width: 16, height: 16)
-                                .background(Circle().fill(VitaColors.accentLight))
-                                .offset(x: 3, y: -3)
-                        }
-                    }
+                // Últimas sessões. Aqui existia um segundo botão de FILTROS que
+                // abria uma folha com a mesma lista já presente na página, logo
+                // abaixo do hero — dois caminhos para o mesmo ajuste, e o de
+                // cima podia divergir do de baixo. Filtro mora na página; o topo
+                // é atalho para o histórico (Rafael 2026-07-20).
+                Button(action: onHistory) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone SF do botão de histórico
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
+                        .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Configurar filtros")
+                .accessibilityLabel("Últimas sessões")
             }
         }
     }
 }
 
-private struct QBankSettingsSheet: View {
-    let vm: QBankBuilderViewModel
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var institutionsExpanded = false
-    @State private var yearsExpanded = false
-    @State private var formatExpanded = false
-    @State private var difficultyExpanded = false
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 12) {
-                    headerSummary
-
-                    if !vm.state.institutions.isEmpty {
-                        QBankInlineInstitutionsSection(
-                            institutions: vm.state.institutions,
-                            selectedIds: Binding(
-                                get: { vm.state.selectedInstitutionIds },
-                                set: { newSet in
-                                    let removed = vm.state.selectedInstitutionIds.subtracting(newSet)
-                                    let added = newSet.subtracting(vm.state.selectedInstitutionIds)
-                                    for id in removed { vm.toggleInstitution(id: id) }
-                                    for id in added { vm.toggleInstitution(id: id) }
-                                }
-                            ),
-                            theme: .questoes,
-                            expanded: $institutionsExpanded
-                        )
-                    }
-
-                    if !vm.state.years.isEmpty {
-                        YearsRangeSection(
-                            minYear: Binding(
-                                get: { vm.state.selectedYearMin },
-                                set: { vm.state.selectedYearMin = $0 }
-                            ),
-                            maxYear: Binding(
-                                get: { vm.state.selectedYearMax },
-                                set: { vm.state.selectedYearMax = $0 }
-                            ),
-                            availableMin: vm.state.years.min() ?? 1995,
-                            availableMax: vm.state.years.max() ?? 2026,
-                            theme: .questoes,
-                            expanded: $yearsExpanded,
-                            onChange: { vm.scheduleRefreshPreview() },
-                            counts: vm.state.yearCounts
-                        )
-                    }
-
-                    CollapsibleSectionCard(
-                        title: "Formato",
-                        icon: "doc.text",
-                        summary: formatSummary,
-                        theme: .questoes,
-                        expanded: $formatExpanded
-                    ) {
-                        FormatPills(
-                            selected: Binding(
-                                get: { vm.state.selectedFormats },
-                                set: { newSet in
-                                    let removed = vm.state.selectedFormats.subtracting(newSet)
-                                    let added = newSet.subtracting(vm.state.selectedFormats)
-                                    for f in removed { vm.toggleFormat(f) }
-                                    for f in added { vm.toggleFormat(f) }
-                                }
-                            ),
-                            theme: .questoes,
-                            counts: vm.state.formatCounts
-                        )
-                    }
-
-                    if !vm.state.difficulties.isEmpty {
-                        CollapsibleSectionCard(
-                            title: "Dificuldade",
-                            icon: "chart.bar",
-                            summary: difficultySummary,
-                            theme: .questoes,
-                            expanded: $difficultyExpanded
-                        ) {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(vm.state.difficulties) { dc in
-                                        let label = "\(dc.displayLabel) (\(dc.count))"
-                                        QBankChip(
-                                            label: label,
-                                            isSelected: vm.state.selectedDifficulties.contains(dc.difficulty)
-                                        ) { vm.toggleDifficulty(dc.difficulty) }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    AdvancedSection(
-                        items: advancedItems,
-                        theme: .questoes
-                    )
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 28)
-            }
-            .background(Color.clear)
-            .navigationTitle("Configurar pool")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Limpar") {
-                        PixioHaptics.soft()
-                        vm.clearAllFilters()
-                    }
-                    .font(PixioTypo.caption)
-                    .foregroundStyle(VitaColors.textSecondary)
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("OK") {
-                        PixioHaptics.tap()
-                        dismiss()
-                    }
-                    .font(PixioTypo.caption)
-                    .foregroundStyle(VitaColors.accentLight)
-                }
-            }
-        }
-    }
-
-    private var headerSummary: some View {
-        VitaGlassCard(cornerRadius: 16) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(VitaColors.accent.opacity(0.16))
-                    Image(systemName: "line.3.horizontal.decrease.circle")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(VitaColors.accentLight)
-                }
-                .frame(width: 40, height: 40)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Ajustes finos")
-                        .font(PixioTypo.cardTitle)
-                        .foregroundStyle(VitaColors.textPrimary)
-                    Text("Banca, ano, formato e dificuldade")
-                        .font(PixioTypo.caption)
-                        .foregroundStyle(VitaColors.textTertiary)
-                        .lineLimit(2)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(14)
-        }
-    }
-
-    private var formatSummary: String {
-        vm.state.selectedFormats.isEmpty ? "Todos" : "\(vm.state.selectedFormats.count) selec."
-    }
-
-    private var difficultySummary: String {
-        vm.state.selectedDifficulties.isEmpty ? "Todas" : "\(vm.state.selectedDifficulties.count) selec."
-    }
-
-    private var advancedItems: [AdvancedToggleItem] {
-        [
-            AdvancedToggleItem(
-                icon: "checkmark.circle.fill",
-                title: "Ocultar já acertadas",
-                description: "Pula questões que você acertou",
-                isOn: vm.state.hideAnswered,
-                action: { vm.setHideAnswered(!vm.state.hideAnswered) }
-            ),
-            AdvancedToggleItem(
-                icon: "bookmark.slash",
-                title: "Ocultar revisadas",
-                description: "Cards já marcados como revisados",
-                isOn: vm.state.hideReviewed,
-                action: { vm.setHideReviewed(!vm.state.hideReviewed) }
-            ),
-            AdvancedToggleItem(
-                icon: "exclamationmark.octagon",
-                title: "Ocultar anuladas",
-                description: "Questões anuladas oficialmente pela banca",
-                isOn: vm.state.hideAnnulled,
-                action: { vm.setHideAnnulled(!vm.state.hideAnnulled) }
-            ),
-            AdvancedToggleItem(
-                icon: "checkmark.seal.fill",
-                title: "Apenas com gabarito",
-                description: "Só Q com comentário detalhado",
-                isOn: vm.state.excludeNoExplanation,
-                action: { vm.setExcludeNoExplanation(!vm.state.excludeNoExplanation) }
-            ),
-        ]
-    }
+/// Lista ÚNICA dos filtros avançados de Questões.
+///
+/// Ela vivia duplicada: uma cópia na tela e outra na folha "Configurar filtros",
+/// idênticas linha a linha. Toggle novo entrava num lugar e faltava no outro —
+/// foi o que quase aconteceu ao adicionar "Apenas questões de banca". Agora as
+/// duas superfícies chamam daqui: muda aqui, muda no app inteiro.
+@MainActor
+private func qbankAdvancedToggles(vm: QBankBuilderViewModel) -> [AdvancedToggleItem] {
+    [
+        AdvancedToggleItem(
+            icon: "checkmark.circle.fill",
+            title: "Ocultar já acertadas",
+            description: "Pula questões que você acertou",
+            isOn: vm.state.hideAnswered,
+            action: { vm.setHideAnswered(!vm.state.hideAnswered) }
+        ),
+        AdvancedToggleItem(
+            icon: "bookmark.slash",
+            title: "Ocultar revisadas",
+            description: "Cards já marcados como revisados",
+            isOn: vm.state.hideReviewed,
+            action: { vm.setHideReviewed(!vm.state.hideReviewed) }
+        ),
+        AdvancedToggleItem(
+            icon: "exclamationmark.octagon",
+            title: "Ocultar anuladas",
+            description: "Questões anuladas oficialmente pela banca",
+            isOn: vm.state.hideAnnulled,
+            action: { vm.setHideAnnulled(!vm.state.hideAnnulled) }
+        ),
+        AdvancedToggleItem(
+            icon: "checkmark.seal.fill",
+            title: "Apenas com gabarito",
+            description: "Só Q com comentário detalhado",
+            isOn: vm.state.excludeNoExplanation,
+            action: { vm.setExcludeNoExplanation(!vm.state.excludeNoExplanation) }
+        ),
+        // As inéditas eram removidas sem toggle e sem aviso — 91.809 questões
+        // que o aluno não sabia que existiam. Agora entram por padrão e quem
+        // quiser só prova aplicada desliga aqui.
+        AdvancedToggleItem(
+            icon: "building.columns",
+            title: "Apenas questões de banca",
+            description: "Esconde as inéditas, deixa só prova aplicada",
+            isOn: !vm.state.includeSynthetic,
+            action: { vm.setIncludeSynthetic(!vm.state.includeSynthetic) }
+        ),
+    ]
 }
 
 private struct QBankInlineInstitutionsSection: View {

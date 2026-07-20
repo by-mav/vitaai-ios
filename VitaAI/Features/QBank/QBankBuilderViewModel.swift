@@ -33,8 +33,10 @@ struct QBankBuilderState {
     /// Sistemas/disciplinas com children expandidos na UI.
     var expandedGroupSlugs: Set<String> = []
     var selectedInstitutionIds: Set<Int> = []
-    var selectedYearMin: Int? = nil
-    var selectedYearMax: Int? = nil
+    /// Anos marcados avulsos (Rafael 2026-07-20). Antes era faixa mín–máx, que
+    /// obrigava intervalo contínuo: quem queria 2015, 2019 e 2024 levava junto
+    /// os cinco anos do meio.
+    var selectedYears: Set<Int> = []
     var selectedDifficulties: Set<String> = []
     var selectedFormats: Set<String> = []  // 'objective' | 'discursive' | 'withImage'
 
@@ -42,8 +44,16 @@ struct QBankBuilderState {
     var hideAnswered: Bool = false
     var hideAnnulled: Bool = false
     var hideReviewed: Bool = false
-    var excludeNoExplanation: Bool = true
-    var includeSynthetic: Bool = false  // default false: oficial only
+    // 🚨 Nada selecionado = TUDO aparece (Rafael 2026-07-20).
+    //
+    // Estes dois nasceram ligados e escondiam 98.889 das 118.751 questões: o app
+    // anunciava o acervo inteiro e entregava 19.862, sem o aluno ter escolhido
+    // nada. Pior no caso das inéditas — elas nem toggle tinham, sumiam caladas.
+    // Filtro é decisão do aluno e mora na seção FILTROS; o padrão é o acervo
+    // completo. Quem quiser só prova de banca, desliga em "Apenas questões de
+    // banca".
+    var excludeNoExplanation: Bool = false
+    var includeSynthetic: Bool = true
 
     // Configuração da sessão
     var questionCount: Int = 20
@@ -60,6 +70,9 @@ struct QBankBuilderState {
     var progressTotal: Int = 0
     var progressAnswered: Int = 0
     var progressAccuracy: Double = 0.0
+    /// Ritmo: segundos médios por questão. Já era medido no banco
+    /// (`responseTimeMs`) e nunca chegava na tela. Nil = sem medição ainda.
+    var avgSecondsPerQuestion: Double? = nil
     /// Spec §3.1 — ofensiva no Hero. Default 0 ⇒ stat oculto (sem fake).
     /// Hidratado quando endpoint expor; hoje só fica visível se backend popular
     /// via outro caminho (p.ex. progress payload futuro).
@@ -96,8 +109,7 @@ struct QBankBuilderState {
             || !selectedInstitutionIds.isEmpty
             || !selectedDifficulties.isEmpty
             || !selectedFormats.isEmpty
-            || selectedYearMin != nil
-            || selectedYearMax != nil
+            || !selectedYears.isEmpty
             || hideAnswered || hideAnnulled || hideReviewed
     }
 }
@@ -177,6 +189,7 @@ final class QBankBuilderViewModel {
             state.progressTotal = resp.totalAvailable
             state.progressAnswered = resp.totalAnswered
             state.progressAccuracy = resp.normalizedAccuracy
+            state.avgSecondsPerQuestion = resp.avgResponseSeconds
         } catch {
             print("[QBankBuilder] loadProgress: \(error)")
         }
@@ -253,19 +266,13 @@ final class QBankBuilderViewModel {
         scheduleRefreshPreview()
     }
 
-    func setYearRange(min: Int?, max: Int?) {
-        state.selectedYearMin = min
-        state.selectedYearMax = max
-        scheduleRefreshPreview()
-    }
-
     func setHideAnswered(_ v: Bool) { state.hideAnswered = v; scheduleRefreshPreview() }
     func setHideAnnulled(_ v: Bool) { state.hideAnnulled = v; scheduleRefreshPreview() }
     func setHideReviewed(_ v: Bool) { state.hideReviewed = v; scheduleRefreshPreview() }
     func setExcludeNoExplanation(_ v: Bool) { state.excludeNoExplanation = v; scheduleRefreshPreview() }
     func setIncludeSynthetic(_ v: Bool) { state.includeSynthetic = v; scheduleRefreshPreview() }
 
-    func setQuestionCount(_ n: Int) { state.questionCount = max(1, min(100, n)) }
+    func setQuestionCount(_ n: Int) { state.questionCount = max(1, min(500, n)) }
     func setMode(_ m: QBankMode) { state.mode = m }
 
     func clearAllFilters() {
@@ -275,8 +282,7 @@ final class QBankBuilderViewModel {
         state.selectedInstitutionIds.removeAll()
         state.selectedDifficulties.removeAll()
         state.selectedFormats.removeAll()
-        state.selectedYearMin = nil
-        state.selectedYearMax = nil
+        state.selectedYears.removeAll()
         state.hideAnswered = false
         state.hideAnnulled = false
         state.hideReviewed = false
@@ -317,6 +323,7 @@ final class QBankBuilderViewModel {
             institutionIds: Array(state.selectedInstitutionIds).nilIfEmpty,
             topicIds: nil,
             years: yearsBody(),
+            yearList: yearListBody(),
             difficulties: Array(state.selectedDifficulties).nilIfEmpty,
             format: Array(state.selectedFormats).nilIfEmpty,
             hideAnswered: state.hideAnswered ? true : nil,
@@ -377,26 +384,22 @@ final class QBankBuilderViewModel {
         }
     }
 
-    private func yearsBody() -> QBankPreviewYears? {
-        if state.selectedYearMin == nil && state.selectedYearMax == nil { return nil }
-        return QBankPreviewYears(min: state.selectedYearMin, max: state.selectedYearMax)
+    /// A faixa morreu; agora vai a lista. Mantido nil pra o backend cair no
+    /// comportamento antigo quando nada estiver marcado.
+    private func yearsBody() -> QBankPreviewYears? { nil }
+
+    private func yearListBody() -> [Int]? {
+        state.selectedYears.isEmpty ? nil : Array(state.selectedYears).sorted()
     }
 
-    private func selectedYears() -> [Int]? {
-        guard state.selectedYearMin != nil || state.selectedYearMax != nil else { return nil }
-        let minYear = state.selectedYearMin ?? state.years.min()
-        let maxYear = state.selectedYearMax ?? state.years.max()
-        if !state.years.isEmpty {
-            return state.years
-                .filter { year in
-                    (minYear.map { year >= $0 } ?? true) && (maxYear.map { year <= $0 } ?? true)
-                }
-                .sorted()
-                .nilIfEmpty
-        }
-        guard let minYear, let maxYear, minYear <= maxYear else { return nil }
-        return Array(minYear...maxYear)
+    func toggleYear(_ year: Int) {
+        if state.selectedYears.contains(year) { state.selectedYears.remove(year) }
+        else { state.selectedYears.insert(year) }
+        scheduleRefreshPreview()
     }
+
+    /// Anos que vão pra criação da sessão = exatamente os marcados.
+    private func selectedYears() -> [Int]? { yearListBody() }
 
     private func selectedSubgroupSlugs() -> [String]? {
         state.selectedSubgroupIds
@@ -408,7 +411,10 @@ final class QBankBuilderViewModel {
     // MARK: - Create session
 
     /// Cria sessão com filtros aplicados. Retorna sessionId pra navegação.
-    func createSession(abandonExisting: Bool = false) async -> String? {
+    /// `title` = nome escolhido pelo aluno na tela pré-sessão. O backend já
+    /// aceitava esse campo desde sempre (`f.title?.trim() ||` com fallback pro
+    /// nome derivado da disciplina) — o app é que nunca perguntava.
+    func createSession(abandonExisting: Bool = false, title: String? = nil) async -> String? {
         state.creatingSession = true
         defer { state.creatingSession = false }
 
@@ -427,7 +433,7 @@ final class QBankBuilderViewModel {
             mode: state.mode.rawValue,
             onlyResidence: nil,
             onlyUnanswered: state.hideAnswered ? true : nil,
-            title: nil,
+            title: title,
             stage: "all",
             status: nil,
             excludeNoExplanation: state.excludeNoExplanation,
