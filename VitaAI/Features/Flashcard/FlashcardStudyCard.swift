@@ -36,7 +36,7 @@ struct FlashcardStudyCard: View {
     /// `{{cN::resposta}}` e `{{cN::resposta::dica}}` — captura SÓ a resposta.
     /// Sem separar a dica, ela vazava junto e o card revelava
     /// "glaucoma::efeitos úteis" como se fosse conteúdo.
-    private static let clozeResposta = #"\{\{c\d+::((?:(?!::)[^}])+)(?:::[^}]*)?\}\}"#
+    private static let clozeResposta = FlashcardHTMLReader.clozeResposta
 
     private var displayFront: String {
         guard let ord = clozeOrd else {

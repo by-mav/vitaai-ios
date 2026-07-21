@@ -432,14 +432,12 @@ struct CardBrowserRow: View {
         }
     }
 
-    /// Remove marcação leve (HTML/markdown) do preview de lista.
+    /// Preview de lista = MESMO leitor do card de estudo. O extrator proprio
+    /// daqui so tirava tag: nao resolvia lacuna (a lista mostrava
+    /// "{{c1::Retinoides}}" cru) nem entidade, e comia o ">" do texto medico
+    /// junto com a marcacao de markdown. Rafael 2026-07-21.
     private func plain(_ raw: String) -> String {
-        raw
-            .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "[*_#`>]", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-            .replacingOccurrences(of: "\n", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        FlashcardHTMLReader.preview(raw)
     }
 }
 

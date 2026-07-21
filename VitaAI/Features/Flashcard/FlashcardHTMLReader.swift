@@ -178,3 +178,27 @@ enum FlashcardHTMLReader {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+// MARK: - Preview de lista
+
+extension FlashcardHTMLReader {
+
+    /// `{{cN::resposta}}` e `{{cN::resposta::dica}}` — captura SÓ a resposta.
+    /// Fonte ÚNICA do padrão: antes cada tela tinha a sua ideia de lacuna e a
+    /// lista simplesmente não tinha nenhuma, mostrando "{{c1::Retinoides}}" cru.
+    static let clozeResposta = #"\{\{c\d+::((?:(?!::)[^}])+)(?:::[^}]*)?\}\}"#
+
+    /// Texto de UMA LINHA para preview: lacuna revelada, HTML lido de verdade,
+    /// quebras viram espaço. É o que a lista de cards mostra.
+    static func preview(_ raw: String) -> String {
+        let revelado = raw.replacingOccurrences(
+            of: clozeResposta, with: "$1", options: .regularExpression
+        )
+        let texto = read(revelado)
+            .compactMap { if case .text(let t) = $0 { return t }; return nil }
+            .joined(separator: " ")
+        return texto
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
