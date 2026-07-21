@@ -92,6 +92,39 @@ components:
       description: Stripe webhook signature
 
   schemas:
+    LibraryDeckSample:
+      type: object
+      description: Amostra de um baralho da Biblioteca, pro aluno decidir se baixa.
+      required: [slug, title, totalCards, cards]
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        totalCards:
+          type: integer
+          description: Total de cartas do baralho INTEIRO, nao da amostra.
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/LibraryDeckSampleCard'
+    LibraryDeckSampleCard:
+      type: object
+      required: [id, front]
+      properties:
+        id:
+          type: string
+        front:
+          type: string
+        back:
+          type: string
+          nullable: true
+        cardType:
+          type: string
+          nullable: true
+        clozeOrd:
+          type: integer
+          nullable: true
     # ── Common ──
     Error:
       type: object
@@ -666,6 +699,38 @@ components:
               type: object
         award:
           $ref: '#/components/schemas/GamificationAward'
+
+    BackgroundJob:
+      description: |
+        Trabalho pesado rodando em segundo plano (import Anki, geração por IA...).
+        O app dispara, recebe isto na hora e SOLTA o aluno; o progresso chega por
+        SSE no domínio `jobs`. Rafael 2026-07-19.
+      type: object
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [anki_import, study_pack, deck_pack]
+        status:
+          type: string
+          enum: [queued, running, done, failed]
+        label:
+          type: string
+          nullable: true
+          description: Rótulo que o aluno lê durante o trabalho.
+        processed: { type: integer }
+        total:
+          type: integer
+          nullable: true
+          description: Desconhecido no início; o cliente mostra indeterminado até vir.
+        result:
+          type: object
+          nullable: true
+          description: 'Preenchido quando status=done (ex: decks importados).'
+        errorMessage:
+          type: string
+          nullable: true
+      required: [id, kind, status, processed]
 
     FlashcardStats:
       type: object
@@ -1335,6 +1400,17 @@ components:
               type: integer
             max:
               type: integer
+        yearList:
+          description: >
+            Anos avulsos marcados na lista de Questões (ex: [2015, 2019, 2024]).
+            Quando não-vazio MANDA sobre `years` (vira `year IN (...)`), porque a
+            faixa traria os anos do meio que o aluno não pediu. Inteiros fora de
+            1990..2100 e além de 60 itens são descartados em silêncio (é entrada
+            de UI, não API pública — nunca 400).
+          type: array
+          items:
+            type: integer
+          nullable: true
         difficulties:
           type: array
           items:
@@ -1402,18 +1478,10 @@ components:
         # consumido pelo DTO hand-written do iOS (QBankPreviewFacets). Não é
         # tipado aqui: o codegen swift6 gera tipo aninhado não-Hashable e o
         # cliente gerado deste response é órfão (o app usa o DTO próprio).
-        topGroups:
-          type: array
-          description: 'Top 5 grupos (disciplines/systems/areas) dentro do filtro.'
-          items:
-            type: object
-            properties:
-              slug:
-                type: string
-              name:
-                type: string
-              count:
-                type: integer
+        # `topGroups` foi removido daqui em 2026-07-20: a rota NUNCA devolveu
+        # esse campo — ele pertence ao preview de Simulado (SimuladoPreviewResp)
+        # e veio parar aqui por cópia. Contrato prometendo campo inexistente é
+        # drift, e o cliente que confiasse nele receberia sempre nulo.
         appliedJourneyBoost:
           type: string
           nullable: true
@@ -1445,6 +1513,13 @@ components:
           properties:
             min: { type: integer }
             max: { type: integer }
+        yearList:
+          description: >
+            Anos avulsos marcados na lista. Não-vazio MANDA sobre `years`.
+            Fora de 1990..2100 / acima de 60 itens = descartado em silêncio.
+          type: array
+          items: { type: integer }
+          nullable: true
         difficulties:
           type: array
           items: { type: string, enum: [easy, medium, hard] }
@@ -1883,6 +1958,16 @@ components:
           type: integer
         accuracy:
           type: number
+        avgResponseSeconds:
+          type: integer
+          nullable: true
+          description: >
+            Segundos médios por questão respondida. O tempo de cada resposta já
+            era gravado em qbank_user_answers.responseTimeMs e não aparecia em
+            lugar nenhum do app — pra quem treina pra prova cronometrada, ritmo
+            pesa tanto quanto acerto. Descarta leituras fora de 1s..30min (o
+            aluno que sai pro café com o app aberto não pode contaminar a
+            média). Null enquanto não houver resposta medida. Added 2026-07-20.
         byDifficulty:
           type: array
           items:
@@ -2027,6 +2112,10 @@ components:
     QBankList:
       type: object
       properties:
+        kind:
+          type: string
+          nullable: true
+          description: favorites = a lista do coracao (uma por aluno). custom = criada pelo aluno.
         id:
           type: string
         title:
@@ -4268,6 +4357,29 @@ paths:
       responses:
         200:
           description: OK
+  /api/cron/cleanup-sessions:
+    get:
+      tags: [platform]
+      operationId: cronCleanupSessions
+      summary: Apaga sessoes expiradas da tabela session
+      description: |
+        Cron diario (03:23). DELETE FROM session WHERE expiresAt < NOW().
+        better-auth nao apaga sessao vencida sozinho (issues 1046, 3882);
+        medido 2026-07-20: 16 de 32 sessoes eram lixo. So o vencido; sessao
+        viva nunca e tocada. Idempotente. Contagem via RETURNING (rowCount vinha 0).
+      security: []
+      responses:
+        200:
+          description: Faxina executada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  removidas: { type: integer }
+        401:
+          description: CRON_SECRET invalido
   /api/cron/portal-sync:
     get:
       tags: [internal]
@@ -4437,7 +4549,7 @@ paths:
       summary: vita-catalog MCP endpoint (public catalog tools)
       description: |
         Public MCP server exposing the curated catalog: 355 universities,
-        97 disciplines, 361 portals, professor profiles, cities, states.
+        56 canonical disciplines, 361 portals, professor profiles, cities, states.
         No auth — safe for onboarding flows and claude.ai web connector.
         15 read-only tools covering search/list/get across every catalog entity.
       responses:
@@ -5403,6 +5515,8 @@ paths:
         Retorna count de cards REVIEW vencidos (due), em LEARNING, e NEW (nunca
         vistos), filtrado opcionalmente por groupSlug (disciplineSlug do deck).
         Mode `due|specific|new` ajusta o `projectedSessionTime`. Added 2026-04-29.
+        `topDecks` NAO respeita o groupSlug de proposito: mostra as disciplinas
+        do aluno inteiro, pra ele saber pra onde ir quando o filtro atual esvazia.
       parameters:
         - name: groupSlug
           in: query
@@ -5424,6 +5538,10 @@ paths:
                 $ref: '#/components/schemas/FlashcardsPreviewResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        # A rota devolve 404 quando o authId nao tem user_profile (conta criada
+        # mas sem perfil). Estava acontecendo e nao estava documentado.
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -5687,6 +5805,202 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/ServerError'
+
+  /api/jobs:
+    get:
+      tags: [jobs]
+      operationId: listBackgroundJobs
+      summary: Trabalhos em segundo plano do aluno
+      description: |
+        `?active=1` traz só os que estão rodando — o app consulta ao voltar do
+        background, porque o SSE só entrega o que aconteceu com ele conectado.
+      parameters:
+        - name: active
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1']
+      responses:
+        '200':
+          description: Lista de jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BackgroundJob'
+                required: [jobs]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/jobs/{id}:
+    get:
+      tags: [jobs]
+      operationId: getBackgroundJob
+      summary: Estado de um trabalho em segundo plano
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: O job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/study/flashcards/import-anki:
+    post:
+      tags: [flashcards]
+      operationId: importAnkiDeck
+      summary: Importa um baralho .apkg do Anki (Criar com o Vita)
+      description: |
+        multipart/form-data com campo "file" (.apkg até 200 MB). Suporta o
+        formato legado (collection.anki2/anki21, SQLite schema v11 — export com
+        "Support older Anki versions"); o formato anki21b é rejeitado com 400 e
+        mensagem pedindo re-export. Cada deck do .apkg vira baralho novo; cards
+        nascem NEW no FSRS; mídia <img> sobe pro R2 e é servida pela rota
+        anki-media (capability URL por importId).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '202':
+          description: |
+            Job criado. O import roda em SEGUNDO PLANO — o app não espera. O
+            progresso chega por SSE (domínio `jobs`); o resultado fica em
+            `result` quando `status` vira `done`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackgroundJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/study/flashcards/anki-media/{importId}/{file}:
+    get:
+      tags: [flashcards]
+      operationId: getAnkiMedia
+      summary: Serve mídia de import Anki (capability URL, sem sessão)
+      description: |
+        Imagem de card importado do Anki, direto do R2. Sem auth de propósito —
+        o renderer do card usa AsyncImage (sem cookie); o importId UUID
+        aleatório é a capability. Cache imutável.
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: file
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bytes da imagem
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/study/flashcards/library/{slug}/pack:
+    get:
+      tags: [flashcards]
+      operationId: getLibraryDeckPack
+      summary: Baralho da Biblioteca como .apkg (download por baralho / offline)
+      description: |
+        Devolve o baralho inteiro da disciplina como `.apkg` real (schema v11):
+        cards + mídia embutida, guid da nota = id do nosso card (o iOS casa o
+        FSRS local por ele). Cacheado no R2 por versão do conteúdo. Headers
+        X-Pack-Version / X-Card-Count / X-Media-Count pro manifest do device.
+        Spec: flashcards-offline-download-por-baralho.md.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bytes do .apkg
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/study/flashcards/library/{slug}/sample:
+    get:
+      tags: [flashcards]
+      operationId: getLibraryDeckSample
+      summary: Amostra de cards do baralho da Biblioteca (antes de baixar)
+      description: |
+        Devolve algumas cartas do baralho para o aluno DECIDIR se baixa. Sem
+        isso a tela de um baralho nao baixado ficava vazia ("Nenhum card
+        ainda"), o que e mentira dupla: o baralho tem cards, e e curado — nao
+        e do aluno criar. Rafael 2026-07-21.
+
+        Amostra pega do inicio do baralho, sem midia (so texto), barata o
+        suficiente pra abrir na hora. O download completo continua em
+        `/library/{slug}/pack`.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Quantas cartas devolver (1-20).
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 20
+      responses:
+        '200':
+          description: Amostra do baralho
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LibraryDeckSample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/study/flashcards/generate:
     post:
@@ -6707,6 +7021,49 @@ paths:
           $ref: '#/components/responses/ServerError'
 
   /api/qbank/lists/{id}/questions:
+    get:
+      tags: [qbank]
+      operationId: getQBankListQuestions
+      summary: Questoes de uma lista do aluno
+      description: >
+        Serve pra QUALQUER lista — a das favoritas e so uma lista com
+        kind=favorites. Devolve o enunciado inteiro; quem corta e a tela, que
+        sabe o espaco que tem.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Questoes da lista
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      title: { type: string }
+                      kind: { type: string, nullable: true }
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        statement: { type: string }
+                        year: { type: integer, nullable: true }
+                        difficulty: { type: string, nullable: true }
+                        institutionName: { type: string, nullable: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Lista nao encontrada
+        '500':
+          $ref: '#/components/responses/ServerError'
     post:
       tags: [qbank]
       operationId: addQuestionsToList
@@ -6978,6 +7335,116 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/qbank/report-reasons:
+    get:
+      tags: [qbank]
+      operationId: getQBankReportReasons
+      summary: Motivos de report (o app baixa, nao conhece)
+      description: >
+        Os motivos vivem em tabela (`vita.qbank_report_reasons`), nao em enum:
+        Rafael 2026-07-20 pediu "nada hardcoded". Tirar ou acrescentar motivo e
+        UPDATE no banco, sem release na App Store. `icon` e nome de SF Symbol.
+      responses:
+        '200':
+          description: Motivos ativos, ja ordenados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reasons:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        slug: { type: string }
+                        label: { type: string }
+                        description: { type: string, nullable: true }
+                        icon: { type: string, nullable: true }
+                        requiresComment: { type: boolean }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/qbank/questions/{id}/report:
+    post:
+      tags: [qbank]
+      operationId: reportQBankQuestion
+      summary: Reportar problema numa questao
+      description: >
+        So GUARDA. Quem le e o Pulse, pelo mesmo Supabase com usuario
+        somente-leitura. Reportar o MESMO motivo de novo atualiza o comentario em
+        vez de duplicar ou dar erro na cara do aluno.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  description: slug vindo de GET /api/qbank/report-reasons
+                comment:
+                  type: string
+                  maxLength: 1000
+                  description: obrigatorio quando o motivo tem requiresComment
+      responses:
+        '200':
+          description: Guardado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        '400':
+          description: Corpo invalido, motivo desconhecido ou texto faltando
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Questao nao encontrada
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/qbank/questions/{id}/favorite:
+    post:
+      tags: [qbank]
+      operationId: toggleQBankQuestionFavorite
+      summary: Liga/desliga o coracao da questao
+      description: >
+        Favorita NAO tem tabela propria: e a lista do aluno com kind='favorites',
+        criada sozinha no primeiro coracao (uma por aluno, o banco garante). De
+        graca, a favorita ja entra em tudo que le lista. Devolve o estado FINAL —
+        a tela obedece a resposta, nao o que o dedo achou que aconteceu.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Estado final do coracao
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  favorited: { type: boolean }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Questao nao encontrada
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /api/qbank/questions/{id}/stats:
     get:
       tags: [qbank]
@@ -7053,12 +7520,27 @@ paths:
                 questionCount:
                   type: integer
                   nullable: true
+                  minimum: 1
+                  maximum: 500
+                  description: >
+                    Quantas questoes a sessao tera. Teto 500 (Rafael 2026-07-20).
+                    Fora da faixa o servidor grampeia em vez de recusar; ausente
+                    ou invalido cai no padrao de 40.
                 institutionIds:
                   type: array
                   items:
                     type: integer
                   nullable: true
                 years:
+                  type: array
+                  items:
+                    type: integer
+                  nullable: true
+                yearList:
+                  description: >
+                    Anos avulsos marcados na lista. Alias canônico de `years` nesta
+                    rota (aqui `years` sempre foi lista, nunca faixa); se vier
+                    não-vazio, vence `years`.
                   type: array
                   items:
                     type: integer
@@ -7150,13 +7632,39 @@ paths:
                     Regra "1 sessão aberta global" (2026-07-19). true = fecha a
                     sessão em aberto (questões/flashcards/simulado) e cria a nova.
                     false + já existe aberta → 409.
+                officialExamSlug:
+                  type: string
+                  nullable: true
+                  description: >
+                    Slug de uma prova oficial registrada. Quando presente, ignora
+                    os filtros aleatórios e cria uma sessão com todas as questões
+                    da prova na ordem canônica da banca.
       responses:
         '201':
           description: Session created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/QBankSession'
+                allOf:
+                  - $ref: '#/components/schemas/QBankSession'
+                  - type: object
+                    properties:
+                      officialExam:
+                        type: object
+                        nullable: true
+                        description: Presente quando a sessão reproduz uma prova oficial.
+                        properties:
+                          slug: { type: string }
+                          title: { type: string }
+                          authority: { type: string }
+                          source: { type: string }
+                          year: { type: integer }
+                          stage: { type: string }
+                          institutionId: { type: integer }
+                          questionCount: { type: integer }
+                          timeLimitMinutes: { type: integer, nullable: true }
+                          externalIdPrefix: { type: string }
+                          sourceDownloadUrl: { type: string, format: uri }
         '409':
           description: >
             Já existe uma sessão em aberto (regra "1 global"). O cliente mostra
@@ -7354,8 +7862,10 @@ paths:
       operationId: previewSimulado
       summary: Count + breakdown ANTES de criar simulado (debounced)
       description: |
-        Espelha /api/qbank/preview mas devolve `estimatedMinutes` e top 5 grupos
-        conforme lente. Pool de Q vem de qbank_questions. Added 2026-04-29.
+        Espelha /api/qbank/preview mas devolve `estimatedMinutes` e as top 5
+        DISCIPLINAS da pool (nivel 2 da arvore canonica). Nao existe mais "lente"
+        — elas morreram em 2026-07-16, a descricao antiga citava um conceito que
+        o codigo nao tem mais. Pool de Q vem de qbank_questions. Added 2026-04-29.
       requestBody:
         required: true
         content:
@@ -7417,6 +7927,126 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/SimuladoTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/admin/qbank/ingestion:
+    get:
+      tags: [admin, qbank]
+      operationId: getQbankIngestionBatch
+      summary: Read one quarantined PDF ingestion batch and its duplicate decisions
+      parameters:
+        - in: query
+          name: batchId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Batch and ordered ingestion items
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { description: Batch not found }
+    post:
+      tags: [admin, qbank]
+      operationId: mutateQbankIngestionBatch
+      summary: Stage, resolve duplicates, approve or publish an official PDF exam
+      description: >
+        Admin-only state machine. stage writes only to quarantine. approve signs the exact
+        SHA-256 review digest and never publishes. publish requires the already approved digest,
+        the fixed 6/56/1,130 three-layer taxonomy, complete answer keys and resolved duplicates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [stage, resolve, approve, publish]
+                bundle:
+                  type: object
+                  additionalProperties: true
+                  description: Required for stage; contractVersion must be qbank-ingestion/v1.
+                batchId: { type: string, format: uuid }
+                itemId: { type: string, format: uuid }
+                expectedDigest:
+                  type: string
+                  pattern: '^[a-fA-F0-9]{64}$'
+                decision:
+                  type: string
+                  enum: [keep_new, use_existing, reject]
+                duplicateOfQuestionId: { type: integer }
+                reason: { type: string }
+      responses:
+        '200':
+          description: Mutation completed
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '201':
+          description: Bundle staged in quarantine
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { description: Admin permission required }
+        '409': { description: 'State, digest or duplicate conflict' }
+        '422': { description: Bundle failed the canonical ingestion contract }
+
+  /api/simulados/official-exams:
+    get:
+      tags: [simulados]
+      operationId: listOfficialQbankExams
+      summary: Lista provas oficiais completas disponíveis para reprodução fiel
+      responses:
+        '200':
+          description: Provas oficiais cujo total de questões já está completo no QBank
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [exams]
+                properties:
+                  exams:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - slug
+                        - title
+                        - authority
+                        - source
+                        - year
+                        - stage
+                        - institutionId
+                        - questionCount
+                        - timeLimitMinutes
+                        - externalIdPrefix
+                        - sourceDownloadUrl
+                        - availableQuestions
+                      properties:
+                        id: { type: string, format: uuid }
+                        slug: { type: string }
+                        title: { type: string }
+                        authority: { type: string }
+                        source: { type: string }
+                        year: { type: integer }
+                        stage: { type: string }
+                        institutionId: { type: integer }
+                        questionCount: { type: integer }
+                        timeLimitMinutes: { type: integer, nullable: true }
+                        externalIdPrefix: { type: string }
+                        sourceDownloadUrl: { type: string, format: uri }
+                        sourceFileSha256:
+                          type: string
+                          nullable: true
+                          pattern: '^[a-fA-F0-9]{64}$'
+                        availableQuestions: { type: integer }
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -8389,6 +9019,56 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/studio/add-material:
+    post:
+      tags: [studio]
+      operationId: studioAddMaterial
+      summary: Cola texto como fonte do Studio (Criar com o Vita)
+      description: |
+        "Colar suas anotações": o texto vira uma studio_source pronta pra gerar
+        flashcards/resumo. Cola fina sobre o motor addMaterial (mesmo do MCP
+        add-material). Texto é processado síncrono (chunking) — resposta volta
+        com a fonte já `ready`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  minLength: 40
+                  maxLength: 200000
+                title:
+                  type: string
+                  maxLength: 120
+              required: [text]
+      responses:
+        '201':
+          description: Fonte criada e processada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sourceId:
+                    type: string
+                  title:
+                    type: string
+                  type:
+                    type: string
+                    enum: [text, url]
+                  status:
+                    type: string
+                  chunks:
+                    type: integer
+                required: [sourceId, title, type, status, chunks]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   # 2026-04-23 now honors ?sourceId=X (filters sourceIds @> [id]) — fixes DetailSheet bleed.
   /api/studio/folders:
     get:
@@ -9051,49 +9731,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
-    post:
-      tags: [user]
-      operationId: performAchievementAction
-      summary: Perform achievement action (e.g., prestige)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                action:
-                  type: string
-                  enum: [prestige]
-              required: [action]
-      responses:
-        '200':
-          description: Action result
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  prestige:
-                    type: object
-                    properties:
-                      level:
-                        type: integer
-                      cycle:
-                        type: integer
-                      tier:
-                        type: string
-                      iconPath:
-                        type: string
-                      prestigeCount:
-                        type: integer
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/ServerError'
-
   /api/missions/today:
     get:
       tags: [user]
@@ -10775,7 +11412,7 @@ paths:
       operationId: redeemReferralCode
       summary: Vincular o user logado a um código (universal_link, pasteboard ou manual)
       description: >
-        Idempotente. UNIQUE em invitedUserId — cada user pode redimir só 1
+        Idempotente. Contagem via RETURNING (rowCount vinha 0). UNIQUE em invitedUserId — cada user pode redimir só 1
         código uma vez. Source manual exige janela 7d pós-signup.
       requestBody:
         required: true
@@ -11171,7 +11808,7 @@ paths:
       description: |
         Para cada studio_source.audio com status=ready e metadata.segments[0].words=null,
         baixa do R2, re-roda Whisper pedindo timestamp_granularities=word, e atualiza
-        metadata com segments contendo words por segment. Idempotente.
+        metadata com segments contendo words por segment. Idempotente. Contagem via RETURNING (rowCount vinha 0).
       security: []
       parameters:
         - name: Authorization
@@ -11205,7 +11842,7 @@ paths:
       description: |
         Para cada studio_source.audio com status=ready, segments presentes mas
         SEM metadata.chapters, chama lib/ai/transcript-chapters.ts (Qwen vLLM)
-        e salva. Idempotente. Skip se gravacao <60s ou <2 segments.
+        e salva. Idempotente. Contagem via RETURNING (rowCount vinha 0). Skip se gravacao <60s ou <2 segments.
       security: []
       parameters:
         - name: Authorization

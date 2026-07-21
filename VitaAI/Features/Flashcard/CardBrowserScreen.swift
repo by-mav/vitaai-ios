@@ -237,14 +237,22 @@ struct CardBrowserScreen: View {
         } else if vm.filteredCards.isEmpty {
             Spacer()
             VitaEmptyState(
-                title: vm.cards.isEmpty ? "Nenhum card ainda" : "Nada encontrado",
-                message: vm.cards.isEmpty
-                    ? (vm.isReadOnly
-                        ? "Este baralho da Biblioteca ainda não tem cards."
-                        : "Toque em + para criar o primeiro card deste baralho.")
-                    : "Nenhum card corresponde à busca ou ao filtro.",
-                actionText: (vm.cards.isEmpty && !vm.isReadOnly) ? "Criar card" : nil,
-                onAction: (vm.cards.isEmpty && !vm.isReadOnly) ? { composerTarget = .create } : nil
+                // Baralho da Biblioteca ainda NAO baixado nao esta "vazio": os
+                // cards existem, so nao estao no aparelho. Dizer "crie o
+                // primeiro card" ali era mentira dupla — o baralho tem cards e
+                // e curado, nao e o aluno que cria. Rafael 2026-07-21.
+                title: vm.precisaBaixar
+                    ? "Baralho ainda não baixado"
+                    : (vm.cards.isEmpty ? "Nenhum card ainda" : "Nada encontrado"),
+                message: vm.precisaBaixar
+                    ? "Baixe o baralho na tela anterior para estudar e buscar os cards aqui."
+                    : (vm.cards.isEmpty
+                        ? (vm.isReadOnly
+                            ? "Este baralho da Biblioteca ainda não tem cards."
+                            : "Toque em + para criar o primeiro card deste baralho.")
+                        : "Nenhum card corresponde à busca ou ao filtro."),
+                actionText: (vm.cards.isEmpty && !vm.isReadOnly && !vm.precisaBaixar) ? "Criar card" : nil,
+                onAction: (vm.cards.isEmpty && !vm.isReadOnly && !vm.precisaBaixar) ? { composerTarget = .create } : nil
             )
             Spacer()
         } else {

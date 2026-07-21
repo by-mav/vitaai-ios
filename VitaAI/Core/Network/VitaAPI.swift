@@ -219,6 +219,12 @@ actor VitaAPI {
         try await client.patch("study/flashcards/settings", body: settings)
     }
 
+    /// Amostra de um baralho da Biblioteca ANTES de baixar. Sem ela a tela de um
+    /// baralho nao baixado ficava vazia e o aluno nao tinha como decidir.
+    func getLibraryDeckSample(slug: String, limit: Int = 5) async throws -> LibraryDeckSample {
+        try await client.get("study/flashcards/library/\(slug)/sample?limit=\(limit)")
+    }
+
     func generateFlashcards(discipline: String, count: Int = 30) async throws -> [FlashcardDeckEntry] {
         struct Body: Encodable { let discipline: String; let count: Int }
         return try await client.post("study/flashcards/generate", body: Body(discipline: discipline, count: count))
@@ -855,6 +861,37 @@ actor VitaAPI {
 
     func answerQBankQuestion(id: Int, request: QBankAnswerRequest) async throws -> QBankAnswerResponse {
         try await client.postRaw("qbank/questions/\(id)/answer", body: Self.encodeCamelCase(request))
+    }
+
+    /// Motivos de report. O app NAO conhece a lista — ela vem do servidor
+    /// (Rafael 2026-07-20: "nada hardcoded"), inclusive icone e se exige texto.
+    func getQBankReportReasons() async throws -> QBankReportReasonsResponse {
+        try await client.get("qbank/report-reasons")
+    }
+
+    /// Reporta um problema na questao. So guarda; quem le e o Pulse.
+    func reportQBankQuestion(id: Int, reason: String, comment: String?) async throws {
+        let body = QBankReportRequest(reason: reason, comment: comment)
+        let _: QBankOkResponse = try await client.postRaw(
+            "qbank/questions/\(id)/report",
+            body: Self.encodeCamelCase(body)
+        )
+    }
+
+    /// Liga/desliga o coracao. Devolve o estado FINAL — a tela obedece a
+    /// resposta, nao o que o dedo achou que aconteceu.
+    func toggleQBankQuestionFavorite(id: Int) async throws -> QBankFavoriteResponse {
+        try await client.post("qbank/questions/\(id)/favorite")
+    }
+
+    /// Listas do aluno. A das favoritas vem com kind='favorites'.
+    func getQBankLists() async throws -> QBankListsResponse {
+        try await client.get("qbank/lists")
+    }
+
+    /// Questoes de uma lista — serve pra favorita e pra qualquer outra.
+    func getQBankListQuestions(listId: Int) async throws -> QBankListQuestionsResponse {
+        try await client.get("qbank/lists/\(listId)/questions")
     }
 
     func getQBankSessions(limit: Int = 5) async throws -> QBankSessionsResponse {

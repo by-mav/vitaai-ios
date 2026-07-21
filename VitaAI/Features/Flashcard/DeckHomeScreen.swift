@@ -49,6 +49,10 @@ struct DeckHomeScreen: View {
     /// servidor). O servidor ja respeita esse valor ao montar a fila; era só a
     /// tela que trazia 20 fixo e mentia pra quem tinha configurado outro numero.
     @State private var newPerDay = 20
+    /// Amostra do baralho da Biblioteca AINDA NAO baixado. Sem ela a tela nao
+    /// mostrava nada e o aluno tinha que baixar as cegas pra saber o que tem
+    /// dentro (Rafael 2026-07-21).
+    @State private var amostra: LibraryDeckSample?
 
     private var isLibrary: Bool { librarySlug != nil }
     private var totalCards: Int {
@@ -154,6 +158,7 @@ struct DeckHomeScreen: View {
 
                 todayCard
                 primaryCTA
+                amostraSection
                 scoreCard
 
                 if !isLibrary {
@@ -209,6 +214,64 @@ struct DeckHomeScreen: View {
                     .padding(VitaTokens.Spacing.md)
             }
         }
+    }
+
+    /// Carrossel com algumas cartas reais do baralho, pra decidir o download
+    /// olhando o conteudo — nao o nome. Some assim que o baralho e baixado.
+    @ViewBuilder
+    private var amostraSection: some View {
+        if let amostra, !amostra.cards.isEmpty {
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                HStack(spacing: VitaTokens.Spacing.xs) {
+                    Text("Amostra do baralho")
+                        .font(VitaTypography.labelLarge)
+                        .foregroundStyle(VitaColors.textPrimary)
+                    Text("\(amostra.cards.count) de \(amostra.totalCards)")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: VitaTokens.Spacing.md) {
+                        ForEach(amostra.cards, id: \.id) { card in
+                            amostraCard(card)
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                }
+                // O scroll horizontal sangra ate a borda: cortar no padding do
+                // pai faria a proxima carta sumir em vez de espiar.
+                .padding(.horizontal, -VitaTokens.Spacing.lg)
+                .padding(.leading, VitaTokens.Spacing.lg)
+            }
+        }
+    }
+
+    private func amostraCard(_ card: LibraryDeckSampleCard) -> some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.xs) {
+            Text(FlashcardHTMLReader.preview(card.front))
+                .font(VitaTypography.bodyMedium)
+                .foregroundStyle(VitaColors.textPrimary)
+                .lineLimit(4)
+                .multilineTextAlignment(.leading)
+            if let verso = card.back.flatMap({ $0 }),
+               case let texto = FlashcardHTMLReader.preview(verso), !texto.isEmpty {
+                Text(texto)
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textTertiary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(VitaTokens.Spacing.md)
+        .frame(width: 208, height: 132, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .fill(VitaColors.glassBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .stroke(VitaColors.glassBorder, lineWidth: 0.75)
+        )
     }
 
     private func miniStat(value: Int, label: String, tint: Color) -> some View {
@@ -490,6 +553,13 @@ struct DeckHomeScreen: View {
         // Falhar aqui não pode zerar o medidor: mantém o padrão do Anki (20).
         if let ajustes = try? await container.api.getFlashcardSettings() {
             newPerDay = ajustes.newPerDay
+        }
+        // Amostra só faz sentido pro que ainda NAO foi baixado: depois do
+        // download os cards vem do proprio pack.
+        if let slug = librarySlug, !downloads.isDownloaded(slug) {
+            amostra = try? await container.api.getLibraryDeckSample(slug: slug, limit: 5)
+        } else {
+            amostra = nil
         }
         if let slug = librarySlug {
             // Biblioteca: os cards vêm do pack baixado ou do bundle — offline.

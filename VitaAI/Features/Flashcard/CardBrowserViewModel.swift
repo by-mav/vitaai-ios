@@ -116,11 +116,18 @@ final class CardBrowserViewModel {
     /// modelo Anki, sem tocar o deck curado dos outros.
     private var isBundle: Bool { !(disciplineSlug ?? "").isEmpty }
 
+    /// Baralho da Biblioteca cujo pack ainda nao esta no aparelho.
+    var precisaBaixar = false
+
     func load() async {
         // Biblioteca offline: bundle + overlay local do aluno.
         if let slug = disciplineSlug, !slug.isEmpty {
             let bundle = await VitaContentBundle.shared.cards(disciplineSlug: slug)
             cards = await LocalDeckStore.shared.effectiveCards(bundle: bundle, disciplineSlug: slug)
+            // Lista vazia aqui quase sempre significa "pack nao instalado", nao
+            // "baralho sem cards" — a tela precisa saber a diferenca pra nao
+            // oferecer "criar card" num baralho curado.
+            precisaBaixar = cards.isEmpty
             isReadOnly = false
             didLoad = true
             isLoading = false
