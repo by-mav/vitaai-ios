@@ -45,6 +45,10 @@ struct DeckHomeScreen: View {
     @State private var confirmRemove = false
     /// Preenchimento da barra de respostas (0→1 ao abrir).
     @State private var barFill: CGFloat = 0
+    /// Teto de cartas novas por dia do ALUNO (gaveta de ajustes, salvo no
+    /// servidor). O servidor ja respeita esse valor ao montar a fila; era só a
+    /// tela que trazia 20 fixo e mentia pra quem tinha configurado outro numero.
+    @State private var newPerDay = 20
 
     private var isLibrary: Bool { librarySlug != nil }
     private var totalCards: Int {
@@ -62,8 +66,10 @@ struct DeckHomeScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             VitaScreenHeader(title: title, onBack: onBack) {
+                // A lupa saiu daqui: com quatro botoes o titulo do baralho nao
+                // cabia e virava "Farmacolo...". Procurar card e acao do CONTEUDO,
+                // entao mora no card de estudo. Rafael 2026-07-21.
                 HStack(spacing: VitaTokens.Spacing.xs) {
-                    barButton(icon: "magnifyingglass") { showBrowser = true }
                     barButton(icon: preparingShare ? "ellipsis" : "square.and.arrow.up") { share() }
                         .disabled(preparingShare)
                     barButton(icon: "gearshape") { showSettings = true }
@@ -176,7 +182,7 @@ struct DeckHomeScreen: View {
     private var todayCard: some View {
         let due = summary.due
         let news = summary.newCards
-        let today = due + min(news, 20)   // teto diário de novos (mesmo do builder)
+        let today = due + min(news, newPerDay)   // teto do aluno, não um 20 fixo
         return VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) {
             VStack(spacing: VitaTokens.Spacing.lg) {
                 DeckGaugeView(
@@ -190,6 +196,10 @@ struct DeckHomeScreen: View {
                 }
             }
             .padding(VitaTokens.Spacing.lg)
+            .overlay(alignment: .topTrailing) {
+                barButton(icon: "magnifyingglass") { showBrowser = true }
+                    .padding(VitaTokens.Spacing.md)
+            }
         }
     }
 
@@ -217,8 +227,8 @@ struct DeckHomeScreen: View {
     private var primaryCTA: some View {
         if let slug = librarySlug, !downloads.isDownloaded(slug) {
             switch downloads.state(for: slug) {
-            case .downloading(let fraction):
-                downloadingCTA(slug: slug, fraction: fraction)
+            case .downloading(let progress):
+                downloadingCTA(slug: slug, progress: progress)
             case .installing:
                 ctaShell(filled: true) {
                     HStack(spacing: VitaTokens.Spacing.sm) {
@@ -276,7 +286,7 @@ struct DeckHomeScreen: View {
     }
 
     /// Enquanto baixa, o próprio CTA é a barra: preenche da esquerda pra direita.
-    private func downloadingCTA(slug: String, fraction: Double) -> some View {
+    private func downloadingCTA(slug: String, progress: DeckDownloadManager.Progress) -> some View {
         Button { downloads.cancel(slug: slug) } label: {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -289,12 +299,26 @@ struct DeckHomeScreen: View {
                                 startPoint: .leading, endPoint: .trailing
                             )
                         )
-                        .frame(width: geo.size.width * fraction)
+                        .frame(width: geo.size.width * max(0.02, progress.fraction))
                         .shadow(color: VitaColors.accent.opacity(0.55), radius: 10)
                     HStack {
-                        Text("Baixando \(Int(fraction * 100))%")
-                            .font(VitaTypography.labelLarge)
-                            .foregroundStyle(VitaColors.textPrimary)
+                        // Porcentagem + tamanho + velocidade + tempo restante.
+                        // Sem esses números um download lento e um travado são
+                        // idênticos na tela, e o aluno não sabe se espera.
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(progress.total > 0
+                                 ? "Baixando \(Int(progress.fraction * 100))%"
+                                 : "Baixando…")
+                                .font(VitaTypography.labelLarge)
+                                .foregroundStyle(VitaColors.textPrimary)
+                            Text(
+                                [progress.sizeText, progress.speedText, progress.etaText]
+                                    .filter { !$0.isEmpty }
+                                    .joined(separator: " · ")
+                            )
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textSecondary)
+                        }
                         Spacer()
                         Text("Cancelar")
                             .font(VitaTypography.labelSmall)
@@ -455,6 +479,10 @@ struct DeckHomeScreen: View {
 
     private func load() async {
         await downloads.refreshInstalled()
+        // Falhar aqui não pode zerar o medidor: mantém o padrão do Anki (20).
+        if let ajustes = try? await container.api.getFlashcardSettings() {
+            newPerDay = ajustes.newPerDay
+        }
         if let slug = librarySlug {
             // Biblioteca: os cards vêm do pack baixado ou do bundle — offline.
             let cards = await VitaContentBundle.shared.cards(disciplineSlug: slug)

@@ -26,6 +26,7 @@ struct CardBrowserScreen: View {
     var previewCards: [FlashcardEntry]? = nil
 
     @Environment(\.appContainer) private var container
+    @Environment(\.dismiss) private var dismissFromEnvironment
     @State private var vm = CardBrowserViewModel()
     @State private var editMode: EditMode = .inactive
     @State private var composerTarget: CardComposerTarget?
@@ -325,8 +326,12 @@ struct CardBrowserScreen: View {
         moveDestinations = dests
     }
 
+    /// Aberta como sheet (pela lupa do baralho) NAO recebe onBack, e o "if let"
+    /// sozinho deixava o botao de voltar sem fazer nada — falha em silencio.
+    /// O dismiss do ambiente fecha o sheet; o onBack continua mandando quando
+    /// a tela vem empurrada pelo router. Rafael 2026-07-21.
     private func dismiss() {
-        if let onBack { onBack() }
+        if let onBack { onBack() } else { dismissFromEnvironment() }
     }
 
     private var countSubtitle: String {
