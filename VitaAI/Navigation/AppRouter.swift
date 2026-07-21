@@ -687,7 +687,9 @@ struct MainTabView: View {
                 onNavigateToTrabalhos: { router.navigate(to: .trabalhos) }
             )
         case .faculdade:
-            JornadaScreen()
+            // Aba Rotina = a ÚNICA tela canônica: disciplinas/agenda/faculdade
+            // (Rafael 2026-07-21). Sem roteamento por journeyType nem placeholder.
+            FaculdadeHomeScreen()
         case .progresso:
             // Aba Progresso = Estatísticas/Conquistas (decisão Rafael 2026-06-17).
             // A trilha gamificada virou a Home (ver case .home).
