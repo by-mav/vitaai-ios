@@ -1,4 +1,9 @@
+import OSLog
 import SwiftUI
+
+/// Falha silenciosa aqui ja custou caro: a amostra da Biblioteca sumia sem
+/// explicacao quando o servidor devolvia 404. Erro agora vai pro log.
+private let deckLog = Logger(subsystem: "com.bymav.vitaai", category: "Flashcards")
 
 // MARK: - DeckHomeScreen — tela CENTRAL do baralho (Rafael 2026-07-19)
 //
@@ -53,6 +58,7 @@ struct DeckHomeScreen: View {
     /// mostrava nada e o aluno tinha que baixar as cegas pra saber o que tem
     /// dentro (Rafael 2026-07-21).
     @State private var amostra: LibraryDeckSample?
+    @State private var amostraFalhou = false
 
     private var isLibrary: Bool { librarySlug != nil }
     private var totalCards: Int {
@@ -86,6 +92,12 @@ struct DeckHomeScreen: View {
                 Spacer()
                 ProgressView().tint(VitaColors.accent)
                 Spacer()
+            } else if needsDownload {
+                // Baralho da Biblioteca ainda nao baixado NAO e a tela de estudo
+                // com os numeros zerados: medidor em 0 e "0% NOTA" nao dizem
+                // nada a quem nem baixou. Aqui a tela apresenta a colecao.
+                // Rafael 2026-07-21.
+                vitrine
             } else if totalCards == 0, !isLibrary {
                 emptyState
             } else {
@@ -147,6 +159,73 @@ struct DeckHomeScreen: View {
             Spacer()
         }
         .padding(.horizontal, VitaTokens.Spacing.xl)
+    }
+
+    /// Apresentacao da colecao ANTES do download: quem fez, o que tem dentro e
+    /// como sao as cartas. Sem medidor e sem nota — nao ha o que medir ainda.
+    private var vitrine: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+                cabecalhoColecao
+                primaryCTA
+                amostraSection
+                Spacer(minLength: VitaTokens.Spacing.xl)
+            }
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .padding(.top, VitaTokens.Spacing.sm)
+        }
+    }
+
+    private var cabecalhoColecao: some View {
+        VitaGlassCard(cornerRadius: VitaTokens.Radius.lg) {
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
+                HStack(spacing: VitaTokens.Spacing.xs) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 13, weight: .semibold))  // ds-allow: ícone do selo de curadoria
+                        .foregroundStyle(VitaColors.accent)
+                    Text("Criado por Vita")
+                        .font(VitaTypography.labelMedium)
+                        .foregroundStyle(VitaColors.accent)
+                }
+
+                Text(title)
+                    .font(VitaTypography.headlineSmall)
+                    .foregroundStyle(VitaColors.textPrimary)
+
+                Text("Coleção curada pela equipe do Vita. Baixe uma vez e estude offline, com repetição espaçada.")
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(VitaColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: VitaTokens.Spacing.md) {
+                    fatoDaColecao(valor: "\(totalCards)", rotulo: totalCards == 1 ? "carta" : "cartas")
+                    if let amostra, amostra.cards.contains(where: { ($0.cardType ?? "") == "cloze" }) {
+                        fatoDaColecao(valor: "Lacuna", rotulo: "e frente/verso")
+                    }
+                    fatoDaColecao(valor: "Offline", rotulo: "depois de baixar")
+                }
+            }
+            .padding(VitaTokens.Spacing.lg)
+        }
+    }
+
+    private func fatoDaColecao(valor: String, rotulo: String) -> some View {
+        VStack(spacing: 2) {
+            Text(valor)
+                .font(VitaTypography.labelLarge)
+                .foregroundStyle(VitaColors.textPrimary)
+                .monospacedDigit()
+            Text(rotulo)
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.textTertiary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, VitaTokens.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .fill(VitaColors.surfaceCard.opacity(0.5))
+        )
     }
 
     private var content: some View {
@@ -220,7 +299,16 @@ struct DeckHomeScreen: View {
     /// olhando o conteudo — nao o nome. Some assim que o baralho e baixado.
     @ViewBuilder
     private var amostraSection: some View {
-        if let amostra, !amostra.cards.isEmpty {
+        if amostraFalhou {
+            HStack(spacing: VitaTokens.Spacing.xs) {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.system(size: 12, weight: .medium))  // ds-allow: ícone do aviso de amostra
+                    .foregroundStyle(VitaColors.textTertiary)
+                Text("Não consegui carregar os exemplos agora.")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+        } else if let amostra, !amostra.cards.isEmpty {
             VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
                 HStack(spacing: VitaTokens.Spacing.xs) {
                     Text("Amostra do baralho")
@@ -557,9 +645,20 @@ struct DeckHomeScreen: View {
         // Amostra só faz sentido pro que ainda NAO foi baixado: depois do
         // download os cards vem do proprio pack.
         if let slug = librarySlug, !downloads.isDownloaded(slug) {
-            amostra = try? await container.api.getLibraryDeckSample(slug: slug, limit: 5)
+            do {
+                amostra = try await container.api.getLibraryDeckSample(slug: slug, limit: 5)
+                amostraFalhou = false
+            } catch {
+                // `try?` aqui apagou o erro e a secao sumiu sem explicacao — o
+                // servidor devolvia 404 (rota ainda nao publicada) e a tela
+                // fingia que estava tudo certo. Rafael 2026-07-21.
+                amostra = nil
+                amostraFalhou = true
+                deckLog.error("amostra da Biblioteca falhou (\(slug)): \(error)")
+            }
         } else {
             amostra = nil
+            amostraFalhou = false
         }
         if let slug = librarySlug {
             // Biblioteca: os cards vêm do pack baixado ou do bundle — offline.
