@@ -25,6 +25,12 @@ packages:
   ZIPFoundation:
     url: https://github.com/weichsel/ZIPFoundation
     from: "0.9.19"
+  # Leitor de HTML do card do Anki (o card É uma página web). Puro Swift, MIT.
+  # Substitui a extração por regex, que dependia de alguém LEMBRAR de cada tag:
+  # 13 das 25 tags do baralho não eram tratadas e o texto saía grudado.
+  SwiftSoup:
+    url: https://github.com/scinfu/SwiftSoup
+    from: "2.7.0"
 
 
 settings:
@@ -93,6 +99,8 @@ targets:
         product: GLTFKit2
       - package: ZIPFoundation
         product: ZIPFoundation
+      - package: SwiftSoup
+        product: SwiftSoup
     settings:
       base:
         PRODUCT_NAME: VitaAI

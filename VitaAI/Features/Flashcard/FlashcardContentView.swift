@@ -89,7 +89,16 @@ struct FlashcardContentView: View {
     }
 
     private var segments: [ContentSegment] {
-        ContentSegmentParser.parse(effContent)
+        FlashcardHTMLReader.read(effContent)
+    }
+
+    /// Texto de TODOS os segmentos, para o card que não tem mídia. Antes este
+    /// caso passava por um extrator DIFERENTE (flashcardDecodeText), com outra
+    /// lista de tags — e o mesmo conteúdo aparecia de um jeito com foto e de
+    /// outro sem. Agora existe um caminho só.
+    private var textoCompleto: String {
+        segments.compactMap { if case .text(let t) = $0 { return t }; return nil }
+            .joined(separator: "\n")
     }
 
     /// Tem conteúdo "rico" (imagem OU áudio) → usa a renderização segmentada em vez
@@ -114,7 +123,7 @@ struct FlashcardContentView: View {
     var body: some View {
         if !hasRichContent {
             // Texto puro — decodifica entidades HTML (&nbsp;) e remove tags (<div> do Anki)
-            Text(flashcardDecodeText(effContent))
+            Text(textoCompleto)
                 .font(.system(size: fontSize, weight: .medium))
                 .foregroundStyle(textColor)
                 .multilineTextAlignment(effAlign)
@@ -524,103 +533,4 @@ private struct PinchToZoom: ViewModifier {
 
 private extension View {
     func pinchToZoom() -> some View { modifier(PinchToZoom()) }
-}
-
-// MARK: - Content Segment Parser
-
-private enum ContentSegment {
-    case text(String)
-    case image(url: String)
-    case audio(url: String)
-}
-
-private enum ContentSegmentParser {
-    // <img src="..." ...>  (self-closing / também)
-    private static let imgPattern = /<img[^>]*\bsrc=["']([^"']+)["'][^>]*\/?>/
-    // <audio ... src="..." ...></audio>  (consome o fechamento pra a tag não vazar)
-    private static let audioPattern = /<audio[^>]*\bsrc=["']([^"']+)["'][^>]*>(?:\s*<\/audio>)?/
-
-    static func parse(_ input: String) -> [ContentSegment] {
-        // Quick bail-out — nada de mídia
-        guard input.contains("<img") || input.contains("<audio") else {
-            return [.text(input)]
-        }
-
-        // Coleta TODAS as mídias (img + audio) com posição, pra intercalar o texto
-        // na ordem certa mesmo quando as duas aparecem no mesmo card (ausculta:
-        // foto + player).
-        struct Media { let range: Range<String.Index>; let segment: ContentSegment }
-        var media: [Media] = []
-        for m in input.matches(of: imgPattern) {
-            media.append(Media(range: m.range, segment: .image(url: String(m.output.1))))
-        }
-        for m in input.matches(of: audioPattern) {
-            media.append(Media(range: m.range, segment: .audio(url: String(m.output.1))))
-        }
-        media.sort { $0.range.lowerBound < $1.range.lowerBound }
-
-        var segments: [ContentSegment] = []
-        var cursor = input.startIndex
-        for item in media {
-            if cursor < item.range.lowerBound {
-                let stripped = stripOtherHTML(String(input[cursor..<item.range.lowerBound]))
-                if !stripped.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    segments.append(.text(stripped))
-                }
-            }
-            segments.append(item.segment)
-            cursor = item.range.upperBound
-        }
-
-        // Texto após a última mídia
-        if cursor < input.endIndex {
-            let stripped = stripOtherHTML(String(input[cursor...]))
-            if !stripped.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                segments.append(.text(stripped))
-            }
-        }
-
-        return segments.isEmpty ? [.text(input)] : segments
-    }
-
-    /// Strips non-img HTML tags from a text chunk (e.g. <br>, <div>, <b>, etc.)
-    /// Converts <br> → newline, <b>/<strong> → ** markdown, <i>/<em> → * markdown.
-    private static func stripOtherHTML(_ text: String) -> String {
-        var result = text
-
-        // <br> and <br/> → newline
-        result = result.replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: .regularExpression)
-
-        // <b>text</b> and <strong>text</strong> → **text**
-        result = result.replacingOccurrences(of: "<(b|strong)>", with: "**", options: .regularExpression)
-        result = result.replacingOccurrences(of: "</(b|strong)>", with: "**", options: .regularExpression)
-
-        // <i>text</i> and <em>text</em> → *text*
-        result = result.replacingOccurrences(of: "<(i|em)>", with: "*", options: .regularExpression)
-        result = result.replacingOccurrences(of: "</(i|em)>", with: "*", options: .regularExpression)
-
-        // <ul>/<ol>/<li> → newline + bullet
-        result = result.replacingOccurrences(of: "<li>", with: "\n- ", options: .regularExpression)
-        result = result.replacingOccurrences(of: "</li>", with: "", options: .regularExpression)
-        result = result.replacingOccurrences(of: "</?[uo]l>", with: "", options: .regularExpression)
-
-        // Preserva <u>/</u> (sublinhado do editor rico) do strip catch-all abaixo.
-        result = result.replacingOccurrences(of: "<u>", with: "\u{FFF9}")
-        result = result.replacingOccurrences(of: "</u>", with: "\u{FFFA}")
-        // Strip remaining HTML tags
-        result = result.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        result = result.replacingOccurrences(of: "\u{FFF9}", with: "<u>")
-        result = result.replacingOccurrences(of: "\u{FFFA}", with: "</u>")
-
-        // Decode basic HTML entities
-        result = result
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-            .replacingOccurrences(of: "&#39;", with: "'")
-            .replacingOccurrences(of: "&quot;", with: "\"")
-
-        return result
-    }
 }
