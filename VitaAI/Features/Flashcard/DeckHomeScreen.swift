@@ -97,7 +97,15 @@ struct DeckHomeScreen: View {
             CardEditorScreen(onCreated: { Task { await load() } }, presetDeckTitle: title)
         }
         .sheet(isPresented: $showBrowser) {
-            CardBrowserScreen(deckId: deckId, deckTitle: title, subjectId: deck?.subjectId)
+            // disciplineSlug e OBRIGATORIO pro baralho da Biblioteca: sem ele o
+            // browser acha que o deck e do servidor, busca online, nao encontra
+            // (os cards vivem no pack BAIXADO) e mostra lista vazia.
+            CardBrowserScreen(
+                deckId: deckId,
+                deckTitle: title,
+                subjectId: deck?.subjectId,
+                disciplineSlug: librarySlug
+            )
         }
         .sheet(isPresented: $showSettings) {
             FlashcardSettingsV2Sheet()
