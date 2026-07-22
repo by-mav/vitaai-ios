@@ -394,6 +394,7 @@ private struct MessageRow: View {
     var onRetry: (() -> Void)?
     var onFeedback: ((Int) -> Void)?
     @State private var cursorVisible: Bool = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isUser: Bool { message.role == "user" }
 
@@ -417,9 +418,7 @@ private struct MessageRow: View {
                         .alignmentGuide(.bottom) { d in d[.bottom] }
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    if isThinking {
-                        AIActivityIndicator(state: activityState)
-                    } else {
+                    if !isThinking {
                         assistantBubble
                         if message.isError, let onRetry {
                             Button(action: onRetry) {
@@ -483,12 +482,28 @@ private struct MessageRow: View {
     }
 
     private var assistantAvatar: some View {
-        Image("vita-btn-active")
-            .resizable()
-            .scaledToFit()
-            .frame(width: 26, height: 26)
-            .clipShape(Circle())
-            .alignmentGuide(.bottom) { d in d[.bottom] }
+        ZStack {
+            Image("vita-btn-active")
+                .resizable()
+                .scaledToFit()
+                .clipShape(Circle())
+                .opacity(isStreaming ? 0 : 1)
+                .scaleEffect(isStreaming ? 0.72 : 1)
+                .blur(radius: isStreaming ? 2.2 : 0)
+                .rotationEffect(.degrees(isStreaming ? -8 : 0))
+
+            Circle()
+                .fill(VitaColors.accent.opacity(0.16))
+                .scaleEffect(isStreaming ? 1.12 : 0.72)
+                .opacity(isStreaming ? 0.18 : 0)
+
+            AIActivityMaterial(state: activityState, color: VitaColors.accent, isActive: isStreaming)
+                .opacity(isStreaming ? 1 : 0)
+                .scaleEffect(isStreaming ? 1 : 0.62)
+        }
+        .frame(width: 30, height: 30)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.32), value: isStreaming)
+        .alignmentGuide(.bottom) { d in d[.bottom] }
     }
 
     private var assistantBubble: some View {
@@ -912,25 +927,22 @@ private struct MessageActions: View {
 
 // MARK: - BYMAV AI Activity Protocol v1
 
-private struct AIActivityIndicator: View {
+private struct AIActivityMaterial: View {
     let state: AIActivityState
+    let color: Color
+    let isActive: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var themeColor: Color { PixioCoState.shared.activeThemeColor.color }
-
     var body: some View {
-        let shape = Capsule(style: .continuous)
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion || !isActive)) { timeline in
             Canvas { context, size in
                 draw(in: &context, size: size, date: timeline.date)
             }
         }
-        .frame(width: 20, height: 20)
-        .frame(width: 48, height: 38)
-        .pixioGlass(.clearTinted(themeColor.opacity(0.18)), in: shape)
-        .overlay(shape.strokeBorder(PixioColor.glassBorder, lineWidth: 1))
+        .frame(width: 30, height: 30)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(.updatesFrequently)
+        .accessibilityHidden(!isActive)
     }
 
     private enum Mode { case orbits, globe, rubik, wave, ribbon, morph }
@@ -975,19 +987,73 @@ private struct AIActivityIndicator: View {
     private func draw(in context: inout GraphicsContext, size: CGSize, date: Date) {
         let phase = reduceMotion ? 0.22 : date.timeIntervalSinceReferenceDate * speed
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let extent = min(size.width, size.height) * 0.39
-        let points = (0..<12).map { point(index: $0, count: 12, phase: phase) }.sorted { $0.z < $1.z }
+        let extent = min(size.width, size.height) * 0.38
+        let coreRect = CGRect(
+            x: center.x - extent * 1.04,
+            y: center.y - extent * 1.04,
+            width: extent * 2.08,
+            height: extent * 2.08
+        )
+        context.fill(Path(ellipseIn: coreRect), with: .color(color.opacity(0.07)))
+
+        if case .orbits = mode {
+            let shells: [(CGFloat, CGFloat, Double)] = [
+                (0.58, 0.22, -28),
+                (0.78, 0.34, 3),
+                (0.98, 0.46, 34),
+            ]
+            for (radiusScale, squash, angle) in shells {
+                var shellContext = context
+                shellContext.translateBy(x: center.x, y: center.y)
+                shellContext.rotate(by: .degrees(angle))
+                let rect = CGRect(
+                    x: -extent * radiusScale,
+                    y: -extent * radiusScale * squash,
+                    width: extent * radiusScale * 2,
+                    height: extent * radiusScale * squash * 2
+                )
+                shellContext.stroke(Path(ellipseIn: rect), with: .color(color.opacity(0.14)), lineWidth: 0.42)
+            }
+        }
+
+        let count = 46
+        let points = (0..<count).map { point(index: $0, count: count, phase: phase) }.sorted { $0.z < $1.z }
         for point in points {
             let depth = (point.z + 1) / 2
-            let radius = max(CGFloat(0.75), size.width * CGFloat(0.018 + depth * 0.018))
+            let perspective = 0.82 + depth * 0.20
+            let radius = max(CGFloat(0.52), size.width * CGFloat(0.012 + depth * 0.014))
+            let x = center.x + CGFloat(point.x * perspective) * extent
+            let y = center.y + CGFloat(point.y * perspective) * extent
+            let haloRadius = radius * 2.25
+            let haloRect = CGRect(
+                x: x - haloRadius,
+                y: y - haloRadius,
+                width: haloRadius * 2,
+                height: haloRadius * 2
+            )
             let rect = CGRect(
-                x: center.x + CGFloat(point.x) * extent - radius,
-                y: center.y + CGFloat(point.y) * extent - radius,
+                x: x - radius,
+                y: y - radius,
                 width: radius * 2,
                 height: radius * 2
             )
-            context.fill(Path(ellipseIn: rect), with: .color(themeColor.opacity(0.34 + depth * 0.66)))
+            context.fill(Path(ellipseIn: haloRect), with: .color(color.opacity(0.035 + depth * 0.075)))
+            context.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.30 + depth * 0.70)))
         }
+    }
+
+    private func rotate(_ point: OrbPoint, yaw: Double, pitch: Double) -> OrbPoint {
+        let cosYaw = cos(yaw)
+        let sinYaw = sin(yaw)
+        let x = point.x * cosYaw - point.z * sinYaw
+        let z = point.x * sinYaw + point.z * cosYaw
+        let cosPitch = cos(pitch)
+        let sinPitch = sin(pitch)
+        return .init(
+            x: x,
+            y: point.y * cosPitch - z * sinPitch,
+            z: point.y * sinPitch + z * cosPitch
+        )
     }
 
     private func point(index: Int, count: Int, phase: Double) -> OrbPoint {
@@ -998,29 +1064,50 @@ private struct AIActivityIndicator: View {
             let y = 1 - 2 * ((Double(index) + 0.5) / Double(count))
             let radius = sqrt(max(0, 1 - y * y))
             let angle = Double(index) * 2.399963 + phase
-            return .init(x: cos(angle) * radius, y: y, z: sin(angle) * radius)
+            return rotate(.init(x: cos(angle) * radius, y: y, z: sin(angle) * radius), yaw: phase * 0.08, pitch: -0.18)
         case .rubik:
-            let side = 3
-            let x = Double(index % side) - 1
-            let y = Double((index / side) % side) - 1
-            let z = Double(index / (side * side)) - 0.5
+            let side = Int(ceil(pow(Double(count), 1.0 / 3.0)))
+            let denominator = Double(max(1, side - 1))
+            let x = Double(index % side) / denominator * 2 - 1
+            let y = Double((index / side) % side) / denominator * 2 - 1
+            let z = Double(index / (side * side)) / denominator * 2 - 1
             let angle = phase * 0.55 + Double(index / side) * 0.08
-            return .init(x: x * cos(angle) - z * sin(angle), y: y, z: x * sin(angle) + z * cos(angle))
+            return rotate(
+                .init(x: x * cos(angle) - z * sin(angle), y: y, z: x * sin(angle) + z * cos(angle)),
+                yaw: phase * 0.12,
+                pitch: -0.34
+            )
         case .wave:
-            return .init(x: t * 2 - 1, y: sin(t * turn * 2.2 + phase) * 0.48, z: cos(t * turn + phase) * 0.45)
+            return rotate(
+                .init(x: t * 2 - 1, y: sin(t * turn * 2.2 + phase) * 0.48, z: cos(t * turn + phase) * 0.45),
+                yaw: 0.16,
+                pitch: -0.28
+            )
         case .ribbon:
             let lane = index % 3
-            let laneT = Double(index / 3) / 3
-            return .init(x: laneT * 2 - 1, y: sin(laneT * turn * 1.35 + phase) * 0.42 + Double(lane - 1) * 0.22, z: cos(laneT * turn + phase + Double(lane)) * 0.5)
+            let laneCount = Int(ceil(Double(count) / 3.0))
+            let laneT = Double(index / 3) / Double(max(1, laneCount - 1))
+            return rotate(
+                .init(x: laneT * 2 - 1, y: sin(laneT * turn * 1.35 + phase) * 0.42 + Double(lane - 1) * 0.22, z: cos(laneT * turn + phase + Double(lane)) * 0.5),
+                yaw: 0.20,
+                pitch: -0.22
+            )
         case .morph:
             let angle = t * turn + phase * 0.35
             let radius = 0.62 + sin(t * turn * 3 + phase) * 0.22
             return .init(x: cos(angle) * radius, y: sin(angle) * radius, z: sin(angle * 2 + phase) * 0.5)
         case .orbits:
-            let orbit = index % 3
-            let angle = t * turn * 2 + phase * (orbit == 1 ? -0.8 : 1)
-            let radius = 0.45 + Double(orbit) * 0.2
-            return .init(x: cos(angle) * radius, y: sin(angle) * radius * (0.3 + Double(orbit) * 0.22), z: sin(angle + Double(orbit) * 1.7))
+            let orbit = index % 5
+            let orbitCount = Int(ceil(Double(count) / 5.0))
+            let orbitT = Double(index / 5) / Double(max(1, orbitCount - 1))
+            let direction = orbit.isMultiple(of: 2) ? 1.0 : -1.0
+            let angle = orbitT * turn + phase * direction * (0.62 + Double(orbit) * 0.08)
+            let radius = 0.48 + Double(orbit) * 0.095
+            return rotate(
+                .init(x: cos(angle) * radius, y: sin(angle) * radius * 0.58, z: sin(angle + Double(orbit) * 0.92) * 0.72),
+                yaw: Double(orbit) * 0.48,
+                pitch: -0.62 + Double(orbit) * 0.30
+            )
         }
     }
 }
