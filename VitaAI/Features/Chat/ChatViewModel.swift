@@ -6,12 +6,17 @@ import Observation
 // Uses ConversationEntry, ConversationMessagesResponse, ConversationMessage
 //   from Models/API/ConversationModels.swift
 
+enum AIActivityState: String, Sendable {
+    case idle, working, searching, solving, listening, composing, speaking, shaping, error, cancelled
+}
+
 @MainActor
 @Observable
 final class ChatViewModel {
     var messages: [ChatMessage] = []
     var inputText: String = ""
     var isStreaming: Bool = false
+    var activityState: AIActivityState = .idle
     var currentConversationId: String?
     var conversations: [ConversationEntry] = []
     var showHistory: Bool = false
@@ -78,6 +83,7 @@ final class ChatViewModel {
         let idx = messages.count - 1
 
         isStreaming = true
+        activityState = .working
         let streamStartTime = Date()
         VitaAnalytics.capture(event: "chat_message_sent", properties: [
             "length_chars": text.count,
@@ -102,6 +108,7 @@ final class ChatViewModel {
                     guard !Task.isCancelled else { break }
                     switch event {
                     case .textDelta(let chunk):
+                        self.activityState = .composing
                         if self.messages[idx].content.hasPrefix("\u{23f3}") {
                             self.messages[idx].content = chunk
                         } else {
@@ -109,9 +116,11 @@ final class ChatViewModel {
                         }
 
                     case .toolProgress(let text):
+                        self.activityState = .searching
                         self.messages[idx].content = "\u{23f3} \(text)"
 
                     case .messageStop(let convId):
+                        self.activityState = .idle
                         // Strip [MEMORIA: ...] from end of response
                         self.messages[idx].content = self.stripMemoriaTag(self.messages[idx].content)
                         if let convId {
@@ -119,12 +128,14 @@ final class ChatViewModel {
                         }
 
                     case .error:
+                        self.activityState = .error
                         self.messages[idx].content = "Erro ao gerar resposta."
                         self.messages[idx].isError = true
                     }
                 }
             } catch {
                 if !Task.isCancelled {
+                    self.activityState = .error
                     NSLog("[ChatViewModel] Stream error: %@", "\(error)")
                     if let apiError = error as? APIError {
                         switch apiError {
@@ -141,6 +152,8 @@ final class ChatViewModel {
                         self.messages[idx].content = "Erro de conexão. Tente novamente."
                     }
                     self.messages[idx].isError = true
+                } else {
+                    self.activityState = .cancelled
                 }
             }
 
@@ -158,6 +171,9 @@ final class ChatViewModel {
                 "error": hadError,
             ])
             self.isStreaming = false
+            if self.activityState != .error && self.activityState != .cancelled {
+                self.activityState = .idle
+            }
             self.streamingTask = nil
         }
 
@@ -169,6 +185,7 @@ final class ChatViewModel {
         streamingTask?.cancel()
         streamingTask = nil
         isStreaming = false
+        activityState = .cancelled
     }
 
     // MARK: - Retry

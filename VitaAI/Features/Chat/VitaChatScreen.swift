@@ -363,6 +363,7 @@ private struct MessagesList: View {
         MessageRow(
             message: message,
             isStreaming: viewModel.isStreaming && isLast,
+            activityState: viewModel.activityState,
             isLastBotMessage: isLastBotMsg,
             avatarNamespace: mascotNS,
             onRetry: onRetry,
@@ -385,6 +386,7 @@ private struct MessagesList: View {
 private struct MessageRow: View {
     let message: ChatMessage
     let isStreaming: Bool
+    let activityState: AIActivityState
     /// True somente na ÚLTIMA mensagem do bot — só ela mostra o avatar do
     /// mascote (matchedGeometryEffect "teleporta" quando a próxima chega).
     let isLastBotMessage: Bool
@@ -416,7 +418,7 @@ private struct MessageRow: View {
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     if isThinking {
-                        PixioThinkingIndicator()
+                        AIActivityIndicator(state: activityState)
                     } else {
                         assistantBubble
                         if message.isError, let onRetry {
@@ -908,64 +910,118 @@ private struct MessageActions: View {
     }
 }
 
-// MARK: - Thinking Indicator (luz "cometa" orbitando) — PORT do Pixio
-//
-// Cápsula COMPACTA (abraça o conteúdo) com uma luz limpa — um "cometa" —
-// orbitando a borda na cor do tema ativo (Vita = dourado) + respiro suave.
-// Dá vida ao tempo de espera sem poluir. Mesmo motivo orbital do mascote.
-private struct PixioThinkingIndicator: View {
-    @State private var sweep: Double = 0
-    @State private var breathe = false
+// MARK: - BYMAV AI Activity Protocol v1
+
+private struct AIActivityIndicator: View {
+    let state: AIActivityState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var themeColor: Color { PixioCoState.shared.activeThemeColor.color }
 
     var body: some View {
         let shape = Capsule(style: .continuous)
-        return Text("Pensando")
-            .font(.system(size: 13))
-            .foregroundColor(VitaColors.textSecondary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 9)
-            .pixioGlass(.clearTinted(themeColor.opacity(0.18)), in: shape)
-            // anel base bem leve (sempre presente)
-            .overlay(shape.strokeBorder(PixioColor.glassBorder, lineWidth: 1))
-            // cometa nítido girando ao redor da borda
-            .overlay(shape.strokeBorder(cometGradient, lineWidth: 1.6))
-            // halo suave do cometa (brilho que vaza um tico pra fora)
-            .overlay(
-                shape.strokeBorder(cometGradient, lineWidth: 3)
-                    .blur(radius: 5)
-                    .opacity(0.6)
-            )
-            .scaleEffect(breathe ? 1.0 : 0.97)
-            .shadow(color: themeColor.opacity(0.22), radius: 9, y: 3)
-            .onAppear {
-                withAnimation(.linear(duration: 1.9).repeatForever(autoreverses: false)) {
-                    sweep = 360
-                }
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    breathe = true
-                }
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { timeline in
+            Canvas { context, size in
+                draw(in: &context, size: size, date: timeline.date)
             }
-            .accessibilityLabel("Vita está pensando")
-            .accessibilityAddTraits(.updatesFrequently)
+        }
+        .frame(width: 20, height: 20)
+        .frame(width: 48, height: 38)
+        .pixioGlass(.clearTinted(themeColor.opacity(0.18)), in: shape)
+        .overlay(shape.strokeBorder(PixioColor.glassBorder, lineWidth: 1))
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(.updatesFrequently)
     }
 
-    /// Cometa: a maior parte transparente, com um trecho brilhante (rastro +
-    /// cabeça na cor do tema) que, com `sweep` girando 0→360, orbita a borda.
-    private var cometGradient: AngularGradient {
-        AngularGradient(
-            gradient: Gradient(stops: [
-                .init(color: .clear,                   location: 0.00),
-                .init(color: .clear,                   location: 0.62),
-                .init(color: themeColor.opacity(0.55), location: 0.80),
-                .init(color: themeColor,               location: 0.88),
-                .init(color: themeColor.opacity(0.55), location: 0.94),
-                .init(color: .clear,                   location: 1.00),
-            ]),
-            center: .center,
-            angle: .degrees(sweep)
-        )
+    private enum Mode { case orbits, globe, rubik, wave, ribbon, morph }
+    private struct OrbPoint { let x: Double; let y: Double; let z: Double }
+
+    private var mode: Mode {
+        switch state {
+        case .searching: return .globe
+        case .solving, .error: return .rubik
+        case .listening, .speaking: return .wave
+        case .composing: return .ribbon
+        case .shaping: return .morph
+        case .idle, .working, .cancelled: return .orbits
+        }
+    }
+
+    private var speed: Double {
+        switch mode {
+        case .orbits: return 3.9
+        case .globe: return 2.665
+        case .rubik: return 1.95
+        case .wave: return 3.998
+        case .ribbon: return 3.12
+        case .morph: return 2.08
+        }
+    }
+
+    private var accessibilityLabel: String {
+        switch state {
+        case .searching: return "Vita está buscando"
+        case .solving: return "Vita está analisando"
+        case .composing: return "Vita está compondo"
+        case .listening: return "Vita está ouvindo"
+        case .speaking: return "Vita está falando"
+        case .shaping: return "Vita está criando"
+        case .error: return "Vita encontrou um erro"
+        case .cancelled: return "Resposta cancelada"
+        case .idle, .working: return "Vita está pensando"
+        }
+    }
+
+    private func draw(in context: inout GraphicsContext, size: CGSize, date: Date) {
+        let phase = reduceMotion ? 0.22 : date.timeIntervalSinceReferenceDate * speed
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let extent = min(size.width, size.height) * 0.39
+        let points = (0..<12).map { point(index: $0, count: 12, phase: phase) }.sorted { $0.z < $1.z }
+        for point in points {
+            let depth = (point.z + 1) / 2
+            let radius = max(CGFloat(0.75), size.width * CGFloat(0.018 + depth * 0.018))
+            let rect = CGRect(
+                x: center.x + CGFloat(point.x) * extent - radius,
+                y: center.y + CGFloat(point.y) * extent - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+            context.fill(Path(ellipseIn: rect), with: .color(themeColor.opacity(0.34 + depth * 0.66)))
+        }
+    }
+
+    private func point(index: Int, count: Int, phase: Double) -> OrbPoint {
+        let t = Double(index) / Double(count)
+        let turn = Double.pi * 2
+        switch mode {
+        case .globe:
+            let y = 1 - 2 * ((Double(index) + 0.5) / Double(count))
+            let radius = sqrt(max(0, 1 - y * y))
+            let angle = Double(index) * 2.399963 + phase
+            return .init(x: cos(angle) * radius, y: y, z: sin(angle) * radius)
+        case .rubik:
+            let side = 3
+            let x = Double(index % side) - 1
+            let y = Double((index / side) % side) - 1
+            let z = Double(index / (side * side)) - 0.5
+            let angle = phase * 0.55 + Double(index / side) * 0.08
+            return .init(x: x * cos(angle) - z * sin(angle), y: y, z: x * sin(angle) + z * cos(angle))
+        case .wave:
+            return .init(x: t * 2 - 1, y: sin(t * turn * 2.2 + phase) * 0.48, z: cos(t * turn + phase) * 0.45)
+        case .ribbon:
+            let lane = index % 3
+            let laneT = Double(index / 3) / 3
+            return .init(x: laneT * 2 - 1, y: sin(laneT * turn * 1.35 + phase) * 0.42 + Double(lane - 1) * 0.22, z: cos(laneT * turn + phase + Double(lane)) * 0.5)
+        case .morph:
+            let angle = t * turn + phase * 0.35
+            let radius = 0.62 + sin(t * turn * 3 + phase) * 0.22
+            return .init(x: cos(angle) * radius, y: sin(angle) * radius, z: sin(angle * 2 + phase) * 0.5)
+        case .orbits:
+            let orbit = index % 3
+            let angle = t * turn * 2 + phase * (orbit == 1 ? -0.8 : 1)
+            let radius = 0.45 + Double(orbit) * 0.2
+            return .init(x: cos(angle) * radius, y: sin(angle) * radius * (0.3 + Double(orbit) * 0.22), z: sin(angle + Double(orbit) * 1.7))
+        }
     }
 }
 
