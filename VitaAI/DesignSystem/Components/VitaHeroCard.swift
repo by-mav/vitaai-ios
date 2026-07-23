@@ -14,7 +14,6 @@ import SwiftUI
 //       progress: 0.09,
 //       stats: [("30 XP total", nil), ("Streak 0", nil)],
 //       cta: "Ver ranking",
-//       bgImage: "fundo-dashboard",
 //       action: { ... }
 //   )
 //
