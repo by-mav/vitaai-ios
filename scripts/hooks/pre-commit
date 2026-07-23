@@ -35,6 +35,23 @@ for f in $files; do
     if printf '%s' "$body" | grep -qE '\.font\(\.system\(size:'; then
       report "$f" "$(printf '%s' "$body" | sed 's/^[[:space:]]*//' | cut -c1-72)" "fonte crua → PixioTypo.* / VitaTypography"
     fi
+    # --- componente nativo cru (o gate so via VALOR cru; UI nativa nao tem
+    # valor nenhum e passava limpo fora do canon — 2026-07-23, editor da agenda)
+    if printf '%s' "$body" | grep -qE '(^|[^A-Za-z])Form[[:space:]]*\{'; then
+      report "$f" "$(printf '%s' "$body" | sed 's/^[[:space:]]*//' | cut -c1-72)" "Form nativo → VitaSheet + blocos com .glassCard()"
+    fi
+    if printf '%s' "$body" | grep -qE '(^|[^A-Za-z])Section\((\"|$)|(^|[^A-Za-z])Section[[:space:]]*\{'; then
+      report "$f" "$(printf '%s' "$body" | sed 's/^[[:space:]]*//' | cut -c1-72)" "Section nativa → rotulo + .glassCard() (ver DESIGN.md §2)"
+    fi
+    if printf '%s' "$body" | grep -qE '(^|[^A-Za-z])TextField\(|(^|[^A-Za-z])SecureField\('; then
+      report "$f" "$(printf '%s' "$body" | sed 's/^[[:space:]]*//' | cut -c1-72)" "campo nativo → VitaInput / GlassTextField"
+    fi
+    if printf '%s' "$body" | grep -qE '\.buttonStyle\(\.(borderedProminent|bordered|borderless)\)'; then
+      report "$f" "$(printf '%s' "$body" | sed 's/^[[:space:]]*//' | cut -c1-72)" "botao nativo estilizado → VitaButton"
+    fi
+    if printf '%s' "$body" | grep -qE '(^|[^A-Za-z])(ProgressView|Label)\([^)]*systemImage'; then
+      report "$f" "$(printf '%s' "$body" | sed 's/^[[:space:]]*//' | cut -c1-72)" "use os componentes Vita (VitaEmblem / VitaButton) — ver DESIGN.md §2"
+    fi
     # raio cru = RoundedRectangle(cornerRadius: N) / .cornerRadius(N) direto.
     # `.glassCard(cornerRadius: N)` e canonico (o componente e o dono do raio).
     if printf '%s' "$body" | grep -qE '(RoundedRectangle\(cornerRadius:[[:space:]]*[0-9]|\.cornerRadius\([0-9])'; then

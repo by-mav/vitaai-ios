@@ -46,6 +46,13 @@ agent-brain/design-tokens.json      ← SOT dos VALORES (cor/fonte/espaço/raio/
 
 **Existe componente → USE.** Bespoke (montar do zero o que já existe) é proibido — foi o que gerou a colcha de retalhos.
 
+> **O gate cobra isso desde 2026-07-23.** Ele barrava só valor cru (hex/fonte/raio);
+> uma tela escrita 100% em `Form`/`Section`/`TextField` nativos **não tem valor cru
+> nenhum** e passava limpa, totalmente fora do canon. Agora `Form`, `Section`,
+> `TextField`/`SecureField`, `.buttonStyle(.bordered*)` e `Label(systemImage:)` em
+> `Features/` são barrados com o componente Vita correspondente na mensagem.
+> Caso legítimo? `// ds-allow: <motivo>` na linha.
+
 ---
 
 ## 3. Regras de arte (o que o gate NÃO pega, mas manda)
