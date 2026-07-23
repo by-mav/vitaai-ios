@@ -290,3 +290,32 @@ struct CreateProvaRequest: Encodable {
     let date: String
     let notes: String?
 }
+
+
+struct UpdateProvaRequest: Encodable {
+    let title: String?
+    let date: String?
+    let type: String?
+}
+
+
+// MARK: - Aula da grade semanal — /api/study/aulas
+struct Aula: Codable, Identifiable, Sendable, Hashable {
+    var id: String
+    var subjectId: String
+    var dayOfWeek: Int          // 1=segunda ... 7=domingo (mesma convencao da agenda)
+    var startTime: String       // "08:00"
+    var endTime: String         // "09:40"
+    var room: String?
+    var professor: String?
+}
+
+/// Serve criar e editar: no PATCH todo campo e opcional.
+struct AulaRequest: Encodable {
+    let subjectId: String?
+    let dayOfWeek: Int?
+    let startTime: String?
+    let endTime: String?
+    let room: String?
+    let professor: String?
+}

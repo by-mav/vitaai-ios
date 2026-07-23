@@ -92,6 +92,28 @@ components:
       description: Stripe webhook signature
 
   schemas:
+    Aula:
+      type: object
+      description: Aula recorrente da grade semanal, sempre ligada a uma disciplina.
+      required: [id, subjectId, dayOfWeek, startTime, endTime]
+      properties:
+        id:
+          type: string
+        subjectId:
+          type: string
+        dayOfWeek:
+          type: integer
+          description: 1=segunda ... 7=domingo
+        startTime:
+          type: string
+        endTime:
+          type: string
+        room:
+          type: string
+          nullable: true
+        professor:
+          type: string
+          nullable: true
     LibraryDeckSample:
       type: object
       description: Amostra de um baralho da Biblioteca, pro aluno decidir se baixa.
@@ -2101,12 +2123,28 @@ components:
           nullable: true
         questionIds:
           description: >
-            Ordered list of question IDs for this session. Returned only by POST /api/qbank/sessions
-            (session creation). Not persisted or returned by GET — clients must cache locally
-            after creation. Added 2026-04-19 to support Android QBank session navigation.
+            Ordered list of question IDs for this session. Returned by session creation and detail.
           type: array
           items:
             type: integer
+          nullable: true
+        mode:
+          type: string
+          nullable: true
+          enum: [pratica, simulado]
+        status:
+          type: string
+          enum: [active, finished, abandoned]
+        timeLimitSeconds:
+          type: integer
+          nullable: true
+        questions:
+          description: >
+            Full ordered question payload for continuous exam rendering. Present only when
+            includeQuestions=true on a simulado session.
+          type: array
+          items:
+            $ref: '#/components/schemas/QBankQuestion'
           nullable: true
 
     QBankList:
@@ -6463,6 +6501,128 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/study/aulas:
+    get:
+      tags: [study]
+      operationId: getAulas
+      summary: Grade de aulas do aluno (recorrente por semana)
+      responses:
+        '200':
+          description: Lista de aulas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Aula'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [study]
+      operationId: createAula
+      summary: Cria aula manual na grade (disciplina obrigatoria)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subjectId, dayOfWeek, startTime, endTime]
+              properties:
+                subjectId:
+                  type: string
+                dayOfWeek:
+                  type: integer
+                  minimum: 1
+                  maximum: 7
+                  description: 1=segunda ... 7=domingo
+                startTime:
+                  type: string
+                  example: "08:00"
+                endTime:
+                  type: string
+                  example: "09:40"
+                room:
+                  type: string
+                  nullable: true
+                professor:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Aula criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aula'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Disciplina nao encontrada
+        '409':
+          description: Ja existe aula dessa disciplina nesse dia e horario
+
+  /api/study/aulas/{id}:
+    patch:
+      tags: [study]
+      operationId: updateAula
+      summary: Edita aula da grade
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subjectId:
+                  type: string
+                dayOfWeek:
+                  type: integer
+                startTime:
+                  type: string
+                endTime:
+                  type: string
+                room:
+                  type: string
+                  nullable: true
+                professor:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Aula atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aula'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [study]
+      operationId: deleteAula
+      summary: Remove aula da grade (definitivo, tabela sem deletedAt)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Aula removida
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/study/provas:
     get:
       tags: [study]
@@ -7747,6 +7907,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: includeQuestions
+          in: query
+          required: false
+          description: Include the full ordered question payload for a simulado session.
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Session details
@@ -8032,7 +8199,7 @@ paths:
         - in: query
           name: q
           schema: { type: string, maxLength: 120 }
-          description: Busca por título, banca ou fonte
+          description: Busca por nome, sigla da banca, UF ou ano
         - in: query
           name: stage
           schema:
@@ -8052,6 +8219,15 @@ paths:
           schema:
             type: array
             items: { type: string }
+          style: form
+          explode: true
+        - in: query
+          name: state
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO]
           style: form
           explode: true
         - in: query
@@ -8111,6 +8287,11 @@ paths:
                           enum: [official, bank]
                         title: { type: string }
                         authority: { type: string }
+                        authorityCode: { type: string, nullable: true }
+                        state:
+                          type: string
+                          nullable: true
+                          enum: [AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO]
                         source: { type: string }
                         year: { type: integer }
                         stage: { type: string }
@@ -8133,6 +8314,10 @@ paths:
                             institution: { type: string }
                             year: { type: integer }
                             source: { type: string }
+                            state:
+                              type: string
+                              nullable: true
+                              enum: [AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO]
                   pagination:
                     type: object
                     required: [page, limit, total, hasMore]
@@ -8143,7 +8328,7 @@ paths:
                       hasMore: { type: boolean }
                   facets:
                     type: object
-                    required: [stages, years, authorities, statuses]
+                    required: [stages, years, authorities, states, statuses]
                     properties:
                       stages:
                         type: array
@@ -8154,6 +8339,11 @@ paths:
                       authorities:
                         type: array
                         items: { type: string }
+                      states:
+                        type: array
+                        items:
+                          type: string
+                          enum: [AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG, PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO]
                       statuses:
                         type: array
                         items:

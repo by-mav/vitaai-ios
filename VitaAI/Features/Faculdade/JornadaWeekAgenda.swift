@@ -15,8 +15,13 @@ struct JornadaWeekAgenda: View {
     let evaluations: [AgendaEvaluation]
     var onOpenEval: ((AgendaEvaluation) -> Void)? = nil
 
+    @Environment(\.appContainer) private var container
+    @Environment(\.appData) private var appData
+
     private enum Mode { case week, month }
     @State private var mode: Mode = .week
+    /// Editor manual aberto (nil = fechado). Rafael 2026-07-23.
+    @State private var editor: EditorAlvo?
     @State private var selected: Date = Calendar.current.startOfDay(for: Date())
 
     private let cal: Calendar = {
@@ -31,6 +36,55 @@ struct JornadaWeekAgenda: View {
             header
             card
         }
+        .sheet(item: $editor) { alvo in
+            EventoAgendaSheet(
+                alvo: alvo,
+                disciplinas: appData.canonicalDisciplines,
+                api: container.api,
+                aoTerminar: { Task { await appData.forceRefresh() } }
+            )
+        }
+    }
+
+    // MARK: Editor manual (adicionar / editar / remover)
+
+    struct EditorAlvo: Identifiable {
+        let id = UUID()
+        let dia: Date
+        let prova: AgendaEvaluation?
+        let aula: AgendaClassBlock?
+    }
+
+    @ViewBuilder
+    private func menuDoEvento(_ r: AgendaRow) -> some View {
+        if let e = r.eval {
+            Button {
+                editor = EditorAlvo(dia: selected, prova: e, aula: nil)
+            } label: { Label("Editar", systemImage: "pencil") }
+            Button(role: .destructive) {
+                Task {
+                    try? await container.api.deleteProva(id: e.id)
+                    await appData.forceRefresh()
+                }
+            } label: { Label("Remover", systemImage: "trash") }
+        } else if let a = aulaDaLinha(r) {
+            Button {
+                editor = EditorAlvo(dia: selected, prova: nil, aula: a)
+            } label: { Label("Editar aula", systemImage: "pencil") }
+            Button(role: .destructive) {
+                Task {
+                    try? await container.api.deleteAula(id: a.id)
+                    await appData.forceRefresh()
+                }
+            } label: { Label("Remover aula", systemImage: "trash") }
+        }
+    }
+
+    /// A linha da lista guarda so o id prefixado ("a-<id>"); volta pro bloco real.
+    private func aulaDaLinha(_ r: AgendaRow) -> AgendaClassBlock? {
+        guard r.id.hasPrefix("a-") else { return nil }
+        let id = String(r.id.dropFirst(2))
+        return schedule.first { $0.id == id }
     }
 
     // MARK: Header (label + switcher Semana/Mes)
@@ -50,6 +104,20 @@ struct JornadaWeekAgenda: View {
             .padding(2)
             .background(Capsule().fill(VitaColors.glassBg))
             .overlay(Capsule().stroke(VitaColors.glassBorder, lineWidth: 0.5))
+
+            Button {
+                editor = EditorAlvo(dia: selected, prova: nil, aula: nil)
+            } label: {
+                Image(systemName: "plus")
+                    .font(VitaTypography.labelMedium)
+                    .fontWeight(.bold)
+                    .foregroundStyle(VitaColors.accent)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(VitaColors.accent.opacity(0.12)))
+                    .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.5))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Adicionar na agenda")
         }
     }
 
@@ -260,6 +328,7 @@ struct JornadaWeekAgenda: View {
                 ForEach(rows) { r in
                     Button { if let e = r.eval { onOpenEval?(e) } } label: { rowView(r) }
                         .buttonStyle(.plain)
+                        .contextMenu { menuDoEvento(r) }
                 }
             }
         }
@@ -381,4 +450,216 @@ struct JornadaWeekAgenda: View {
     private static let monthYear: DateFormatter = {
         let f = DateFormatter(); f.locale = Locale(identifier: "pt_BR"); f.dateFormat = "MMMM yyyy"; return f
     }()
+}
+
+
+// MARK: - EventoAgendaSheet — adicionar/editar evento manual da agenda
+//
+// Prova e Trabalho vao pra academic_evaluations (/api/study/provas); Aula vai
+// pra grade semanal (/api/study/aulas). Disciplina e obrigatoria nos tres: sem
+// ela o backend de provas cria uma disciplina fantasma com o nome do evento.
+//
+// Controles nativos de proposito — formulario nao e lugar de inventar widget.
+
+struct EventoAgendaSheet: View {
+    let alvo: JornadaWeekAgenda.EditorAlvo
+    let disciplinas: [AcademicSubject]
+    let api: VitaAPI
+    let aoTerminar: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    enum TipoEvento: String, CaseIterable, Identifiable {
+        case prova, trabalho, aula
+        var id: String { rawValue }
+        var titulo: String {
+            switch self {
+            case .prova: return "Prova"
+            case .trabalho: return "Trabalho"
+            case .aula: return "Aula"
+            }
+        }
+    }
+
+    @State private var tipo: TipoEvento = .prova
+    @State private var titulo = ""
+    @State private var subjectId = ""
+    @State private var quando = Date()
+    @State private var diaSemana = 1          // 1=segunda ... 7=domingo
+    @State private var horaInicio = Date()
+    @State private var horaFim = Date().addingTimeInterval(3600)
+    @State private var sala = ""
+    @State private var professor = ""
+    @State private var salvando = false
+    @State private var erro: String?
+
+    private var editando: Bool { alvo.prova != nil || alvo.aula != nil }
+
+    private var podeSalvar: Bool {
+        if subjectId.isEmpty || salvando { return false }
+        if tipo == .aula { return true }
+        return !titulo.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if !editando {
+                    Section {
+                        Picker("Tipo", selection: $tipo) {
+                            ForEach(TipoEvento.allCases) { t in Text(t.titulo).tag(t) }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+
+                Section("Disciplina") {
+                    Picker("Disciplina", selection: $subjectId) {
+                        Text("Escolha uma").tag("")
+                        ForEach(disciplinas, id: \.id) { d in
+                            Text(d.preferredName).tag(d.id)
+                        }
+                    }
+                    if subjectId.isEmpty {
+                        Text("Obrigatória — é o que liga o evento à matéria.")
+                            .font(VitaTypography.labelSmall)
+                            .foregroundStyle(VitaColors.textTertiary)
+                    }
+                }
+
+                if tipo == .aula {
+                    Section("Quando") {
+                        Picker("Dia", selection: $diaSemana) {
+                            Text("Segunda").tag(1); Text("Terça").tag(2)
+                            Text("Quarta").tag(3);  Text("Quinta").tag(4)
+                            Text("Sexta").tag(5);   Text("Sábado").tag(6)
+                            Text("Domingo").tag(7)
+                        }
+                        DatePicker("Começa", selection: $horaInicio, displayedComponents: .hourAndMinute)
+                        DatePicker("Termina", selection: $horaFim, displayedComponents: .hourAndMinute)
+                    }
+                    Section("Onde (opcional)") {
+                        TextField("Sala", text: $sala)
+                        TextField("Professor", text: $professor)
+                    }
+                } else {
+                    Section(tipo == .prova ? "Prova" : "Trabalho") {
+                        TextField("Título (ex: P1 de Anatomia)", text: $titulo)
+                        DatePicker("Quando", selection: $quando,
+                                   displayedComponents: [.date, .hourAndMinute])
+                    }
+                }
+
+                if let erro {
+                    Section { Text(erro).foregroundStyle(VitaColors.dataRed) }
+                }
+
+                if editando {
+                    Section {
+                        Button(role: .destructive) {
+                            Task { await remover() }
+                        } label: { Text("Remover da agenda") }
+                    }
+                }
+            }
+            .navigationTitle(editando ? "Editar evento" : "Novo evento")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salvar") { Task { await salvar() } }
+                        .disabled(!podeSalvar)
+                }
+            }
+            .onAppear(perform: preencher)
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    // MARK: preencher ao editar
+
+    private func preencher() {
+        quando = alvo.dia
+        if let p = alvo.prova {
+            tipo = p.calendarKind == .exam ? .prova : .trabalho
+            titulo = p.title
+            if let iso = p.date, let d = Self.isoParaData(iso) { quando = d }
+            subjectId = disciplinas.first { $0.preferredName == (p.subjectName ?? "") }?.id ?? ""
+        } else if let a = alvo.aula {
+            tipo = .aula
+            subjectId = disciplinas.first { $0.preferredName == a.subjectName }?.id ?? ""
+            diaSemana = a.dayOfWeek
+            horaInicio = Self.horaParaData(a.startTime) ?? horaInicio
+            horaFim = Self.horaParaData(a.endTime) ?? horaFim
+            sala = a.room ?? ""
+            professor = a.professor ?? ""
+        }
+    }
+
+    // MARK: salvar / remover
+
+    private func salvar() async {
+        salvando = true; erro = nil
+        do {
+            if tipo == .aula {
+                let ini = Self.hhmm(horaInicio), fim = Self.hhmm(horaFim)
+                if let a = alvo.aula {
+                    try await api.updateAula(id: a.id, subjectId: subjectId, dayOfWeek: diaSemana,
+                                             startTime: ini, endTime: fim,
+                                             room: sala.isEmpty ? nil : sala,
+                                             professor: professor.isEmpty ? nil : professor)
+                } else {
+                    try await api.createAula(subjectId: subjectId, dayOfWeek: diaSemana,
+                                             startTime: ini, endTime: fim,
+                                             room: sala.isEmpty ? nil : sala,
+                                             professor: professor.isEmpty ? nil : professor)
+                }
+            } else {
+                let iso = ISO8601DateFormatter().string(from: quando)
+                let tipoTexto = tipo == .prova ? "prova" : "trabalho"
+                if let p = alvo.prova {
+                    try await api.updateProva(id: p.id, title: titulo, date: iso, type: tipoTexto)
+                } else {
+                    // O POST ignora `type`: cria e ja marca o tipo no PATCH.
+                    let nova = try await api.createProva(title: titulo, subjectId: subjectId,
+                                                         date: iso, notes: nil)
+                    try? await api.updateProva(id: nova.id, title: nil, date: nil, type: tipoTexto)
+                }
+            }
+            aoTerminar()
+            dismiss()
+        } catch {
+            erro = "Não consegui salvar. Confira a conexão e tente de novo."
+            salvando = false
+        }
+    }
+
+    private func remover() async {
+        salvando = true; erro = nil
+        do {
+            if let a = alvo.aula { try await api.deleteAula(id: a.id) }
+            else if let p = alvo.prova { try await api.deleteProva(id: p.id) }
+            aoTerminar()
+            dismiss()
+        } catch {
+            erro = "Não consegui remover."
+            salvando = false
+        }
+    }
+
+    // MARK: datas
+
+    private static func hhmm(_ d: Date) -> String {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: d)
+    }
+    private static func horaParaData(_ hhmm: String) -> Date? {
+        let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.date(from: hhmm)
+    }
+    private static func isoParaData(_ iso: String) -> Date? {
+        let a = ISO8601DateFormatter(); a.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let b = ISO8601DateFormatter(); b.formatOptions = [.withInternetDateTime]
+        return a.date(from: iso) ?? b.date(from: iso)
+    }
 }

@@ -1352,6 +1352,43 @@ actor VitaAPI {
         try await client.post("study/provas", body: CreateProvaRequest(title: title, subjectId: subjectId, date: date, notes: notes))
     }
 
+    /// PATCH: titulo, data (ISO com hora) e tipo (prova/trabalho).
+    /// O POST ignora `type`, entao criar+marcar tipo = POST seguido deste PATCH.
+    func updateProva(id: String, title: String?, date: String?, type: String?) async throws {
+        try await client.patch("study/provas/\(id)",
+            body: UpdateProvaRequest(title: title, date: date, type: type))
+    }
+
+    /// DELETE: soft-delete (o backend so confere se o evento e do dono).
+    func deleteProva(id: String) async throws {
+        try await client.delete("study/provas/\(id)")
+    }
+
+    // MARK: - Aulas (grade semanal manual) — /api/study/aulas
+
+    func getAulas() async throws -> [Aula] {
+        try await client.get("study/aulas")
+    }
+
+    @discardableResult
+    func createAula(subjectId: String, dayOfWeek: Int, startTime: String,
+                    endTime: String, room: String?, professor: String?) async throws -> Aula {
+        try await client.post("study/aulas", body: AulaRequest(
+            subjectId: subjectId, dayOfWeek: dayOfWeek, startTime: startTime,
+            endTime: endTime, room: room, professor: professor))
+    }
+
+    func updateAula(id: String, subjectId: String?, dayOfWeek: Int?, startTime: String?,
+                    endTime: String?, room: String?, professor: String?) async throws {
+        try await client.patch("study/aulas/\(id)", body: AulaRequest(
+            subjectId: subjectId, dayOfWeek: dayOfWeek, startTime: startTime,
+            endTime: endTime, room: room, professor: professor))
+    }
+
+    func deleteAula(id: String) async throws {
+        try await client.delete("study/aulas/\(id)")
+    }
+
     // MARK: - Professor Intelligence
 
     func getProfessorProfile(subjectId: String) async throws -> ProfessorProfileResponse {
