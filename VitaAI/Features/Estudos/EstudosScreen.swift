@@ -132,26 +132,22 @@ private struct EstudosContent: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                // 1. Ferramentas — cards de IMAGEM no topo (Rafael 2026-07-15: o
-                // hero saiu; voltaram as artes tool-* que a gente já tinha).
+                // Retomar: o que voce estava estudando vem PRIMEIRO — e o
+                // motivo de abrir esta aba (Rafael 2026-07-23).
+                sessoesSection
+                    .padding(.horizontal, 16)
+
+                // Ferramentas — cards de IMAGEM (artes tool-*).
                 ferramentasSection
                     .padding(.horizontal, 16)
 
-                // 3. Disciplinas atuais — vertical list, Faculdade card pattern
-                disciplinasSection
-                    .padding(.horizontal, 16)
-
-                // 4. Materiais recentes — horizontal scroll
-                materiaisSection
-                    .padding(.horizontal, 16)
-
-                // 5. Trabalhos pendentes
+                // Trabalhos pendentes
                 trabalhosSection
                     .padding(.horizontal, 16)
 
-                // 6. Sessões recentes
-                sessoesSection
-                    .padding(.horizontal, 16)
+                // Disciplinas e Materiais saíram daqui: disciplina mora na
+                // Rotina (com adicionar manual/portal) e material tem porta
+                // própria em Documentos. Estudos = so o que e estudar.
 
                 // Sem clearance: passa por trás da TabBar Liquid Glass.
             }
@@ -408,17 +404,26 @@ private struct EstudosContent: View {
     // MARK: - 6. Sessões Recentes Section
 
     private var sessoesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("SESSÕES RECENTES")
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
+            sectionHeader("CONTINUE DE ONDE PAROU")
 
             if viewModel.recentActivity.isEmpty {
-                estudosEmptyRow(icon: "clock", message: "Nenhuma sessão recente")
+                estudosEmptyRow(icon: "clock", message: "Suas sessões aparecem aqui quando você começar a estudar")
             } else {
-                VStack(spacing: 6) {
-                    ForEach(viewModel.recentActivity) { activity in
+                // UM card so — antes eram varios cartoezinhos empilhados no pe
+                // da tela, que ninguem via.
+                VStack(spacing: 0) {
+                    ForEach(Array(viewModel.recentActivity.prefix(4).enumerated()), id: \.offset) { idx, activity in
                         activityRow(activity)
+                        if idx < min(viewModel.recentActivity.count, 4) - 1 {
+                            Rectangle()
+                                .fill(VitaColors.textWarm.opacity(0.06))
+                                .frame(height: 1)
+                                .padding(.leading, 56)
+                        }
                     }
                 }
+                .glassCard(cornerRadius: VitaTokens.Radius.lg)
             }
         }
     }
@@ -459,9 +464,8 @@ private struct EstudosContent: View {
                 .font(.system(size: 9.5))
                 .foregroundStyle(textDim)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .glassCard(cornerRadius: 12)
+        .padding(.horizontal, VitaTokens.Spacing.lg)
+        .padding(.vertical, VitaTokens.Spacing.md)
     }
 
     private func activityIcon(for action: String) -> String {
