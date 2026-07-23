@@ -15,23 +15,27 @@ struct StudyToolsGrid: View {
     var onTranscricao: () -> Void = {}
     var onAtlas: () -> Void = {}
 
-    /// 3D Simulator ainda nao existe — a propria arte diz "Em breve".
+    /// Material solto em cima de um tile: (id do documento, ferramenta).
+    /// Assinatura fina de proposito — quem sabe montar a geracao e a tela.
+    var onSoltarMaterial: ((String, Ferramenta) -> Void)? = nil
+
+    enum Ferramenta { case questoes, flashcards, simulados, transcricao }
+
     @State private var avisoEmBreve = false
+    /// Tile sob o dedo durante o arrasto (pra dar retorno visual).
+    @State private var alvoAtivo: Ferramenta?
 
     var body: some View {
         VStack(spacing: VitaTokens.Spacing.md) {
-            HStack(spacing: VitaTokens.Spacing.md) {
-                toolImage("tool-questoes", id: "tool_questoes", action: onQuestoes)
-                toolImage("tool-flashcards", id: "tool_flashcards", action: onFlashcards)
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                tile("tool-questoes", id: "tool_questoes", aceita: .questoes, acao: onQuestoes)
+                tile("tool-flashcards", id: "tool_flashcards", aceita: .flashcards, acao: onFlashcards)
+                tile("tool-simulados", id: "tool_simulados", aceita: .simulados, acao: onSimulados)
             }
-            HStack(spacing: VitaTokens.Spacing.md) {
-                toolImage("tool-simulados", id: "tool_simulados", action: onSimulados)
-                toolImage("tool-transcricao", id: "tool_transcricao", action: onTranscricao)
-            }
-            HStack(spacing: VitaTokens.Spacing.md) {
-                toolImage("tool-atlas", id: "tool_atlas3d", action: onAtlas)
-                toolImage("tool-3dsim", id: "tool_3dsim", emBreve: true,
-                          action: { avisoEmBreve = true })
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                tile("tool-transcricao", id: "tool_transcricao", aceita: .transcricao, acao: onTranscricao)
+                tile("tool-atlas", id: "tool_atlas3d", acao: onAtlas)
+                tile("tool-3dsim", id: "tool_3dsim", emBreve: true, acao: { avisoEmBreve = true })
             }
         }
         .alert("3D Simulator", isPresented: $avisoEmBreve) {
@@ -41,21 +45,65 @@ struct StudyToolsGrid: View {
         }
     }
 
-    // A ferramenta E a propria arte (aspecto natural, sem recorte no titulo).
+    /// A arte JA e o card (moldura, titulo e seta vem pintados). O app nao
+    /// desenha rotulo por cima: colidia com o chip de icone da propria arte.
     @ViewBuilder
-    private func toolImage(_ name: String, id: String, emBreve: Bool = false,
-                           action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            // A arte ja vem com fundo transparente e moldura/brilho proprios
-            // (fundo branco removido com rembg em 2026-07-23). Nao colocar
-            // background nem stroke por baixo: reintroduz o quadradao.
-            Image(name).resizable().aspectRatio(contentMode: .fit)
+    private func tile(_ arte: String, id: String, aceita: Ferramenta? = nil,
+                      emBreve: Bool = false, acao: @escaping () -> Void) -> some View {
+        let destacado = aceita != nil && alvoAtivo == aceita
+        Button(action: acao) {
+            Image(arte).resizable().aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .shadow(color: .black.opacity(0.45), radius: 14, x: 0, y: 6)
-                // Em breve fica levemente recuado: da pra ver, mas nao chama.
+                .overlay(alignment: .top) {
+                    if destacado {
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.lg, style: .continuous)
+                            .strokeBorder(VitaColors.accent,
+                                          style: StrokeStyle(lineWidth: 2, dash: [7, 5]))
+                            .padding(VitaTokens.Spacing.xs)
+                            .overlay(alignment: .top) {
+                                Text("Solte para criar")
+                                    .font(VitaTypography.labelSmall)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(VitaColors.surface)
+                                    .padding(.horizontal, VitaTokens.Spacing.sm)
+                                    .padding(.vertical, 3)
+                                    .background(Capsule().fill(VitaColors.accent))
+                                    .offset(y: -6)
+                            }
+                    }
+                }
+                .scaleEffect(destacado ? 1.04 : 1)
+                .animation(.easeOut(duration: 0.15), value: destacado)
                 .opacity(emBreve ? 0.72 : 1)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(id)
+        .modifier(AceitaMaterial(
+            ferramenta: aceita,
+            alvoAtivo: $alvoAtivo,
+            aoSoltar: { docId, f in onSoltarMaterial?(docId, f) }
+        ))
+    }
+}
+
+/// Só os tiles que sabem gerar a partir de material aceitam o arrasto.
+private struct AceitaMaterial: ViewModifier {
+    let ferramenta: StudyToolsGrid.Ferramenta?
+    @Binding var alvoAtivo: StudyToolsGrid.Ferramenta?
+    let aoSoltar: (String, StudyToolsGrid.Ferramenta) -> Void
+
+    func body(content: Content) -> some View {
+        if let ferramenta {
+            content.dropDestination(for: String.self) { ids, _ in
+                guard let docId = ids.first else { return false }
+                aoSoltar(docId, ferramenta)
+                return true
+            } isTargeted: { dentro in
+                alvoAtivo = dentro ? ferramenta : nil
+            }
+        } else {
+            content
+        }
     }
 }

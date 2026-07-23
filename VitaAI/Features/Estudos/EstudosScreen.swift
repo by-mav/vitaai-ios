@@ -132,17 +132,18 @@ private struct EstudosContent: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                // Retomar: o que voce estava estudando vem PRIMEIRO — e o
-                // motivo de abrir esta aba (Rafael 2026-07-23).
-                sessoesSection
+                cabecalhoEstudos
                     .padding(.horizontal, 16)
 
-                // Ferramentas — cards de IMAGEM (artes tool-*).
+                // Materiais no TOPO: é de onde se arrasta. Ficar no rodapé
+                // escondia a interação inteira (mockup do Rafael 2026-07-23).
+                materiaisSection
+                    .padding(.horizontal, 16)
+
                 ferramentasSection
                     .padding(.horizontal, 16)
 
-                // Trabalhos pendentes
-                trabalhosSection
+                rodapeProgresso
                     .padding(.horizontal, 16)
 
                 // Disciplinas e Materiais saíram daqui: disciplina mora na
@@ -197,7 +198,8 @@ private struct EstudosContent: View {
             onFlashcards: { onNavigateToFlashcardHome?() },
             onSimulados: { onNavigateToSimulados?() },
             onTranscricao: { onNavigateToTranscricao?() },
-            onAtlas: { onNavigateToAtlas?() }
+            onAtlas: { onNavigateToAtlas?() },
+            onSoltarMaterial: { docId, f in soltouMaterial(docId, f) }
         )
     }
 
@@ -294,36 +296,171 @@ private struct EstudosContent: View {
         }
     }
 
-    // MARK: - 4. Materiais Recentes Section
+    // MARK: - Cabeçalho
+
+    private var cabecalhoEstudos: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Estudos")
+                .font(VitaTypography.headlineLarge)
+                .foregroundStyle(VitaColors.textPrimary)
+            Text("Arraste seus materiais para gerar recursos")
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Meus materiais (origem do arrasto)
 
     private var materiaisSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionHeader("MATERIAIS RECENTES")
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
+            HStack {
+                Text("Meus materiais")
+                    .font(VitaTypography.titleMedium)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer()
+                if !viewModel.vitaDocuments.isEmpty {
+                    Button {
+                        onNavigateToPdfViewer != nil ? () : ()
+                        router.navigate(to: .faculdadeDocumentos)
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text("Ver tudo").font(VitaTypography.labelMedium)
+                            Image(systemName: "chevron.right").font(VitaTypography.labelSmall)
+                        }
+                        .foregroundStyle(VitaColors.accent)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
 
             if viewModel.vitaDocuments.isEmpty {
-                estudosEmptyRow(icon: "doc.text", message: "Conecte seu portal para ver materiais")
+                estudosEmptyRow(icon: "doc.text",
+                                message: "Seus PDFs e materiais do portal aparecem aqui")
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(viewModel.vitaDocuments.prefix(8)) { document in
-                            MaterialCard(
-                                document: document,
-                                onTap: {
-                                    router.navigate(to: .pdfViewer(
-                                        url: "\(AppConfig.apiBaseURL)/documents/\(document.id)/file",
-                                        title: document.title.isEmpty ? document.fileName : document.title,
-                                        documentId: document.id,
-                                        studioSourceId: document.studioSourceId
-                                    ))
-                                },
-                                onGenerate: { kind in quickGen = QuickGen(doc: document, kind: kind) }
-                            )
+                    HStack(spacing: VitaTokens.Spacing.md) {
+                        ForEach(viewModel.vitaDocuments.prefix(10)) { doc in
+                            cartaoMaterial(doc)
+                                .draggable(doc.id) {
+                                    cartaoMaterial(doc).frame(width: 150).opacity(0.92)
+                                }
                         }
                     }
-                    .padding(.horizontal, 1) // prevent clipping shadows
+                    .padding(.horizontal, 1)
                 }
             }
         }
+        .padding(VitaTokens.Spacing.lg)
+        .glassCard(cornerRadius: VitaTokens.Radius.lg)
+    }
+
+    private func cartaoMaterial(_ doc: VitaDocument) -> some View {
+        let nome = doc.title.isEmpty ? doc.fileName : doc.title
+        return VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            HStack(alignment: .top) {
+                Image(systemName: iconeDoMaterial(doc))
+                    .font(VitaTypography.titleMedium)
+                    .foregroundStyle(VitaColors.accent)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                            .fill(VitaColors.accent.opacity(0.12))
+                    )
+                Spacer(minLength: 0)
+                // pega-pra-arrastar: sinaliza que o card sai do lugar
+                Image(systemName: "line.3.horizontal")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+            Text(nome)
+                .font(VitaTypography.labelLarge)
+                .foregroundStyle(VitaColors.textPrimary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Text(detalheDoMaterial(doc))
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.textTertiary)
+        }
+        .padding(VitaTokens.Spacing.md)
+        .frame(width: 152, height: 132, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .fill(VitaColors.surfaceCard.opacity(0.7))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .stroke(VitaColors.glassBorder, lineWidth: 0.75)
+        )
+    }
+
+    private func iconeDoMaterial(_ doc: VitaDocument) -> String {
+        let n = (doc.fileName.isEmpty ? doc.title : doc.fileName).lowercased()
+        if n.hasSuffix(".pdf") { return "doc.richtext" }
+        if doc.source == "canvas" { return "link" }
+        return "doc.text"
+    }
+
+    private func detalheDoMaterial(_ doc: VitaDocument) -> String {
+        if doc.totalPages > 0 {
+            return "\(doc.totalPages) página\(doc.totalPages == 1 ? "" : "s")"
+        }
+        if let s = doc.subjectName, !s.isEmpty { return s }
+        return doc.source == "canvas" ? "Do portal" : "Enviado por você"
+    }
+
+    /// Soltou um material em cima de uma ferramenta.
+    private func soltouMaterial(_ docId: String, _ ferramenta: StudyToolsGrid.Ferramenta) {
+        guard let doc = viewModel.vitaDocuments.first(where: { $0.id == docId }) else { return }
+        switch ferramenta {
+        case .flashcards:
+            quickGen = QuickGen(doc: doc, kind: .flashcards)
+        case .questoes, .simulados:
+            quickGen = QuickGen(doc: doc, kind: .questoes)
+        case .transcricao:
+            // Transcrição nasce de áudio, não de PDF: abre o material em vez de
+            // fingir que gerou alguma coisa.
+            router.navigate(to: .pdfViewer(
+                url: "\(AppConfig.apiBaseURL)/documents/\(doc.id)/file",
+                title: doc.title.isEmpty ? doc.fileName : doc.title,
+                documentId: doc.id,
+                studioSourceId: doc.studioSourceId
+            ))
+        }
+    }
+
+    // MARK: - Rodapé (números reais desta tela)
+
+    private var rodapeProgresso: some View {
+        HStack(spacing: VitaTokens.Spacing.lg) {
+            numeroDoRodape(valor: "\(viewModel.flashcardsDue)",
+                           rotulo: viewModel.flashcardsDue == 1 ? "card para revisar" : "cards para revisar")
+            Rectangle()
+                .fill(VitaColors.textWarm.opacity(0.08))
+                .frame(width: 1, height: 30)
+            numeroDoRodape(valor: "\(viewModel.streakDays)",
+                           rotulo: viewModel.streakDays == 1 ? "dia seguido" : "dias seguidos")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, VitaTokens.Spacing.lg)
+        .glassCard(cornerRadius: VitaTokens.Radius.lg)
+    }
+
+    private func numeroDoRodape(valor: String, rotulo: String) -> some View {
+        VStack(spacing: 2) {
+            Text(valor)
+                .font(VitaTypography.headlineSmall)
+                .fontWeight(.semibold)
+                .monospacedDigit()
+                .foregroundStyle(VitaColors.accent)
+            Text(rotulo)
+                .font(VitaTypography.labelSmall)
+                .foregroundStyle(VitaColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - 5. Trabalhos Section
