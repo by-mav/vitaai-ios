@@ -335,17 +335,18 @@ struct MainTabView: View {
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
                     }
-                    .overlay(alignment: .topLeading) {
-                        if isHomeRoot,
-                           let activeSessionsVM,
-                           !activeSessionsVM.sessions.isEmpty {
-                            ContinueSessionDrawer(
-                                model: activeSessionsVM,
-                                onResume: resumeStudySession
+                    // Cortina de atividade: desce do topo em QUALQUER aba, so
+                    // quando ha algo rodando. O gavetao antigo ficava preso na
+                    // Home — por isso nunca aparecia (Rafael 2026-07-23).
+                    .overlay(alignment: .top) {
+                        if let activeSessionsVM, !activeSessionsVM.sessions.isEmpty {
+                            VitaCortinaAtividade(
+                                sessoes: activeSessionsVM.sessions,
+                                onRetomar: resumeStudySession
                             )
-                            .padding(.leading, VitaTokens.Spacing.lg)
-                            .padding(.top, 88)
-                            .zIndex(25)
+                            .padding(.horizontal, VitaTokens.Spacing.lg)
+                            .padding(.top, VitaTokens.Spacing.sm)
+                            .zIndex(30)
                         }
                     }
                     .overlay(alignment: .bottom) {

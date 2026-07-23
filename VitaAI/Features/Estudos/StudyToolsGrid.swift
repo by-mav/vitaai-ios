@@ -15,65 +15,47 @@ struct StudyToolsGrid: View {
     var onTranscricao: () -> Void = {}
     var onAtlas: () -> Void = {}
 
+    /// 3D Simulator ainda nao existe — a propria arte diz "Em breve".
+    @State private var avisoEmBreve = false
+
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(spacing: VitaTokens.Spacing.md) {
+            HStack(spacing: VitaTokens.Spacing.md) {
                 toolImage("tool-questoes", id: "tool_questoes", action: onQuestoes)
                 toolImage("tool-flashcards", id: "tool_flashcards", action: onFlashcards)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: VitaTokens.Spacing.md) {
                 toolImage("tool-simulados", id: "tool_simulados", action: onSimulados)
                 toolImage("tool-transcricao", id: "tool_transcricao", action: onTranscricao)
             }
-            atlasCard
+            HStack(spacing: VitaTokens.Spacing.md) {
+                toolImage("tool-atlas", id: "tool_atlas3d", action: onAtlas)
+                toolImage("tool-3dsim", id: "tool_3dsim", emBreve: true,
+                          action: { avisoEmBreve = true })
+            }
+        }
+        .alert("3D Simulator", isPresented: $avisoEmBreve) {
+            Button("Entendi", role: .cancel) { }
+        } message: {
+            Text("Ainda não está pronto — a gente avisa quando abrir.")
         }
     }
 
-    // As 4 ferramentas = a própria arte tool-* (aspecto natural, sem recorte no título).
+    // A ferramenta E a propria arte (aspecto natural, sem recorte no titulo).
     @ViewBuilder
-    private func toolImage(_ name: String, id: String, action: @escaping () -> Void) -> some View {
+    private func toolImage(_ name: String, id: String, emBreve: Bool = false,
+                           action: @escaping () -> Void) -> some View {
         Button(action: action) {
+            // A arte ja vem com fundo transparente e moldura/brilho proprios
+            // (fundo branco removido com rembg em 2026-07-23). Nao colocar
+            // background nem stroke por baixo: reintroduz o quadradao.
             Image(name).resizable().aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity)
-                .background(VitaColors.surfaceCard.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 14))  // ds-allow: card de ferramenta (arte tool-*) — igual ao original
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)  // ds-allow: card de ferramenta (arte tool-*) — igual ao original
-                        .stroke(VitaColors.accentHover.opacity(0.16), lineWidth: 0.5)
-                )
-                .shadow(color: .black.opacity(0.40), radius: 12, x: 0, y: 5)
-                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.45), radius: 14, x: 0, y: 6)
+                // Em breve fica levemente recuado: da pra ver, mas nao chama.
+                .opacity(emBreve ? 0.72 : 1)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(id)
-    }
-
-    // Atlas 3D = cartão de vidro compacto (secundário às 4 imagens). Emblema
-    // dourado + rótulo + seta, mesma física de luz do restante do DS.
-    private var atlasCard: some View {
-        Button(action: onAtlas) {
-            HStack(spacing: 12) {
-                VitaEmblem(symbol: "brain.head.profile", size: 34)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Atlas 3D")
-                        .font(.system(size: 14, weight: .bold))  // ds-allow: rótulo do card de ferramenta (consistente com os antigos)
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.92))
-                    Text("Anatomia interativa")
-                        .font(.system(size: 11))  // ds-allow: subtítulo do card de ferramenta
-                        .foregroundStyle(VitaColors.textWarm.opacity(0.40))
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))  // ds-allow: chevron do card de ferramenta
-                    .foregroundStyle(VitaColors.textWarm.opacity(0.25))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity)
-            .glassCard(cornerRadius: 16)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("tool_atlas3d")
-        .accessibilityLabel("Atlas 3D")
     }
 }
