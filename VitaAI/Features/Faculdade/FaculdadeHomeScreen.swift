@@ -26,6 +26,10 @@ struct FaculdadeHomeScreen: View {
     @State private var colorTarget: SubjectActionTarget?
     @State private var deleteTarget: SubjectActionTarget?
     @State private var colorRefreshTrigger = UUID()
+    /// Folha de adicionar disciplina manual (Rafael 2026-07-23).
+    @State private var mostrarAddDisciplina = false
+    @State private var nomeNovaDisciplina = ""
+    @State private var salvandoDisciplina = false
 
     private struct SubjectActionTarget: Identifiable {
         let id: String
@@ -73,6 +77,7 @@ struct FaculdadeHomeScreen: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
         }
+        .sheet(isPresented: $mostrarAddDisciplina) { folhaAddDisciplina }
         .refreshable { await appData.forceRefresh() }
         .onAppear {
             Task {
@@ -376,6 +381,18 @@ struct FaculdadeHomeScreen: View {
                     .textCase(.uppercase)
                     .foregroundStyle(VitaColors.sectionLabel)
                 Spacer()
+                Button {
+                    nomeNovaDisciplina = ""
+                    mostrarAddDisciplina = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(PixioTypo.sans(size: 10, weight: .bold))
+                        .foregroundStyle(goldPrimary.opacity(0.80))
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(goldPrimary.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Adicionar disciplina")
                 if !subjects.isEmpty {
                     Button {
                         router.navigate(to: .faculdadeDisciplinas)
@@ -393,15 +410,22 @@ struct FaculdadeHomeScreen: View {
             }
 
             if subjects.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "graduationcap")
-                        .font(PixioTypo.sans(size: 16))
-                        .foregroundStyle(goldPrimary.opacity(0.35))
-                    Text("Conecte seu portal para ver disciplinas")
-                        .font(PixioTypo.sans(size: 12))
-                        .foregroundStyle(textDim)
+                // Duas saidas: quem tem portal conecta; quem nao tem monta a mao.
+                // Antes so existia o caminho do portal — sem ele, tela morta.
+                VStack(spacing: VitaTokens.Spacing.sm) {
+                    escolhaDisciplina(
+                        icone: "square.and.pencil",
+                        titulo: "Adicionar manualmente",
+                        detalhe: "Você digita o nome da matéria",
+                        acao: { nomeNovaDisciplina = ""; mostrarAddDisciplina = true }
+                    )
+                    escolhaDisciplina(
+                        icone: "link",
+                        titulo: "Conectar seu portal",
+                        detalhe: "Importa matérias, provas e materiais",
+                        acao: { router.navigate(to: .canvasConnect) }
+                    )
                 }
-                .padding(.vertical, 8)
             } else {
                 // No maximo 2 linhas (6 disciplinas) na home; o resto abre em Ver todas.
                 let sorted = Array(sortedByFavorite(subjects).prefix(6))
@@ -433,6 +457,73 @@ struct FaculdadeHomeScreen: View {
                 }
             }
         }
+    }
+
+    // MARK: - Adicionar disciplina (manual ou portal)
+
+    private func escolhaDisciplina(icone: String, titulo: String,
+                                   detalhe: String, acao: @escaping () -> Void) -> some View {
+        Button(action: acao) {
+            HStack(spacing: VitaTokens.Spacing.md) {
+                Image(systemName: icone)
+                    .font(VitaTypography.titleSmall)
+                    .foregroundStyle(goldPrimary.opacity(0.85))
+                    .frame(width: 34, height: 34)
+                    .background(
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                            .fill(goldPrimary.opacity(0.12))
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(titulo)
+                        .font(VitaTypography.titleSmall)
+                        .foregroundStyle(textPrimary)
+                    Text(detalhe)
+                        .font(VitaTypography.bodySmall)
+                        .foregroundStyle(textWarm.opacity(0.45))
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(textDim)
+            }
+            .padding(VitaTokens.Spacing.lg)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(cornerRadius: VitaTokens.Radius.md)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var folhaAddDisciplina: some View {
+        VitaSheet(title: "Nova disciplina", detents: [.height(300)]) {
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+                Text("Use o nome como aparece na sua faculdade — é assim que você vai reconhecer nas provas e na agenda.")
+                    .font(VitaTypography.bodySmall)
+                    .foregroundStyle(textWarm.opacity(0.55))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VitaInput(value: $nomeNovaDisciplina, placeholder: "Ex: Farmacologia Médica I")
+
+                VitaButton(
+                    text: "Adicionar",
+                    action: { Task { await salvarDisciplina() } },
+                    isEnabled: !nomeNovaDisciplina.trimmingCharacters(in: .whitespaces).isEmpty
+                        && !salvandoDisciplina,
+                    isLoading: salvandoDisciplina,
+                    fillsWidth: true
+                )
+            }
+            .padding(.horizontal, VitaTokens.Spacing.xl)
+        }
+    }
+
+    private func salvarDisciplina() async {
+        let nome = nomeNovaDisciplina.trimmingCharacters(in: .whitespaces)
+        guard !nome.isEmpty else { return }
+        salvandoDisciplina = true
+        _ = try? await appData.addManualDiscipline(name: nome)
+        salvandoDisciplina = false
+        mostrarAddDisciplina = false
+        colorRefreshTrigger = UUID()
     }
 
     // MARK: - Helpers
