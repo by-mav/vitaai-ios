@@ -1696,7 +1696,7 @@ components:
     OpenSession:
       type: object
       description: >
-        Sessão em aberto (regra "1 global", 2026-07-19) — normalizada das 3
+        Sessão em aberto (regra "1 por tipo", 2026-07-21) — normalizada das 3
         tabelas (questões/flashcards/simulado). A Home lê pra o card "continuar";
         o guard de criação lê pra bloquear/prompt.
       required: [type, id, title, currentIndex, total, startedAt]
@@ -4091,7 +4091,7 @@ components:
             $ref: '#/components/schemas/Error'
     OpenSessionConflict:
       description: >
-        Já existe uma sessão em aberto (regra "1 global", 2026-07-19). O cliente
+        Já existe uma sessão em aberto do mesmo tipo (regra "1 por tipo", 2026-07-21). O cliente
         mostra "retomar ou começar novo?"; reenviar com abandonExisting=true.
       content:
         application/json:
@@ -7639,6 +7639,13 @@ paths:
                     Slug de uma prova oficial registrada. Quando presente, ignora
                     os filtros aleatórios e cria uma sessão com todas as questões
                     da prova na ordem canônica da banca.
+                catalogBlockSlug:
+                  type: string
+                  nullable: true
+                  description: >
+                    Slug estável de um bloco BANCO do catálogo, derivado por fonte,
+                    instituição, ano e tipo. Quando presente, materializa somente
+                    questões daquele bloco e mantém o carregamento lazy.
       responses:
         '201':
           description: Session created
@@ -7665,9 +7672,28 @@ paths:
                           timeLimitMinutes: { type: integer, nullable: true }
                           externalIdPrefix: { type: string }
                           sourceDownloadUrl: { type: string, format: uri }
+                      catalogBlock:
+                        type: object
+                        nullable: true
+                        description: Presente quando a sessão nasce de um bloco BANCO do catálogo.
+                        properties:
+                          id: { type: string }
+                          slug: { type: string }
+                          kind: { type: string, enum: [official, bank] }
+                          title: { type: string }
+                          authority: { type: string }
+                          source: { type: string }
+                          year: { type: integer }
+                          stage:
+                            type: string
+                            enum: [residencia, enade, revalida, concurso, faculdade]
+                          institutionId: { type: integer }
+                          questionCount: { type: integer }
+                          timeLimitMinutes: { type: integer, nullable: true }
+                          availableQuestions: { type: integer }
         '409':
           description: >
-            Já existe uma sessão em aberto (regra "1 global"). O cliente mostra
+            Já existe uma sessão em aberto do mesmo tipo (regra "1 por tipo"). O cliente mostra
             "retomar ou começar novo?"; reenviar com abandonExisting=true.
           content:
             application/json:
@@ -7689,7 +7715,7 @@ paths:
       tags: [sessions]
       operationId: getOpenSession
       summary: >
-        Sessão em aberto do user (regra "1 global"). A Home lê pra o card
+        Sessão em aberto do user (regra "1 por tipo"). A Home lê pra o card
         "continuar". Retorna openSession=null quando não há nenhuma.
       responses:
         '200':
@@ -8001,15 +8027,62 @@ paths:
     get:
       tags: [simulados]
       operationId: listOfficialQbankExams
-      summary: Lista provas oficiais completas disponíveis para reprodução fiel
+      summary: Lista paginada de provas oficiais e blocos categorizados do QBank
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 120 }
+          description: Busca por título, banca ou fonte
+        - in: query
+          name: stage
+          schema:
+            type: array
+            items: { type: string }
+          style: form
+          explode: true
+        - in: query
+          name: year
+          schema:
+            type: array
+            items: { type: integer, minimum: 1900, maximum: 2200 }
+          style: form
+          explode: true
+        - in: query
+          name: authority
+          schema:
+            type: array
+            items: { type: string }
+          style: form
+          explode: true
+        - in: query
+          name: status
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [not_started, in_progress, completed]
+          style: form
+          explode: true
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [newest, oldest, authority]
+            default: newest
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
       responses:
         '200':
-          description: Provas oficiais cujo total de questões já está completo no QBank
+          description: Metadados leves, facets e paginação do catálogo de simulados
           content:
             application/json:
               schema:
                 type: object
-                required: [exams]
+                required: [exams, pagination, facets]
                 properties:
                   exams:
                     type: array
@@ -8018,6 +8091,7 @@ paths:
                       required:
                         - id
                         - slug
+                        - kind
                         - title
                         - authority
                         - source
@@ -8025,13 +8099,16 @@ paths:
                         - stage
                         - institutionId
                         - questionCount
-                        - timeLimitMinutes
-                        - externalIdPrefix
-                        - sourceDownloadUrl
                         - availableQuestions
+                        - attemptStatus
+                        - answeredQuestions
+                        - tags
                       properties:
-                        id: { type: string, format: uuid }
+                        id: { type: string }
                         slug: { type: string }
+                        kind:
+                          type: string
+                          enum: [official, bank]
                         title: { type: string }
                         authority: { type: string }
                         source: { type: string }
@@ -8040,13 +8117,48 @@ paths:
                         institutionId: { type: integer }
                         questionCount: { type: integer }
                         timeLimitMinutes: { type: integer, nullable: true }
-                        externalIdPrefix: { type: string }
-                        sourceDownloadUrl: { type: string, format: uri }
-                        sourceFileSha256:
-                          type: string
-                          nullable: true
-                          pattern: '^[a-fA-F0-9]{64}$'
                         availableQuestions: { type: integer }
+                        attemptStatus:
+                          type: string
+                          enum: [not_started, in_progress, completed]
+                        answeredQuestions: { type: integer }
+                        sessionId: { type: string, nullable: true }
+                        tags:
+                          type: object
+                          required: [type, institution, year, source]
+                          properties:
+                            type:
+                              type: string
+                              enum: [residencia, enade, revalida, concurso, faculdade]
+                            institution: { type: string }
+                            year: { type: integer }
+                            source: { type: string }
+                  pagination:
+                    type: object
+                    required: [page, limit, total, hasMore]
+                    properties:
+                      page: { type: integer }
+                      limit: { type: integer }
+                      total: { type: integer }
+                      hasMore: { type: boolean }
+                  facets:
+                    type: object
+                    required: [stages, years, authorities, statuses]
+                    properties:
+                      stages:
+                        type: array
+                        items: { type: string }
+                      years:
+                        type: array
+                        items: { type: integer }
+                      authorities:
+                        type: array
+                        items: { type: string }
+                      statuses:
+                        type: array
+                        items:
+                          type: string
+                          enum: [not_started, in_progress, completed]
         '401':
           $ref: '#/components/responses/Unauthorized'
 

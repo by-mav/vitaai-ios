@@ -31,6 +31,84 @@ enum SimuladoBuilderMode: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
+// MARK: - Catálogo de simulados
+
+/// Tipos editoriais usados para separar provas e blocos de questões no iOS.
+/// O backend persiste o valor em `stage`; este enum apenas normaliza os nomes para UI.
+enum OfficialExamCategory: String, CaseIterable, Identifiable, Hashable {
+    case residencia
+    case enade
+    case revalida
+    case concursos
+    case faculdade
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .residencia: return "Residência"
+        case .enade: return "ENADE/ENAMED"
+        case .revalida: return "Revalida"
+        case .concursos: return "Concursos"
+        case .faculdade: return "Faculdade"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .residencia: return "stethoscope"
+        case .enade: return "graduationcap.fill"
+        case .revalida: return "globe.americas.fill"
+        case .concursos: return "building.columns.fill"
+        case .faculdade: return "cross.case.fill"
+        }
+    }
+
+    var catalogStages: [String] {
+        switch self {
+        case .residencia: return ["residencia", "residência", "enare"]
+        case .enade: return ["enade"]
+        case .revalida: return ["revalida"]
+        case .concursos: return ["concurso", "concursos"]
+        case .faculdade: return ["faculdade", "institucional", "internato", "graduacao", "graduação"]
+        }
+    }
+
+    static func from(stage: String) -> OfficialExamCategory? {
+        switch stage.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current) {
+        case "residencia", "residência", "enare": return .residencia
+        case "enade": return .enade
+        case "revalida": return .revalida
+        case "concurso", "concursos": return .concursos
+        case "faculdade", "institucional", "internato", "graduacao", "graduação": return .faculdade
+        default: return nil
+        }
+    }
+}
+
+extension ListOfficialQbankExams200ResponseExamsInner {
+    var category: OfficialExamCategory? { OfficialExamCategory.from(stage: stage) }
+
+    var isBankBlock: Bool { kind == .bank }
+
+    var catalogKindLabel: String { isBankBlock ? "BANCO" : "OFICIAL" }
+
+    var sourceDisplayName: String {
+        switch tags.source.lowercased() {
+        case "medsimple": return "MedSimple"
+        case "medevo": return "MedEvo"
+        default: return tags.source
+        }
+    }
+
+    var questionSelectionLabel: String {
+        guard isBankBlock, availableQuestions > questionCount else {
+            return "\(questionCount) questões"
+        }
+        return "\(questionCount) de \(availableQuestions) questões"
+    }
+}
+
 // MARK: - DTOs locais (decodificam a resposta crua do backend)
 //
 // Generated/Models não tem SimuladoScreen/SimuladoTemplate/SimuladoAttempt
@@ -174,6 +252,16 @@ struct SimuladoBuilderState {
     // Template
     var templates: [SimuladoTemplateDTO] = []
     var selectedTemplateSlug: String? = nil
+    var officialExams: [ListOfficialQbankExams200ResponseExamsInner] = []
+    var officialExamFacets: ListOfficialQbankExams200ResponseFacets?
+    var officialExamTotal: Int = 0
+    var officialExamPage: Int = 0
+    var officialExamsHasMore: Bool = false
+    var officialExamsLoadingMore: Bool = false
+    var selectedOfficialExamSlug: String? = nil
+    var selectedOfficialCategory: OfficialExamCategory = .residencia
+    var officialExamsLoading: Bool = true
+    var officialExamsError: String? = nil
 
     // Hero stats
     var statsCompletedAttempts: Int = 0
@@ -197,6 +285,7 @@ struct SimuladoBuilderState {
     var filtersLoading: Bool = true
     var creatingSession: Bool = false
     var error: String? = nil
+    var openSessionConflict: OpenSessionInfo? = nil
 
     var displayCount: Int {
         previewCount ?? totalQuestions
@@ -223,6 +312,8 @@ final class SimuladoBuilderViewModel {
     private let dataManager: AppDataManager
 
     private var previewTask: Task<Void, Never>?
+    private var officialExamCatalogTask: Task<Void, Never>?
+    private var officialExamCatalogQuery = OfficialExamCatalogQuery()
 
     init(api: VitaAPI, dataManager: AppDataManager) {
         self.api = api
@@ -240,10 +331,11 @@ final class SimuladoBuilderViewModel {
         state.filtersLoading = true
         state.previewLoading = true
         async let screenTask: Void = loadScreen()
+        async let officialExamsTask: Void = loadOfficialExams()
         async let filtersTask: Void = loadFilters()
         async let previewTask: Void = refreshPreview()
         async let streakTask: Void = loadStreak()
-        _ = await (screenTask, filtersTask, previewTask, streakTask)
+        _ = await (screenTask, officialExamsTask, filtersTask, previewTask, streakTask)
         state.screenLoading = false
         state.filtersLoading = false
     }
@@ -260,7 +352,9 @@ final class SimuladoBuilderViewModel {
             state.templates = resp.templates
             state.inProgressAttemptId = resp.inProgress?.attemptId
             // Pre-select primeiro template oficial se nenhum escolhido
-            if state.selectedTemplateSlug == nil, let first = resp.templates.first {
+            if state.selectedTemplateSlug == nil,
+               state.selectedOfficialExamSlug == nil,
+               let first = resp.templates.first {
                 state.selectedTemplateSlug = first.slug
             }
             // O BFF /screen pode nao trazer templates (decode nao falha -> catch
@@ -281,11 +375,75 @@ final class SimuladoBuilderViewModel {
         do {
             let env: SimuladoTemplatesEnvelope = try await api.client.get("simulados/templates")
             state.templates = env.templates
-            if state.selectedTemplateSlug == nil, let first = env.templates.first {
+            if state.selectedTemplateSlug == nil,
+               state.selectedOfficialExamSlug == nil,
+               let first = env.templates.first {
                 state.selectedTemplateSlug = first.slug
             }
         } catch {
             NSLog("[SimuladoBuilder] loadTemplates fallback ERROR: %@", String(describing: error))
+        }
+    }
+
+    private func loadOfficialExams(reset: Bool = true) async {
+        if reset {
+            state.officialExamsLoading = true
+        } else {
+            state.officialExamsLoadingMore = true
+        }
+        state.officialExamsError = nil
+        defer {
+            state.officialExamsLoading = false
+            state.officialExamsLoadingMore = false
+        }
+
+        if reset,
+           officialExamCatalogQuery == OfficialExamCatalogQuery(),
+           !dataManager.officialQbankExams.isEmpty {
+            state.officialExams = dataManager.officialQbankExams
+            state.officialExamFacets = dataManager.officialQbankExamFacets
+            if let pagination = dataManager.officialQbankExamPagination {
+                applyOfficialExamPagination(pagination)
+            }
+        }
+
+        do {
+            var query = officialExamCatalogQuery
+            query.page = reset ? 1 : state.officialExamPage + 1
+            let response = try await dataManager.refreshOfficialQbankExams(
+                query: query,
+                reset: reset
+            )
+            guard !Task.isCancelled else { return }
+            state.officialExams = dataManager.officialQbankExams
+            state.officialExamFacets = response.facets
+            applyOfficialExamPagination(response.pagination)
+            selectPreferredOfficialExamIfNeeded()
+        } catch is CancellationError {
+            return
+        } catch {
+            NSLog("[SimuladoBuilder] official exams ERROR: %@", String(describing: error))
+            if state.officialExams.isEmpty {
+                state.officialExamsError = "Não foi possível carregar o catálogo de simulados."
+            }
+        }
+    }
+
+    private func applyOfficialExamPagination(_ pagination: ListOfficialQbankExams200ResponsePagination) {
+        state.officialExamPage = pagination.page
+        state.officialExamTotal = pagination.total
+        state.officialExamsHasMore = pagination.hasMore
+    }
+
+    private func selectPreferredOfficialExamIfNeeded() {
+        guard state.selectedOfficialExamSlug == nil else { return }
+
+        let preferred = state.officialExams.first { $0.category == state.selectedOfficialCategory }
+            ?? state.officialExams.first
+        if let preferred {
+            state.selectedOfficialCategory = preferred.category ?? .residencia
+            state.selectedOfficialExamSlug = preferred.slug
+            state.selectedTemplateSlug = nil
         }
     }
 
@@ -342,6 +500,113 @@ final class SimuladoBuilderViewModel {
 
     func selectTemplate(slug: String) {
         state.selectedTemplateSlug = slug
+        state.selectedOfficialExamSlug = nil
+    }
+
+    func selectOfficialCategory(_ category: OfficialExamCategory) {
+        state.selectedOfficialCategory = category
+        if let first = officialExams(in: category).first {
+            selectOfficialExam(slug: first.slug)
+        } else {
+            state.selectedOfficialExamSlug = nil
+            state.selectedTemplateSlug = nil
+        }
+    }
+
+    func selectOfficialExam(slug: String) {
+        state.selectedOfficialExamSlug = slug
+        state.selectedTemplateSlug = nil
+    }
+
+    func officialExams(in category: OfficialExamCategory) -> [ListOfficialQbankExams200ResponseExamsInner] {
+        state.officialExams.filter { $0.category == category }
+    }
+
+    var selectedOfficialExam: ListOfficialQbankExams200ResponseExamsInner? {
+        guard let slug = state.selectedOfficialExamSlug else { return nil }
+        return state.officialExams.first { $0.slug == slug }
+    }
+
+    // MARK: - Official exam catalog
+
+    func updateOfficialExamCatalog(
+        search: String,
+        stages: [String],
+        years: [Int],
+        authorities: [String],
+        statuses: [String],
+        sort: String
+    ) {
+        let nextQuery = OfficialExamCatalogQuery(
+            page: 1,
+            limit: 20,
+            search: search,
+            stages: stages.sorted(),
+            years: years.sorted(),
+            authorities: authorities.sorted(),
+            statuses: statuses.sorted(),
+            sort: sort
+        )
+        guard nextQuery != officialExamCatalogQuery else { return }
+        officialExamCatalogQuery = nextQuery
+        officialExamCatalogTask?.cancel()
+        officialExamCatalogTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard let self, !Task.isCancelled else { return }
+            self.state.officialExams.removeAll()
+            self.state.officialExamTotal = 0
+            await self.loadOfficialExams(reset: true)
+        }
+    }
+
+    func retryOfficialExamCatalog() {
+        officialExamCatalogTask?.cancel()
+        officialExamCatalogTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.loadOfficialExams(reset: true)
+        }
+    }
+
+    func loadMoreOfficialExamsIfNeeded(
+        currentExam: ListOfficialQbankExams200ResponseExamsInner
+    ) {
+        guard state.officialExamsHasMore,
+              !state.officialExamsLoading,
+              !state.officialExamsLoadingMore,
+              let index = state.officialExams.firstIndex(where: { $0.id == currentExam.id }),
+              index >= max(0, state.officialExams.count - 4)
+        else { return }
+
+        officialExamCatalogTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.loadOfficialExams(reset: false)
+        }
+    }
+
+    func previewOfficialExamCount(
+        search: String,
+        stages: [String],
+        years: [Int],
+        authorities: [String],
+        statuses: [String]
+    ) async -> Int? {
+        do {
+            let response = try await api.listOfficialQbankExams(
+                query: OfficialExamCatalogQuery(
+                    page: 1,
+                    limit: 1,
+                    search: search,
+                    stages: stages,
+                    years: years,
+                    authorities: authorities,
+                    statuses: statuses,
+                    sort: officialExamCatalogQuery.sort
+                )
+            )
+            return response.pagination.total
+        } catch {
+            return nil
+        }
     }
 
 
@@ -518,6 +783,45 @@ final class SimuladoBuilderViewModel {
             return await createFromTemplate()
         case .custom:
             return await createCustom()
+        }
+    }
+
+    /// Materializa uma sessão QBank a partir do item selecionado no catálogo.
+    /// Provas oficiais preservam a ordem cadastrada; blocos BANCO selecionam
+    /// somente questões da mesma fonte, instituição, ano e tipo.
+    func createCatalogSession(abandonExisting: Bool = false) async -> String? {
+        guard let selectedExam = selectedOfficialExam else {
+            state.error = "Escolha um simulado antes de iniciar"
+            return nil
+        }
+
+        state.creatingSession = true
+        defer { state.creatingSession = false }
+
+        do {
+            let session = try await dataManager.createCatalogQBankSession(
+                slug: selectedExam.slug,
+                kind: selectedExam.kind,
+                abandonExisting: abandonExisting
+            )
+            guard let id = session.id, !id.isEmpty else {
+                state.error = "O servidor não retornou a sessão do simulado"
+                return nil
+            }
+            state.openSessionConflict = nil
+            return id
+        } catch let APIError.conflict(_, body) {
+            if let conflict = try? JSONDecoder().decode(OpenSessionConflict.self, from: body),
+               conflict.error == "open_session_exists" {
+                state.openSessionConflict = conflict.openSession
+            } else {
+                state.error = "Não foi possível iniciar o simulado"
+            }
+            return nil
+        } catch {
+            NSLog("[SimuladoBuilder] create catalog session ERROR: %@", String(describing: error))
+            state.error = "Não foi possível iniciar o simulado"
+            return nil
         }
     }
 

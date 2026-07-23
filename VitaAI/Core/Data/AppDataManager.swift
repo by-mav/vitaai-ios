@@ -120,8 +120,44 @@ final class AppDataManager {
     var flashcardDecks: [FlashcardDeckEntry] = []
     var qbankProgress: QBankProgressResponse?
     var simuladosList: SimuladoListResponse?
+    var officialQbankExams: [ListOfficialQbankExams200ResponseExamsInner] = []
+    var officialQbankExamFacets: ListOfficialQbankExams200ResponseFacets?
+    var officialQbankExamPagination: ListOfficialQbankExams200ResponsePagination?
     var transcricoesList: [TranscricaoEntry] = []
     var trabalhosResponse: TrabalhosResponse?
+
+    /// Atualiza o catálogo paginado de provas e blocos publicados. A tela de
+    /// Simulados lê este store em vez de manter outra fonte de verdade local.
+    @discardableResult
+    func refreshOfficialQbankExams(
+        query: OfficialExamCatalogQuery = .init(),
+        reset: Bool = true
+    ) async throws -> ListOfficialQbankExams200Response {
+        let response = try await api.listOfficialQbankExams(query: query)
+        if reset {
+            officialQbankExams = response.exams
+        } else {
+            let existingIds = Set(officialQbankExams.map(\.id))
+            officialQbankExams += response.exams.filter { !existingIds.contains($0.id) }
+        }
+        officialQbankExamFacets = response.facets
+        officialQbankExamPagination = response.pagination
+        return response
+    }
+
+    /// Cria a sessão do item selecionado. A navegação continua sendo do QBank,
+    /// que conhece questão, gabarito e a regra de materialização do catálogo.
+    func createCatalogQBankSession(
+        slug: String,
+        kind: ListOfficialQbankExams200ResponseExamsInner.Kind,
+        abandonExisting: Bool = false
+    ) async throws -> CreateQBankSession201Response {
+        try await api.createCatalogQBankSession(
+            slug: slug,
+            kind: kind,
+            abandonExisting: abandonExisting
+        )
+    }
 
     /// Per-discipline prefetched data — populated on boot via
     /// `prewarmDisciplines(ids:)`. Disciplina aberta consome desses caches em
@@ -311,11 +347,12 @@ final class AppDataManager {
         async let fc: () = refreshFlashcards()
         async let qb: () = refreshQBankProgress()
         async let si: () = refreshSimulados()
+        async let oe: () = refreshOfficialQbankExamsSilently()
         async let tr: () = refreshTranscricoes()
         async let tb: () = refreshTrabalhos()
         async let pr: () = refreshProgress()
         async let qs: () = refreshQBankSessions()
-        _ = await (p, g, s, d, en, so, fc, qb, si, tr, tb, pr, qs)
+        _ = await (p, g, s, d, en, so, fc, qb, si, oe, tr, tb, pr, qs)
         // Tertiary prefetch — disciplinas individuais. Depende de enrolled
         // já estar populado, daí roda DEPOIS do gather acima.
         await prewarmDisciplines(ids: enrolledDisciplines.map { $0.id })
@@ -370,6 +407,10 @@ final class AppDataManager {
         if let resp = try? await api.listSimulados() {
             simuladosList = resp
         }
+    }
+
+    private func refreshOfficialQbankExamsSilently() async {
+        _ = try? await refreshOfficialQbankExams()
     }
 
     private func refreshTranscricoes() async {

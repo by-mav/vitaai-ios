@@ -62,11 +62,6 @@ targets:
         # NO so TestFlight doesn't hold the build awaiting manual review.
         # We don't use proprietary crypto, only standard HTTPS/TLS.
         ITSAppUsesNonExemptEncryption: false
-        # Migrado pra GlitchTip self-hosted (Tailscale monstro:8210) em 2026-04-29.
-        # Razao: Sentry SaaS quota Errors 5K/5K estourado, eventos novos dropados.
-        # GlitchTip ilimitado, MCP funcional pros agents (TOKEN: atlas-mcp).
-        # Quando Cloudflare Tunnel glitchtip.bymav.dev resolver, troca host.
-        SENTRY_DSN: https://ebcb3ccce0cf4bfd8de976f3eab55046@glitchtip.vita-ai.cloud/1
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
         NSCameraUsageDescription: "VitaAI usa a câmera para fotografar suas anotações e transformá-las em flashcards."

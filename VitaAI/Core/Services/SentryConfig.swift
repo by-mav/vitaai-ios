@@ -15,8 +15,17 @@ import Sentry
 //   - Screenshot attachment enabled for crash context
 //
 // DSN comes from Info.plist key `SENTRY_DSN`, set in project.yml.
-// If DSN is missing in Release, we crash the boot (assertionFailure) —
-// silently running without observability bit us multiple times (incident 2026-04-20).
+//
+// ESTADO (2026-07-23): SEM DSN. O GlitchTip self-hosted foi removido — o
+// servidor estava morto (dominio 530, porta 8210 muda). A migracao pro Sentry
+// fica pra depois; enquanto isso o SDK NAO inicia, entao nenhum crash, log ou
+// trace sai do app.
+//
+// Antes, faltar DSN derrubava o boot em Release (assertionFailure). A trava
+// existia por um motivo real: rodar cego sem perceber ja mordeu a gente
+// (incident 2026-04-20). Mas derrubar o app do ALUNO e preco alto demais por
+// isso — o aviso de boot abaixo cumpre o mesmo papel sem quebrar nada.
+// Religar = so devolver a chave SENTRY_DSN no project.yml.
 
 enum SentryConfig {
 
@@ -38,14 +47,11 @@ enum SentryConfig {
         #endif
 
         guard !dsn.isEmpty else {
-            #if DEBUG
-            logger.error("SENTRY_DSN missing from Info.plist — observability disabled in debug. Fix project.yml.")
+            // Sem destino configurado: o SDK NAO inicia — nenhum crash, log ou
+            // trace sai daqui. Alto no log, em toda configuracao, pra ninguem
+            // descobrir isso por acidente. Nao derruba o app do aluno.
+            logger.error("SENTRY_DSN ausente: observabilidade DESLIGADA — nenhum crash, log ou trace sai deste app. Configure o Sentry em project.yml.")
             return
-            #else
-            // In release this is a shipping-blocker: crash fast so it gets noticed.
-            assertionFailure("SENTRY_DSN missing from Info.plist in Release build")
-            return
-            #endif
         }
 
         #if DEBUG

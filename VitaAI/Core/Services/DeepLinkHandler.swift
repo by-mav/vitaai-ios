@@ -17,6 +17,7 @@ extension Notification.Name {
 // Supported deep links (mirrors Android DeepLinkHandler):
 //   vitaai://home              -> .home
 //   vitaai://estudos           -> .estudos
+//   vitaai://simulados         -> .simuladoHome
 //   vitaai://trabalhos         -> .trabalhos
 //   vitaai://agenda            -> .agenda
 //   vitaai://insights          -> .insights
@@ -135,6 +136,7 @@ final class DeepLinkHandler {
         // Main tabs
         case "home":       return .navigate(.home)
         case "estudos":    return .navigate(.estudos)
+        case "simulados":  return .navigate(.simuladoHome)
         case "qbank":      return .navigate(.qbank)
         case "trabalhos":  return .navigate(.trabalhos)
         case "agenda":     return .navigate(.agenda)

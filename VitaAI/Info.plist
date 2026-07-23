@@ -32,7 +32,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>170</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
@@ -48,8 +48,6 @@
 	<string>VitaAI precisa do microfone para gravar suas aulas e gerar transcrições automáticas.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>VitaAI usa reconhecimento de fala para transcrever suas aulas em tempo real.</string>
-	<key>SENTRY_DSN</key>
-	<string>https://ebcb3ccce0cf4bfd8de976f3eab55046@glitchtip.vita-ai.cloud/1</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
