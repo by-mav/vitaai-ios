@@ -272,3 +272,21 @@ struct FlashcardRecommended: Decodable, Identifiable {
     var totalCards: Int = 0
     var deckId: String = ""
 }
+
+
+// MARK: - Prova (avaliacao academica agendada pelo aluno) — /api/study/provas
+struct Prova: Codable, Identifiable, Sendable, Hashable {
+    var id: String
+    var title: String
+    var subjectId: String?
+    var date: String
+    var notes: String?
+    var createdAt: String?
+}
+
+struct CreateProvaRequest: Encodable {
+    let title: String
+    let subjectId: String?
+    let date: String
+    let notes: String?
+}

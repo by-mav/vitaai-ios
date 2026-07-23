@@ -1,5 +1,17 @@
 ﻿import Foundation
 
+struct OfficialExamCatalogQuery: Equatable, Sendable {
+    var page: Int = 1
+    var limit: Int = 20
+    var search: String = ""
+    var stages: [String] = []
+    var years: [Int] = []
+    var authorities: [String] = []
+    var states: [String] = []
+    var statuses: [String] = []
+    var sort: String = "newest"
+}
+
 actor VitaAPI {
     let client: HTTPClient // internal so feature extensions in separate files can access (Apr 2026)
 
@@ -855,6 +867,44 @@ actor VitaAPI {
         try await client.postRaw("qbank/sessions", body: Self.encodeCamelCase(request))
     }
 
+    /// Catálogo paginado: somente metadados leves. Questões e gabaritos são
+    /// carregados apenas quando o aluno inicia a prova ou bloco selecionado.
+    func listOfficialQbankExams(
+        query: OfficialExamCatalogQuery = .init()
+    ) async throws -> ListOfficialQbankExams200Response {
+        var items = [
+            URLQueryItem(name: "page", value: String(max(1, query.page))),
+            URLQueryItem(name: "limit", value: String(max(1, min(50, query.limit)))),
+            URLQueryItem(name: "sort", value: query.sort),
+        ]
+        let search = query.search.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !search.isEmpty { items.append(URLQueryItem(name: "q", value: search)) }
+        items += query.stages.map { URLQueryItem(name: "stage", value: $0) }
+        items += query.years.map { URLQueryItem(name: "year", value: String($0)) }
+        items += query.authorities.map { URLQueryItem(name: "authority", value: $0) }
+        items += query.states.map { URLQueryItem(name: "state", value: $0) }
+        items += query.statuses.map { URLQueryItem(name: "status", value: $0) }
+        return try await client.get("simulados/official-exams", queryItems: items)
+    }
+
+    /// POST /api/qbank/sessions pelo discriminador do catálogo. Provas oficiais
+    /// usam `officialExamSlug`; blocos derivados usam `catalogBlockSlug`.
+    func createCatalogQBankSession(
+        slug: String,
+        kind: ListOfficialQbankExams200ResponseExamsInner.Kind,
+        abandonExisting: Bool = false
+    ) async throws -> CreateQBankSession201Response {
+        let request = CreateQBankSessionRequest(
+            abandonExisting: abandonExisting ? true : nil,
+            officialExamSlug: kind == .official ? slug : nil,
+            catalogBlockSlug: kind == .bank ? slug : nil
+        )
+        return try await client.postRaw(
+            "qbank/sessions",
+            body: Self.encodeCamelCase(request)
+        )
+    }
+
     func getQBankQuestion(id: Int) async throws -> QBankQuestionDetail {
         try await client.get("qbank/questions/\(id)")
     }
@@ -902,6 +952,12 @@ actor VitaAPI {
 
     func getQBankSessionDetail(id: String) async throws -> QBankSession {
         try await client.get("qbank/sessions/\(id)")
+    }
+
+    func getQBankSimuladoSession(id: String) async throws -> QBankSimuladoSessionPayload {
+        try await client.get("qbank/sessions/\(id)", queryItems: [
+            URLQueryItem(name: "includeQuestions", value: "true"),
+        ])
     }
 
     func finishQBankSession(id: String) async throws -> QBankFinishSessionResponse {
@@ -1283,6 +1339,17 @@ actor VitaAPI {
         var items: [URLQueryItem] = []
         if upcoming { items.append(.init(name: "upcoming", value: "true")) }
         return try await client.get("exams", queryItems: items.isEmpty ? nil : items)
+    }
+
+    // MARK: - Provas (avaliacoes academicas que o aluno agenda)
+    // Endpoint real /api/study/provas (o /exams acima e stub que devolve vazio).
+    func getProvas() async throws -> [Prova] {
+        try await client.get("study/provas")
+    }
+
+    @discardableResult
+    func createProva(title: String, subjectId: String?, date: String, notes: String?) async throws -> Prova {
+        try await client.post("study/provas", body: CreateProvaRequest(title: title, subjectId: subjectId, date: date, notes: notes))
     }
 
     // MARK: - Professor Intelligence

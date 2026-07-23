@@ -702,6 +702,7 @@ struct MainTabView: View {
     @ViewBuilder
     private func routeDestination(for route: Route) -> some View {
         routeView(for: route)
+            .accessibilityIdentifier(route.captureAccessibilityIdentifier)
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)
             .overlay(alignment: .topLeading) {
@@ -1057,6 +1058,8 @@ struct MainTabView: View {
             )
         case .faculdadeDocumentos:
             FaculdadeDocumentosScreen(onBack: { router.goBack() })
+        case .faculdadeProvas:
+            FaculdadeProvasScreen(onBack: { router.goBack() })
         case .faculdadeProfessores:
             FaculdadeProfessoresScreen()
         case .materialFolderDetail(let folderId, let folderName, let folderIcon):

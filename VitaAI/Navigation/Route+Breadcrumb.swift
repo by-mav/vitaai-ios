@@ -20,6 +20,7 @@ extension Route {
         case .faculdadeDisciplinas: return "Disciplinas"
         case .faculdadeMaterias:    return "Matérias"
         case .faculdadeDocumentos:  return "Documentos"
+        case .faculdadeProvas: return "Provas"
         case .faculdadeProfessores: return "Professores"
         case .materialFolderDetail(_, let folderName, _): return folderName
         case .trabalhos:           return "Trabalhos"

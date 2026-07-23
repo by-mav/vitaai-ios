@@ -53,18 +53,22 @@ struct FaculdadeHomeScreen: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 14) {
-                heroCard
-                if !isInternato {
-                    disciplinesSection
-                        .id(colorRefreshTrigger)
-                }
+                // Ordem (Rafael 2026-07-21): agenda em cima, depois disciplinas,
+                // depois trabalhos. Sem hero — abre direto no que importa.
                 JornadaWeekAgenda(
                     schedule: appData.classSchedule,
                     evaluations: appData.academicEvaluations
                 )
-                trabalhosMiniCard
-                documentosMiniCard
-                // Sem clearance: passa por trás da TabBar Liquid Glass.
+                if !isInternato && !showConnectPortalCTA {
+                    disciplinesSection
+                        .id(colorRefreshTrigger)
+                }
+                if showConnectPortalCTA {
+                    connectPortalCard
+                }
+                faculdadeShortcutsCard
+                // Clearance pra ultima linha nao ficar atras da TabBar Liquid Glass.
+                Color.clear.frame(height: 96)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -167,6 +171,57 @@ struct FaculdadeHomeScreen: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Conectar portal (CTA)
+    //
+    // Sem disciplinas => portal ainda nao trouxe nada. Em vez de texto morto,
+    // um cartao de acao que abre o MESMO fluxo do onboarding (.connections:
+    // Canvas/Moodle + tutorial + colar a chave). Conectou => o cartao some e
+    // as disciplinas ocupam o lugar.
+    // Conectar portal so aparece quando ainda nao ha disciplinas. Quem ja tem
+    // materias ve as disciplinas (fim do flag de teste TEMP-CTA-TEST).
+    private var showConnectPortalCTA: Bool { appData.canonicalDisciplines.isEmpty }
+
+    private var connectPortalCard: some View {
+        Button {
+            PixioHaptics.tap()
+            router.navigate(to: .connections)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "link.badge.plus")
+                    .font(PixioTypo.sans(size: 18, weight: .semibold))
+                    .foregroundStyle(goldPrimary)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)  // ds-allow: raio 10 ja e o padrao visual desta tela; sem token exato
+                            .fill(goldPrimary.opacity(0.12))
+                    )
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(String(localized: "faculdade_connect_portal_title"))
+                        .font(PixioTypo.sans(size: 14, weight: .semibold))
+                        .foregroundStyle(textPrimary)
+                    Text(String(localized: "onboarding_connect_portal_subtitle"))
+                        .font(PixioTypo.sans(size: 11))
+                        .foregroundStyle(textWarm.opacity(0.55))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(PixioTypo.sans(size: 12, weight: .semibold))
+                    .foregroundStyle(goldPrimary.opacity(0.70))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(cornerRadius: 14)  // ds-allow: raio 14 ja e o padrao visual desta tela; sem token exato
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)  // ds-allow: raio 14 ja e o padrao visual desta tela; sem token exato
+                    .stroke(goldPrimary.opacity(0.28), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("faculdadeConnectPortalCTA")
+    }
+
     // MARK: - Hero card (instituição)
     //
     // Card premium sem imagem — gradient vertical sólido + accent dourado na
@@ -179,7 +234,7 @@ struct FaculdadeHomeScreen: View {
             heroContent
         }
         .frame(height: 162)
-        .glassCard(cornerRadius: 18)
+        .glassCard(cornerRadius: 18)  // ds-allow: raio 18 ja e o padrao visual desta tela; sem token exato
         .sheet(isPresented: $showFaculdadePicker) {
             VitaSheet(detents: [.large]) {
                 FaculdadePickerSheet()
@@ -195,7 +250,7 @@ struct FaculdadeHomeScreen: View {
                 center: .topTrailing, startRadius: 6, endRadius: 200
             )
             Image(systemName: "building.columns.fill")
-                .font(.system(size: 74, weight: .thin))  // ds-allow: motivo do hero
+                .font(PixioTypo.sans(size: 74, weight: .thin))  // ds-allow: motivo do hero
                 .foregroundStyle(
                     LinearGradient(colors: [goldMuted.opacity(0.5), goldPrimary.opacity(0.14)],
                                    startPoint: .top, endPoint: .bottom)
@@ -219,7 +274,7 @@ struct FaculdadeHomeScreen: View {
                         .fill(goldPrimary)
                         .frame(width: 5, height: 5)
                     Text("INTERNATO")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(PixioTypo.sans(size: 10, weight: .bold))
                         .tracking(1.2)
                         .foregroundStyle(goldPrimary)
                 }
@@ -230,7 +285,7 @@ struct FaculdadeHomeScreen: View {
                         .fill(goldPrimary)
                         .frame(width: 5, height: 5)
                     Text("\(currentSemester)º SEMESTRE")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(PixioTypo.sans(size: 10, weight: .bold))
                         .tracking(1.2)
                         .foregroundStyle(goldPrimary)
                 }
@@ -240,7 +295,7 @@ struct FaculdadeHomeScreen: View {
             // Zona 2: título agrupado (institution CLICAVEL + curso)
             Button { showFaculdadePicker = true } label: {
                 Text(hasFaculdade ? institutionName : "Selecionar faculdade")
-                    .font(.system(size: 22, weight: .bold))  // ds-allow: titulo do hero
+                    .font(PixioTypo.sans(size: 22, weight: .bold))  // ds-allow: titulo do hero
                     .foregroundStyle(hasFaculdade ? Color.white : goldMuted)
                     .kerning(-0.4)
                     .lineLimit(2)
@@ -251,10 +306,10 @@ struct FaculdadeHomeScreen: View {
 
             HStack(spacing: 6) {
                 Image(systemName: "graduationcap.fill")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(PixioTypo.sans(size: 10, weight: .semibold))
                     .foregroundStyle(goldMuted.opacity(0.75))
                 Text(courseName)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(PixioTypo.sans(size: 12, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.88))
             }
             .padding(.top, 3)
@@ -292,11 +347,11 @@ struct FaculdadeHomeScreen: View {
     private func heroStat(label: String, value: String) -> some View {
         HStack(spacing: 5) {
             Text(value)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .font(PixioTypo.sans(size: 13, weight: .bold))
                 .monospacedDigit()
                 .foregroundStyle(goldPrimary)
             Text(label)
-                .font(.system(size: 9, weight: .semibold))
+                .font(PixioTypo.sans(size: 9, weight: .semibold))
                 .tracking(0.4)
                 .foregroundStyle(Color.white.opacity(0.55))
         }
@@ -316,7 +371,7 @@ struct FaculdadeHomeScreen: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("Minhas Disciplinas")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(PixioTypo.sans(size: 10, weight: .semibold))
                     .kerning(0.8)
                     .textCase(.uppercase)
                     .foregroundStyle(VitaColors.sectionLabel)
@@ -327,9 +382,9 @@ struct FaculdadeHomeScreen: View {
                     } label: {
                         HStack(spacing: 3) {
                             Text("Ver todas")
-                                .font(.system(size: 10, weight: .medium))
+                                .font(PixioTypo.sans(size: 10, weight: .medium))
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 8, weight: .semibold))
+                                .font(PixioTypo.sans(size: 8, weight: .semibold))
                         }
                         .foregroundStyle(goldPrimary.opacity(0.60))
                     }
@@ -340,15 +395,16 @@ struct FaculdadeHomeScreen: View {
             if subjects.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "graduationcap")
-                        .font(.system(size: 16))
+                        .font(PixioTypo.sans(size: 16))
                         .foregroundStyle(goldPrimary.opacity(0.35))
                     Text("Conecte seu portal para ver disciplinas")
-                        .font(.system(size: 12))
+                        .font(PixioTypo.sans(size: 12))
                         .foregroundStyle(textDim)
                 }
                 .padding(.vertical, 8)
             } else {
-                let sorted = sortedByFavorite(subjects)
+                // No maximo 2 linhas (6 disciplinas) na home; o resto abre em Ver todas.
+                let sorted = Array(sortedByFavorite(subjects).prefix(6))
                 let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(sorted) { subject in
@@ -393,53 +449,75 @@ struct FaculdadeHomeScreen: View {
 
     // MARK: - Mini card: Trabalhos
 
-    private var trabalhosMiniCard: some View {
-        // Pending list: any assignment not yet submitted — includes overdue,
-        // because the student still needs to see them (and can submit late).
-        // Canvas marks submitted rows with status='completed' or submitted=true.
-        let assignments = appData.academicEvaluations.filter {
-            $0.calendarKind == .assignment || $0.calendarKind == .other
-        }
-        let upcoming = assignments.filter { eval in
-            // Show anything not yet submitted — overdue included. Student
-            // still needs to see (and can submit late) past-due work.
-            let status = eval.status.lowercased()
-            return status != "completed" && status != "graded" && status != "submitted"
-        }.sorted { a, b in
-            (a.date ?? "") < (b.date ?? "")
-        }
+    // Card unico da Faculdade: Provas, Trabalhos e Documentos em linhas
+    // tappaveis com contador. Substitui os dois mini-cards soltos — card
+    // separado por item era peso visual e empurrava o Documentos pra tras da
+    // TabBar (Rafael 2026-07-21).
+    private var faculdadeShortcutsCard: some View {
+        let exams = appData.academicEvaluations.filter { $0.calendarKind == .exam }
+        let provasPend = exams.filter { ev in
+            let st = ev.status.lowercased()
+            return st != "completed" && st != "graded"
+        }.count
+        let trabalhosPend = appData.academicEvaluations
+            .filter { $0.calendarKind == .assignment || $0.calendarKind == .other }
+            .filter { ev in
+                let st = ev.status.lowercased()
+                return st != "completed" && st != "graded" && st != "submitted"
+            }.count
 
-        return Button {
-            router.navigate(to: .trabalhos)
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                miniCardHeader(
-                    icon: "doc.richtext",
-                    title: "Trabalhos",
-                    trailing: upcoming.isEmpty ? "" : "\(upcoming.count) pendente\(upcoming.count == 1 ? "" : "s")"
-                )
+        return VStack(spacing: 0) {
+            shortcutRow(
+                icon: "checklist", title: "Provas",
+                detail: provasPend > 0 ? "\(provasPend) por vir" : "Em dia",
+                action: { router.navigate(to: .faculdadeProvas) }
+            )
+            shortcutDivider
+            shortcutRow(
+                icon: "doc.richtext", title: "Trabalhos",
+                detail: trabalhosPend > 0 ? "\(trabalhosPend) pendente\(trabalhosPend == 1 ? "" : "s")" : "Em dia",
+                action: { router.navigate(to: .trabalhos) }
+            )
+            shortcutDivider
+            shortcutRow(
+                icon: "folder", title: "Documentos",
+                detail: "Planos, slides e materiais",
+                action: { router.navigate(to: .faculdadeDocumentos) }
+            )
+        }
+        .glassCard(cornerRadius: 14)  // ds-allow: raio 14 ja e o padrao visual desta tela; sem token exato
+    }
 
-                if upcoming.isEmpty {
-                    Text("Nenhum trabalho pendente")
-                        .font(.system(size: 11))
-                        .foregroundStyle(textDim)
-                        .padding(.vertical, 6)
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(Array(upcoming.prefix(3).enumerated()), id: \.offset) { _, eval in
-                            miniTrabalhoLine(eval)
-                        }
-                        if upcoming.count > 3 {
-                            Text("+ \(upcoming.count - 3) mais")
-                                .font(.system(size: 10))
-                                .foregroundStyle(textDim)
-                        }
-                    }
-                }
+    private var shortcutDivider: some View {
+        Rectangle()
+            .fill(VitaColors.textWarm.opacity(0.06))
+            .frame(height: 1)
+            .padding(.leading, 52)
+    }
+
+    private func shortcutRow(icon: String, title: String, detail: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(PixioTypo.sans(size: 13, weight: .semibold))
+                    .foregroundStyle(goldPrimary.opacity(0.85))
+                    .frame(width: 26, height: 26)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(goldPrimary.opacity(0.10)))  // ds-allow: raio 7 ja e o padrao visual desta tela; sem token exato
+                Text(title)
+                    .font(PixioTypo.sans(size: 14, weight: .semibold))
+                    .foregroundStyle(textPrimary)
+                Spacer(minLength: 8)
+                Text(detail)
+                    .font(PixioTypo.sans(size: 11))
+                    .foregroundStyle(textWarm.opacity(0.45))
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(PixioTypo.sans(size: 10, weight: .semibold))
+                    .foregroundStyle(textDim)
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassCard(cornerRadius: 14)
+            .padding(.horizontal, 14)
+            .frame(height: 52)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -450,13 +528,13 @@ struct FaculdadeHomeScreen: View {
         return HStack(spacing: 8) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text(eval.title)
-                .font(.system(size: 11, weight: .medium))
+                .font(PixioTypo.sans(size: 11, weight: .medium))
                 .foregroundStyle(textWarm.opacity(0.80))
                 .lineLimit(1)
             Spacer(minLength: 0)
             if let dateStr = eval.date {
                 Text(shortDate(dateStr))
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .font(PixioTypo.sans(size: 10, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(textDim)
             }
@@ -475,50 +553,238 @@ struct FaculdadeHomeScreen: View {
         return df.string(from: d)
     }
 
-    // MARK: - Mini card: Documentos
-
-    private var documentosMiniCard: some View {
-        Button {
-            router.navigate(to: .faculdadeDocumentos)
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                miniCardHeader(icon: "doc.text", title: "Documentos", trailing: "")
-                Text("Planos de ensino, slides e materiais do portal")
-                    .font(.system(size: 11))
-                    .foregroundStyle(textWarm.opacity(0.45))
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassCard(cornerRadius: 14)
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Shared mini card header
 
     private func miniCardHeader(icon: String, title: String, trailing: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
+                .font(PixioTypo.sans(size: 11, weight: .semibold))
                 .foregroundStyle(goldPrimary.opacity(0.80))
                 .frame(width: 20, height: 20)
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 6)  // ds-allow: raio 6 ja e o padrao visual desta tela; sem token exato
                         .fill(goldPrimary.opacity(0.10))
                 )
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(PixioTypo.sans(size: 13, weight: .semibold))
                 .foregroundStyle(textPrimary)
             Spacer()
             if !trailing.isEmpty {
                 Text(trailing)
-                    .font(.system(size: 10))
+                    .font(PixioTypo.sans(size: 10))
                     .foregroundStyle(textDim)
             }
             Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
+                .font(PixioTypo.sans(size: 10, weight: .semibold))
                 .foregroundStyle(textDim)
         }
     }
 
+}
+
+
+// MARK: - FaculdadeProvasScreen — notas por disciplina + provas agendadas + adicionar
+
+struct FaculdadeProvasScreen: View {
+    let onBack: () -> Void
+    @Environment(\.appContainer) private var container
+    @Environment(\.appData) private var appData
+
+    @State private var provas: [Prova] = []
+    @State private var loading = true
+    @State private var showAdd = false
+
+    private var goldPrimary: Color { VitaColors.accentHover }
+    private var textPrimary: Color { VitaColors.textPrimary }
+    private var textWarm: Color { VitaColors.textWarm }
+    private var textDim: Color { VitaColors.textWarm.opacity(0.30) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VitaScreenHeader(title: "Provas", onBack: onBack)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    notasSection
+                    provasSection
+                    Color.clear.frame(height: 96)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
+        }
+        .task { await load() }
+        .sheet(isPresented: $showAdd) {
+            AdicionarProvaSheet(disciplinas: appData.canonicalDisciplines) { title, subjectId, date, notes in
+                await save(title: title, subjectId: subjectId, date: date, notes: notes)
+            }
+        }
+    }
+
+    private var notasSection: some View {
+        let subjects = appData.dashboardSubjects.filter { !(($0.name) ?? "").isEmpty && bestGrade($0) != nil }
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Notas por disciplina")
+                .font(PixioTypo.sans(size: 10, weight: .semibold)).kerning(0.8).textCase(.uppercase)
+                .foregroundStyle(VitaColors.sectionLabel)
+            if subjects.isEmpty {
+                Text("As notas aparecem aqui quando forem lançadas no portal.")
+                    .font(PixioTypo.sans(size: 12)).foregroundStyle(textDim).padding(.vertical, 8)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(subjects.enumerated()), id: \.offset) { idx, subj in
+                        notaRow(name: (subj.name) ?? "—", grade: bestGrade(subj))
+                        if idx < subjects.count - 1 {
+                            Rectangle().fill(textWarm.opacity(0.06)).frame(height: 1).padding(.leading, 26)
+                        }
+                    }
+                }
+                .glassCard(cornerRadius: 14)  // ds-allow: raio 14 ja e o padrao visual desta tela; sem token exato
+            }
+        }
+    }
+
+    private func bestGrade(_ s: DashboardSubject) -> Double? {
+        s.finalGrade ?? s.grade3 ?? s.grade2 ?? s.grade1
+    }
+
+    private func notaRow(name: String, grade: Double?) -> some View {
+        HStack(spacing: 12) {
+            Circle().fill(SubjectColors.colorFor(subject: name)).frame(width: 6, height: 6)
+            Text(name).font(PixioTypo.sans(size: 13, weight: .medium)).foregroundStyle(textPrimary).lineLimit(1)
+            Spacer(minLength: 8)
+            Text(grade != nil ? String(format: "%.1f", grade!) : "—")
+                .font(PixioTypo.sans(size: 14, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(grade == nil ? textDim : goldPrimary)
+        }
+        .padding(.horizontal, 14).frame(height: 46)
+    }
+
+    private var provasSorted: [Prova] { provas.sorted { $0.date < $1.date } }
+
+    private var provasSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Minhas provas")
+                    .font(PixioTypo.sans(size: 10, weight: .semibold)).kerning(0.8).textCase(.uppercase)
+                    .foregroundStyle(VitaColors.sectionLabel)
+                Spacer()
+                Button { showAdd = true } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "plus").font(PixioTypo.sans(size: 9, weight: .bold))
+                        Text("Adicionar").font(PixioTypo.sans(size: 10, weight: .medium))
+                    }
+                    .foregroundStyle(goldPrimary.opacity(0.80))
+                }
+                .buttonStyle(.plain)
+            }
+            if loading {
+                Text("Carregando…").font(PixioTypo.sans(size: 12)).foregroundStyle(textDim).padding(.vertical, 8)
+            } else if provasSorted.isEmpty {
+                Button { showAdd = true } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar.badge.plus").font(PixioTypo.sans(size: 15)).foregroundStyle(goldPrimary.opacity(0.5))
+                        Text("Nenhuma prova agendada. Toque para adicionar.").font(PixioTypo.sans(size: 12)).foregroundStyle(textWarm.opacity(0.5))
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14).frame(maxWidth: .infinity, alignment: .leading).glassCard(cornerRadius: 14)  // ds-allow: raio 14 ja e o padrao visual desta tela; sem token exato
+                }
+                .buttonStyle(.plain)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(provasSorted.enumerated()), id: \.offset) { idx, prova in
+                        provaRow(prova)
+                        if idx < provasSorted.count - 1 {
+                            Rectangle().fill(textWarm.opacity(0.06)).frame(height: 1).padding(.leading, 66)
+                        }
+                    }
+                }
+                .glassCard(cornerRadius: 14)  // ds-allow: raio 14 ja e o padrao visual desta tela; sem token exato
+            }
+        }
+    }
+
+    private func provaRow(_ prova: Prova) -> some View {
+        let disc = appData.canonicalDisciplines.first { $0.id == prova.subjectId }?.preferredName
+        return HStack(spacing: 12) {
+            VStack(spacing: 0) {
+                Text(dayOf(prova.date)).font(PixioTypo.sans(size: 16, weight: .bold)).monospacedDigit().foregroundStyle(textPrimary)
+                Text(monthOf(prova.date)).font(PixioTypo.sans(size: 9, weight: .semibold)).textCase(.uppercase).foregroundStyle(textDim)
+            }
+            .frame(width: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(prova.title).font(PixioTypo.sans(size: 13, weight: .semibold)).foregroundStyle(textPrimary).lineLimit(1)
+                if let disc { Text(disc).font(PixioTypo.sans(size: 11)).foregroundStyle(textWarm.opacity(0.45)).lineLimit(1) }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14).frame(minHeight: 54)
+    }
+
+    private func parseDate(_ raw: String) -> Date? {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "pt_BR")
+        return f.date(from: String(raw.prefix(10)))
+    }
+    private func dayOf(_ raw: String) -> String { guard let d = parseDate(raw) else { return "—" }; let f = DateFormatter(); f.dateFormat = "dd"; return f.string(from: d) }
+    private func monthOf(_ raw: String) -> String { guard let d = parseDate(raw) else { return "" }; let f = DateFormatter(); f.locale = Locale(identifier: "pt_BR"); f.dateFormat = "MMM"; return f.string(from: d) }
+
+    private func load() async {
+        loading = true
+        provas = (try? await container.api.getProvas()) ?? []
+        loading = false
+    }
+    private func save(title: String, subjectId: String?, date: String, notes: String?) async {
+        _ = try? await container.api.createProva(title: title, subjectId: subjectId, date: date, notes: notes)
+        await load()
+    }
+}
+
+// MARK: - AdicionarProvaSheet — form nativo
+
+struct AdicionarProvaSheet: View {
+    let disciplinas: [AcademicSubject]
+    let onSave: (String, String?, String, String?) async -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var title = ""
+    @State private var subjectId = ""
+    @State private var date = Date()
+    @State private var notes = ""
+    @State private var saving = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Prova") {
+                    TextField("Título (ex: P1 de Anatomia)", text: $title)
+                    Picker("Disciplina", selection: $subjectId) {
+                        Text("Nenhuma").tag("")
+                        ForEach(disciplinas, id: \.id) { d in
+                            Text(d.preferredName).tag(d.id)
+                        }
+                    }
+                    DatePicker("Data", selection: $date, displayedComponents: .date)
+                }
+                Section("Anotações") {
+                    TextField("Opcional", text: $notes, axis: .vertical).lineLimit(1...4)
+                }
+            }
+            .navigationTitle("Nova prova")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salvar") {
+                        saving = true
+                        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
+                        let dateStr = f.string(from: date)
+                        let sid = subjectId.isEmpty ? nil : subjectId
+                        let n = notes.isEmpty ? nil : notes
+                        Task { await onSave(title, sid, dateStr, n); dismiss() }
+                    }
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || saving)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
 }
