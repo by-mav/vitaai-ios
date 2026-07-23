@@ -179,6 +179,7 @@ struct AppRouter: View {
                 case .progresso: router.selectedTab = .progresso
                 case .profile:   router.selectedTab = .progresso
                 case .paywall:   router.navigate(to: .paywall)
+                case .ofensiva:  router.navigate(to: .ofensiva)
                 case .trabalhoDetail:
                     router.selectedTab = .faculdade
                     // Small delay so tab switch completes before push
@@ -949,6 +950,8 @@ struct MainTabView: View {
             )
         case .achievements:
             AchievementsScreen(onBack: { router.goBack() })
+        case .ofensiva:
+            OfensivaScreen()
         case .toolManager:
             ToolManagerScreen(
                 onBack: { router.goBack() },

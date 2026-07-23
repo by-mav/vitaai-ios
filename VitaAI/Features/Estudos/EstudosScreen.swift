@@ -441,8 +441,16 @@ private struct EstudosContent: View {
             Rectangle()
                 .fill(VitaColors.textWarm.opacity(0.08))
                 .frame(width: 1, height: 30)
-            numeroDoRodape(valor: "\(viewModel.streakDays)",
-                           rotulo: viewModel.streakDays == 1 ? "dia seguido" : "dias seguidos")
+            // A sequencia abre a tela da ofensiva: calendario, plantao coberto
+            // e marcos. E o unico lugar do app onde a chama e tocavel hoje.
+            Button {
+                router.navigate(to: .ofensiva)
+            } label: {
+                numeroDoRodape(valor: "\(viewModel.streakDays)",
+                               rotulo: viewModel.streakDays == 1 ? "dia seguido" : "dias seguidos")
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Abre sua ofensiva")
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, VitaTokens.Spacing.lg)

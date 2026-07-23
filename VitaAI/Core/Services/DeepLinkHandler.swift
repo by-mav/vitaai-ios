@@ -141,6 +141,7 @@ final class DeepLinkHandler {
         case "trabalhos":  return .navigate(.trabalhos)
         case "agenda":     return .navigate(.agenda)
         case "insights":   return .navigate(.insights)
+        case "ofensiva":  return .navigate(.ofensiva)
         case "profile":    return .navigate(.profile)
         case "paywall":    return .navigate(.paywall)
         case "progresso":  return .navigate(.progresso)

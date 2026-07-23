@@ -90,6 +90,9 @@ enum Route: Hashable {
     // MARK: - Achievements (full badges page — BYM-1135)
     case achievements
 
+    // MARK: - Ofensiva (calendario, plantao coberto e marcos)
+    case ofensiva
+
     // MARK: - Faculdade subpages (dashboard + push navigation)
     case faculdadeDisciplinas
     case faculdadeMaterias
@@ -148,6 +151,7 @@ extension Route {
         case "leaderboard": return .leaderboard
         case "course-detail": return .courseDetail(courseId: "capture-fixture", colorIndex: 0)
         case "achievements": return .achievements
+        case "ofensiva": return .ofensiva
         case "tool-manager": return .toolManager
         case "profile": return .profile
         case "configuracoes": return .configuracoes
@@ -212,6 +216,7 @@ extension Route {
         case .leaderboard: return "leaderboard"
         case .courseDetail: return "course-detail"
         case .achievements: return "achievements"
+        case .ofensiva: return "ofensiva"
         case .toolManager: return "tool-manager"
         case .profile: return "profile"
         case .configuracoes: return "configuracoes"

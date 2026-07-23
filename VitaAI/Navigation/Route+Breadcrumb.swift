@@ -58,6 +58,7 @@ extension Route {
         // MARK: - Progresso
         case .profile:             return "Perfil"
         case .achievements:        return "Conquistas"
+        case .ofensiva:            return "Sua ofensiva"
         case .insights:            return "Insights"
         case .activityFeed:        return "Atividade"
         case .leaderboard:         return "Ranking"

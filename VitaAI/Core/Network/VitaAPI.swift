@@ -1370,6 +1370,17 @@ actor VitaAPI {
         try await client.get("study/aulas")
     }
 
+    // MARK: - Ofensiva
+
+    /// Calendario da ofensiva do mes. Sem mes = mes corrente (o servidor corta
+    /// o dia em Sao Paulo, entao quem decide o "hoje" e ele, nao o aparelho.
+    func getOfensiva(month: String? = nil) async throws -> Ofensiva {
+        if let month {
+            return try await client.get("gamification/streak?month=\(month)")
+        }
+        return try await client.get("gamification/streak")
+    }
+
     @discardableResult
     func createAula(subjectId: String, dayOfWeek: Int, startTime: String,
                     endTime: String, room: String?, professor: String?) async throws -> Aula {
