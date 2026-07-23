@@ -252,6 +252,8 @@ struct MainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var pushManager = PushManager.shared
     @State private var showChat = false
+    // Comemoracao da ofensiva: dispara 1x/dia depois do 1o estudo (Rafael 2026-07-23).
+    @State private var comemoracaoOfensiva = ControleComemoracaoOfensiva()
     /// Optional pre-filled prompt sent into VitaChatScreen on its next open.
     /// Set by Atlas 3D's "Perguntar pra VITA" so the chat lands with the
     /// student's question already submitted; cleared after consumption.
@@ -460,6 +462,13 @@ struct MainTabView: View {
                 .zIndex(199)
             }
 
+            // MARK: - Comemoracao da ofensiva (1x/dia, depois de estudar)
+            if let dias = comemoracaoOfensiva.diasParaComemorar {
+                VitaOfensivaCelebracao(dias: dias, aoFechar: { comemoracaoOfensiva.fechar() })
+                    .transition(.opacity)
+                    .zIndex(220)
+            }
+
             // MARK: - Notification Popout (acima do backdrop blur)
             if showNotifPopout {
                 VitaNotifPopout(
@@ -574,6 +583,9 @@ struct MainTabView: View {
             .allowsHitTesting(false)
         }
         .vitaXpToastHost(container.gamificationEvents.xpToast)
+        .onChange(of: container.gamificationEvents.estudouTick) { _, _ in
+            Task { await avaliarComemoracaoOfensiva() }
+        }
         .task {
             if activeSessionsVM == nil {
                 activeSessionsVM = ActiveStudySessionsViewModel(api: container.api)
@@ -624,6 +636,16 @@ struct MainTabView: View {
     /// A barra global so aparecia na Jornada — e agora a TrailTopPlaca ocupa
     /// esse papel la, com filtro + ofensiva + moedas + menu numa peca so
     /// (Rafael 2026-07-23). Duas fileiras no topo do mundo era o problema.
+    /// Depois de estudar: busca a ofensiva e decide a comemoracao. A trava local
+    /// evita buscar a cada flashcard — depois da 1a do dia, para de buscar.
+    private func avaliarComemoracaoOfensiva() async {
+        guard !comemoracaoOfensiva.jaAvaliouHojeLocal else { return }
+        guard let ofensiva = try? await container.api.getOfensiva() else { return }
+        withAnimation(.easeOut(duration: 0.3)) {
+            comemoracaoOfensiva.avaliar(ofensiva: ofensiva, diaDoServidor: ofensiva.today)
+        }
+    }
+
     private var shouldShowGlobalTopBar: Bool {
         false
     }

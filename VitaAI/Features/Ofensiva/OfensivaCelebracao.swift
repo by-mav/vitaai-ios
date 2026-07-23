@@ -129,7 +129,21 @@ struct VitaOfensivaCelebracao: View {
 final class ControleComemoracaoOfensiva: ObservableObject {
     @Published private(set) var diasParaComemorar: Int?
 
-    private let chave = "ofensivaComemoradaEm"
+    private let chave = "ofensivaComemoradaEm"       // dia do SERVIDOR: 1x/dia real
+    private let chaveLocal = "ofensivaFetchLocalEm"  // dia do APARELHO: trava de fetch
+
+    /// True se ja avaliei hoje (data do aparelho). Evita buscar a ofensiva a
+    /// cada flashcard: depois da 1a comemoracao do dia, para de buscar.
+    var jaAvaliouHojeLocal: Bool {
+        UserDefaults.standard.string(forKey: chaveLocal) == Self.diaLocalHoje()
+    }
+
+    private static func diaLocalHoje() -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
+    }
 
     /// Chame depois de um estudo concluído. Só dispara se: a pessoa estudou
     /// hoje, tem sequência viva, e ainda não viu a comemoração deste dia.
@@ -138,6 +152,7 @@ final class ControleComemoracaoOfensiva: ObservableObject {
         guard !diaDoServidor.isEmpty else { return }
         guard UserDefaults.standard.string(forKey: chave) != diaDoServidor else { return }
         UserDefaults.standard.set(diaDoServidor, forKey: chave)
+        UserDefaults.standard.set(Self.diaLocalHoje(), forKey: chaveLocal)
         diasParaComemorar = ofensiva.currentStreak
     }
 

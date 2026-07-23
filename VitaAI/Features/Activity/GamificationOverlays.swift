@@ -11,6 +11,9 @@ final class GamificationEventManager {
     let xpToast = VitaXpToastState()
 
     var levelUpEvent: LevelUpEvent?
+    /// Sobe a cada evento de ESTUDO concluido. O shell escuta e decide a
+    /// comemoracao da ofensiva. So estudo real conta (nao login/chat/nota).
+    var estudouTick: Int = 0
     var badgeEvent: BadgeUnlockEvent?
     var latestStudySessionSummary: StudySessionXpSummary?
     private var pendingTrailCelebration: TrailCelebration?
@@ -107,6 +110,13 @@ final class GamificationEventManager {
                     icon: badge.icon ?? "medal"
                 )
             }
+        }
+
+        switch source {
+        case .chatMessage, .noteCreated, .pdfAnnotated, .dailyLogin:
+            break   // nao e estudo: nao mexe na ofensiva
+        default:
+            estudouTick += 1
         }
 
         return nil

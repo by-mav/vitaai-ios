@@ -12,6 +12,8 @@ struct Ofensiva: Codable, Equatable {
     var freezesAvailable: Int = 0
     var studiedToday: Bool = false
     var month: String = ""
+    /// Dia de hoje no fuso do servidor (ISO). Chave da comemoracao 1x/dia.
+    var today: String = ""
     var days: [DiaOfensiva] = []
     var milestones: [MarcoOfensiva] = []
 
@@ -25,18 +27,20 @@ struct Ofensiva: Codable, Equatable {
         freezesAvailable = (try? c.decode(Int.self, forKey: .freezesAvailable)) ?? 0
         studiedToday = (try? c.decode(Bool.self, forKey: .studiedToday)) ?? false
         month = (try? c.decode(String.self, forKey: .month)) ?? ""
+        today = (try? c.decode(String.self, forKey: .today)) ?? ""
         days = (try? c.decode([DiaOfensiva].self, forKey: .days)) ?? []
         milestones = (try? c.decode([MarcoOfensiva].self, forKey: .milestones)) ?? []
     }
 
     init(currentStreak: Int = 0, longestStreak: Int = 0, freezesAvailable: Int = 0,
-         studiedToday: Bool = false, month: String = "",
+         studiedToday: Bool = false, month: String = "", today: String = "",
          days: [DiaOfensiva] = [], milestones: [MarcoOfensiva] = []) {
         self.currentStreak = currentStreak
         self.longestStreak = longestStreak
         self.freezesAvailable = freezesAvailable
         self.studiedToday = studiedToday
         self.month = month
+        self.today = today
         self.days = days
         self.milestones = milestones
     }
