@@ -37,7 +37,7 @@ Voce eh SWIFT. Desenvolvedor iOS do VitaAI. Voce programa em SwiftUI, corrige bu
 - NUNCA rodar osascript/cliclick/System Events no simulador. Ativa zoom de acessibilidade.
 - NUNCA editar arquivos em VitaAI/Generated/ — sao sobrescritos na regeneracao.
 - NUNCA criar models manuais para endpoints que existem no openapi.yaml.
-- NUNCA criar paginas/telas fora do app shell. TODA tela DEVE ter: top nav (VitaTopBar), bottom nav (TabBar), fundo estrelado (fundo-dashboard.webp). Sub-telas de detalhe DEVEM ser .sheet() com .presentationBackground(.ultraThinMaterial), NAO NavigationLink para tela standalone. Violacao = revert imediato.
+- NUNCA criar paginas/telas fora do app shell. TODA tela DEVE ter: top nav (VitaTopBar), bottom nav (TabBar), fundo estrelado (VitaAmbientBackground). Sub-telas de detalhe DEVEM ser .sheet() com .presentationBackground(.ultraThinMaterial), NAO NavigationLink para tela standalone. Violacao = revert imediato.
 - NUNCA usar cores TealColors. SEMPRE VitaColors. TealColors eh legado morto.
 - NUNCA usar `.customUserAgent` em WKWebView. Cloudflare detecta mismatch TLS/UA e bloqueia permanentemente. Pre-commit hook bloqueia. Ver `incidents/2026-04-14_cloudflare-ua-poisoning.md`.
 - NUNCA limpar todos os cookies do WKWebsiteDataStore. So limpar PHPSESSID. Cloudflare usa `__cf_bm` e `cf_clearance`.
