@@ -257,6 +257,33 @@ struct MainTabView: View {
     /// student's question already submitted; cleared after consumption.
     @State private var chatInitialPrompt: String? = nil
     @State private var showSettingsPanel = false
+    // Filtro da Jornada: o botao vive na top bar (global), entao o estado mora
+    // aqui e desce pra tela.
+    @State private var areaFiltroJornada: GrandeArea?
+    @State private var disciplinaFiltroJornada: String?
+    @State private var mostrarFiltroJornada = false
+
+    /// Nome da disciplina escolhida, pra placa mostrar em vez do nome da area.
+    private func nomeDaDisciplina(_ slug: String) -> String? {
+        container.dataManager.canonicalDisciplines
+            .first { ($0.disciplineSlug ?? $0.id) == slug }
+            .map { $0.canonicalName ?? $0.name }
+    }
+
+    /// Disciplinas da area escolhida. Vem do AppDataManager, que ja tem o
+    /// curriculo canonico do aluno — nada de lista inventada no cliente.
+    private var disciplinasDaAreaSelecionada: [DisciplinaDaArea] {
+        guard let area = areaFiltroJornada else { return [] }
+        return container.dataManager.canonicalDisciplines
+            .filter { $0.area == area.rawValue }
+            .map {
+                // acerto nil de proposito: o percentual existe no backend mas
+                // ainda nao chega neste modelo. Chip sem numero > numero falso.
+                DisciplinaDaArea(slug: $0.disciplineSlug ?? $0.id,
+                                 nome: $0.canonicalName ?? $0.name,
+                                 acerto: nil)
+            }
+    }
     @State private var showNotifPopout = false
     @State private var dashboardSubtitle: String = ""
     /// True when a descendant screen (e.g. PdfViewerScreen fullscreen) asks for
@@ -335,6 +362,19 @@ struct MainTabView: View {
                             .padding(.top, 8)
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
+                    }
+                    // O filtro da Jornada abre daqui: e um sheet so, nao uma
+                    // fileira de botoes em cima do jogo (Rafael 2026-07-23).
+                    .sheet(isPresented: $mostrarFiltroJornada) {
+                        JornadaFiltroSheet(
+                            area: $areaFiltroJornada,
+                            disciplina: $disciplinaFiltroJornada,
+                            disciplinas: disciplinasDaAreaSelecionada,
+                            aoFechar: { mostrarFiltroJornada = false }
+                        )
+                        .environmentObject(container)
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
                     }
                     // Cortina de atividade: desce do topo em QUALQUER aba, so
                     // quando ha algo rodando. O gavetao antigo ficava preso na
@@ -581,8 +621,11 @@ struct MainTabView: View {
 
     // MARK: - Active Tab Content
 
+    /// A barra global so aparecia na Jornada — e agora a TrailTopPlaca ocupa
+    /// esse papel la, com filtro + ofensiva + moedas + menu numa peca so
+    /// (Rafael 2026-07-23). Duas fileiras no topo do mundo era o problema.
     private var shouldShowGlobalTopBar: Bool {
-        isHomeRoot
+        false
     }
 
     private var isHomeRoot: Bool {
@@ -668,7 +711,22 @@ struct MainTabView: View {
             // A trilha gamificada é o daily driver da Home; a aba Progresso vira
             // Estatísticas/Conquistas. DashboardScreen segue no codebase (não
             // deletado) caso a gente queira fundir alguns cards depois.
-            HomeScreen()
+            HomeScreen(
+                filtroNomeJornada: disciplinaFiltroJornada.flatMap(nomeDaDisciplina)
+                    ?? areaFiltroJornada?.nome ?? "Tudo",
+                filtroSimboloJornada: areaFiltroJornada?.simbolo,
+                onAbrirFiltro: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) {
+                        mostrarFiltroJornada = true
+                    }
+                },
+                onAbrirMenu: {
+                    withAnimation(.spring(duration: 0.5, bounce: 0.18)) { showNotifPopout = false }
+                    withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
+                        showSettingsPanel = true
+                    }
+                }
+            )
         case .estudos:
             EstudosScreen(
                 onNavigateToCanvasConnect: { router.navigate(to: .canvasConnect) },

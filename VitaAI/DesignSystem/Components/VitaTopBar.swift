@@ -21,22 +21,29 @@ struct VitaTopBar: View {
     var notificationCount: Int = 0
     var blendsWithHome: Bool = false
     var onAvatarTap: (() -> Void)?
+    /// Substitui o slot da esquerda (avatar + nivel). So a Jornada usa: la
+    /// aquele espaco vira o botao do seletor de area (Rafael 2026-07-23).
+    var leadingSlot: AnyView?
     var onMenuTap: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Button(action: { onAvatarTap?() }) {
-                VStack(spacing: blendsWithHome ? 2 : 4) {
-                    avatarBadge
+            if let leadingSlot {
+                leadingSlot.frame(minWidth: 54, minHeight: 62)
+            } else {
+                Button(action: { onAvatarTap?() }) {
+                    VStack(spacing: blendsWithHome ? 2 : 4) {
+                        avatarBadge
 
-                    if level > 0 {
-                        levelBadge
+                        if level > 0 {
+                            levelBadge
+                        }
                     }
                 }
+                .buttonStyle(.plain)
+                .frame(minWidth: 54, minHeight: 62)
+                .accessibilityLabel("Perfil")
             }
-            .buttonStyle(.plain)
-            .frame(minWidth: 54, minHeight: 62)
-            .accessibilityLabel("Perfil")
 
             Spacer()
 

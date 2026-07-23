@@ -119,6 +119,14 @@ struct HomeScreen: View {
 
     private var currentStage: Stage { stage(for: userLevel) }
 
+    // Filtro e menu sao acionados daqui mas o estado mora no shell (AppRouter),
+    // que e quem desenha a barra global.
+    var filtroNomeJornada: String = "Tudo"
+    var filtroSimboloJornada: String?
+    var onAbrirFiltro: () -> Void = {}
+    var onAbrirMenu: () -> Void = {}
+
+
     /// Stable, privacy-safe namespace for device-local trail cache.
     /// The server remains authoritative; this is only an offline bootstrap.
     private var trailAccountScope: String? {
@@ -1064,34 +1072,23 @@ struct HomeScreen: View {
 
     // Streak + moedas SEMPRE visíveis no topo (Rafael 2026-07-19, padrão Duolingo).
     // Toque em qualquer uma abre a loja da fase ATUAL (currentStage.tierIdx).
+    // A placa de madeira do topo. Antes eram duas pilulas escuras + um circulo
+    // cinza de menu — tres linguagens visuais brigando em cima do mundo da
+    // trilha. Agora e UMA peca, no vocabulario do DESIGN.md §5.
     private var trailTopPills: some View {
-        let tier = max(0, min(4, currentStage.tierIdx))
-        return HStack(spacing: 8) {
-            Button { router.navigate(to: .progresso) } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 14, weight: .bold))  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
-                        .foregroundStyle(.orange)
-                    Text("\(dash.streakDays)")
-                        .font(.system(size: 15, weight: .bold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
-                }
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Capsule().fill(Color.black.opacity(0.4)))
-                .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            Button { router.navigate(to: .skinAppearance(shopTier: tier)) } label: {
-                HStack(spacing: 5) {
-                    CoinIcon(size: 15)
-                    Text("\(skins.balance)")
-                        .font(.system(size: 15, weight: .bold)).foregroundColor(.white)  // ds-allow: arte gamificada (trilha 3D + loja de skins) — visual signature
-                }
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Capsule().fill(Color.black.opacity(0.4)))
-                .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-        }
+        TrailTopPlaca(
+            filtroNome: filtroNomeJornada,
+            filtroSimbolo: filtroSimboloJornada,
+            diasSeguidos: dash.streakDays,
+            moedas: skins.balance,
+            aoTocarFiltro: onAbrirFiltro,
+            aoTocarOfensiva: { router.navigate(to: .ofensiva) },
+            aoTocarMoedas: {
+                router.navigate(to: .skinAppearance(shopTier: max(0, min(4, currentStage.tierIdx))))
+            },
+            aoTocarMenu: onAbrirMenu
+        )
+        .padding(.horizontal, 12)
         .padding(.top, 12)
         .opacity(isTrailHydrated ? 1 : 0)
     }
