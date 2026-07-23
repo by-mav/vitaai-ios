@@ -46,10 +46,10 @@ struct OfensivaScreen: View {
             if carregando {
                 ProgressView().tint(VitaColors.accent)
             } else if let erro {
-                // Mostrar "0 dias" quando a resposta nao chegou e mentir: some
+                // Mostrar "0 dias" quando a resposta não chegou é mentir: some
                 // com a ofensiva de quem tem uma viva. O erro aparece.
                 VitaErrorState(
-                    title: "Nao consegui carregar sua ofensiva",
+                    title: "Não consegui carregar sua ofensiva",
                     message: erro,
                     systemImage: "flame",
                     onRetry: { Task { carregando = true; await carregar() } }
