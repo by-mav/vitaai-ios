@@ -455,11 +455,10 @@ struct JornadaWeekAgenda: View {
 
 // MARK: - EventoAgendaSheet — adicionar/editar evento manual da agenda
 //
-// Prova e Trabalho vao pra academic_evaluations (/api/study/provas); Aula vai
-// pra grade semanal (/api/study/aulas). Disciplina e obrigatoria nos tres: sem
-// ela o backend de provas cria uma disciplina fantasma com o nome do evento.
-//
-// Controles nativos de proposito — formulario nao e lugar de inventar widget.
+// Canon: VitaSheet + VitaInput + VitaButton + .glassCard(), tokens em tudo.
+// Prova/Trabalho vao pra academic_evaluations (/api/study/provas); Aula vai pra
+// grade semanal (/api/study/aulas). Disciplina obrigatoria nos tres — sem ela o
+// backend de provas cria uma disciplina fantasma com o nome do evento.
 
 struct EventoAgendaSheet: View {
     let alvo: JornadaWeekAgenda.EditorAlvo
@@ -479,13 +478,23 @@ struct EventoAgendaSheet: View {
             case .aula: return "Aula"
             }
         }
+        var icone: String {
+            switch self {
+            case .prova: return "checklist"
+            case .trabalho: return "doc.richtext"
+            case .aula: return "book"
+            }
+        }
+        // Ouro monocromatico: DESIGN.md proibe cor de accent por decoracao —
+        // data* e so pra semantica de dado (acerto/erro/alerta).
+        var cor: Color { VitaColors.accent }
     }
 
     @State private var tipo: TipoEvento = .prova
     @State private var titulo = ""
     @State private var subjectId = ""
     @State private var quando = Date()
-    @State private var diaSemana = 1          // 1=segunda ... 7=domingo
+    @State private var diaSemana = 1
     @State private var horaInicio = Date()
     @State private var horaFim = Date().addingTimeInterval(3600)
     @State private var sala = ""
@@ -502,83 +511,218 @@ struct EventoAgendaSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                if !editando {
-                    Section {
-                        Picker("Tipo", selection: $tipo) {
-                            ForEach(TipoEvento.allCases) { t in Text(t.titulo).tag(t) }
-                        }
-                        .pickerStyle(.segmented)
-                    }
+        VitaSheet(title: editando ? "Editar evento" : "Novo evento", detents: [.large]) {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+                    if !editando { seletorTipo }
+                    blocoDisciplina
+                    if tipo == .aula { blocoAula } else { blocoProvaTrabalho }
+                    if let erro { avisoErro(erro) }
+                    acoes
                 }
-
-                Section("Disciplina") {
-                    Picker("Disciplina", selection: $subjectId) {
-                        Text("Escolha uma").tag("")
-                        ForEach(disciplinas, id: \.id) { d in
-                            Text(d.preferredName).tag(d.id)
-                        }
-                    }
-                    if subjectId.isEmpty {
-                        Text("Obrigatória — é o que liga o evento à matéria.")
-                            .font(VitaTypography.labelSmall)
-                            .foregroundStyle(VitaColors.textTertiary)
-                    }
-                }
-
-                if tipo == .aula {
-                    Section("Quando") {
-                        Picker("Dia", selection: $diaSemana) {
-                            Text("Segunda").tag(1); Text("Terça").tag(2)
-                            Text("Quarta").tag(3);  Text("Quinta").tag(4)
-                            Text("Sexta").tag(5);   Text("Sábado").tag(6)
-                            Text("Domingo").tag(7)
-                        }
-                        DatePicker("Começa", selection: $horaInicio, displayedComponents: .hourAndMinute)
-                        DatePicker("Termina", selection: $horaFim, displayedComponents: .hourAndMinute)
-                    }
-                    Section("Onde (opcional)") {
-                        TextField("Sala", text: $sala)
-                        TextField("Professor", text: $professor)
-                    }
-                } else {
-                    Section(tipo == .prova ? "Prova" : "Trabalho") {
-                        TextField("Título (ex: P1 de Anatomia)", text: $titulo)
-                        DatePicker("Quando", selection: $quando,
-                                   displayedComponents: [.date, .hourAndMinute])
-                    }
-                }
-
-                if let erro {
-                    Section { Text(erro).foregroundStyle(VitaColors.dataRed) }
-                }
-
-                if editando {
-                    Section {
-                        Button(role: .destructive) {
-                            Task { await remover() }
-                        } label: { Text("Remover da agenda") }
-                    }
-                }
+                .padding(.horizontal, VitaTokens.Spacing.xl)
+                .padding(.bottom, VitaTokens.Spacing._3xl)
             }
-            .navigationTitle(editando ? "Editar evento" : "Novo evento")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Salvar") { Task { await salvar() } }
-                        .disabled(!podeSalvar)
-                }
-            }
-            .onAppear(perform: preencher)
         }
-        .preferredColorScheme(.dark)
+        .onAppear(perform: preencher)
     }
 
-    // MARK: preencher ao editar
+    // MARK: tipo
+
+    private var seletorTipo: some View {
+        HStack(spacing: VitaTokens.Spacing.sm) {
+            ForEach(TipoEvento.allCases) { t in
+                Button { tipo = t } label: {
+                    VStack(spacing: VitaTokens.Spacing.xs) {
+                        Image(systemName: t.icone)
+                            .font(VitaTypography.titleMedium)
+                        Text(t.titulo)
+                            .font(VitaTypography.labelMedium)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(tipo == t ? t.cor : VitaColors.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, VitaTokens.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                            .fill(tipo == t ? t.cor.opacity(0.12) : VitaColors.glassBg)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                            .stroke(tipo == t ? t.cor.opacity(0.45) : VitaColors.glassBorder,
+                                    lineWidth: tipo == t ? 1 : 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: disciplina
+
+    private var blocoDisciplina: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+            rotulo("Disciplina")
+            Menu {
+                ForEach(disciplinas, id: \.id) { d in
+                    Button(d.preferredName) { subjectId = d.id }
+                }
+            } label: {
+                HStack {
+                    Text(nomeDisciplina ?? "Escolha uma disciplina")
+                        .font(VitaTypography.bodyMedium)
+                        .foregroundStyle(subjectId.isEmpty ? VitaColors.textTertiary : VitaColors.textPrimary)
+                        .lineLimit(1)
+                    Spacer(minLength: VitaTokens.Spacing.sm)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, VitaTokens.Spacing.lg)
+                .padding(.vertical, VitaTokens.Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassCard(cornerRadius: VitaTokens.Radius.md)
+            }
+            if subjectId.isEmpty {
+                Text("Obrigatória — é ela que liga o evento à matéria.")
+                    .font(VitaTypography.labelSmall)
+                    .foregroundStyle(VitaColors.textTertiary)
+            }
+        }
+    }
+
+    private var nomeDisciplina: String? {
+        disciplinas.first { $0.id == subjectId }?.preferredName
+    }
+
+    // MARK: prova / trabalho
+
+    private var blocoProvaTrabalho: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                rotulo(tipo == .prova ? "Nome da prova" : "Nome do trabalho")
+                VitaInput(value: $titulo,
+                          placeholder: tipo == .prova ? "Ex: P1 de Anatomia" : "Ex: Relatório de caso")
+            }
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                rotulo("Quando")
+                caixaDeVidro {
+                    DatePicker("", selection: $quando, displayedComponents: [.date, .hourAndMinute])
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                        .tint(VitaColors.accent)
+                }
+            }
+        }
+    }
+
+    // MARK: aula
+
+    private var blocoAula: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.lg) {
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                rotulo("Dia da semana")
+                HStack(spacing: VitaTokens.Spacing.xs) {
+                    ForEach(Array(["SEG","TER","QUA","QUI","SEX","SÁB","DOM"].enumerated()), id: \.offset) { i, nome in
+                        let dia = i + 1
+                        Button { diaSemana = dia } label: {
+                            Text(nome)
+                                .font(VitaTypography.labelSmall)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(diaSemana == dia ? VitaColors.surface : VitaColors.textSecondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, VitaTokens.Spacing.sm)
+                                .background(
+                                    RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                                        .fill(diaSemana == dia ? VitaColors.accent : VitaColors.glassBg)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            HStack(spacing: VitaTokens.Spacing.md) {
+                VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                    rotulo("Começa")
+                    caixaDeVidro {
+                        DatePicker("", selection: $horaInicio, displayedComponents: .hourAndMinute)
+                            .labelsHidden().datePickerStyle(.compact).tint(VitaColors.accent)
+                    }
+                }
+                VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                    rotulo("Termina")
+                    caixaDeVidro {
+                        DatePicker("", selection: $horaFim, displayedComponents: .hourAndMinute)
+                            .labelsHidden().datePickerStyle(.compact).tint(VitaColors.accent)
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
+                rotulo("Sala e professor (opcional)")
+                VitaInput(value: $sala, placeholder: "Sala")
+                VitaInput(value: $professor, placeholder: "Professor")
+            }
+        }
+    }
+
+    // MARK: acoes
+
+    private var acoes: some View {
+        VStack(spacing: VitaTokens.Spacing.md) {
+            VitaButton(text: "Salvar",
+                       action: { Task { await salvar() } },
+                       isEnabled: podeSalvar,
+                       isLoading: salvando,
+                       fillsWidth: true)
+
+            if editando {
+                VitaButton(text: "Remover da agenda",
+                           action: { Task { await remover() } },
+                           variant: .danger,
+                           isEnabled: !salvando,
+                           fillsWidth: true)
+            }
+        }
+        .padding(.top, VitaTokens.Spacing.sm)
+    }
+
+    // MARK: pecinhas
+
+    private func rotulo(_ t: String) -> some View {
+        Text(t)
+            .font(VitaTypography.labelSmall)
+            .fontWeight(.semibold)
+            .kerning(0.8)
+            .textCase(.uppercase)
+            .foregroundStyle(VitaColors.sectionLabel)
+    }
+
+    private func caixaDeVidro<C: View>(@ViewBuilder _ c: () -> C) -> some View {
+        c()
+            .padding(.horizontal, VitaTokens.Spacing.md)
+            .padding(.vertical, VitaTokens.Spacing.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(cornerRadius: VitaTokens.Radius.md)
+    }
+
+    private func avisoErro(_ t: String) -> some View {
+        HStack(spacing: VitaTokens.Spacing.sm) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(VitaTypography.labelMedium)
+                .foregroundStyle(VitaColors.dataRed)
+            Text(t)
+                .font(VitaTypography.bodySmall)
+                .foregroundStyle(VitaColors.textSecondary)
+        }
+        .padding(VitaTokens.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
+                .fill(VitaColors.dataRed.opacity(0.10))
+        )
+    }
+
+    // MARK: preencher / salvar / remover
 
     private func preencher() {
         quando = alvo.dia
@@ -597,8 +741,6 @@ struct EventoAgendaSheet: View {
             professor = a.professor ?? ""
         }
     }
-
-    // MARK: salvar / remover
 
     private func salvar() async {
         salvando = true; erro = nil
@@ -648,8 +790,6 @@ struct EventoAgendaSheet: View {
             salvando = false
         }
     }
-
-    // MARK: datas
 
     private static func hhmm(_ d: Date) -> String {
         let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: d)
