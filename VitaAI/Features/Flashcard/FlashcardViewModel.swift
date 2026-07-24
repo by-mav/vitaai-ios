@@ -162,10 +162,18 @@ final class FlashcardViewModel {
             // (questoes/simulado criam sessao; este caminho nao criava). Best-effort:
             // online cria; offline cai no catch e o estudo segue local.
             Task { @MainActor in
+                var retomada: FlashcardStudySession?
                 if studySessionId == nil, !deck.cards.isEmpty {
-                    await createSession(for: deck, abandonExisting: false)
+                    retomada = await createSession(for: deck, abandonExisting: false)
                 }
-                startSession(deck: deck, initialIndex: 0, initialCorrectCount: 0, initialRatings: [])
+                // Retomada = continua de onde parou (senão o progresso salvo
+                // seria sobrescrito por 0 ao sair).
+                startSession(
+                    deck: deck,
+                    initialIndex: retomada?.currentIndex ?? 0,
+                    initialCorrectCount: retomada?.correctCount ?? 0,
+                    initialRatings: retomada?.ratings.compactMap(ReviewRating.init(rawValue:)) ?? []
+                )
             }
             return
         }
@@ -198,14 +206,19 @@ final class FlashcardViewModel {
                 // A sessao rapida ja nasce persistida no builder. Uma abertura
                 // direta de baralho, por outro lado, precisa registrar a fila
                 // exata que acabou de ser montada antes do primeiro review.
+                var retomada: FlashcardStudySession?
                 if studySessionId == nil, !deck.cards.isEmpty {
-                    await createSession(for: deck, abandonExisting: false)
+                    retomada = await createSession(for: deck, abandonExisting: false)
                 }
+                // `persisted` (sessão pedida por id) tem prioridade; `retomada` é
+                // a que já estava aberta deste baralho — sem ela, reabrir zerava
+                // o progresso no servidor.
+                let base = persisted ?? retomada
                 startSession(
                     deck: deck,
-                    initialIndex: persisted?.currentIndex ?? 0,
-                    initialCorrectCount: persisted?.correctCount ?? 0,
-                    initialRatings: persisted?.ratings.compactMap(ReviewRating.init(rawValue:)) ?? []
+                    initialIndex: base?.currentIndex ?? 0,
+                    initialCorrectCount: base?.correctCount ?? 0,
+                    initialRatings: base?.ratings.compactMap(ReviewRating.init(rawValue:)) ?? []
                 )
             } catch {
                 phase = .error("Erro ao carregar flashcards: \(error.localizedDescription)")
@@ -218,7 +231,11 @@ final class FlashcardViewModel {
     /// sem sessao registrada o estudo ate roda, mas `endSession()` nao tem o
     /// que fechar e a sessao antiga fica `active` pra sempre, bloqueando TODAS
     /// as proximas (a espiral que zerou os `finished`).
-    private func createSession(for deck: FlashcardDeck, abandonExisting: Bool) async {
+    /// Devolve a sessão RETOMADA quando já havia uma aberta deste mesmo baralho
+    /// (nil quando criou uma nova ou quando o conflito é de outro baralho).
+    @discardableResult
+    private func createSession(for deck: FlashcardDeck, abandonExisting: Bool) async
+        -> FlashcardStudySession? {
         do {
             let created = try await api.createFlashcardSession(
                 body: FlashcardSessionBody(
@@ -238,6 +255,23 @@ final class FlashcardViewModel {
         } catch let APIError.conflict(_, body) {
             if let conflict = try? JSONDecoder().decode(OpenSessionConflict.self, from: body),
                conflict.error == "open_session_exists" {
+                // Aberta É DESTE baralho ⇒ é a mesma sessão: RETOMA de onde
+                // parou, sem perguntar nada. Antes recomeçava do zero e, ao
+                // sair, o persistSession gravava currentIndex=0 por cima do
+                // progresso salvo — o treino sumia de "Em andamento" (que só
+                // lista quem tem progresso > 0). Rafael 2026-07-24.
+                // Identidade da sessão = a FILA de cards, não o deckId: o
+                // servidor grava o deck REAL dos cards (um baralho da Biblioteca
+                // agrupa vários), então o id que o app manda não volta igual.
+                if conflict.openSession.type == "flashcards",
+                   let aberta = try? await api.getFlashcardStudySession(id: conflict.openSession.id),
+                   !aberta.cardIds.isEmpty,
+                   aberta.deckId == deck.id
+                     || Set(aberta.cardIds).isSubset(of: Set(deck.cards.map(\.id))) {
+                    studySessionId = aberta.id
+                    openSessionConflict = nil
+                    return aberta
+                }
                 openSessionConflict = conflict.openSession
             } else {
                 NSLog("[Flashcard] create study session conflict (unparsed)")
@@ -247,6 +281,7 @@ final class FlashcardViewModel {
             // a falha de persistencia visivel.
             NSLog("[Flashcard] create study session failed: %@", String(describing: error))
         }
+        return nil
     }
 
     /// "Encerrar e comecar novo" do alerta de conflito: fecha a sessao aberta
