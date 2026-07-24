@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/mav/vitaai-ios/scripts/hooks/session-stop-guard.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

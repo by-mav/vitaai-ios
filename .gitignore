@@ -38,6 +38,12 @@ fastlane/keys/
 
 # Debug/QA screenshots in project root
 e2e-*.png
+
+# Transientes que sujavam o working tree (2026-07-24: 55 arquivos de WIP + lixo)
+screenshots/                       # screenshots QA de dev — não são asset do app
+*.prepatch                         # backup do pbxproj feito por scripts de patch
+*.orig                             # sobras de merge/patch
+HANDOFF_*.md                       # docs de handoff moram no agent-brain, não no app repo
 fast-*.png
 fast-int-*.png
 debug-*.png
