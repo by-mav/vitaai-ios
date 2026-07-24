@@ -1676,67 +1676,6 @@ struct TranscricaoKaraokeTranscriptSection: View {
 
 // MARK: - Pending Content (not yet transcribed)
 
-struct TranscricaoPendingContent: View {
-    @State private var isTranscribing = false
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Text("Esta gravação ainda não foi transcrita")
-                .font(.system(size: 13))
-                .foregroundStyle(Color.white.opacity(0.50))
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 8)
-
-            if isTranscribing {
-                HStack(spacing: 12) {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(VitaColors.accentLight)
-                        .scaleEffect(0.8)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Transcrevendo...")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.90))
-                        Text("Feche e abra depois — avisamos quando estiver pronto.")
-                            .font(.system(size: 10))
-                            .foregroundStyle(VitaColors.textWarm.opacity(0.25))
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .glassCard(cornerRadius: 12)
-            } else {
-                Button {
-                    withAnimation { isTranscribing = true }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("Transcrever agora")
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .foregroundStyle(VitaColors.accentLight.opacity(0.90))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(VitaColors.accent.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(VitaColors.accent.opacity(0.24), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Text("A transcrição gera automaticamente resumo, flashcards e questões.")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Color.white.opacity(0.28))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-            }
-        }
-    }
-}
 
 // MARK: - Actions Menu
 
@@ -2075,51 +2014,6 @@ struct TranscricaoQuestionMini: View {
 
 // MARK: - Done Phase (after transcription completes via SSE)
 
-struct TranscricaoDonePhase: View {
-    let transcript: String
-    let summary: String
-    let flashcards: [TranscriptionFlashcard]
-    let onReset: () -> Void
-
-    @State private var selectedTab = 0
-    private let tabs = ["Transcrição", "Resumo", "Flashcards"]
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                ForEach(Array(tabs.enumerated()), id: \.offset) { index, title in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { selectedTab = index }
-                    } label: {
-                        VStack(spacing: 6) {
-                            Text(title)
-                                .font(.system(size: 12, weight: selectedTab == index ? .semibold : .regular))
-                                .foregroundStyle(
-                                    selectedTab == index ? VitaColors.accentLight : Color.white.opacity(0.55)
-                                )
-                            Rectangle()
-                                .fill(selectedTab == index ? VitaColors.accent : Color.clear)
-                                .frame(height: 2)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(VitaColors.accent.opacity(0.10)).frame(height: 1)
-            }
-
-            switch selectedTab {
-            case 0: TranscricaoTranscriptTab(text: transcript)
-            case 1: TranscricaoSummaryTab(text: summary)
-            case 2: TranscricaoFlashcardsTab(flashcards: flashcards, onReset: onReset)
-            default: EmptyView()
-            }
-        }
-    }
-}
 
 // MARK: - Transcript Tab
 

@@ -233,19 +233,6 @@ struct PixioSearchField: View {
 // MARK: - Icon chip
 
 /// Chip circular tonal com o ícone na cor de destaque.
-struct PixioIconChip: View {
-    let icon: String
-    let accent: Color
-    var size: CGFloat = 30
-
-    var body: some View {
-        Image(systemName: icon)
-            .font(PixioTypo.sans(size: size * 0.47, weight: .semibold))
-            .foregroundStyle(accent)
-            .frame(width: size, height: size)
-            .background(Circle().fill(accent.opacity(0.15)))
-    }
-}
 
 // pixio-design-gate-ignore: dialeto Ajustes — preto/transparente crus pras micro-sombras de profundidade física do tile (neutras a tema)
 private func ink(_ o: Double) -> Color { .black.opacity(o) }

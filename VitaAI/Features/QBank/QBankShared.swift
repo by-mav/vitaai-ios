@@ -142,15 +142,6 @@ extension String {
 
 // MARK: - Config Screen Helpers
 
-struct QBankSectionTitle: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-    var body: some View {
-        Text(text)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(VitaColors.textPrimary)
-    }
-}
 
 struct QBankChip: View {
     let label: String

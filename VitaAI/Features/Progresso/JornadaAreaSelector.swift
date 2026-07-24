@@ -60,35 +60,6 @@ struct DisciplinaDaArea: Identifiable, Equatable {
 
 // MARK: - O botão que fica no lugar do perfil
 
-struct JornadaFiltroBotao: View {
-    let area: GrandeArea?
-    let acao: () -> Void
-
-    var body: some View {
-        Button(action: acao) {
-            VStack(spacing: 3) {
-                ZStack {
-                    if let area {
-                        VitaEmblem(symbol: area.simbolo, size: 46)
-                    } else {
-                        // Sem filtro: o caduceu, que é o "medicina inteira".
-                        VitaEmblem(symbol: "staroflife.fill", size: 46)
-                            .opacity(0.92)
-                    }
-                }
-                Text(area?.nome ?? "Tudo")
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(.white.opacity(0.86))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                    .frame(width: 58)
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("jornada_filtro")
-        .accessibilityLabel(area == nil ? "Filtrar por área" : "Área: \(area!.nome)")
-    }
-}
 
 // MARK: - O sheet
 

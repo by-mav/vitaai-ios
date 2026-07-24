@@ -74,53 +74,6 @@ enum ToolAccent {
 
 // MARK: - Tool-themed glass card
 
-struct VitaToolGlassCard<Content: View>: View {
-    let accent: ToolAccent
-    let cornerRadius: CGFloat
-    let content: Content
-
-    init(accent: ToolAccent = .gold, cornerRadius: CGFloat = 16, @ViewBuilder content: () -> Content) {
-        self.accent = accent
-        self.cornerRadius = cornerRadius
-        self.content = content()
-    }
-
-    var body: some View {
-        let bg = accent.baseBg
-        content
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(
-                        LinearGradient(
-                            colors: [bg.0.opacity(0.92), bg.1.opacity(0.88)],
-                            startPoint: .init(x: 0.5, y: 0),
-                            endPoint: .init(x: 0.45, y: 1)
-                        )
-                    )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .stroke(
-                        AngularGradient(
-                            gradient: Gradient(stops: [
-                                .init(color: accent.borderStrong, location: 0.0),
-                                .init(color: accent.borderMedium, location: 0.17),
-                                .init(color: Color.white.opacity(0.03), location: 0.39),
-                                .init(color: Color.white.opacity(0.08), location: 0.61),
-                                .init(color: accent.borderMedium, location: 0.83),
-                                .init(color: accent.borderStrong, location: 1.0),
-                            ]),
-                            center: UnitPoint(x: 0.4, y: 0.8)
-                        ),
-                        lineWidth: 1
-                    )
-            )
-            .shadow(color: .black.opacity(0.40), radius: 20, x: 0, y: 8)
-            .shadow(color: accent.glowShadow.opacity(0.06), radius: 10, x: 0, y: 0)
-    }
-}
 
 // MARK: - Tool-themed screen background
 
