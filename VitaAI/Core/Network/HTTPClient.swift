@@ -100,9 +100,19 @@ actor HTTPClient {
 
         var encodedBody: Data?
         if let body {
-            let encoder = JSONEncoder()
-            encoder.keyEncodingStrategy = .convertToSnakeCase
-            encodedBody = try encoder.encode(body)
+            // camelCase, SEM converter (Rafael 2026-07-24). O backend é camelCase
+            // do início ao fim (é o que o openapi.yaml declara e o que o zod
+            // valida). O `.convertToSnakeCase` que ficava aqui quebrava TODA
+            // chamada com corpo, EM SILÊNCIO: a rota lia `body.currentIndex`,
+            // chegava `current_index`, caía no valor antigo e gravava 0 —
+            // por isso nenhuma sessão de flashcard nunca teve progresso e ela
+            // nunca aparecia em "Em andamento".
+            //
+            // Já tinha sido remendado caso a caso (`encodeCamelCase` em 4
+            // chamadas, `?? body.snake_case` em 6 rotas do servidor) sem nunca
+            // consertar a raiz. Aqui é a raiz: vale pras 11 chamadas de uma vez.
+            // Só o ENVIO muda; a leitura das respostas tem estratégia própria.
+            encodedBody = try JSONEncoder().encode(body)
         }
 
         if method != "GET" {
