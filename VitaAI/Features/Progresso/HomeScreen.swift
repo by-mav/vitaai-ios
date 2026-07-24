@@ -129,6 +129,10 @@ struct HomeScreen: View {
     var filtroSimboloJornada: String?
     var onAbrirFiltro: () -> Void = {}
     var onAbrirMenu: () -> Void = {}
+    /// Treinos em andamento (o estado mora no shell, igual filtro e menu): a
+    /// topnav mostra o ícone e a gaveta; tocar numa sessão vai direto pra ela.
+    var sessoesAtivas: [ActiveStudySession] = []
+    var aoRetomarSessao: (ActiveStudySession) -> Void = { _ in }
 
 
     /// Stable, privacy-safe namespace for device-local trail cache.
@@ -1090,6 +1094,8 @@ struct HomeScreen: View {
             tierNumero: currentTierIdx + 1,
             tierNome: Self.tiers[currentTierIdx].name,
             tierCor: Self.tiers[currentTierIdx].bright,
+            sessoesAtivas: sessoesAtivas,
+            aoRetomarSessao: aoRetomarSessao,
             aoTocarOfensiva: { router.navigate(to: .ofensiva) },
             aoTocarMoedas: {
                 router.navigate(to: .skinAppearance(shopTier: max(0, min(4, currentStage.tierIdx))))

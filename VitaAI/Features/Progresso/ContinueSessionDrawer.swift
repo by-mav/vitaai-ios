@@ -51,15 +51,16 @@ final class ActiveStudySessionsViewModel {
 
 // MARK: - VitaCortinaAtividade — o widget flutuante do que está em andamento
 //
-// Regras (Rafael 2026-07-24). A versão anterior era uma cortina PRESA no topo:
-// cobria a topnav e não tinha como tirar da frente. Agora:
-//  • FLUTUA onde o aluno quiser — arrasta e a posição fica salva entre telas
-//    e entre sessões (começa no canto superior esquerdo);
-//  • empurrar pra fora pela lateral RECOLHE num selo pequeno grudado na borda
-//    (o botão « no cabeçalho faz o mesmo); tocar no selo abre de volta;
-//  • no máximo UM item POR TIPO (questões / flashcards / simulado) — o mais
-//    recente de cada, mesma regra do backend ("1 sessão aberta por tipo").
-//    Só aparece o que existe: quem tem só questões vê uma linha só.
+// Regras (Rafael 2026-07-24). A 1ª versão era uma cortina PRESA no topo (cobria
+// a topnav); a 2ª virava um selo no canto ao esconder, e o selo ficou ruim. Hoje:
+//  • é o AVISO de que há treino rolando — aparece no app inteiro;
+//  • FLUTUA onde o aluno largar (posição salva entre telas e sessões);
+//  • esconder (arrastar PRA CIMA, empurrar pra fora pela lateral, ou o « do
+//    cabeçalho) faz ele SUMIR — sem selo, sem sobra na tela;
+//  • escondido, o "Em andamento" continua morando no ÍCONE DA TOPNAV da Home,
+//    ao lado das moedas: lá ele acende, mostra a gaveta e leva pra sessão;
+//  • no máximo UM item POR CLASSE (questões / flashcards / simulado) — é o que
+//    o backend garante; só aparece o que existe.
 //
 // Vale no app inteiro, não só na Home — foi por isso que o gavetão da Jornada
 // nunca resolveu: ficava preso numa aba só.
@@ -104,10 +105,12 @@ struct VitaCortinaAtividade: View {
     }
 
     private var total: Int { sessoesUnicas.count + extras.count }
-    private var larguraSelo: CGFloat { CGFloat(26 + 15 * min(total, 3)) }
 
     var body: some View {
-        if total > 0 {
+        // Escondido = NÃO desenha nada. O selo no canto ficou ruim (Rafael
+        // 2026-07-24); o lar permanente do "Em andamento" é o ícone da topnav
+        // da Home, ao lado das moedas — é de lá que ele volta.
+        if total > 0, !recolhida {
             GeometryReader { geo in
                 flutuante(em: geo.size)
             }
@@ -118,17 +121,14 @@ struct VitaCortinaAtividade: View {
     /// O widget em si, já posicionado e arrastável dentro da área da tela.
     @ViewBuilder
     private func flutuante(em area: CGSize) -> some View {
-        let larg = recolhida ? larguraSelo : largura
-        let p = posicao(em: area, largura: larg)
-        Group {
-            if recolhida { selo } else { painel }
-        }
-        .frame(width: larg, alignment: .leading)
-        .offset(x: p.x, y: p.y)
-        // simultaneo + distancia minima: toque continua chegando nos botoes, e
-        // so vira arrasto depois de mover de verdade.
-        .simultaneousGesture(arrastar(em: area, largura: larg))
-        .animation(.spring(response: 0.34, dampingFraction: 0.82), value: recolhida)
+        let p = posicao(em: area, largura: largura)
+        painel
+            .frame(width: largura, alignment: .leading)
+            .offset(x: p.x, y: p.y)
+            // simultaneo + distancia minima: toque continua chegando nos botoes,
+            // e so vira arrasto depois de mover de verdade.
+            .simultaneousGesture(arrastar(em: area, largura: largura))
+            .animation(.spring(response: 0.34, dampingFraction: 0.82), value: recolhida)
     }
 
     /// Mantém o widget dentro da tela mesmo em rotação/tela menor.
@@ -153,19 +153,19 @@ struct VitaCortinaAtividade: View {
                 let maxX = max(Double(margem), Double(area.width - larg - margem))
                 arrasto = .zero
 
-                if !recolhida,
-                   bruto.x < Double(margem) - empurraoParaRecolher
-                    || bruto.x > maxX + empurraoParaRecolher {
-                    // empurrou pra fora pela lateral → vira selo naquela borda
-                    let naDireita = bruto.x > Double(area.width) / 2
+                // Esconder: arrastar PRA CIMA (Rafael 2026-07-24) ou empurrar
+                // pra fora pela lateral. Escondido some da tela; volta pelo
+                // ícone da topnav da Home.
+                let empurrouPraCima = g.translation.height < -CGFloat(empurraoParaRecolher)
+                let empurrouPraFora = bruto.x < Double(margem) - empurraoParaRecolher
+                    || bruto.x > maxX + empurraoParaRecolher
+                if empurrouPraCima || empurrouPraFora {
                     recolhida = true
-                    posX = naDireita
-                        ? max(Double(margem), Double(area.width - larguraSelo - margem))
-                        : Double(margem)
                 } else {
                     posX = min(max(Double(margem), bruto.x), maxX)
+                    posY = min(max(Double(margem), bruto.y),
+                               max(Double(margem), Double(area.height) - 96))
                 }
-                posY = min(max(Double(margem), bruto.y), max(Double(margem), Double(area.height) - 96))
                 // solta a trava um instante depois: o Button so dispara ao
                 // soltar o dedo, e sem esta folga ele passaria assim mesmo.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) { arrastando = false }
@@ -220,33 +220,6 @@ struct VitaCortinaAtividade: View {
         .padding(.vertical, VitaTokens.Spacing.md)
         .glassCard(cornerRadius: VitaTokens.Radius.lg)
         .transition(.scale(scale: 0.9, anchor: .topLeading).combined(with: .opacity))
-    }
-
-    // MARK: selo (estado recolhido)
-
-    private var selo: some View {
-        Button {
-            if !arrastando { recolhida = false }
-        } label: {
-            HStack(spacing: 3) {
-                ForEach(Array(sessoesUnicas.prefix(3).enumerated()), id: \.offset) { _, s in
-                    Image(systemName: icone(de: s))
-                        .font(VitaTypography.labelSmall)
-                        .foregroundStyle(VitaColors.accent)
-                }
-                if sessoesUnicas.isEmpty {
-                    Circle().fill(VitaColors.accent).frame(width: 5, height: 5)
-                }
-            }
-            .padding(.horizontal, VitaTokens.Spacing.sm)
-            .padding(.vertical, VitaTokens.Spacing.xs)
-            .background(Capsule().fill(VitaColors.glassBg))
-            .overlay(Capsule().stroke(VitaColors.glassBorder, lineWidth: 0.5))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(total) em andamento. Toque para abrir.")
-        .transition(.scale.combined(with: .opacity))
     }
 
     // MARK: pecinhas

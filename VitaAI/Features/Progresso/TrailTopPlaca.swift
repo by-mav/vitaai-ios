@@ -34,6 +34,11 @@ struct TrailTopPlaca: View {
     var tierNome: String = ""
     var tierCor: Color = .white
 
+    /// Treinos em andamento (no máximo um por classe). Vazio = ícone apagado.
+    var sessoesAtivas: [ActiveStudySession] = []
+    /// Toque numa sessão da gaveta: leva direto pra ela.
+    var aoRetomarSessao: (ActiveStudySession) -> Void = { _ in }
+
     var aoTocarOfensiva: () -> Void
     var aoTocarMoedas: () -> Void
     var aoTocarMenu: () -> Void
@@ -53,6 +58,10 @@ struct TrailTopPlaca: View {
     // A gaveta das áreas desce ao tocar na maleta.
     @State private var gavetaAberta = false
     @State private var areaSelecionada: GrandeArea?
+    // A gaveta dos treinos em andamento desce ao tocar no ícone ao lado das moedas.
+    @State private var gavetaSessoes = false
+    /// Mesma chave que o card flutuante usa: esconder lá reflete aqui.
+    @AppStorage("cortinaAtividadeRecolhida") private var atividadeRecolhida = false
     // "Ver todas" (issue #95 item 10): folha com todas as disciplinas da área.
     @State private var verTodasArea: GrandeArea?
 
@@ -70,10 +79,91 @@ struct TrailTopPlaca: View {
                 .zIndex(2)   // a frente da cômoda: cobre o topo da gaveta
             gavetaContainer
                 .zIndex(1)
+            gavetaSessoesContainer
+                .zIndex(1)
         }
         .id(injecao.tick)   // hot reload
         .sheet(item: $verTodasArea) { area in
             verTodasSheet(area)
+        }
+    }
+
+    // MARK: Gaveta dos treinos em andamento (ícone ao lado das moedas)
+
+    private var gavetaSessoesContainer: some View {
+        gavetaSessoesConteudo
+            .scaleEffect(gavetaSessoes ? 1 : 0.4, anchor: UnitPoint(x: 0.62, y: 0))
+            .opacity(gavetaSessoes ? 1 : 0)
+            .frame(height: gavetaSessoes ? CGFloat(52 * max(1, sessoesAtivas.count) + 22) : 0,
+                   alignment: .top)
+            .clipped()
+            .offset(y: gavetaSessoes ? 0 : -18)
+            .animation(.spring(response: 0.5, dampingFraction: 0.82), value: gavetaSessoes)
+    }
+
+    private var gavetaSessoesConteudo: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: VitaTokens.Spacing.sm) {
+                Circle().fill(Self.brasa).frame(width: 6, height: 6)
+                Text("EM ANDAMENTO")
+                    .font(.system(size: 10, weight: .semibold))  // ds-allow: arte gamificada
+                    .kerning(0.8)
+                    .foregroundStyle(Color(red: 0.72, green: 0.66, blue: 0.55))  // ds-allow: arte gamificada
+                Spacer(minLength: 0)
+            }
+            .padding(.bottom, 6)
+
+            ForEach(Array(sessoesAtivas.enumerated()), id: \.offset) { idx, s in
+                Button {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { gavetaSessoes = false }
+                    aoRetomarSessao(s)
+                } label: {
+                    HStack(spacing: VitaTokens.Spacing.md) {
+                        Image(systemName: iconeSessao(s))
+                            .font(.system(size: 14, weight: .semibold))  // ds-allow: arte gamificada
+                            .foregroundStyle(TrailWorld.fireflyWarm)
+                            .frame(width: 26, height: 26)
+                            .background(
+                                RoundedRectangle(cornerRadius: VitaTokens.Radius.sm, style: .continuous)
+                                    .fill(TrailWorld.fireflyWarm.opacity(0.14))
+                            )
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(s.title)
+                                .font(.system(size: 13, weight: .semibold))  // ds-allow: arte gamificada
+                                .foregroundStyle(Color(red: 0.93, green: 0.88, blue: 0.78))  // ds-allow: arte gamificada
+                                .lineLimit(1)
+                            Text("\(s.current) de \(s.total)")
+                                .font(.system(size: 11))  // ds-allow: arte gamificada
+                                .foregroundStyle(Color(red: 0.68, green: 0.62, blue: 0.52))  // ds-allow: arte gamificada
+                        }
+                        Spacer(minLength: 0)
+                        Text("Retomar")
+                            .font(.system(size: 11, weight: .semibold))  // ds-allow: arte gamificada
+                            .foregroundStyle(TrailWorld.fireflyWarm)
+                    }
+                    .padding(.vertical, 7)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                if idx < sessoesAtivas.count - 1 {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.06))
+                        .frame(height: 1)
+                        .padding(.leading, 38)
+                }
+            }
+        }
+        .padding(.horizontal, VitaTokens.Spacing.md)
+        .padding(.vertical, VitaTokens.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .vidroLiquido()
+    }
+
+    private func iconeSessao(_ s: ActiveStudySession) -> String {
+        switch s.kind {
+        case .flashcards: return "rectangle.on.rectangle.angled"
+        case .simulado:   return "list.clipboard"
+        default:          return "checkmark.square"
         }
     }
 
@@ -174,6 +264,8 @@ struct TrailTopPlaca: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("trail_moedas")
             .accessibilityLabel("\(moedas) moedas")
+
+            botaoSessoes
 
             Spacer(minLength: 0)
             divisor
@@ -379,6 +471,42 @@ struct TrailTopPlaca: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Seção \(tierNumero), \(tierNome)")
         .devTag("Chip da seção atual (topnav)")
+    }
+
+    /// Treinos em andamento: apagado quando não há nenhum, aceso (com o ponto
+    /// de aviso) quando há. Toque abre a gaveta com eles. É o lar permanente do
+    /// "Em andamento" — o card flutuante pode ser escondido, este fica
+    /// (Rafael 2026-07-24).
+    private var botaoSessoes: some View {
+        let tem = !sessoesAtivas.isEmpty
+        return Button {
+            guard tem else { return }
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                gavetaSessoes.toggle()
+                if gavetaSessoes { gavetaAberta = false }   // uma gaveta por vez
+            }
+        } label: {
+            Image(systemName: "book.pages.fill")
+                .font(.system(size: 17, weight: .semibold))  // ds-allow: arte gamificada (mundo da trilha)
+                .foregroundStyle(tem ? TrailWorld.fireflyWarm : Color(red: 0.55, green: 0.49, blue: 0.40))  // ds-allow: arte gamificada
+                .opacity(tem ? 1 : 0.45)
+                .overlay(alignment: .topTrailing) {
+                    if tem {
+                        Circle()
+                            .fill(Self.brasa)
+                            .frame(width: 6, height: 6)
+                            .shadow(color: Self.brasa.opacity(0.9), radius: 3)
+                            .offset(x: 3, y: -2)
+                    }
+                }
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!tem)
+        .accessibilityIdentifier("trail_sessoes")
+        .accessibilityLabel(tem ? "\(sessoesAtivas.count) treino(s) em andamento" : "Nenhum treino em andamento")
+        .devTag("Ícone de treinos em andamento (topnav)")
     }
 
     /// Fogo com miolo quente — o flame.fill chapado some contra a madeira.

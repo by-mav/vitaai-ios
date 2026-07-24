@@ -748,7 +748,9 @@ struct MainTabView: View {
                     withAnimation(.spring(response: 0.42, dampingFraction: 0.88)) {
                         showSettingsPanel = true
                     }
-                }
+                },
+                sessoesAtivas: activeSessionsVM?.sessions ?? [],
+                aoRetomarSessao: resumeStudySession
             )
         case .estudos:
             EstudosScreen(
