@@ -93,12 +93,14 @@ struct VitaCortinaAtividade: View {
     /// Quanto precisa empurrar ALÉM da borda pra recolher (evita recolher sem querer).
     private let empurraoParaRecolher: Double = 22
 
-    /// No máximo um por tipo, o mais recente de cada.
+    /// O backend só permite UMA sessão aberta por classe — questões, flashcards
+    /// e simulado, uma tabela cada (`enforceSingleOpenSession` barra a segunda).
+    /// Logo isto NÃO escolhe "a mais recente de cada": a lista já é a única de
+    /// cada classe. O filtro por `engine` (a classe de verdade) é só uma trava
+    /// pra nunca desenhar duas da mesma (Rafael 2026-07-24).
     private var sessoesUnicas: [ActiveStudySession] {
-        var tipos = Set<ActiveStudySessionKind>()
-        return sessoes
-            .sorted { $0.updatedAt > $1.updatedAt }
-            .filter { tipos.insert($0.kind).inserted }
+        var classes = Set<ActiveStudySessionEngine>()
+        return sessoes.filter { classes.insert($0.engine).inserted }
     }
 
     private var total: Int { sessoesUnicas.count + extras.count }
