@@ -63,6 +63,10 @@ struct HomeScreen: View {
     @State private var pulse = false
     @State private var hop = false
     @State private var mascotLevel: Int = 1
+    /// Taxonomia canônica: os `groups` do QBank (nível 1 = as 6 áreas, cada uma
+    /// com children = disciplinas). Medido: a árvore vem em `groups`, não em
+    /// `disciplines` (que vem vazio).
+    @State private var gruposAreas: [QBankGroup] = []
     @State private var scrollStageID: String?
     @State private var isTrailHydrated = false
     @State private var didAutoOpenShop = false   // QA: --vita-shop-preview abre a loja só 1× (evita loop ao voltar)
@@ -446,6 +450,7 @@ struct HomeScreen: View {
                     let unlocked = userLevel >= unlock
                     Semi3DHouse(kind: Self.houseKind(landmark), open: unlocked, level: unlock)
                         .frame(width: 210, height: 210)
+                        .devTag("Casa da trilha (\(Self.houseKind(landmark)))")
                         .transaction { $0.animation = nil }   // estático (mata o bob do ScrollView)
                         .overlay(alignment: .center) {
                             if !unlocked {
@@ -541,6 +546,7 @@ struct HomeScreen: View {
                                 await hydrateTrailIfNeeded()
                                 await vmProg.loadIfNeeded()
                                 await dash.loadDashboard()
+                                await carregarArvoreDisciplinas()
                                 ScreenLoadContext.finish(for: "Progresso")
                             }
                             .onChange(of: userLevel) { _, newLevel in
@@ -756,7 +762,7 @@ struct HomeScreen: View {
                     let archX = geo.size.width / 2 + CGFloat(sin(i * Self.rowFreq)) * Self.rowAmp
                     // Portão aberto = já alcançou este mundo. Seção 1 (minLevel 0) sempre aberta.
                     let unlocked = gatesForceOpen || userLevel >= Self.tiers[k].minLevel
-                    TrailSectionWall(archX: archX, tier: Self.tiers[k], number: k + 1, isOpen: unlocked)
+                    TrailSectionWall(archX: archX, tier: Self.tiers[k], isOpen: unlocked)
                         .frame(width: geo.size.width, height: 132)
                         .position(x: geo.size.width / 2,
                                   // ponto médio entre o último nó da seção anterior e o
@@ -1081,16 +1087,40 @@ struct HomeScreen: View {
             filtroSimbolo: filtroSimboloJornada,
             diasSeguidos: dash.streakDays,
             moedas: skins.balance,
-            aoTocarFiltro: onAbrirFiltro,
+            tierNumero: currentTierIdx + 1,
+            tierNome: Self.tiers[currentTierIdx].name,
+            tierCor: Self.tiers[currentTierIdx].bright,
             aoTocarOfensiva: { router.navigate(to: .ofensiva) },
             aoTocarMoedas: {
                 router.navigate(to: .skinAppearance(shopTier: max(0, min(4, currentStage.tierIdx))))
             },
-            aoTocarMenu: onAbrirMenu
+            aoTocarMenu: onAbrirMenu,
+            disciplinasPorArea: disciplinasPorAreaMap,
+            aoSelecionarDisciplina: { _ in }   // TODO: filtrar a trilha pela disciplina
         )
         .padding(.horizontal, 12)
         .padding(.top, 12)
         .opacity(isTrailHydrated ? 1 : 0)
+    }
+
+    /// Disciplinas REAIS por área (slug → lista), da TAXONOMIA canônica (`groups`
+    /// do QBank: nível 1 = as 6 áreas, children = disciplinas). Mesma fonte do
+    /// QBank/Simulado, então nunca defasa; nada hardcoded. É propriedade (não
+    /// closure): quando `gruposAreas` chega do backend, o dict muda e a placa
+    /// re-renderiza — a seção preenche sozinha.
+    private var disciplinasPorAreaMap: [String: [DisciplinaDaArea]] {
+        Dictionary(uniqueKeysWithValues: gruposAreas.map { grupo in
+            (grupo.slug, grupo.children.map {
+                DisciplinaDaArea(slug: $0.slug, nome: $0.name, acerto: nil)  // % real depois
+            })
+        })
+    }
+
+    private func carregarArvoreDisciplinas() async {
+        guard gruposAreas.isEmpty else { return }
+        if let f = try? await container.api.getQBankFilters() {
+            gruposAreas = f.groups
+        }
     }
 
     private var mascot: some View {
@@ -1099,6 +1129,7 @@ struct HomeScreen: View {
         // Na TRILHA tem comportamento próprio: bounceEnabled=false (NÃO fica pulando
         // toda hora — só flutua/pisca/olha, calmo). TODO: saltar de nó em nó ao upar.
         VitaMascotEquipped(state: .awake, size: 58, bounceEnabled: false)
+            .devTag("Mascote Vita")
     }
 
     // MARK: - Estado + ações
@@ -1989,7 +2020,6 @@ private struct TrailRoad: Shape {
 private struct TrailSectionWall: View {
     let archX: CGFloat
     let tier: HomeScreen.Tier
-    let number: Int
     var isOpen: Bool = false
 
     private let wallY: CGFloat = 66   // centro vertical da muralha no componente
@@ -2003,7 +2033,9 @@ private struct TrailSectionWall: View {
                 rampart(width: w, gap: gap)
                 pillar(at: archX - gap)
                 pillar(at: archX + gap)
-                wallInscription(width: w, gap: gap)   // texto GRAVADO na pedra
+                // Sem inscrição na muralha: a seção/tier agora vive no chip da
+                // topnav (ao lado da maleta). Atrás do vidro glass o texto gravado
+                // "vazava" e sujava a leitura do mapa (Rafael 2026-07-24).
             }
             .animation(.easeInOut(duration: 0.85), value: isOpen)
         }
@@ -2053,28 +2085,6 @@ private struct TrailSectionWall: View {
         .frame(width: len, alignment: .top)
         .position(x: x0 + len / 2, y: wallY)
         .shadow(color: .black.opacity(0.42), radius: 7, y: 6)
-    }
-
-    // MARK: nome GRAVADO na pedra do muro (sem card) — no maior segmento, ao lado do portão.
-    private func wallInscription(width w: CGFloat, gap: CGFloat) -> some View {
-        // maior segmento = lado oposto ao portão
-        let leftLen = max(0, archX - gap)
-        let rightLen = max(0, w - (archX + gap))
-        let onLeft = leftLen >= rightLen
-        let segLen = onLeft ? leftLen : rightLen
-        let cx = onLeft ? leftLen / 2 : (archX + gap) + rightLen / 2
-        // Lettering de monumento: marfim quente ENTALHADO na pedra (sombra escura
-        // em cima = recesso, luz fraca embaixo = aresta iluminada). Lê em qualquer
-        // cor de seção; sem o ouro que abafava no verde (Rafael 2026-07-05).
-        return Text("SEÇÃO \(number) · \(tier.name.uppercased())")
-            .font(.system(size: 11, weight: .black)).kerning(0.5) // ds-allow: inscrição gravada na muralha (arte), não UI
-            .foregroundStyle(Color(red: 0.96, green: 0.93, blue: 0.85))   // marfim quente // ds-allow: inscrição gravada na muralha (arte), não UI
-            .shadow(color: .black.opacity(0.55), radius: 0, y: 1.2)       // recesso (entalhe)
-            .shadow(color: .white.opacity(0.12), radius: 0, y: -0.6)      // aresta iluminada
-            .frame(width: max(40, segLen - 12))
-            .minimumScaleFactor(0.7)
-            .lineLimit(1)
-            .position(x: cx, y: wallY)
     }
 
     // MARK: portão (2 batentes que DESLIZAM pro lado e somem atrás do muro)

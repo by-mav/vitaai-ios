@@ -351,7 +351,7 @@ struct FlashcardBuilderScreen: View {
     private func downloadControl(_ disc: FlashcardLibraryDiscipline) -> some View {
         let state = downloads.state(for: disc.slug)
         switch state {
-        case .downloading(let fraction):
+        case .downloading(let progress):
             Button {
                 downloads.cancel(slug: disc.slug)
             } label: {
@@ -359,7 +359,7 @@ struct FlashcardBuilderScreen: View {
                     Circle()
                         .stroke(VitaColors.glassBorder, lineWidth: 2)
                     Circle()
-                        .trim(from: 0, to: max(0.02, fraction))
+                        .trim(from: 0, to: max(0.02, progress.fraction))
                         .stroke(VitaColors.accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     Image(systemName: "stop.fill")  // ds-allow: cancelar dentro do anel

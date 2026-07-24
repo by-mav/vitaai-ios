@@ -49,14 +49,16 @@ struct StudyMaterialPicker: View {
 
     @State private var docs: [VitaDocument] = []
     @State private var selected: Set<String> = []         // ids de docs marcados
-    @State private var activeSubjects: Set<String> = []   // pastas ligadas como filtro
+    @State private var openedSubject: String?             // nil = grid de disciplinas
     @State private var searchText = ""
+    @State private var displayedDocumentLimit = 30
     @State private var isLoading = true
     @State private var loadError: String?
     @State private var phase: Phase = .picking
     @State private var progressText = ""
     @State private var result: Result?
     @State private var showFileImporter = false
+    @State private var showConnections = false
 
     private enum Phase: Equatable {
         case picking, working, done, failed(String)
@@ -93,6 +95,11 @@ struct StudyMaterialPicker: View {
             DocumentPickerView(allowedTypes: [.pdf, .jpeg, .png]) { url in
                 importPickedFile(url)
             }
+        }
+        .fullScreenCover(isPresented: $showConnections, onDismiss: {
+            Task { await load() }
+        }) {
+            ConnectionsScreen(onBack: { showConnections = false })
         }
         .task {
             // Auto-start (botão rápido num material recente): já entra gerando
@@ -171,53 +178,82 @@ struct StudyMaterialPicker: View {
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
-                SectionHeader(title: "Disciplinas")
-                foldersGrid
-                GlassTextField(placeholder: "Buscar material", text: $searchText, icon: "magnifyingglass")
-                    .padding(.horizontal, VitaTokens.Spacing.xl)
-                SectionHeader(
-                    title: "Materiais",
-                    subtitle: selected.isEmpty ? nil : "\(selected.count) selecionados"
+            LazyVStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
+                GlassTextField(
+                    placeholder: "Buscar material",
+                    text: $searchText,
+                    icon: "magnifyingglass"
                 )
-                docsList
+                .padding(.horizontal, VitaTokens.Spacing.xl)
+
+                if let subject = openedSubject {
+                    subjectBackButton
+
+                    SectionHeader(
+                        title: subject,
+                        subtitle: materialCountSubtitle
+                    )
+                    docsList
+                } else if normalizedSearch.isEmpty {
+                    SectionHeader(title: "Disciplinas")
+                    foldersGrid
+                } else {
+                    SectionHeader(
+                        title: "Resultados",
+                        subtitle: materialCountSubtitle
+                    )
+                    docsList
+                }
             }
             .padding(.vertical, VitaTokens.Spacing.md)
             .padding(.bottom, 112)
         }
         .accessibilityIdentifier("study_material_scroll")
+        .onChange(of: searchText) { _, _ in resetDocumentPage() }
+        .onChange(of: openedSubject) { _, _ in resetDocumentPage() }
     }
 
-    // Grid de pastas — tap liga/desliga a disciplina como filtro da lista abaixo.
+    private var subjectBackButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                openedSubject = nil
+                searchText = ""
+            }
+        } label: {
+            Label("Voltar às disciplinas", systemImage: "chevron.left")  // ds-allow: WIP consolidado 2026-07-24 (revisar token depois)
+                .font(VitaTypography.labelMedium)
+                .foregroundStyle(VitaColors.accent)
+                .frame(minHeight: 44)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, VitaTokens.Spacing.xl)
+        .accessibilityIdentifier("study_material_subject_back")
+    }
+
+    // Tela raiz: só disciplinas. O conteúdo da pasta vive numa sublista própria.
     private var foldersGrid: some View {
         LazyVGrid(
             columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
             spacing: 12
         ) {
-            ForEach(groups) { group in
-                let isActive = activeSubjects.contains(group.subject)
+            ForEach(filteredGroups) { group in
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
-                        if isActive { activeSubjects.remove(group.subject) }
-                        else { activeSubjects.insert(group.subject) }
+                        openedSubject = group.subject
+                        searchText = ""
                     }
                 } label: {
                     VStack(spacing: VitaTokens.Spacing.xs) {
                         DisciplineFolderCard(subjectName: group.subject, itemCount: 0, onMenu: nil)
                             .overlay(alignment: .topTrailing) { countBadge(group) }
-                            .overlay {
-                                if isActive {
-                                    RoundedRectangle(cornerRadius: VitaTokens.Radius.md, style: .continuous)
-                                        .stroke(VitaColors.accent.opacity(0.9), lineWidth: 1.5)
-                                }
-                            }
                         Text("\(group.docs.count) PDFs")
                             .font(VitaTypography.labelSmall)
-                            .foregroundStyle(isActive ? VitaColors.accentLight : VitaColors.textTertiary)
+                            .foregroundStyle(VitaColors.textTertiary)
                     }
-                    .opacity(activeSubjects.isEmpty || isActive ? 1 : 0.45)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("\(group.subject), \(group.docs.count) materiais")
+                .accessibilityHint("Abre os materiais desta disciplina")
             }
         }
         .padding(.horizontal, VitaTokens.Spacing.xl)
@@ -253,7 +289,7 @@ struct StudyMaterialPicker: View {
             .padding(.vertical, VitaTokens.Spacing._2xl)
         } else {
             LazyVStack(spacing: VitaTokens.Spacing.sm) {
-                ForEach(visibleDocs) { doc in
+                ForEach(displayedDocs) { doc in
                     Button {
                         toggle(doc.id)
                     } label: {
@@ -265,6 +301,19 @@ struct StudyMaterialPicker: View {
                     .accessibilityLabel(doc.title)
                     .accessibilityValue(selected.contains(doc.id) ? "Selecionado" : "Não selecionado")
                     .padding(.horizontal, VitaTokens.Spacing.xl)
+                }
+
+                if displayedDocs.count < visibleDocs.count {
+                    ProgressView()
+                        .tint(VitaColors.accent)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .accessibilityLabel("Carregando mais materiais")
+                        .onAppear {
+                            displayedDocumentLimit = min(
+                                displayedDocumentLimit + 30,
+                                visibleDocs.count
+                            )
+                        }
                 }
             }
         }
@@ -284,7 +333,7 @@ struct StudyMaterialPicker: View {
                     .multilineTextAlignment(.leading)
                 HStack(spacing: VitaTokens.Spacing.xs) {
                     Text(fileExt(doc))
-                    if activeSubjects.isEmpty, let subject = doc.subjectName {
+                    if openedSubject == nil, let subject = doc.subjectName {
                         Text("·")
                         Text(subject).lineLimit(1)
                     }
@@ -401,15 +450,42 @@ struct StudyMaterialPicker: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: VitaTokens.Spacing.sm) {
+        VStack(spacing: VitaTokens.Spacing.md) {
             Spacer()
             Image(systemName: "folder.badge.questionmark")  // ds-allow: ícone empty state
                 .font(.system(size: 34))  // ds-allow: empty
                 .foregroundStyle(VitaColors.textTertiary)
             Text("Nenhum material na tua biblioteca ainda")
-                .font(VitaTypography.bodyMedium)
+                .font(VitaTypography.titleSmall)
+                .foregroundStyle(VitaColors.textPrimary)
+                .multilineTextAlignment(.center)
+
+            Text("Conecta teu portal para importar as disciplinas e os materiais automaticamente.")
+                .font(VitaTypography.bodySmall)
                 .foregroundStyle(VitaColors.textSecondary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VitaButton(
+                text: "Conectar Canvas ou Moodle",
+                action: { showConnections = true },
+                variant: .primary,
+                size: .md,
+                leadingSystemImage: "link",
+                fillsWidth: true
+            )
+            .frame(maxWidth: 320)
+            .accessibilityIdentifier("study_material_connect_portal")
+
+            Button {
+                showFileImporter = true
+            } label: {
+                Label("Enviar um arquivo", systemImage: "doc.badge.plus")  // ds-allow: WIP consolidado 2026-07-24 (revisar token depois)
+                    .font(VitaTypography.labelMedium)
+                    .foregroundStyle(VitaColors.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("study_material_empty_upload")
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -447,20 +523,47 @@ struct StudyMaterialPicker: View {
         }
     }
 
-    /// Lista reage às pastas ligadas + busca. Nenhuma pasta ligada = todos os docs.
+    private var normalizedSearch: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var filteredGroups: [Group] {
+        guard !normalizedSearch.isEmpty else { return groups }
+        return groups.filter { group in
+            group.subject.lowercased().contains(normalizedSearch)
+                || group.docs.contains { $0.title.lowercased().contains(normalizedSearch) }
+        }
+    }
+
+    /// A lista só existe dentro de uma disciplina ou durante uma busca global.
     private var visibleDocs: [VitaDocument] {
-        let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         return docs
             .filter { doc in
-                activeSubjects.isEmpty || activeSubjects.contains(doc.subjectName ?? "Sem matéria")
+                guard let openedSubject else { return true }
+                return (doc.subjectName ?? "Sem matéria") == openedSubject
             }
             .filter { doc in
-                q.isEmpty || doc.title.lowercased().contains(q)
-                    || (doc.subjectName?.lowercased().contains(q) ?? false)
+                normalizedSearch.isEmpty || doc.title.lowercased().contains(normalizedSearch)
+                    || (doc.subjectName?.lowercased().contains(normalizedSearch) ?? false)
             }
             .sorted {
                 ($0.subjectName ?? "", $0.title) < ($1.subjectName ?? "", $1.title)
             }
+    }
+
+    private var displayedDocs: [VitaDocument] {
+        Array(visibleDocs.prefix(displayedDocumentLimit))
+    }
+
+    private var materialCountSubtitle: String? {
+        guard !visibleDocs.isEmpty else { return nil }
+        let count = visibleDocs.count
+        let base = count == 1 ? "1 material" : "\(count) materiais"
+        return selected.isEmpty ? base : "\(base) · \(selected.count) selecionados"
+    }
+
+    private func resetDocumentPage() {
+        displayedDocumentLimit = 30
     }
 
     private func selectedCount(in g: Group) -> Int {
@@ -515,11 +618,10 @@ struct StudyMaterialPicker: View {
         isLoading = true; loadError = nil
         do {
             docs = try await container.api.getDocuments()
-            // Veio de uma disciplina → já abre com a pasta dela ligada (o aluno
-            // vê primeiro o material daquela matéria, não tudo).
-            if activeSubjects.isEmpty, let s = initialSubjectName,
+            // Veio de uma disciplina → já abre dentro da pasta correspondente.
+            if openedSubject == nil, let s = initialSubjectName,
                docs.contains(where: { $0.subjectName == s }) {
-                activeSubjects = [s]
+                openedSubject = s
             }
         }
         catch { loadError = "Não foi possível carregar teus materiais." }

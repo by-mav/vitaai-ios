@@ -61,6 +61,7 @@ struct SimuladoResultScreen: View {
             let answered = vm.state.questions.filter { vm.state.answers[$0.id] != nil }
             return answered.filter { q in vm.state.answers[q.id] != q.correctIdx }.count
         }()
+        let answeredQ = correctQ + erradas
         let elapsed = Date().timeIntervalSince(vm.state.sessionStartDate)
         let wrongQs = vm.state.questions.filter { q in
             guard let chosen = vm.state.answers[q.id] else { return false }
@@ -75,6 +76,7 @@ struct SimuladoResultScreen: View {
             totalQ: totalQ,
             correctQ: correctQ,
             erradas: erradas,
+            answeredQ: answeredQ,
             elapsedSeconds: elapsed,
             wrongQs: wrongQs,
             xpSummary: matchingSummary,
@@ -122,6 +124,7 @@ private struct ResultBodyView: View {
     let totalQ: Int
     let correctQ: Int
     let erradas: Int
+    let answeredQ: Int
     let elapsedSeconds: TimeInterval
     @Binding var animatedProgress: Double
     let wrongQs: [SimuladoQuestionEntry]
@@ -133,6 +136,7 @@ private struct ResultBodyView: View {
         totalQ: Int,
         correctQ: Int,
         erradas: Int,
+        answeredQ: Int,
         elapsedSeconds: TimeInterval,
         wrongQs: [SimuladoQuestionEntry],
         xpSummary: GamificationEventManager.StudySessionXpSummary?,
@@ -143,6 +147,7 @@ private struct ResultBodyView: View {
         self.totalQ = totalQ
         self.correctQ = correctQ
         self.erradas = erradas
+        self.answeredQ = answeredQ
         self.elapsedSeconds = elapsedSeconds
         self.wrongQs = wrongQs
         self.xpSummary = xpSummary
@@ -172,6 +177,7 @@ private struct ResultBodyView: View {
     }
 
     private var scoreTitle: String {
+        if answeredQ == 0 { return "Simulado sem respostas" }
         if pct >= 70 { return "Excelente desempenho!" }
         if pct >= 50 { return "Bom resultado!" }
         return "Continue praticando"
@@ -289,7 +295,9 @@ private struct ResultBodyView: View {
                 .kerning(-0.04 * 22)
                 .foregroundStyle(titleColor)
             // Subtitle
-            Text("\(correctQ) de \(totalQ) questões corretas")
+            Text(answeredQ == 0
+                ? "Nenhuma questão foi respondida"
+                : "\(correctQ) de \(answeredQ) respondidas corretas")
                 .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(VitaColors.textWarm.opacity(0.40))
                 .padding(.top, 6)
@@ -323,10 +331,14 @@ private struct ResultBodyView: View {
     @ViewBuilder
     private var wrongQuestionsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if wrongQs.isEmpty {
-                // All correct card
+            if answeredQ == 0 {
+                resultNotice(
+                    "Este simulado foi encerrado sem respostas. Ele não conta no seu desempenho.",
+                    color: VitaColors.textWarm.opacity(0.72)
+                )
+            } else if answeredQ == totalQ && correctQ == totalQ && totalQ > 0 {
                 HStack {
-                    Text("Parabens! Você acertou todas as questões.")
+                    Text("Parabéns! Você acertou todas as questões.")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Color(red: 130/255, green: 220/255, blue: 140/255).opacity(0.90))
                 }
@@ -349,6 +361,11 @@ private struct ResultBodyView: View {
                     RoundedRectangle(cornerRadius: 14)
                         .stroke(VitaColors.accentHover.opacity(0.08), lineWidth: 1)
                 )
+            } else if wrongQs.isEmpty {
+                resultNotice(
+                    "Você acertou as \(answeredQ) questões respondidas; \(max(0, totalQ - answeredQ)) ficaram sem resposta.",
+                    color: Color(red: 255/255, green: 210/255, blue: 130/255).opacity(0.88)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                )
             } else {
                 // Section label
                 Text("Questões para revisar")
@@ -365,13 +382,26 @@ private struct ResultBodyView: View {
         }
     }
 
+    private func resultNotice(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 14, weight: .medium))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            .foregroundStyle(color)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.03)))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .stroke(VitaColors.accentHover.opacity(0.08), lineWidth: 1)
+            )
+    }
+
     // MARK: Action Buttons
 
     private var actionButtons: some View {
         VStack(spacing: 8) {
             // Gold primary button
             Button(action: onNewSimulado) {
-                Text("Novo Simulado")
+                Text("Escolher outro simulado")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(Color(red: 255/255, green: 255/255, blue: 255/255).opacity(0.96))
                     .frame(maxWidth: .infinity)
@@ -407,7 +437,7 @@ private struct ResultBodyView: View {
 
             // Ghost secondary button
             Button(action: onBack) {
-                Text("Voltar ao Início")
+                Text("Voltar aos simulados")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(VitaColors.textWarm.opacity(0.55))
                     .frame(maxWidth: .infinity)

@@ -33,6 +33,15 @@ final class Router {
             default: break
             }
         }
+
+        #if DEBUG
+        if let i = args.firstIndex(of: "--vita-capture-route"),
+           i + 1 < args.count,
+           let route = Route.captureRoute(named: args[i + 1]) {
+            path.append(route)
+            routeStack.append(route)
+        }
+        #endif
     }
 
     /// Sync routeStack when NavigationPath changes externally (e.g. swipe-back gesture)

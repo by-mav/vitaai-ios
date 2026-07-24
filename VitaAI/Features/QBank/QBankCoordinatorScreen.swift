@@ -75,9 +75,13 @@ struct QBankCoordinatorScreen: View {
             })
 
         case .session:
-            QBankSessionContent(vm: vm, onBack: {
-                vm.goToHome()
-            })
+            if vm.state.mode == .simulado {
+                QBankSimuladoSessionScreen(vm: vm, onBack: onHome ?? onBack)
+            } else {
+                QBankSessionContent(vm: vm, onBack: {
+                    vm.goToHome()
+                })
+            }
 
         case .result:
             QBankResultContent(vm: vm, onBack: onHome ?? onBack, onNewSession: {

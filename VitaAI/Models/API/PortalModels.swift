@@ -258,7 +258,7 @@ struct AcademicSubject: Codable, Identifiable {
     var status: String?
     var source: String?
     var difficulty: String?
-    /// Canonical discipline slug from vita.disciplines (96-row catalog).
+    /// Canonical discipline slug from the Vita 6/56/1,130 taxonomy.
     /// Nullable while the normalizer hasn't mapped this subject yet.
     var disciplineSlug: String?
     /// Canonical name from vita.disciplines, joined on disciplineSlug.

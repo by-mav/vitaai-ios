@@ -13,11 +13,49 @@ import Observation
 final class DeckDownloadManager {
     static let shared = DeckDownloadManager()
 
+    /// Progresso rico o bastante pra o aluno DECIDIR se espera ou desiste
+    /// (Rafael 2026-07-20: "não mostrou porcentagem, nem velocidade, nem
+    /// tamanho, nem sei se baixou — o usuário fica perdido"). Só a fração 0…1
+    /// não basta: sem bytes e sem velocidade, um download parado e um lento
+    /// são idênticos na tela.
+    struct Progress: Equatable {
+        let fraction: Double        // 0…1
+        let received: Int64         // bytes já baixados
+        let total: Int64            // bytes totais (0 = servidor não informou)
+        let bytesPerSecond: Double  // velocidade média da janela recente
+
+        /// "12,4 MB de 33,4 MB" — o que o aluno lê.
+        var sizeText: String {
+            let f = ByteCountFormatter()
+            f.countStyle = .file
+            let r = f.string(fromByteCount: received)
+            return total > 0 ? "\(r) de \(f.string(fromByteCount: total))" : r
+        }
+
+        /// "2,1 MB/s" — vazio quando ainda não dá pra estimar.
+        var speedText: String {
+            guard bytesPerSecond > 1024 else { return "" }
+            let f = ByteCountFormatter()
+            f.countStyle = .file
+            return "\(f.string(fromByteCount: Int64(bytesPerSecond)))/s"
+        }
+
+        /// "faltam ~8s" — só quando há total e velocidade confiáveis.
+        var etaText: String {
+            guard total > 0, bytesPerSecond > 1024 else { return "" }
+            let restam = Double(total - received) / bytesPerSecond
+            guard restam.isFinite, restam > 0 else { return "" }
+            if restam < 60 { return "faltam ~\(Int(restam.rounded()))s" }
+            return "faltam ~\(Int((restam / 60).rounded()))min"
+        }
+    }
+
     enum State: Equatable {
         case idle
-        /// Baixando os bytes do pack (0...1).
-        case downloading(Double)
-        /// Baixou; extraindo/instalando no device (sem fração — é rápido e local).
+        /// Baixando os bytes do pack — com números, não só a barra.
+        case downloading(Progress)
+        /// Baixou; extraindo/instalando no device. É local e rápido, mas PRECISA
+        /// aparecer: sem isso a barra chega em 100% e a tela congela sem explicar.
         case installing
         case failed(String)
     }
@@ -50,15 +88,15 @@ final class DeckDownloadManager {
 
     func download(slug: String, title: String, tokenStore: TokenStore) {
         guard tasks[slug] == nil else { return }
-        states[slug] = .downloading(0)
+        states[slug] = .downloading(.init(fraction: 0, received: 0, total: 0, bytesPerSecond: 0))
         tasks[slug] = Task { [weak self] in
             defer { Task { @MainActor in self?.tasks[slug] = nil } }
             do {
                 let (packURL, version) = try await Self.fetchPack(
                     slug: slug,
                     token: await tokenStore.token,
-                    onProgress: { fraction in
-                        Task { @MainActor in self?.states[slug] = .downloading(fraction) }
+                    onProgress: { progresso in
+                        Task { @MainActor in self?.states[slug] = .downloading(progresso) }
                     }
                 )
                 if Task.isCancelled { return }
@@ -103,7 +141,7 @@ final class DeckDownloadManager {
     private static func fetchPack(
         slug: String,
         token: String?,
-        onProgress: @escaping (Double) -> Void
+        onProgress: @escaping (DeckDownloadManager.Progress) -> Void
     ) async throws -> (URL, String) {
         guard let url = URL(string: "\(AppConfig.apiBaseURL)/study/flashcards/library/\(slug)/pack") else {
             throw APIError.invalidURL
@@ -142,10 +180,19 @@ final class DeckDownloadManager {
     }
 }
 
-/// Progresso do download (espelho do delegate do Atlas 3D).
+/// Progresso do download. O sistema JÁ entrega bytes recebidos e total a cada
+/// pedaço — antes a gente descartava isso e repassava só a fração, e a tela não
+/// tinha como mostrar tamanho nem velocidade. Aqui aproveitamos tudo e medimos
+/// a taxa numa janela curta (média instantânea oscila demais pra ser lida).
 private final class PackDownloadDelegate: NSObject, URLSessionDownloadDelegate {
-    private let onProgress: (Double) -> Void
-    init(onProgress: @escaping (Double) -> Void) { self.onProgress = onProgress }
+    private let onProgress: (DeckDownloadManager.Progress) -> Void
+    private var janelaInicio = Date()
+    private var janelaBytes: Int64 = 0
+    private var taxa: Double = 0
+
+    init(onProgress: @escaping (DeckDownloadManager.Progress) -> Void) {
+        self.onProgress = onProgress
+    }
 
     func urlSession(
         _ session: URLSession,
@@ -154,8 +201,24 @@ private final class PackDownloadDelegate: NSObject, URLSessionDownloadDelegate {
         totalBytesWritten: Int64,
         totalBytesExpectedToWrite: Int64
     ) {
-        guard totalBytesExpectedToWrite > 0 else { return }
-        onProgress(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+        // Velocidade por janela de ~0,5s: suaviza o serrilhado sem parecer travada.
+        janelaBytes += bytesWritten
+        let decorrido = Date().timeIntervalSince(janelaInicio)
+        if decorrido >= 0.5 {
+            let nova = Double(janelaBytes) / decorrido
+            // média móvel leve — evita o número pulando a cada atualização
+            taxa = taxa == 0 ? nova : (taxa * 0.6 + nova * 0.4)
+            janelaBytes = 0
+            janelaInicio = Date()
+        }
+
+        // `totalBytesExpectedToWrite` vem -1 quando o servidor não manda tamanho;
+        // nesse caso ainda mostramos os bytes baixados (melhor que 0% mudo).
+        let total = max(totalBytesExpectedToWrite, 0)
+        let fracao = total > 0 ? Double(totalBytesWritten) / Double(total) : 0
+        onProgress(
+            .init(fraction: fracao, received: totalBytesWritten, total: total, bytesPerSecond: taxa)
+        )
     }
 
     // Exigido pelo protocolo; o arquivo é entregue pelo await session.download.

@@ -100,6 +100,9 @@ struct QBankPreviewBody: Encodable {
     /// Nivel 3 — tema (`vita.qbank_topics`).
     var topicIds: [Int]?
     var years: QBankPreviewYears?
+    /// Anos marcados avulsos. Vence a faixa `years` no backend — a faixa
+    /// traria os anos do meio que o aluno não pediu.
+    var yearList: [Int]?
     var difficulties: [String]?
     var format: [String]?
     var hideAnswered: Bool?
@@ -672,6 +675,9 @@ struct QBankProgressResponse: Decodable {
     var totalAnswered: Int = 0
     var totalCorrect: Int = 0
     var accuracy: Double = 0
+    /// Segundos médios por questão respondida. Backend já descarta leituras
+    /// absurdas (>30 min numa questão). Nil = ainda não há respostas medidas.
+    var avgResponseSeconds: Double? = nil
     var byDifficulty: [QBankProgressByDifficulty] = []
     var byTopic: [QBankProgressByTopic] = []
     /// Desempenho por ÁREA (6 grandes áreas) → disciplinas canônicas. A fonte

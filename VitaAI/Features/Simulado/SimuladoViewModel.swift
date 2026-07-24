@@ -254,6 +254,7 @@ final class SimuladoViewModel {
     func loadSession(_ attemptId: String) {
         Task {
             state.isLoading = true
+            state.result = nil
             do {
                 let attempt = try await api.getSimulado(id: attemptId)
                 if !attempt.id.isEmpty {
@@ -283,8 +284,9 @@ final class SimuladoViewModel {
                     } ?? max(0, attempt.questions.count - 1)
                     state.sessionStartDate = now
                     state.questionStartDate = now
-                    // Restore result for finished attempts
-                    if attempt.finishedAt != nil {
+                    // A legacy attempt can have been closed without a single answer.
+                    // Never turn that abandoned session into a fake 0% result.
+                    if attempt.finishedAt != nil, !answered.isEmpty {
                         state.result = FinishSimuladoResponse(
                             id: attempt.id,
                             correctQ: attempt.correctQ,

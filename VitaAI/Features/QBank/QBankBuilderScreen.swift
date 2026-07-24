@@ -47,7 +47,8 @@ struct QBankBuilderScreen: View {
                     QBankBuilderHeader(
                         onBack: onBack,
                         onCreate: { showStudioImport = true },
-                        onHistory: { activeSheet = .recents }
+                        onHistory: { activeSheet = .recents },
+                        onFavorites: { activeSheet = .favorites }
                     )
 
                     // 1. Hero
@@ -82,52 +83,52 @@ struct QBankBuilderScreen: View {
 
                     secondaryFilters(vm: vm)
 
-                    // 3. Quantidade e modo são controles globais da sessão.
-                    quantitySection(vm: vm)
-                        .padding(.horizontal, 16)
-
-                    modeSection(vm: vm)
-                        .padding(.horizontal, 16)
-
-                    // 4. Conteúdo e histórico em camadas dedicadas.
-                    quickAccessSection(vm: vm)
-                        .padding(.horizontal, 16)
-
+                    // Quantidade, modo e o card "Conteúdo" SAÍRAM daqui
+                    // (Rafael 2026-07-20): esta página é só o FILTRO — o que
+                    // entra no bolo de questões. Quantidade e modo são decisão
+                    // da sessão e agora vivem na tela que abre no "Iniciar
+                    // treino"; disciplinas viraram filtro acima; histórico
+                    // virou o botão do topo.
                 }
                 .padding(.bottom, 148)
             }
         .safeAreaInset(edge: .bottom, spacing: 0) {
+            // O botão NÃO cria mais a sessão direto: ele abre a tela onde o
+            // aluno dá nome, escolhe quantas e como. Antes ele apertava
+            // "Iniciar" e já caía dentro do treino, sem ver o que ia começar.
             StickyBottomCTA(
                 title: ctaTitle(vm: vm),
                 count: vm.state.displayCount,
                 isLoading: vm.state.previewLoading,
                 isCreating: vm.state.creatingSession,
                 theme: .questoes,
-                action: {
-                    Task {
-                        if let id = await vm.createSession() {
-                            onSessionCreated(id, vm.state.mode)
-                        }
-                    }
-                }
+                action: { activeSheet = .start }
             )
         }
         .background(Color.clear)
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
+            // Todas param na mesma altura (abaixo do hero) e usam o mesmo
+            // material grafite dos cards — uma apresentação canônica, não três
+            // combinações diferentes de detent e fundo.
             case .disciplines:
                 QBankDisciplinesSheet(vm: vm)
-                    .presentationDetents([.large])
-                    .presentationBackground(.ultraThinMaterial)
-                    .presentationDragIndicator(.visible)
+                    .studyFilterSheet()
             case .recents:
                 QBankRecentSessionsSheet(vm: vm) { sessionId, mode in
                     activeSheet = nil
                     onSessionCreated(sessionId, mode)
                 }
-                .presentationDetents([.medium, .large])
-                .presentationBackground(.ultraThinMaterial)
-                .presentationDragIndicator(.visible)
+                .studyFilterSheet()
+            case .start:
+                QBankStartSessionSheet(vm: vm) { sessionId, mode in
+                    activeSheet = nil
+                    onSessionCreated(sessionId, mode)
+                }
+                .studyFilterSheet()
+            case .favorites:
+                QBankFavoritesSheet()
+                    .studyFilterSheet()
             }
         }
         .sheet(isPresented: $showStudioImport) {
@@ -247,6 +248,19 @@ struct QBankBuilderScreen: View {
 
     @ViewBuilder
     private func secondaryFilters(vm: QBankBuilderViewModel) -> some View {
+        // ESPECIALIDADES é filtro e mora aqui com os outros (Rafael 2026-07-20).
+        // Vivia escondida num card "Conteúdo" no fim da página, longe da seção
+        // FILTROS — o aluno tinha que adivinhar que disciplina era filtro.
+        // Reusa a folha que já existe (`.disciplines`), sem tela nova.
+        QBankFilterRow(
+            icon: "square.grid.2x2",
+            title: "ESPECIALIDADES",
+            summary: disciplineSummary(vm: vm),
+            theme: .questoes,
+            action: { activeSheet = .disciplines }
+        )
+        .padding(.horizontal, 16)
+
         if !vm.state.institutions.isEmpty {
             InstitutionsCollapsibleSection(
                 institutions: vm.state.institutions,
@@ -265,21 +279,15 @@ struct QBankBuilderScreen: View {
         }
 
         if !vm.state.years.isEmpty {
-            YearsRangeSection(
-                minYear: Binding(
-                    get: { vm.state.selectedYearMin },
-                    set: { vm.state.selectedYearMin = $0 }
+            YearsPickerSection(
+                years: vm.state.years,
+                counts: vm.state.yearCounts,
+                selected: Binding(
+                    get: { vm.state.selectedYears },
+                    set: { vm.state.selectedYears = $0 }
                 ),
-                maxYear: Binding(
-                    get: { vm.state.selectedYearMax },
-                    set: { vm.state.selectedYearMax = $0 }
-                ),
-                availableMin: vm.state.years.min() ?? 1995,
-                availableMax: vm.state.years.max() ?? 2026,
                 theme: .questoes,
-                expanded: $yearsExpanded,
-                onChange: { vm.scheduleRefreshPreview() },
-                counts: vm.state.yearCounts
+                onChange: { vm.scheduleRefreshPreview() }
             )
             .padding(.horizontal, 16)
         }
@@ -409,16 +417,42 @@ struct QBankBuilderScreen: View {
     /// Hero do builder: pool disponível como métrica principal; histórico pessoal
     /// como estatísticas secundárias. Assim o card não parece quebrado para quem
     /// ainda não respondeu nada.
+    /// O hero conta a HISTÓRIA do aluno: quanto fez, quanto acerta, quanto
+    /// demora. "Por sessão" saiu porque não é conquista, é configuração — e o
+    /// aluno já a ajusta em Quantidade, logo abaixo.
+    ///
+    /// O tempo médio por questão já era medido (`responseTimeMs` em cada
+    /// resposta) e nunca aparecia em lugar nenhum. Para quem estuda pra prova
+    /// cronometrada, ritmo é tão importante quanto acerto.
     private func heroStats(vm: QBankBuilderViewModel) -> [StudyHeroStat.Stat] {
         var stats: [StudyHeroStat.Stat] = [
             .init(value: formatNumber(vm.state.progressAnswered), label: "respondidas"),
-            .init(value: heroAccuracyLabel(vm: vm), label: "acerto"),
-            .init(value: "\(vm.state.questionCount)", label: "por sessão"),
+            .init(value: heroAccuracyLabel(vm: vm), label: "de acerto"),
         ]
-        if vm.state.streakDays > 0 {
-            stats.append(.init(value: "\(vm.state.streakDays)d", label: "ofensiva"))
+        if let pace = vm.state.avgSecondsPerQuestion, pace > 0 {
+            stats.append(.init(value: paceLabel(pace), label: "por questão"))
         }
         return stats
+    }
+
+    private func ctaTitle(vm: QBankBuilderViewModel) -> String {
+        let pool = vm.state.displayCount
+        let count = min(vm.state.questionCount, pool)
+        // "Calculando" enquanto o preview não voltou: dizer "sem questões" num
+        // momento em que ainda NÃO SABEMOS é mentir pro aluno — era o que a
+        // tela fazia no primeiro instante de cada abertura.
+        if vm.state.previewLoading { return "Calculando…" }
+        if pool == 0 { return "Sem questões disponíveis" }
+        return "Iniciar (\(count) de \(formatNumber(pool)))"
+    }
+
+    /// "41s" abaixo de um minuto, "1m20" acima — ninguém lê "80s".
+    private func paceLabel(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        if total < 60 { return "\(total)s" }
+        let minutes = total / 60
+        let rest = total % 60
+        return rest == 0 ? "\(minutes)m" : "\(minutes)m\(rest)"
     }
 
     private func heroAvailableCount(vm: QBankBuilderViewModel) -> Int {
@@ -497,14 +531,6 @@ struct QBankBuilderScreen: View {
         }
     }
 
-    private func ctaTitle(vm: QBankBuilderViewModel) -> String {
-        let pool = vm.state.displayCount
-        let count = min(vm.state.questionCount, pool)
-        if pool == 0 { return "Sem questões disponíveis" }
-        if vm.state.previewLoading { return "Iniciar Sessão" }
-        return "Iniciar (\(count) de \(formatNumber(pool)))"
-    }
-
     private func parseId(_ id: String) -> (String, String)? {
         let parts = id.split(separator: "/", maxSplits: 1).map(String.init)
         guard parts.count == 2 else { return nil }
@@ -522,6 +548,8 @@ struct QBankBuilderScreen: View {
 private enum QBankBuilderSheet: String, Identifiable {
     case disciplines
     case recents
+    case start
+    case favorites
 
     var id: String { rawValue }
 }
@@ -855,6 +883,7 @@ private struct QBankBuilderHeader: View {
     let onBack: () -> Void
     let onCreate: () -> Void
     let onHistory: () -> Void
+    let onFavorites: () -> Void
 
     var body: some View {
         VitaScreenHeader(title: "Questões", onBack: onBack) {
@@ -886,6 +915,20 @@ private struct QBankBuilderHeader: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Últimas sessões")
+
+                // Favoritas. Irmao do historico: os dois sao "minhas coisas",
+                // secundarios ao "+". Nao repete caminho de lugar nenhum —
+                // ate hoje nao havia COMO ver o que o coracao salvou.
+                Button(action: onFavorites) {
+                    Image(systemName: "heart")
+                        .font(.system(size: 15, weight: .semibold))  // ds-allow: ícone SF do botão de favoritas
+                        .foregroundStyle(VitaColors.textPrimary)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(VitaColors.glassBg.opacity(0.76)))
+                        .overlay(Circle().stroke(VitaColors.glassBorder, lineWidth: 0.75))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Minhas favoritas")
             }
         }
     }

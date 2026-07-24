@@ -11,6 +11,7 @@ struct QBankSessionContent: View {
     @State private var showFinishAlert = false
     @State private var showExplanationSheet = false
     @State private var timerTask: Task<Void, Never>? = nil
+    @State private var toastState = VitaToastState()
 
     // Cap image height so it never overflows on iPad.
     // iPhone: 260pt max. iPad (regular width): 400pt max.
@@ -129,6 +130,7 @@ struct QBankSessionContent: View {
             bottomActionBar()
         }
         .animation(.easeInOut(duration: 0.25), value: vm.state.showFeedback)
+        .vitaToastHost(toastState)
     }
 
     private func sessionHeader(question: QBankQuestionDetail) -> some View {
@@ -154,6 +156,18 @@ struct QBankSessionContent: View {
                 }
 
                 Spacer(minLength: 8)
+
+                // Coracao e bandeira ao lado do relogio: as tres coisas que o
+                // aluno faz COM a questao, no mesmo canto (Rafael 2026-07-20).
+                QBankFavoriteButton(questionId: question.id) { favoritada in
+                    // Sem isto o coracao mudava de forma e nao dizia NADA —
+                    // o aluno nao sabia se tinha salvo (Rafael 2026-07-20).
+                    toastState.show(
+                        favoritada ? "Salva nas favoritas" : "Removida das favoritas",
+                        type: favoritada ? .success : .info
+                    )
+                }
+                QBankReportButton(questionId: question.id)
 
                 QBankMetaChip(icon: "timer", text: timerStr, prominent: true)
             }

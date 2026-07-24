@@ -253,7 +253,7 @@ struct MainTabView: View {
     @ObservedObject private var pushManager = PushManager.shared
     @State private var showChat = false
     // Comemoracao da ofensiva: dispara 1x/dia depois do 1o estudo (Rafael 2026-07-23).
-    @State private var comemoracaoOfensiva = ControleComemoracaoOfensiva()
+    @StateObject private var comemoracaoOfensiva = ControleComemoracaoOfensiva()
     /// Optional pre-filled prompt sent into VitaChatScreen on its next open.
     /// Set by Atlas 3D's "Perguntar pra VITA" so the chat lands with the
     /// student's question already submitted; cleared after consumption.

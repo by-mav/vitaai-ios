@@ -26,6 +26,8 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
     public var disciplineSlugs: [String]?
     public var institutionIds: [Int]?
     public var years: QBankPreviewRequestYears?
+    /** Anos avulsos marcados na lista de Questões (ex: [2015, 2019, 2024]). Quando não-vazio MANDA sobre `years` (vira `year IN (...)`), porque a faixa traria os anos do meio que o aluno não pediu. Inteiros fora de 1990..2100 e além de 60 itens são descartados em silêncio (é entrada de UI, não API pública — nunca 400).  */
+    public var yearList: [Int]?
     public var difficulties: [Difficulties]?
     /** Filtro de formato. objective/discursive/withImage podem combinar. */
     public var format: [Format]?
@@ -40,11 +42,12 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
     /** Default false. Se false, exclui Q geradas por IA (isSynthetic=true). */
     public var includeSynthetic: Bool?
 
-    public init(areaSlugs: [String]? = nil, disciplineSlugs: [String]? = nil, institutionIds: [Int]? = nil, years: QBankPreviewRequestYears? = nil, difficulties: [Difficulties]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, hideReviewed: Bool? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil) {
+    public init(areaSlugs: [String]? = nil, disciplineSlugs: [String]? = nil, institutionIds: [Int]? = nil, years: QBankPreviewRequestYears? = nil, yearList: [Int]? = nil, difficulties: [Difficulties]? = nil, format: [Format]? = nil, hideAnswered: Bool? = nil, hideAnnulled: Bool? = nil, hideReviewed: Bool? = nil, excludeNoExplanation: Bool? = nil, includeSynthetic: Bool? = nil) {
         self.areaSlugs = areaSlugs
         self.disciplineSlugs = disciplineSlugs
         self.institutionIds = institutionIds
         self.years = years
+        self.yearList = yearList
         self.difficulties = difficulties
         self.format = format
         self.hideAnswered = hideAnswered
@@ -59,6 +62,7 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
         case disciplineSlugs
         case institutionIds
         case years
+        case yearList
         case difficulties
         case format
         case hideAnswered
@@ -76,6 +80,7 @@ public struct QBankPreviewRequest: Sendable, Codable, Hashable {
         try container.encodeIfPresent(disciplineSlugs, forKey: .disciplineSlugs)
         try container.encodeIfPresent(institutionIds, forKey: .institutionIds)
         try container.encodeIfPresent(years, forKey: .years)
+        try container.encodeIfPresent(yearList, forKey: .yearList)
         try container.encodeIfPresent(difficulties, forKey: .difficulties)
         try container.encodeIfPresent(format, forKey: .format)
         try container.encodeIfPresent(hideAnswered, forKey: .hideAnswered)

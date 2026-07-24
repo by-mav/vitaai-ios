@@ -93,14 +93,6 @@ extension ListOfficialQbankExams200ResponseExamsInner {
 
     var catalogKindLabel: String { isBankBlock ? "BANCO" : "OFICIAL" }
 
-    var sourceDisplayName: String {
-        switch tags.source.lowercased() {
-        case "medsimple": return "MedSimple"
-        case "medevo": return "MedEvo"
-        default: return tags.source
-        }
-    }
-
     var questionSelectionLabel: String {
         guard isBankBlock, availableQuestions > questionCount else {
             return "\(questionCount) questões"
@@ -534,6 +526,7 @@ final class SimuladoBuilderViewModel {
         stages: [String],
         years: [Int],
         authorities: [String],
+        states: [String],
         statuses: [String],
         sort: String
     ) {
@@ -544,6 +537,7 @@ final class SimuladoBuilderViewModel {
             stages: stages.sorted(),
             years: years.sorted(),
             authorities: authorities.sorted(),
+            states: states.sorted(),
             statuses: statuses.sorted(),
             sort: sort
         )
@@ -580,32 +574,6 @@ final class SimuladoBuilderViewModel {
         officialExamCatalogTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await self.loadOfficialExams(reset: false)
-        }
-    }
-
-    func previewOfficialExamCount(
-        search: String,
-        stages: [String],
-        years: [Int],
-        authorities: [String],
-        statuses: [String]
-    ) async -> Int? {
-        do {
-            let response = try await api.listOfficialQbankExams(
-                query: OfficialExamCatalogQuery(
-                    page: 1,
-                    limit: 1,
-                    search: search,
-                    stages: stages,
-                    years: years,
-                    authorities: authorities,
-                    statuses: statuses,
-                    sort: officialExamCatalogQuery.sort
-                )
-            )
-            return response.pagination.total
-        } catch {
-            return nil
         }
     }
 

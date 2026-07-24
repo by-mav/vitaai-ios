@@ -16,16 +16,47 @@ public struct ListOfficialQbankExams200ResponseExamsInnerTags: Sendable, Codable
         case concurso = "concurso"
         case faculdade = "faculdade"
     }
+    public enum State: String, Sendable, Codable, CaseIterable {
+        case ac = "AC"
+        case al = "AL"
+        case ap = "AP"
+        case am = "AM"
+        case ba = "BA"
+        case ce = "CE"
+        case df = "DF"
+        case es = "ES"
+        case go = "GO"
+        case ma = "MA"
+        case mt = "MT"
+        case ms = "MS"
+        case mg = "MG"
+        case pa = "PA"
+        case pb = "PB"
+        case pr = "PR"
+        case pe = "PE"
+        case pi = "PI"
+        case rj = "RJ"
+        case rn = "RN"
+        case rs = "RS"
+        case ro = "RO"
+        case rr = "RR"
+        case sc = "SC"
+        case sp = "SP"
+        case se = "SE"
+        case to = "TO"
+    }
     public var type: ModelType
     public var institution: String
     public var year: Int
     public var source: String
+    public var state: State?
 
-    public init(type: ModelType, institution: String, year: Int, source: String) {
+    public init(type: ModelType, institution: String, year: Int, source: String, state: State? = nil) {
         self.type = type
         self.institution = institution
         self.year = year
         self.source = source
+        self.state = state
     }
 
     public enum CodingKeys: String, CodingKey, CaseIterable {
@@ -33,6 +64,7 @@ public struct ListOfficialQbankExams200ResponseExamsInnerTags: Sendable, Codable
         case institution
         case year
         case source
+        case state
     }
 
     // Encodable protocol methods
@@ -43,6 +75,7 @@ public struct ListOfficialQbankExams200ResponseExamsInnerTags: Sendable, Codable
         try container.encode(institution, forKey: .institution)
         try container.encode(year, forKey: .year)
         try container.encode(source, forKey: .source)
+        try container.encodeIfPresent(state, forKey: .state)
     }
 }
 

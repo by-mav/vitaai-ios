@@ -119,7 +119,7 @@ Nenhum tab: Perfil, Configurações, Aparência, Assinatura
 - **Dados**: `/api/activity/stats` + `/api/progress`
 
 ### 5. FLASHCARDS (depth 2, tab 1)
-- **Background**: flashcard-bg-new.png (fullscreen, partículas)
+- **Background**: usa a composição atual da tela; o asset legado `flashcard-bg-new` não era renderizado e foi removido
 - **Hero Image**: flashcard-hero-clean.webp (full width, rounded 18)
 - **"Continuar"**: card com book icon + deck title + "X pendentes" + chevron
 - **"Recomendados"**: horizontal scroll com cards (image + title + stats)

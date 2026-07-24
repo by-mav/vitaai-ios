@@ -9,6 +9,35 @@ import Foundation
 
 public struct ListOfficialQbankExams200ResponseFacets: Sendable, Codable, Hashable {
 
+    public enum States: String, Sendable, Codable, CaseIterable {
+        case ac = "AC"
+        case al = "AL"
+        case ap = "AP"
+        case am = "AM"
+        case ba = "BA"
+        case ce = "CE"
+        case df = "DF"
+        case es = "ES"
+        case go = "GO"
+        case ma = "MA"
+        case mt = "MT"
+        case ms = "MS"
+        case mg = "MG"
+        case pa = "PA"
+        case pb = "PB"
+        case pr = "PR"
+        case pe = "PE"
+        case pi = "PI"
+        case rj = "RJ"
+        case rn = "RN"
+        case rs = "RS"
+        case ro = "RO"
+        case rr = "RR"
+        case sc = "SC"
+        case sp = "SP"
+        case se = "SE"
+        case to = "TO"
+    }
     public enum Statuses: String, Sendable, Codable, CaseIterable {
         case notStarted = "not_started"
         case inProgress = "in_progress"
@@ -17,12 +46,14 @@ public struct ListOfficialQbankExams200ResponseFacets: Sendable, Codable, Hashab
     public var stages: [String]
     public var years: [Int]
     public var authorities: [String]
+    public var states: [States]
     public var statuses: [Statuses]
 
-    public init(stages: [String], years: [Int], authorities: [String], statuses: [Statuses]) {
+    public init(stages: [String], years: [Int], authorities: [String], states: [States], statuses: [Statuses]) {
         self.stages = stages
         self.years = years
         self.authorities = authorities
+        self.states = states
         self.statuses = statuses
     }
 
@@ -30,6 +61,7 @@ public struct ListOfficialQbankExams200ResponseFacets: Sendable, Codable, Hashab
         case stages
         case years
         case authorities
+        case states
         case statuses
     }
 
@@ -40,6 +72,7 @@ public struct ListOfficialQbankExams200ResponseFacets: Sendable, Codable, Hashab
         try container.encode(stages, forKey: .stages)
         try container.encode(years, forKey: .years)
         try container.encode(authorities, forKey: .authorities)
+        try container.encode(states, forKey: .states)
         try container.encode(statuses, forKey: .statuses)
     }
 }

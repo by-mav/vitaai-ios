@@ -13,6 +13,35 @@ public struct ListOfficialQbankExams200ResponseExamsInner: Sendable, Codable, Ha
         case official = "official"
         case bank = "bank"
     }
+    public enum State: String, Sendable, Codable, CaseIterable {
+        case ac = "AC"
+        case al = "AL"
+        case ap = "AP"
+        case am = "AM"
+        case ba = "BA"
+        case ce = "CE"
+        case df = "DF"
+        case es = "ES"
+        case go = "GO"
+        case ma = "MA"
+        case mt = "MT"
+        case ms = "MS"
+        case mg = "MG"
+        case pa = "PA"
+        case pb = "PB"
+        case pr = "PR"
+        case pe = "PE"
+        case pi = "PI"
+        case rj = "RJ"
+        case rn = "RN"
+        case rs = "RS"
+        case ro = "RO"
+        case rr = "RR"
+        case sc = "SC"
+        case sp = "SP"
+        case se = "SE"
+        case to = "TO"
+    }
     public enum AttemptStatus: String, Sendable, Codable, CaseIterable {
         case notStarted = "not_started"
         case inProgress = "in_progress"
@@ -23,6 +52,8 @@ public struct ListOfficialQbankExams200ResponseExamsInner: Sendable, Codable, Ha
     public var kind: Kind
     public var title: String
     public var authority: String
+    public var authorityCode: String?
+    public var state: State?
     public var source: String
     public var year: Int
     public var stage: String
@@ -35,12 +66,14 @@ public struct ListOfficialQbankExams200ResponseExamsInner: Sendable, Codable, Ha
     public var sessionId: String?
     public var tags: ListOfficialQbankExams200ResponseExamsInnerTags
 
-    public init(id: String, slug: String, kind: Kind, title: String, authority: String, source: String, year: Int, stage: String, institutionId: Int, questionCount: Int, timeLimitMinutes: Int? = nil, availableQuestions: Int, attemptStatus: AttemptStatus, answeredQuestions: Int, sessionId: String? = nil, tags: ListOfficialQbankExams200ResponseExamsInnerTags) {
+    public init(id: String, slug: String, kind: Kind, title: String, authority: String, authorityCode: String? = nil, state: State? = nil, source: String, year: Int, stage: String, institutionId: Int, questionCount: Int, timeLimitMinutes: Int? = nil, availableQuestions: Int, attemptStatus: AttemptStatus, answeredQuestions: Int, sessionId: String? = nil, tags: ListOfficialQbankExams200ResponseExamsInnerTags) {
         self.id = id
         self.slug = slug
         self.kind = kind
         self.title = title
         self.authority = authority
+        self.authorityCode = authorityCode
+        self.state = state
         self.source = source
         self.year = year
         self.stage = stage
@@ -60,6 +93,8 @@ public struct ListOfficialQbankExams200ResponseExamsInner: Sendable, Codable, Ha
         case kind
         case title
         case authority
+        case authorityCode
+        case state
         case source
         case year
         case stage
@@ -82,6 +117,8 @@ public struct ListOfficialQbankExams200ResponseExamsInner: Sendable, Codable, Ha
         try container.encode(kind, forKey: .kind)
         try container.encode(title, forKey: .title)
         try container.encode(authority, forKey: .authority)
+        try container.encodeIfPresent(authorityCode, forKey: .authorityCode)
+        try container.encodeIfPresent(state, forKey: .state)
         try container.encode(source, forKey: .source)
         try container.encode(year, forKey: .year)
         try container.encode(stage, forKey: .stage)

@@ -153,11 +153,20 @@ final class FlashcardViewModel {
         let bundle = FlashcardMultiDeckHandoff.shared.consumeBundleCards()
         if !bundle.cards.isEmpty {
             let deck = FlashcardDeck(
-                id: "",
+                id: deckId,
                 title: bundle.title ?? "Flashcards",
                 cards: bundle.cards
             )
-            startSession(deck: deck, initialIndex: 0, initialCorrectCount: 0, initialRatings: [])
+            // Estudar baralho (inclusive Biblioteca/offline) tem que registrar
+            // sessao no servidor, senao o card "Continuar" nunca mostra flashcards
+            // (questoes/simulado criam sessao; este caminho nao criava). Best-effort:
+            // online cria; offline cai no catch e o estudo segue local.
+            Task { @MainActor in
+                if studySessionId == nil, !deck.cards.isEmpty {
+                    await createSession(for: deck, abandonExisting: false)
+                }
+                startSession(deck: deck, initialIndex: 0, initialCorrectCount: 0, initialRatings: [])
+            }
             return
         }
 

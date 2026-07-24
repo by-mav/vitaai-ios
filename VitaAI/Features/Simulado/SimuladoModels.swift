@@ -63,11 +63,12 @@ struct SimuladoAttemptEntry: Decodable, Identifiable {
     var timeTakenMs: Int64? = nil
     var timed: Bool = false
     var timeLimitMinutes: Int? = nil
+    var origin: String = "native"
     var questions: [SimuladoQuestionEntry] = []
 
     private enum CodingKeys: String, CodingKey {
         case id, title, subject, difficulty, mode, totalQ, correctQ, score, status
-        case startedAt, finishedAt, timeTakenMs, questions, timed, timeLimitMinutes
+        case startedAt, finishedAt, timeTakenMs, questions, timed, timeLimitMinutes, origin
     }
 
     init(from decoder: Decoder) throws {
@@ -86,6 +87,7 @@ struct SimuladoAttemptEntry: Decodable, Identifiable {
         timeTakenMs = try? c.decode(Int64.self, forKey: .timeTakenMs)
         timed = (try? c.decode(Bool.self, forKey: .timed)) ?? false
         timeLimitMinutes = try? c.decode(Int.self, forKey: .timeLimitMinutes)
+        origin = (try? c.decode(String.self, forKey: .origin)) ?? "native"
         questions = (try? c.decode([SimuladoQuestionEntry].self, forKey: .questions)) ?? []
     }
 }
@@ -131,6 +133,21 @@ struct SimuladoQuestionEntry: Decodable, Identifiable {
     var parsedOptions: [String] {
         (try? JSONDecoder().decode([String].self, from: Data(options.utf8))) ?? []
     }
+}
+
+/// Full canonical QBank payload used by the continuous official-exam UI.
+/// The questions stay canonical; Simulados only owns their exam presentation.
+struct QBankSimuladoSessionPayload: Decodable {
+    var id: String = ""
+    var title: String? = nil
+    var totalQuestions: Int = 0
+    var currentIndex: Int = 0
+    var correctCount: Int = 0
+    var status: String = "active"
+    var timeLimitSeconds: Int? = nil
+    var createdAt: String? = nil
+    var finishedAt: String? = nil
+    var questions: [QBankQuestionDetail] = []
 }
 
 // MARK: - Generate

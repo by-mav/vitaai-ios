@@ -741,9 +741,67 @@ struct InstitutionsCollapsibleSection: View {
                 selectedIds: $selectedIds,
                 theme: theme
             )
-            .presentationDetents([.large])
-            .presentationBackground(.ultraThinMaterial)
+            .studyFilterSheet()
         }
+    }
+}
+
+// MARK: - Apresentação canônica de sheet de filtro
+//
+// 🚨 Toda folha de filtro para ABAIXO do hero (Rafael 2026-07-20): "quero ver
+// o número do hero mudando conforme o usuário escolhe". Com `.large` a folha
+// cobria a tela inteira e o aluno escolhia às cegas — só descobria quantas
+// questões sobraram depois de fechar. Deixando o hero à vista, cada toque na
+// lista mostra o número correndo no odômetro; a escolha vira conversa.
+//
+// Fração, não altura fixa: a proporção se adapta do iPhone SE ao Pro Max, e
+// altura fixa em conteúdo variável foi exatamente o bug do hero mais cedo hoje.
+extension View {
+    func studyFilterSheet() -> some View {
+        self
+            .presentationDetents([.fraction(StudyFilterSheetLayout.detent)])
+            // 🚨 Material do CARD, não `.ultraThinMaterial` (Rafael 2026-07-20:
+            // "não aquela merda cinza"). O material do sistema desbota pro
+            // cinza e destoa da página inteira, que é grafite quente com fio
+            // de ouro. A folha é continuação da página, não uma janela de
+            // outro app.
+            .presentationBackground { StudySheetSurface() }
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(VitaTokens.Radius.xl)
+    }
+}
+
+enum StudyFilterSheetLayout {
+    /// O que sobra da tela depois do cabeçalho + hero. Medido no iPhone 17 Pro
+    /// (874pt de altura, hero terminando por volta de 280pt).
+    static let detent: CGFloat = 0.66
+}
+
+/// Fundo canônico das folhas de estudo: a MESMA base grafite do `VitaGlassCard`,
+/// pra a folha e os cards da página parecerem o mesmo material sob a mesma luz.
+struct StudySheetSurface: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 18 / 255, green: 19 / 255, blue: 23 / 255),  // ds-allow: gradiente/glow de fundo proprio (arte)
+                    Color(red: 9 / 255, green: 10 / 255, blue: 13 / 255),  // ds-allow: gradiente/glow de fundo proprio (arte)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            // Brilho quente no topo: a luz entra por cima, como nos cards.
+            RadialGradient(
+                colors: [
+                    Color(red: 1.0, green: 200 / 255, blue: 120 / 255).opacity(0.055),  // ds-allow: gradiente/glow de fundo proprio (arte)
+                    .clear,
+                ],
+                center: .top,
+                startRadius: 8,
+                endRadius: 320
+            )
+        }
+        .ignoresSafeArea()
     }
 }
 
@@ -770,52 +828,52 @@ private struct InstitutionsPickerSheet: View {
             // Header
             HStack {
                 Text("Instituições")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(PixioTypo.cardTitle)
                     .foregroundStyle(VitaColors.textPrimary)
                 Spacer()
                 if !selectedIds.isEmpty {
                     Button("Limpar") { selectedIds.removeAll() }
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(PixioTypo.caption)
                         .foregroundStyle(theme.primaryLight)
                 }
                 Button {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 22))
+                        .font(.system(size: 22))  // ds-allow: botão fechar
                         .foregroundStyle(VitaColors.textTertiary)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .padding(.top, VitaTokens.Spacing.lg)
+            .padding(.bottom, VitaTokens.Spacing.md)
 
             // Search bar
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13))
+                    .font(PixioTypo.caption)
                     .foregroundStyle(VitaColors.textTertiary)
                 TextField("Buscar instituição...", text: $search)
-                    .font(.system(size: 14))
+                    .font(PixioTypo.body)
                     .foregroundStyle(VitaColors.textPrimary)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                 if !search.isEmpty {
                     Button { search = "" } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 13))
+                            .font(PixioTypo.caption)
                             .foregroundStyle(VitaColors.textTertiary)
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, VitaTokens.Spacing.md)
+            .padding(.vertical, VitaTokens.Spacing.md)
             .background(VitaColors.surfaceElevated.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+            .clipShape(RoundedRectangle(cornerRadius: VitaTokens.Radius.md))
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .padding(.bottom, VitaTokens.Spacing.sm)
 
             Divider().background(VitaColors.glassBorder.opacity(0.4))
 
@@ -824,7 +882,7 @@ private struct InstitutionsPickerSheet: View {
                 LazyVStack(spacing: 0) {
                     if filtered.isEmpty {
                         Text(search.isEmpty ? "Nenhuma instituição disponível" : "Nada encontrado para \"\(search)\"")
-                            .font(.system(size: 13))
+                            .font(PixioTypo.caption)
                             .foregroundStyle(VitaColors.textTertiary)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.vertical, 24)
@@ -853,29 +911,29 @@ private struct InstitutionsPickerSheet: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 18))
+                    .font(.system(size: 18))  // ds-allow: caixa de seleção
                     .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textTertiary.opacity(0.55))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(inst.name)
-                        .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                        .font(PixioTypo.sans(size: 14, weight: isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textPrimary.opacity(0.92))
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     if let state = inst.state, !state.isEmpty {
                         Text(state)
-                            .font(.system(size: 11))
+                            .font(PixioTypo.micro)
                             .foregroundStyle(VitaColors.textTertiary)
                     }
                 }
                 Spacer()
                 if let count = inst.count, count > 0 {
                     Text("\(count)")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(PixioTypo.caption)
                         .foregroundStyle(VitaColors.textSecondary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .padding(.vertical, VitaTokens.Spacing.md)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -1114,5 +1172,192 @@ struct ModePills<T: Hashable & Identifiable>: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Linha de filtro que abre uma folha
+//
+// Mesma silhueta da InstitutionsCollapsibleSection (ícone · RÓTULO · resumo ·
+// chevron), mas genérica: serve pra qualquer filtro cujo conteúdo mora numa
+// folha separada em vez de expandir no lugar. Nasceu pra ESPECIALIDADES, que
+// vivia escondida num card "Conteúdo" no fim da página em vez de estar entre
+// os filtros (Rafael 2026-07-20).
+struct QBankFilterRow: View {
+    let icon: String
+    let title: String
+    let summary: String
+    let theme: StudyShellTheme
+    let action: () -> Void
+
+    var body: some View {
+        VitaGlassCard(cornerRadius: 14) {
+            Button(action: action) {
+                HStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .medium))  // ds-allow: ícone da linha de filtro
+                        .foregroundStyle(theme.primaryLight.opacity(0.9))
+                    Text(title)
+                        .font(.system(size: 11, weight: .bold))  // ds-allow: rótulo da linha de filtro
+                        .tracking(0.8)
+                        .foregroundStyle(VitaColors.sectionLabel)
+                    Text("· \(summary)")
+                        .font(.system(size: 11))  // ds-allow: resumo da linha de filtro
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .lineLimit(1)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))  // ds-allow: chevron
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - YearsPickerSection — anos como LISTA, não como barra
+//
+// Substitui a barra de faixa (mín–máx) por marcação avulsa (Rafael 2026-07-20):
+// ano à esquerda, quantas questões daquele ano à direita, toque pra marcar.
+//
+// A barra era errada por dois motivos. Primeiro, ela obrigava a pedir um
+// intervalo contínuo: quem quisesse 2015, 2019 e 2024 levava junto os cinco
+// anos do meio. Segundo, ela escondia o dado que decide a escolha — o aluno
+// arrastava sem saber que 2011 tem 12 questões e 2023 tem 1.400.
+//
+// Mesma silhueta de INSTITUIÇÕES de propósito: os dois são "escolha itens de
+// uma lista com contagem", e coisas iguais têm que se parecer.
+struct YearsPickerSection: View {
+    let years: [Int]
+    /// Contagem por ano vinda das facetas do preview (minus-self): "se eu
+    /// marcar este ano, dado o resto dos filtros, quantas sobram".
+    let counts: [String: Int]
+    @Binding var selected: Set<Int>
+    let theme: StudyShellTheme
+    let onChange: () -> Void
+
+    @State private var sheetOpen = false
+
+    private var summaryText: String {
+        if selected.isEmpty { return "Todos (\(years.count))" }
+        if selected.count == 1, let only = selected.first { return "\(only)" }
+        return "\(selected.count) anos"
+    }
+
+    var body: some View {
+        QBankFilterRow(
+            icon: "calendar",
+            title: "ANOS",
+            summary: summaryText,
+            theme: theme,
+            action: { sheetOpen = true }
+        )
+        .sheet(isPresented: $sheetOpen) {
+            YearsPickerSheet(
+                years: years,
+                counts: counts,
+                selected: $selected,
+                theme: theme,
+                onChange: onChange
+            )
+            .studyFilterSheet()
+        }
+    }
+}
+
+private struct YearsPickerSheet: View {
+    let years: [Int]
+    let counts: [String: Int]
+    @Binding var selected: Set<Int>
+    let theme: StudyShellTheme
+    let onChange: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    /// Mais recente primeiro: é o que o aluno de residência quer ver primeiro.
+    private var ordered: [Int] { years.sorted(by: >) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Anos")
+                    .font(PixioTypo.cardTitle)
+                    .foregroundStyle(VitaColors.textPrimary)
+                Spacer()
+                if !selected.isEmpty {
+                    Button("Limpar") {
+                        selected.removeAll()
+                        onChange()
+                    }
+                    .font(PixioTypo.caption)
+                    .foregroundStyle(theme.primaryLight)
+                }
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))  // ds-allow: botão fechar
+                        .foregroundStyle(VitaColors.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .padding(.top, VitaTokens.Spacing.lg)
+            .padding(.bottom, VitaTokens.Spacing.md)
+
+            Divider().background(VitaColors.glassBorder.opacity(0.4))
+
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(ordered, id: \.self) { year in
+                        row(for: year)
+                        if year != ordered.last {
+                            Divider()
+                                .background(VitaColors.glassBorder.opacity(0.3))
+                                .padding(.leading, 44)
+                        }
+                    }
+                }
+                .padding(.vertical, VitaTokens.Spacing.xs)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func row(for year: Int) -> some View {
+        let isSelected = selected.contains(year)
+        let count = counts[String(year)]
+        Button {
+            if isSelected { selected.remove(year) } else { selected.insert(year) }
+            onChange()
+        } label: {
+            HStack(spacing: VitaTokens.Spacing.md) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 18))  // ds-allow: caixa de seleção
+                    .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textTertiary.opacity(0.55))
+                Text(String(year))
+                    .font(PixioTypo.sans(size: 15, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? theme.primaryLight : VitaColors.textPrimary.opacity(0.92))
+                    .monospacedDigit()
+                Spacer()
+                if let count {
+                    Text(formatted(count))
+                        .font(PixioTypo.caption)
+                        .foregroundStyle(VitaColors.textSecondary)
+                        .monospacedDigit()
+                }
+            }
+            .padding(.horizontal, VitaTokens.Spacing.lg)
+            .padding(.vertical, VitaTokens.Spacing.md)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func formatted(_ n: Int) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.locale = Locale(identifier: "pt_BR")
+        return f.string(from: NSNumber(value: n)) ?? "\(n)"
     }
 }

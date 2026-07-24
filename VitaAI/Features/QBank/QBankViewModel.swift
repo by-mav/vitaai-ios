@@ -106,6 +106,12 @@ struct QBankUiState {
     var questionLoading = false
     var currentQuestionIndex = 0
 
+    // Canonical questions rendered by the continuous Simulado exam surface.
+    var simuladoQuestions: [QBankQuestionDetail] = []
+    var simuladoSelections: [Int: Int] = [:] // questionId -> alternativeId
+    var simuladoSavingQuestionIds: Set<Int> = []
+    var simuladoSaveFailures: Set<Int> = []
+
     // Per-question state
     var selectedAlternativeId: Int? = nil
     var answerResult: QBankAnswerResponse? = nil
@@ -374,6 +380,10 @@ final class QBankViewModel {
             state.currentQuestionIndex = session.currentIndex
             state.sessionAnswers = [:]
             state.sessionDetails = [:]
+            state.simuladoQuestions = []
+            state.simuladoSelections = [:]
+            state.simuladoSavingQuestionIds = []
+            state.simuladoSaveFailures = []
             state.selectedAlternativeId = nil
             state.answerResult = nil
             state.showFeedback = false
@@ -381,7 +391,11 @@ final class QBankViewModel {
             state.elapsedSeconds = 0
             state.activeScreen = .session
             beginSessionTracking()
-            await loadCurrentQuestion()
+            if mode == .simulado {
+                await loadSimuladoQuestions(sessionId: sessionId)
+            } else {
+                await loadCurrentQuestion()
+            }
         } catch {
             state.error = "Erro ao abrir sessão: \(error.localizedDescription)"
         }
@@ -898,6 +912,85 @@ final class QBankViewModel {
     }
 
     // MARK: - Session
+
+    private func loadSimuladoQuestions(sessionId: String) async {
+        state.questionLoading = true
+        state.error = nil
+        do {
+            let payload = try await api.getQBankSimuladoSession(id: sessionId)
+            state.simuladoQuestions = payload.questions
+            state.sessionDetails = Dictionary(
+                uniqueKeysWithValues: payload.questions.map { ($0.id, $0) }
+            )
+            state.simuladoSelections = Dictionary(
+                uniqueKeysWithValues: payload.questions.compactMap { question in
+                    question.userAnswer.map { (question.id, $0.alternativeId) }
+                }
+            )
+            state.sessionAnswers = Dictionary(
+                uniqueKeysWithValues: payload.questions.compactMap { question in
+                    question.userAnswer.map {
+                        (question.id, QBankAnswerResponse(isCorrect: $0.isCorrect, answerId: 0))
+                    }
+                }
+            )
+            if let limit = payload.timeLimitSeconds, limit > 0 {
+                state.timeLimitSeconds = limit
+            }
+        } catch {
+            state.error = "Erro ao carregar a prova: \(error.localizedDescription)"
+        }
+        state.questionLoading = false
+    }
+
+    func selectSimuladoAnswer(questionId: Int, alternativeId: Int) {
+        guard state.mode == .simulado, let sessionId = state.session?.id else { return }
+        state.simuladoSelections[questionId] = alternativeId
+        state.simuladoSaveFailures.remove(questionId)
+        state.simuladoSavingQuestionIds.insert(questionId)
+
+        Task {
+            do {
+                let result = try await api.answerQBankQuestion(
+                    id: questionId,
+                    request: QBankAnswerRequest(
+                        alternativeId: alternativeId,
+                        responseTimeMs: nil,
+                        sessionId: sessionId
+                    )
+                )
+                // Ignore stale responses when the learner changed the answer again.
+                if state.simuladoSelections[questionId] == alternativeId {
+                    state.sessionAnswers[questionId] = result
+                    state.simuladoSaveFailures.remove(questionId)
+                }
+            } catch {
+                if state.simuladoSelections[questionId] == alternativeId {
+                    state.simuladoSaveFailures.insert(questionId)
+                    state.answerError = "Não foi possível salvar uma resposta. Toque nela novamente para tentar de novo."
+                }
+            }
+            if state.simuladoSelections[questionId] == alternativeId {
+                state.simuladoSavingQuestionIds.remove(questionId)
+            }
+        }
+    }
+
+    func finishSimuladoExam() {
+        guard !state.simuladoSelections.isEmpty else {
+            state.answerError = "Responda pelo menos uma questão antes de finalizar."
+            return
+        }
+        guard state.simuladoSavingQuestionIds.isEmpty else {
+            state.answerError = "Aguarde as últimas respostas serem salvas."
+            return
+        }
+        guard state.simuladoSaveFailures.isEmpty else {
+            state.answerError = "Há respostas que ainda não foram salvas. Toque nelas novamente."
+            return
+        }
+        finishSession()
+    }
 
     private func loadCurrentQuestion() async {
         guard let session = state.session,

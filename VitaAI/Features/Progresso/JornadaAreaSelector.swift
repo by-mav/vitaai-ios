@@ -36,6 +36,16 @@ enum GrandeArea: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Nome curto pros cards da gaveta: os longos encurtam pra caber em pouca
+    /// linha e manter a fileira uniforme (padrão do card colorido).
+    var nomeCurto: String {
+        switch self {
+        case .ginecologiaObstetricia: return "Gineco & Obst."
+        case .preventivaSocial: return "Preventiva"
+        default: return nome
+        }
+    }
+
     /// Símbolo gravado no emblema. Todos conferidos contra a lista do sistema
     /// (`CoreGlyphs.bundle/symbol_order.plist`) — nome errado renderiza vazio.
     var simbolo: String {

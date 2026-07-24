@@ -172,7 +172,6 @@ struct DashboardScreen: View {
                     title: "Revisão",
                     pills: [("rectangle.on.rectangle", "\(viewModel.flashcardsDueTotal) cards")],
                     cta: "Revisar flashcards",
-                    bgImage: "flashcard-bg-new",
                     action: { onNavigateToFlashcards?() }
                 ).tag(0)
             } else {
@@ -234,21 +233,10 @@ struct DashboardScreen: View {
                 subtitle: card.subtitle,
                 pills: pills,
                 cta: card.cta.text,
-                bgImage: resolveHeroAsset(card.backgroundImage.asset),
                 action: nil
             )
         }
         .buttonStyle(.plain)
-    }
-
-    /// Falls back to a known-good local asset when the backend specifies an asset
-    /// name that does not exist in the app bundle (e.g. "hero-exam", "hero-revision"
-    /// emitted before the media pipeline existed). Keeps the card visible with a
-    /// generic background instead of leaving a broken empty Image + log warnings.
-    private func resolveHeroAsset(_ name: String) -> String {
-        if name == "fundo-dashboard" { return "hero-dashboard-v2" }
-        if UIImage(named: name) != nil { return name }
-        return "hero-dashboard-v2"
     }
 
     /// Maps backend semantic tone to design system color. Single source of truth for hero label color.
@@ -294,7 +282,6 @@ struct DashboardScreen: View {
         subtitle: String? = nil,
         pills: [(String, String)],
         cta: String,
-        bgImage: String,
         action: (() -> Void)? = nil
     ) -> some View {
         let isAlert = labelColor != VitaColors.accentHover

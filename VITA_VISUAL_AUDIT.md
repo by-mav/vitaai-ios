@@ -16,7 +16,7 @@
 - Background: fundo escuro com ambient gold glows
 
 ### 2. FLASHCARDS ⭐
-- Background: VERMELHO/LARANJA brilhante com partículas (flashcard-bg-new.png) — NÃO é dark
+- Background: o asset legado `flashcard-bg-new` não era renderizado e foi removido; validar o fundo atual ao vivo
 - Top nav: mesma pill de sempre
 - Hero image: cards empilhados com pergunta/resposta visível (flashcard-hero-clean.webp)
 - "Recomendados": scroll horizontal com 3 cards visíveis

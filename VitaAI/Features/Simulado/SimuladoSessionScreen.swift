@@ -478,6 +478,507 @@ struct SimuladoSessionScreen: View {
     }
 }
 
+// MARK: - Canonical QBank exam surface
+
+/// Official/catalog exams use canonical QBank data, but must feel like a real
+/// exam: one continuous paper, no immediate feedback and a persistent map/submit bar.
+struct QBankSimuladoSessionScreen: View {
+    @Bindable var vm: QBankViewModel
+    let onBack: () -> Void
+
+    @State private var showMap = false
+    @State private var showFinishDialog = false
+    @State private var scrollQuestionId: Int?
+    @State private var timerTask: Task<Void, Never>?
+
+    private var questions: [QBankQuestionDetail] { vm.state.simuladoQuestions }
+    private var answeredCount: Int { vm.state.simuladoSelections.count }
+    private var totalQuestions: Int { questions.count }
+    private var progress: Double {
+        totalQuestions > 0 ? Double(answeredCount) / Double(totalQuestions) : 0
+    }
+    private var remainingSeconds: Int {
+        max(0, (vm.state.timeLimitSeconds ?? max(1, totalQuestions * 180)) - vm.state.elapsedSeconds)
+    }
+    private var timerText: String {
+        let hours = remainingSeconds / 3_600
+        let minutes = (remainingSeconds % 3_600) / 60
+        let seconds = remainingSeconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    var body: some View {
+        ZStack {
+            Color(red: 4/255, green: 12/255, blue: 21/255).ignoresSafeArea()  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+
+            if vm.state.questionLoading {
+                loadingView
+            } else if questions.isEmpty {
+                emptyView
+            } else {
+                examContent
+            }
+        }
+        .navigationBarHidden(true)
+        .sheet(isPresented: $showMap) { mapSheet }
+        .vitaAlert(
+            isPresented: $showFinishDialog,
+            title: "Finalizar prova?",
+            message: unansweredCount > 0
+                ? "Você ainda tem \(unansweredCount) questão(ões) sem resposta. Deseja finalizar mesmo assim?"
+                : "Suas respostas serão entregues e o resultado será calculado.",
+            destructiveLabel: "Finalizar",
+            cancelLabel: "Continuar",
+            onConfirm: { vm.finishSimuladoExam() }
+        )
+        .onAppear { startTimer() }
+        .onDisappear { timerTask?.cancel() }
+        .trackScreen("QBankSimuladoSession", extra: ["session_id": vm.state.session?.id ?? ""])
+    }
+
+    private var unansweredCount: Int { max(0, totalQuestions - answeredCount) }
+
+    private var loadingView: some View {
+        VStack(spacing: 14) {
+            ProgressView().tint(Color(red: 93/255, green: 165/255, blue: 255/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            Text("Carregando a prova completa...")
+                .font(.system(size: 14, weight: .medium))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                .foregroundStyle(Color.white.opacity(0.64))
+        }
+    }
+
+    private var emptyView: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 28))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                .foregroundStyle(Color.orange)
+            Text(vm.state.error ?? "Não foi possível carregar as questões desta prova.")
+                .font(.system(size: 14))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                .foregroundStyle(Color.white.opacity(0.72))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("Voltar", action: onBack)
+                .font(.system(size: 14, weight: .semibold))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                .foregroundStyle(Color(red: 93/255, green: 165/255, blue: 255/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+        }
+    }
+
+    private var examContent: some View {
+        VStack(spacing: 0) {
+            examHeader
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Color.white.opacity(0.10))
+                    Rectangle()
+                        .fill(Color(red: 76/255, green: 157/255, blue: 255/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                        .frame(width: geometry.size.width * progress)
+                        .animation(.easeInOut(duration: 0.2), value: progress)
+                }
+            }
+            .frame(height: 3)
+
+            GeometryReader { viewport in
+                ScrollViewReader { proxy in
+                    ScrollView(showsIndicators: false) {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
+                                QBankSimuladoQuestionBlock(
+                                    question: question,
+                                    number: index + 1,
+                                    selectedAlternativeId: vm.state.simuladoSelections[question.id],
+                                    isMarked: vm.state.markedForReview.contains(question.id),
+                                    isSaving: vm.state.simuladoSavingQuestionIds.contains(question.id),
+                                    saveFailed: vm.state.simuladoSaveFailures.contains(question.id),
+                                    onSelect: { alternativeId in
+                                        vm.selectSimuladoAnswer(
+                                            questionId: question.id,
+                                            alternativeId: alternativeId
+                                        )
+                                    },
+                                    onToggleMark: {
+                                        if vm.state.markedForReview.contains(question.id) {
+                                            vm.state.markedForReview.remove(question.id)
+                                        } else {
+                                            vm.state.markedForReview.insert(question.id)
+                                        }
+                                    }
+                                )
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .id(question.id)
+                            }
+                        }
+                        .frame(
+                            width: max(0, viewport.size.width - 36),
+                            alignment: .topLeading
+                        )
+                        .padding(.horizontal, 18)
+                        .padding(.top, 24)
+                        .padding(.bottom, 30)
+                    }
+                    .frame(
+                        width: viewport.size.width,
+                        height: viewport.size.height,
+                        alignment: .topLeading
+                    )
+                    .onChange(of: scrollQuestionId) { _, questionId in
+                        guard let questionId else { return }
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            proxy.scrollTo(questionId, anchor: .top)
+                        }
+                        scrollQuestionId = nil
+                    }
+                }
+            }
+
+            if let error = vm.state.answerError {
+                Text(error)
+                    .font(.system(size: 11, weight: .medium))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .foregroundStyle(Color(red: 255/255, green: 150/255, blue: 140/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 7)
+                    .background(Color(red: 80/255, green: 20/255, blue: 20/255).opacity(0.35))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            }
+
+            bottomBar
+        }
+    }
+
+    private var examHeader: some View {
+        HStack(spacing: 14) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 20, weight: .medium))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .foregroundStyle(Color.white.opacity(0.86))
+                    .frame(width: 46, height: 46)
+                    .background(Circle().fill(Color.white.opacity(0.035)))
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Sair da prova")
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(vm.state.session?.title ?? "Simulado")
+                    .font(.system(size: 18, weight: .semibold))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .foregroundStyle(Color.white.opacity(0.96))
+                    .lineLimit(1)
+                Text("Prova oficial · \(totalQuestions) questões")
+                    .font(.system(size: 12))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .foregroundStyle(Color.white.opacity(0.48))
+            }
+
+            Spacer(minLength: 8)
+
+            HStack(spacing: 7) {
+                Image(systemName: "clock")
+                    .font(.system(size: 16, weight: .medium))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                Text(timerText)
+                    .font(.system(size: 16, weight: .medium).monospacedDigit())  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            }
+            .foregroundStyle(
+                remainingSeconds < 300
+                    ? Color(red: 255/255, green: 110/255, blue: 100/255)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    : Color(red: 245/255, green: 183/255, blue: 56/255)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            )
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 14)
+        .background(Color(red: 4/255, green: 12/255, blue: 21/255).opacity(0.98))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+    }
+
+    private var bottomBar: some View {
+        HStack(spacing: 12) {
+            Button(action: { showMap = true }) {
+                HStack(spacing: 7) {
+                    Image(systemName: "map")
+                        .font(.system(size: 18, weight: .medium))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    Text("Mapa")
+                        .font(.system(size: 14, weight: .semibold))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                }
+                .foregroundStyle(Color(red: 93/255, green: 165/255, blue: 255/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            HStack(spacing: 5) {
+                if !vm.state.simuladoSavingQuestionIds.isEmpty {
+                    ProgressView().controlSize(.small).tint(Color.white.opacity(0.55))
+                }
+                Text("\(answeredCount)/\(totalQuestions)")
+                    .font(.system(size: 14, weight: .semibold).monospacedDigit())  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .foregroundStyle(Color(red: 93/255, green: 165/255, blue: 255/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                Text("respondidas")
+                    .font(.system(size: 12))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .foregroundStyle(Color.white.opacity(0.45))
+            }
+
+            Button(action: { showFinishDialog = true }) {
+                Text("Finalizar")
+                    .font(.system(size: 15, weight: .semibold))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 24)
+                    .frame(height: 48)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 63/255, green: 138/255, blue: 235/255),  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                                Color(red: 86/255, green: 161/255, blue: 255/255),  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 13))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1)
+        }
+    }
+
+    private var mapSheet: some View {
+        VitaSheet(title: "Mapa da prova") {
+            ScrollView {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5),
+                    spacing: 10
+                ) {
+                    ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
+                        let answered = vm.state.simuladoSelections[question.id] != nil
+                        let marked = vm.state.markedForReview.contains(question.id)
+                        Button {
+                            scrollQuestionId = question.id
+                            showMap = false
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                Text("\(index + 1)")
+                                    .font(.system(size: 13, weight: .semibold))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                                    .foregroundStyle(answered ? Color.white : VitaColors.textSecondary)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 42)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                                            .fill(
+                                                answered
+                                                    ? Color(red: 63/255, green: 138/255, blue: 235/255)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                                                    : VitaColors.surfaceElevated
+                                            )
+                                    )
+                                if marked {
+                                    Image(systemName: "bookmark.fill")
+                                        .font(.system(size: 8))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                                        .foregroundStyle(Color(red: 245/255, green: 183/255, blue: 56/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                                        .padding(5)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(20)
+            }
+        }
+    }
+
+    private func startTimer() {
+        guard timerTask == nil else { return }
+        timerTask = Task {
+            while !Task.isCancelled && remainingSeconds > 0 {
+                try? await Task.sleep(for: .seconds(1))
+                vm.tickTimer()
+            }
+            if remainingSeconds == 0, !Task.isCancelled {
+                showFinishDialog = true
+            }
+        }
+    }
+}
+
+private struct QBankSimuladoQuestionBlock: View {
+    let question: QBankQuestionDetail
+    let number: Int
+    let selectedAlternativeId: Int?
+    let isMarked: Bool
+    let isSaving: Bool
+    let saveFailed: Bool
+    let onSelect: (Int) -> Void
+    let onToggleMark: () -> Void
+
+    private var metadata: String {
+        [question.topics.first?.title, question.year.map(String.init)]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("QUESTÃO \(number)")
+                        .font(.system(size: 15, weight: .bold))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                        .tracking(0.8)
+                        .foregroundStyle(Color(red: 93/255, green: 165/255, blue: 255/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    if !metadata.isEmpty {
+                        Text(metadata)
+                            .font(.system(size: 12))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                            .foregroundStyle(Color.white.opacity(0.45))
+                    }
+                }
+                Spacer()
+                HStack(spacing: 10) {
+                    if isSaving {
+                        ProgressView().controlSize(.small).tint(Color.white.opacity(0.5))
+                    } else if saveFailed {
+                        Image(systemName: "exclamationmark.icloud")
+                            .foregroundStyle(Color(red: 255/255, green: 130/255, blue: 115/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    }
+                    Button(action: onToggleMark) {
+                        Image(systemName: isMarked ? "bookmark.fill" : "bookmark")
+                            .font(.system(size: 19, weight: .medium))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                            .foregroundStyle(
+                                isMarked
+                                    ? Color(red: 245/255, green: 183/255, blue: 56/255)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                                    : Color.white.opacity(0.80)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text(question.statement.qbankPlainText)
+                .font(.system(size: 16))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                .foregroundStyle(Color.white.opacity(0.93))
+                .lineSpacing(6)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(question.images.filter { $0.alternativeId == nil }) { image in
+                QBankSimuladoImage(image: image)
+            }
+
+            VStack(spacing: 9) {
+                ForEach(Array(question.alternatives.enumerated()), id: \.element.id) { index, alternative in
+                    QBankSimuladoAlternativeRow(
+                        index: index,
+                        alternative: alternative,
+                        images: question.images.filter { $0.alternativeId == alternative.id },
+                        selected: selectedAlternativeId == alternative.id,
+                        action: { onSelect(alternative.id) }
+                    )
+                }
+            }
+
+            Rectangle()
+                .fill(Color.white.opacity(0.18))
+                .frame(height: 1)
+                .padding(.top, 16)
+                .padding(.bottom, 22)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct QBankSimuladoAlternativeRow: View {
+    let index: Int
+    let alternative: QBankAlternative
+    let images: [QBankImage]
+    let selected: Bool
+    let action: () -> Void
+
+    private var letter: String {
+        optionLetters.indices.contains(index) ? optionLetters[index] : String(index + 1)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 12) {
+                Text(letter)
+                    .font(.system(size: 15, weight: .medium))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .foregroundStyle(selected ? Color(red: 93/255, green: 165/255, blue: 255/255) : Color.white.opacity(0.72))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(selected ? Color(red: 32/255, green: 91/255, blue: 155/255).opacity(0.25) : Color.clear))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .overlay(
+                        Circle().stroke(
+                            selected
+                                ? Color(red: 93/255, green: 165/255, blue: 255/255)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                                : Color.white.opacity(0.38),
+                            lineWidth: 1.2
+                        )
+                    )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(alternative.text.qbankPlainText)
+                        .font(.system(size: 14))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                        .foregroundStyle(Color.white.opacity(selected ? 0.94 : 0.68))
+                        .lineSpacing(4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ForEach(images) { image in
+                        QBankSimuladoImage(image: image)
+                    }
+                }
+
+                if selected {
+                    Image(systemName: "circle.inset.filled")
+                        .font(.system(size: 22))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                        .foregroundStyle(Color(red: 93/255, green: 165/255, blue: 255/255))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .fill(selected ? Color(red: 22/255, green: 55/255, blue: 90/255).opacity(0.40) : Color.black.opacity(0.16))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                    .stroke(
+                        selected
+                            ? Color(red: 93/255, green: 165/255, blue: 255/255)  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                            : Color.white.opacity(0.10),
+                        lineWidth: 1
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct QBankSimuladoImage: View {
+    let image: QBankImage
+
+    var body: some View {
+        if let url = URL(string: image.imageUrl), !image.imageUrl.isEmpty {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let loaded):
+                    loaded
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 10))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                case .failure:
+                    Label("Imagem indisponível", systemImage: "photo")  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                        .font(.system(size: 12))  // ds-allow: paleta propria do Simulado (SF + cores proprias), intencional (Rafael 2026-07-24)
+                        .foregroundStyle(Color.white.opacity(0.45))
+                        .frame(maxWidth: .infinity, minHeight: 72)
+                default:
+                    ProgressView()
+                        .tint(Color.white.opacity(0.55))
+                        .frame(maxWidth: .infinity, minHeight: 72)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Quiz Option Row
 
 private struct QuizOptionRow: View {
@@ -653,4 +1154,3 @@ private struct QuizFeedbackCard: View {
         .shadow(color: accent.opacity(0.06), radius: 7)
     }
 }
-

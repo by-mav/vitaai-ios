@@ -256,17 +256,24 @@ final class FlashcardBuilderViewModel {
         // sem rede. Sem isto, o aluno em modo avião via só o skeleton — tinha o
         // baralho no device e não conseguia chegar nele (Rafael 2026-07-19).
         let downloaded = await DeckPackStore.shared.allManifests()
-        if !downloaded.isEmpty {
-            state.library = Self.offlineLibrary(downloaded)
-            state.libraryFailed = false
-        }
 
+        // 🚨 O SERVIDOR é o catálogo; o que está baixado é só ESTADO de cada item
+        // (Rafael 2026-07-20: "o único baralho que aparece é anatomia, cadê os
+        // outros?"). Antes o local entrava PRIMEIRO e, tendo 1 baralho no
+        // aparelho, a tela pintava uma biblioteca de 1 item — o aluno não tinha
+        // como descobrir que existem 42 disciplinas. O offline vira FALLBACK:
+        // só assume a vitrine quando a rede realmente falhou.
         do {
             state.library = try await api.getFlashcardLibrary()
             state.libraryFailed = false
         } catch {
-            // Sem rede: fica o que está no aparelho (se houver).
-            state.libraryFailed = downloaded.isEmpty
+            // Sem rede: aí sim vale o que está no aparelho (modo avião).
+            if !downloaded.isEmpty {
+                state.library = Self.offlineLibrary(downloaded)
+                state.libraryFailed = false
+            } else {
+                state.libraryFailed = true
+            }
             NSLog("[FlashcardBuilder] loadLibrary error: %@", String(describing: error))
         }
     }

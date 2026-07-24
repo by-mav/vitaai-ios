@@ -127,6 +127,9 @@ struct VitaAIApp: App {
                         onLogout: nil,
                         onComplete: {}
                     )
+                } else if ProcessInfo.processInfo.arguments.contains("--preview-jornada-caduceu") {
+                    // Bancada de design da Jornada (caduceu + disciplinas), mesmo padrao do --preview-onboarding.
+                    JornadaCaduceuScreen()
                 } else {
                     AppRouter(authManager: container.authManager)
                 }
@@ -140,6 +143,11 @@ struct VitaAIApp: App {
                 // SwiftData (iOS 17+) - notes/mindmaps local persistence
                 .modifier(ModelContainerModifier(container: container))
                 .preferredColorScheme(.dark)
+                #if DEBUG
+                // DevInspector: "aponta e fala" no simulador (botão 🎯 ou
+                // hotkey Ctrl+Shift+A → vitaai://devinspect). Só DEBUG.
+                .overlay { DevInspectorHost() }
+                #endif
             #endif
         }
         .onChange(of: scenePhase) { phase in
@@ -199,13 +207,40 @@ private extension VitaAIApp {
         }
 
         if let injected = AppConfig.injectedSession {
+            let storedEmail = keychain.read(key: "vita_user_email")
+                ?? defaults.string(forKey: "vita_user_email")
+            let incomingEmail = injected.email?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let isCrossAccountInjection = storedEmail.map { existing in
+                guard let incomingEmail, !incomingEmail.isEmpty else { return false }
+                return existing.caseInsensitiveCompare(incomingEmail) != .orderedSame
+            } ?? false
+            let explicitlyAllowsReplacement = ProcessInfo.processInfo.arguments
+                .contains("--vita-replace-session")
+
+            guard !isCrossAccountInjection || explicitlyAllowsReplacement else {
+                // A hot-reload/QA launch must never replace a real student's
+                // session just because an agent reused another account token.
+                // Cross-account QA remains possible, but is an explicit action.
+                NSLog("[Auth] Refused cross-account injected session without --vita-replace-session")
+                return
+            }
+
             keychain.save(key: "vita_session_token", value: injected.token)
             // Sessão injetada é um caminho explícito de QA/CI: sem este estado,
             // o app salva o token mas volta para o splash no próximo relaunch.
             AppConfig.setOnboardingComplete(true, in: defaults)
-            if let name = injected.name { defaults.set(name, forKey: "vita_user_name") }
-            if let email = injected.email { defaults.set(email, forKey: "vita_user_email") }
-            if let image = injected.image { defaults.set(image, forKey: "vita_user_image") }
+            if let name = injected.name { keychain.save(key: "vita_user_name", value: name) }
+            if let email = incomingEmail, !email.isEmpty {
+                keychain.save(key: "vita_user_email", value: email)
+            }
+            if let image = injected.image { keychain.save(key: "vita_user_image", value: image) }
+
+            // Identity and token are one session. Do not leave stale fallback
+            // metadata in UserDefaults that can disagree with the Keychain.
+            defaults.removeObject(forKey: "vita_user_name")
+            defaults.removeObject(forKey: "vita_user_email")
+            defaults.removeObject(forKey: "vita_user_image")
         }
     }
 }

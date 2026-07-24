@@ -394,6 +394,7 @@
 "connect_open_login" = "Open login";
 "connect_connecting" = "Connecting...";
 "connect_portal_generic" = "Academic portal";
+"faculdade_connect_portal_title" = "Connect your portal";
 "connect_portal_connected" = "%@ Connected!";
 "connect_login_instruction" = "Log in to your university portal.
 Vita captures the session automatically.";
