@@ -49,14 +49,20 @@ final class ActiveStudySessionsViewModel {
 
 
 
-// MARK: - VitaCortinaAtividade — a "notificacao" que desce do topo
+// MARK: - VitaCortinaAtividade — o widget flutuante do que está em andamento
 //
-// Aparece SO quando ha algo em andamento. Toque na cortina (ou arraste pra
-// cima) e ela encolhe ate virar um puxador fino grudado no topo; toque no
-// puxador (ou arraste pra baixo) e ela volta.
+// Regras (Rafael 2026-07-24). A versão anterior era uma cortina PRESA no topo:
+// cobria a topnav e não tinha como tirar da frente. Agora:
+//  • FLUTUA onde o aluno quiser — arrasta e a posição fica salva entre telas
+//    e entre sessões (começa no canto superior esquerdo);
+//  • empurrar pra fora pela lateral RECOLHE num selo pequeno grudado na borda
+//    (o botão « no cabeçalho faz o mesmo); tocar no selo abre de volta;
+//  • no máximo UM item POR TIPO (questões / flashcards / simulado) — o mais
+//    recente de cada, mesma regra do backend ("1 sessão aberta por tipo").
+//    Só aparece o que existe: quem tem só questões vê uma linha só.
 //
-// Vale no app inteiro, nao so na Home — foi por isso que o gavetao da Jornada
-// nunca resolveu: ficava preso numa aba so.
+// Vale no app inteiro, não só na Home — foi por isso que o gavetão da Jornada
+// nunca resolveu: ficava preso numa aba só.
 
 struct VitaCortinaAtividade: View {
     let sessoes: [ActiveStudySession]
@@ -64,9 +70,15 @@ struct VitaCortinaAtividade: View {
     var extras: [ItemAtivo] = []
     let onRetomar: (ActiveStudySession) -> Void
 
-    /// Persistido: se o aluno escondeu, fica escondido entre telas.
-    @AppStorage("cortinaAtividadeEscondida") private var escondida = false
-    @State private var arrasto: CGFloat = 0
+    /// Onde o aluno largou o widget (canto superior esquerdo por padrão).
+    @AppStorage("cortinaAtividadeX") private var posX: Double = 12
+    @AppStorage("cortinaAtividadeY") private var posY: Double = 6
+    /// Recolhido = só o selo na borda.
+    @AppStorage("cortinaAtividadeRecolhida") private var recolhida = false
+    @State private var arrasto: CGSize = .zero
+    /// Ligado enquanto o aluno ARRASTA: impede que soltar o dedo em cima de uma
+    /// linha dispare "Retomar" sem querer (o arrasto e o toque disputavam).
+    @State private var arrastando = false
 
     struct ItemAtivo: Identifiable {
         let id: String
@@ -76,21 +88,92 @@ struct VitaCortinaAtividade: View {
         let abrir: () -> Void
     }
 
-    private var total: Int { sessoes.count + extras.count }
+    private let largura: CGFloat = 244
+    private let margem: CGFloat = 8
+    /// Quanto precisa empurrar ALÉM da borda pra recolher (evita recolher sem querer).
+    private let empurraoParaRecolher: Double = 22
+
+    /// No máximo um por tipo, o mais recente de cada.
+    private var sessoesUnicas: [ActiveStudySession] {
+        var tipos = Set<ActiveStudySessionKind>()
+        return sessoes
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .filter { tipos.insert($0.kind).inserted }
+    }
+
+    private var total: Int { sessoesUnicas.count + extras.count }
+    private var larguraSelo: CGFloat { CGFloat(26 + 15 * min(total, 3)) }
 
     var body: some View {
         if total > 0 {
-            VStack(spacing: 0) {
-                if escondida { puxador } else { cortina }
+            GeometryReader { geo in
+                flutuante(em: geo.size)
             }
-            .animation(.easeOut(duration: 0.28), value: escondida)
+            .ignoresSafeArea(.keyboard)
         }
     }
 
-    // MARK: cortina aberta
+    /// O widget em si, já posicionado e arrastável dentro da área da tela.
+    @ViewBuilder
+    private func flutuante(em area: CGSize) -> some View {
+        let larg = recolhida ? larguraSelo : largura
+        let p = posicao(em: area, largura: larg)
+        Group {
+            if recolhida { selo } else { painel }
+        }
+        .frame(width: larg, alignment: .leading)
+        .offset(x: p.x, y: p.y)
+        // simultaneo + distancia minima: toque continua chegando nos botoes, e
+        // so vira arrasto depois de mover de verdade.
+        .simultaneousGesture(arrastar(em: area, largura: larg))
+        .animation(.spring(response: 0.34, dampingFraction: 0.82), value: recolhida)
+    }
 
-    private var cortina: some View {
-        VStack(alignment: .leading, spacing: VitaTokens.Spacing.md) {
+    /// Mantém o widget dentro da tela mesmo em rotação/tela menor.
+    private func posicao(em area: CGSize, largura larg: CGFloat) -> CGPoint {
+        let maxX = max(Double(margem), Double(area.width - larg - margem))
+        let maxY = max(Double(margem), Double(area.height) - 96)
+        return CGPoint(
+            x: min(max(Double(margem), posX + Double(arrasto.width)), maxX),
+            y: min(max(Double(margem), posY + Double(arrasto.height)), maxY)
+        )
+    }
+
+    private func arrastar(em area: CGSize, largura larg: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 6)
+            .onChanged { g in
+                arrasto = g.translation
+                arrastando = true
+            }
+            .onEnded { g in
+                let bruto = CGPoint(x: posX + Double(g.translation.width),
+                                    y: posY + Double(g.translation.height))
+                let maxX = max(Double(margem), Double(area.width - larg - margem))
+                arrasto = .zero
+
+                if !recolhida,
+                   bruto.x < Double(margem) - empurraoParaRecolher
+                    || bruto.x > maxX + empurraoParaRecolher {
+                    // empurrou pra fora pela lateral → vira selo naquela borda
+                    let naDireita = bruto.x > Double(area.width) / 2
+                    recolhida = true
+                    posX = naDireita
+                        ? max(Double(margem), Double(area.width - larguraSelo - margem))
+                        : Double(margem)
+                } else {
+                    posX = min(max(Double(margem), bruto.x), maxX)
+                }
+                posY = min(max(Double(margem), bruto.y), max(Double(margem), Double(area.height) - 96))
+                // solta a trava um instante depois: o Button so dispara ao
+                // soltar o dedo, e sem esta folga ele passaria assim mesmo.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) { arrastando = false }
+            }
+    }
+
+    // MARK: painel aberto
+
+    private var painel: some View {
+        VStack(alignment: .leading, spacing: VitaTokens.Spacing.sm) {
             HStack(spacing: VitaTokens.Spacing.sm) {
                 Circle()
                     .fill(VitaColors.accent)
@@ -100,82 +183,68 @@ struct VitaCortinaAtividade: View {
                     .fontWeight(.semibold)
                     .kerning(0.8)
                     .foregroundStyle(VitaColors.sectionLabel)
-                Spacer()
-                Text("\(total)")
-                    .font(VitaTypography.labelSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(VitaColors.accent)
+                Spacer(minLength: 0)
+                Button { if !arrastando { recolhida = true } } label: {
+                    Image(systemName: "chevron.compact.left")
+                        .font(VitaTypography.labelLarge)
+                        .foregroundStyle(VitaColors.accent.opacity(0.8))
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Recolher para o canto")
             }
 
             VStack(spacing: 0) {
-                ForEach(Array(sessoes.enumerated()), id: \.offset) { idx, s in
+                ForEach(Array(sessoesUnicas.enumerated()), id: \.offset) { idx, s in
                     linha(icone: icone(de: s), titulo: s.title,
                           detalhe: "\(s.current) de \(s.total)") { onRetomar(s) }
                     if idx < total - 1 { divisoria }
                 }
                 ForEach(Array(extras.enumerated()), id: \.offset) { idx, e in
                     linha(icone: e.icone, titulo: e.titulo, detalhe: e.detalhe, acao: e.abrir)
-                    if sessoes.count + idx < total - 1 { divisoria }
+                    if sessoesUnicas.count + idx < total - 1 { divisoria }
                 }
             }
 
-            // puxador de fechar: o jeito de "apertar pra esconder"
-            Button {
-                escondida = true
-            } label: {
-                Capsule()
-                    .fill(VitaColors.textWarm.opacity(0.22))
-                    .frame(width: 38, height: 4)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, VitaTokens.Spacing.xs)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Esconder atividades")
+            // pega de arrastar: diz "me leve pra onde quiser"
+            Capsule()
+                .fill(VitaColors.textWarm.opacity(0.22))
+                .frame(width: 34, height: 4)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 2)
         }
-        .padding(VitaTokens.Spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, VitaTokens.Spacing.md)
+        .padding(.vertical, VitaTokens.Spacing.md)
         .glassCard(cornerRadius: VitaTokens.Radius.lg)
-        .offset(y: min(arrasto, 0))
-        .gesture(
-            DragGesture()
-                .onChanged { g in if g.translation.height < 0 { arrasto = g.translation.height } }
-                .onEnded { g in
-                    if g.translation.height < -28 { escondida = true }
-                    arrasto = 0
-                }
-        )
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .transition(.scale(scale: 0.9, anchor: .topLeading).combined(with: .opacity))
     }
 
-    // MARK: puxador (estado escondido)
+    // MARK: selo (estado recolhido)
 
-    private var puxador: some View {
+    private var selo: some View {
         Button {
-            escondida = false
+            if !arrastando { recolhida = false }
         } label: {
-            HStack(spacing: VitaTokens.Spacing.xs) {
-                Circle().fill(VitaColors.accent).frame(width: 5, height: 5)
-                Text("\(total) em andamento")
-                    .font(VitaTypography.labelSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(VitaColors.accent)
-                Image(systemName: "chevron.down")
-                    .font(VitaTypography.labelSmall)
-                    .foregroundStyle(VitaColors.accent.opacity(0.7))
+            HStack(spacing: 3) {
+                ForEach(Array(sessoesUnicas.prefix(3).enumerated()), id: \.offset) { _, s in
+                    Image(systemName: icone(de: s))
+                        .font(VitaTypography.labelSmall)
+                        .foregroundStyle(VitaColors.accent)
+                }
+                if sessoesUnicas.isEmpty {
+                    Circle().fill(VitaColors.accent).frame(width: 5, height: 5)
+                }
             }
-            .padding(.horizontal, VitaTokens.Spacing.md)
+            .padding(.horizontal, VitaTokens.Spacing.sm)
             .padding(.vertical, VitaTokens.Spacing.xs)
             .background(Capsule().fill(VitaColors.glassBg))
             .overlay(Capsule().stroke(VitaColors.glassBorder, lineWidth: 0.5))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Mostrar o que está em andamento")
-        .gesture(
-            DragGesture().onEnded { g in if g.translation.height > 20 { escondida = false } }
-        )
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .accessibilityLabel("\(total) em andamento. Toque para abrir.")
+        .transition(.scale.combined(with: .opacity))
     }
 
     // MARK: pecinhas
@@ -189,7 +258,7 @@ struct VitaCortinaAtividade: View {
 
     private func linha(icone: String, titulo: String, detalhe: String,
                        acao: @escaping () -> Void) -> some View {
-        Button(action: acao) {
+        Button { if !arrastando { acao() } } label: {
             HStack(spacing: VitaTokens.Spacing.md) {
                 Image(systemName: icone)
                     .font(VitaTypography.labelLarge)

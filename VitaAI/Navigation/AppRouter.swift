@@ -378,17 +378,18 @@ struct MainTabView: View {
                         .presentationDetents([.medium, .large])
                         .presentationDragIndicator(.visible)
                     }
-                    // Cortina de atividade: desce do topo em QUALQUER aba, so
-                    // quando ha algo rodando. O gavetao antigo ficava preso na
-                    // Home — por isso nunca aparecia (Rafael 2026-07-23).
-                    .overlay(alignment: .top) {
+                    // Widget de atividade: flutua em QUALQUER aba, so quando ha
+                    // algo rodando. O gavetao antigo ficava preso na Home — por
+                    // isso nunca aparecia (Rafael 2026-07-23). Ele se posiciona
+                    // sozinho (arrastavel, posicao salva), entao aqui vai sem
+                    // alinhamento nem padding: cobria a topnav quando era preso
+                    // no topo (Rafael 2026-07-24).
+                    .overlay(alignment: .topLeading) {
                         if let activeSessionsVM, !activeSessionsVM.sessions.isEmpty {
                             VitaCortinaAtividade(
                                 sessoes: activeSessionsVM.sessions,
                                 onRetomar: resumeStudySession
                             )
-                            .padding(.horizontal, VitaTokens.Spacing.lg)
-                            .padding(.top, VitaTokens.Spacing.sm)
                             .zIndex(30)
                         }
                     }
